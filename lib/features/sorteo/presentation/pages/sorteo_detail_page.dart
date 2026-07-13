@@ -683,6 +683,27 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                   style:
                       TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
                 ),
+                // Datos de envío que dejó en el bot (si gana, la entrega
+                // ya está lista).
+                if (p.envioTexto != null)
+                  Row(
+                    children: [
+                      Icon(Icons.local_shipping_outlined,
+                          size: 10, color: AppColors.blue1),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          p.envioTexto!,
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              color: AppColors.blue1,
+                              fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),

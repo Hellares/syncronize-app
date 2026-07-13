@@ -57,6 +57,10 @@ class SorteoModel {
                 estado:
                     EstadoParticipanteSorteo.fromApi(e['estado'] as String?),
                 numeroTicket: (e['numeroTicket'] as num?)?.toInt(),
+                agenciaNombre: e['agenciaNombre'] as String?,
+                destinoDepartamento: e['destinoDepartamento'] as String?,
+                destinoProvincia: e['destinoProvincia'] as String?,
+                agenciaDireccion: e['agenciaDireccion'] as String?,
                 creadoEn: _fecha(e['creadoEn']) ?? DateTime.now(),
               ))
           .toList(),

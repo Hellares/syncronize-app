@@ -160,6 +160,13 @@ class SorteoParticipante {
   final String dni;
   final EstadoParticipanteSorteo estado;
   final int? numeroTicket;
+
+  /// Datos de envío que dejó en el bot al registrarse (opcionales) —
+  /// si gana, la entrega ya está lista.
+  final String? agenciaNombre;
+  final String? destinoDepartamento;
+  final String? destinoProvincia;
+  final String? agenciaDireccion;
   final DateTime creadoEn;
 
   const SorteoParticipante({
@@ -169,8 +176,27 @@ class SorteoParticipante {
     required this.dni,
     required this.estado,
     this.numeroTicket,
+    this.agenciaNombre,
+    this.destinoDepartamento,
+    this.destinoProvincia,
+    this.agenciaDireccion,
     required this.creadoEn,
   });
+
+  /// "SHALOM → TARAPOTO, SAN MARTÍN · JR. LOS PINOS 123" (o null).
+  String? get envioTexto {
+    if (agenciaNombre == null || agenciaNombre!.isEmpty) return null;
+    final destino = [destinoProvincia, destinoDepartamento]
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .join(', ');
+    return [
+      agenciaNombre,
+      if (destino.isNotEmpty) '→ $destino',
+      if (agenciaDireccion != null && agenciaDireccion!.isNotEmpty)
+        '· $agenciaDireccion',
+    ].join(' ');
+  }
 }
 
 class TicketEnvio {
