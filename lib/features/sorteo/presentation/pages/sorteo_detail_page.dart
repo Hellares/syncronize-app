@@ -1167,6 +1167,19 @@ class _PremioCard extends StatelessWidget {
               ].join(' · '),
               style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
             ),
+            // Fecha/hora del registro del premio — distingue las cards
+            // cuando el mismo DNI jugó/ganó varias veces.
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 9, color: Colors.grey.shade500),
+                const SizedBox(width: 3),
+                Text(
+                  _fechaHoraRegistro(premio.creadoEn),
+                  style:
+                      TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -1384,6 +1397,13 @@ class _PremioCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// "12/07 22:53" en hora local del device.
+  String _fechaHoraRegistro(DateTime d) {
+    final l = d.toLocal();
+    String p2(int v) => v.toString().padLeft(2, '0');
+    return '${p2(l.day)}/${p2(l.month)} ${p2(l.hour)}:${p2(l.minute)}';
   }
 
   /// Chip compacto de estado extra en la esquina de la card (IMPRESO,
