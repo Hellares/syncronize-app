@@ -96,12 +96,30 @@ class ResumenSorteo {
   });
 }
 
+/// SORTEO clásico (se sortea entre participantes) o DINÁMICA (el
+/// participante paga, juega — canasta, etc. — y lo que saca YA lo ganó:
+/// cada jugador termina registrado como ganador con su premio).
+enum TipoSorteo {
+  sorteo('SORTEO', 'Sorteo'),
+  dinamica('DINAMICA', 'Dinámica');
+
+  final String apiValue;
+  final String label;
+  const TipoSorteo(this.apiValue, this.label);
+
+  static TipoSorteo fromApi(String? v) => TipoSorteo.values.firstWhere(
+        (e) => e.apiValue == v,
+        orElse: () => TipoSorteo.sorteo,
+      );
+}
+
 class Sorteo {
   final String id;
   final String? sedeId;
   final String titulo;
   final String? descripcion;
   final CanalSorteo canal;
+  final TipoSorteo tipo;
   final DateTime fechaSorteo;
   final EstadoSorteo estado;
 
@@ -123,6 +141,7 @@ class Sorteo {
     required this.titulo,
     this.descripcion,
     required this.canal,
+    this.tipo = TipoSorteo.sorteo,
     required this.fechaSorteo,
     required this.estado,
     this.precioParticipacion,

@@ -120,6 +120,7 @@ class _SorteosView extends StatelessWidget {
     final descCtrl = TextEditingController();
     final precioCtrl = TextEditingController();
     var canal = CanalSorteo.facebook;
+    var tipo = TipoSorteo.sorteo;
 
     final crear = await showDialog<bool>(
       context: context,
@@ -127,8 +128,35 @@ class _SorteosView extends StatelessWidget {
         builder: (ctx, setLocal) => StyledDialog(
           accentColor: AppColors.blue1,
           icon: Icons.card_giftcard,
-          titulo: 'Nuevo sorteo',
+          titulo: 'Nuevo sorteo / dinámica',
           content: [
+            // SORTEO: se sortea entre participantes. DINÁMICA: el que
+            // juega YA ganó lo que saca (canasta, etc.).
+            Row(
+              children: [
+                for (final t in TipoSorteo.values) ...[
+                  Expanded(
+                    child: ChoiceChip(
+                      label: Text(t.label,
+                          style: const TextStyle(fontSize: 10.5)),
+                      selected: tipo == t,
+                      selectedColor: AppColors.blue1.withValues(alpha: 0.15),
+                      onSelected: (_) => setLocal(() => tipo = t),
+                    ),
+                  ),
+                  if (t != TipoSorteo.values.last) const SizedBox(width: 8),
+                ],
+              ],
+            ),
+            if (tipo == TipoSorteo.dinamica) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Dinámica: el participante paga, juega y lo que saca YA lo '
+                'ganó — cada jugador se registra como ganador con su premio.',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
+            ],
+            const SizedBox(height: 8),
             CustomText(
               controller: tituloCtrl,
               label: 'Título',
@@ -210,6 +238,7 @@ class _SorteosView extends StatelessWidget {
       titulo: tituloCtrl.text.trim(),
       descripcion: descCtrl.text.trim(),
       canal: canal,
+      tipo: tipo,
       sedeId: sede?.id,
       precioParticipacion:
           double.tryParse(precioCtrl.text.trim().replaceAll(',', '.')),
@@ -264,6 +293,7 @@ class _SorteoCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),
                     Text(
+                      '${sorteo.tipo == TipoSorteo.dinamica ? 'DINÁMICA · ' : ''}'
                       '${sorteo.canal.label} · $fecha · '
                       '${sorteo.cantidadPremios} premio${sorteo.cantidadPremios == 1 ? '' : 's'}',
                       style: TextStyle(

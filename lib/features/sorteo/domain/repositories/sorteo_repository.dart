@@ -10,6 +10,7 @@ abstract class SorteoRepository {
     required String titulo,
     String? descripcion,
     CanalSorteo? canal,
+    TipoSorteo? tipo,
     DateTime? fechaSorteo,
     String? sedeId,
     double? precioParticipacion,

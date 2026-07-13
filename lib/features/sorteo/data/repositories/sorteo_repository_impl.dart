@@ -45,6 +45,7 @@ class SorteoRepositoryImpl implements SorteoRepository {
     required String titulo,
     String? descripcion,
     CanalSorteo? canal,
+    TipoSorteo? tipo,
     DateTime? fechaSorteo,
     String? sedeId,
     double? precioParticipacion,
@@ -55,6 +56,7 @@ class SorteoRepositoryImpl implements SorteoRepository {
           if (descripcion != null && descripcion.isNotEmpty)
             'descripcion': descripcion,
           if (canal != null) 'canal': canal.apiValue,
+          if (tipo != null) 'tipo': tipo.apiValue,
           if (fechaSorteo != null)
             'fechaSorteo': fechaSorteo.toIso8601String(),
           if (sedeId != null) 'sedeId': sedeId,

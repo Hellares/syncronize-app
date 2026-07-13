@@ -118,7 +118,7 @@ class _SorteoDetailView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${sorteo.canal.label} · $fecha · ${sorteo.estado.label}'
+                  '${sorteo.tipo == TipoSorteo.dinamica ? 'DINÁMICA · ' : ''}${sorteo.canal.label} · $fecha · ${sorteo.estado.label}'
                   '${sorteo.precioParticipacion != null ? ' · Jugada S/ ${sorteo.precioParticipacion!.toStringAsFixed(2)}' : ''}',
                   style: TextStyle(
                       fontSize: 11,
@@ -168,7 +168,7 @@ class _SorteoDetailView extends StatelessWidget {
           // ── Participantes captados por el bot de WhatsApp ──
           if (sorteo.participantes.isNotEmpty) ...[
             const SizedBox(height: 10),
-            _ParticipantesSection(participantes: sorteo.participantes),
+            _ParticipantesSection(sorteo: sorteo),
           ],
           const SizedBox(height: 10),
           if (sorteo.premios.isEmpty)
@@ -570,8 +570,10 @@ Future<ImageSource?> _elegirFuenteImagen(BuildContext context) {
 /// pago por fuera y ACTIVA aquí (asigna ticket y el bot confirma por
 /// WhatsApp al participante). Colapsable para no tapar los ganadores.
 class _ParticipantesSection extends StatefulWidget {
-  final List<SorteoParticipante> participantes;
-  const _ParticipantesSection({required this.participantes});
+  final Sorteo sorteo;
+  const _ParticipantesSection({required this.sorteo});
+
+  List<SorteoParticipante> get participantes => sorteo.participantes;
 
   @override
   State<_ParticipantesSection> createState() => _ParticipantesSectionState();
@@ -582,6 +584,7 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
 
   @override
   Widget build(BuildContext context) {
+    final esDinamica = widget.sorteo.tipo == TipoSorteo.dinamica;
     final activos = widget.participantes
         .where((p) => p.estado == EstadoParticipanteSorteo.activo)
         .length;
@@ -602,9 +605,9 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                   Icon(Icons.confirmation_number_outlined,
                       size: 16, color: AppColors.blue1),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Participantes',
-                    style: TextStyle(
+                  Text(
+                    esDinamica ? 'Jugadores de la dinámica' : 'Participantes',
+                    style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.blue1),
@@ -724,7 +727,17 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
               onPressed: () => _cambiarEstado(
                   context, p, EstadoParticipanteSorteo.rechazado),
             ),
-          ] else
+          ] else ...[
+            // Dinámica: el que jugó YA ganó — registrar su premio con
+            // todos los datos que dejó en el bot (nombre, DNI, agencia).
+            if (esActivo)
+              IconButton(
+                tooltip: 'Ganó — registrar su premio',
+                visualDensity: VisualDensity.compact,
+                icon: Icon(Icons.emoji_events,
+                    size: 19, color: Colors.amber.shade800),
+                onPressed: () => _registrarPremio(context, p),
+              ),
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -744,8 +757,65 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                 ),
               ),
             ),
+          ],
         ],
       ),
+    );
+  }
+
+  /// El participante jugó y ganó (dinámica) o salió sorteado: registrar
+  /// su premio con lo que dejó en el bot — nombre, DNI, celular y datos
+  /// de agencia prellenados. Si su DNI no tiene cuenta, el backend la
+  /// crea solo (RENIEC + celular del bot).
+  Future<void> _registrarPremio(
+      BuildContext context, SorteoParticipante p) async {
+    final cubit = context.read<SorteoDetailCubit>();
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    if (ctxState is! EmpresaContextLoaded) return;
+    final sorteo = widget.sorteo;
+
+    final datos = await showRegistrarPremioSheet(
+      context: context,
+      empresaId: ctxState.context.empresa.id,
+      sedeId: sorteo.sedeId,
+      ganadorNombre: p.nombre,
+      precioParticipacionDefault: sorteo.precioParticipacion,
+      descripcionDefault: sorteo.tipo == TipoSorteo.dinamica
+          ? null // en la dinámica el premio es LO QUE SACÓ — se escribe
+          : sorteo.descripcion,
+      entregaPrevia: (p.agenciaNombre != null && p.agenciaNombre!.isNotEmpty)
+          ? EntregaPreviaGanador(
+              agenciaNombre: p.agenciaNombre,
+              destinoDepartamento: p.destinoDepartamento,
+              destinoProvincia: p.destinoProvincia,
+              agenciaDireccion: p.agenciaDireccion,
+            )
+          : null,
+    );
+    if (datos == null || !context.mounted) return;
+
+    final error = await cubit.registrarPremio(
+      ganadorDni: p.dni,
+      ganadorNombre: p.nombre,
+      ganadorCelular:
+          p.celular.length > 9 ? p.celular.substring(p.celular.length - 9) : p.celular,
+      descripcion: datos.descripcion,
+      productoId: datos.productoId,
+      varianteId: datos.varianteId,
+      cantidad: datos.cantidad,
+      montoParticipacion: datos.montoParticipacion,
+      modalidad: datos.modalidad,
+      agenciaNombre: datos.agenciaNombre,
+      destinoDepartamento: datos.destinoDepartamento,
+      destinoProvincia: datos.destinoProvincia,
+      agenciaDireccion: datos.agenciaDireccion,
+      observaciones: datos.observaciones,
+    );
+    if (!context.mounted) return;
+    _snack(
+      context,
+      error ?? '🏆 Premio registrado para ${p.nombre.split(' ').first} 🎉',
+      error: error != null,
     );
   }
 
