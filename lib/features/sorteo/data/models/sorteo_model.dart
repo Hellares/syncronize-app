@@ -58,6 +58,8 @@ class SorteoModel {
                 estado:
                     EstadoParticipanteSorteo.fromApi(e['estado'] as String?),
                 numeroTicket: (e['numeroTicket'] as num?)?.toInt(),
+                recibeNombre: e['recibeNombre'] as String?,
+                recibeDni: e['recibeDni'] as String?,
                 agenciaNombre: e['agenciaNombre'] as String?,
                 destinoDepartamento: e['destinoDepartamento'] as String?,
                 destinoProvincia: e['destinoProvincia'] as String?,
@@ -88,6 +90,8 @@ class SorteoPremioModel {
       id: json['id'] as String,
       sorteoId: json['sorteoId'] as String? ?? '',
       participanteId: json['participanteId'] as String?,
+      recibeNombre: json['recibeNombre'] as String?,
+      recibeDni: json['recibeDni'] as String?,
       ganadorId: json['ganadorId'] as String? ?? '',
       ganadorDni: json['ganadorDni'] as String?,
       ganadorNombre: json['ganadorNombre'] as String? ?? '',

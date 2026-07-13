@@ -343,8 +343,10 @@ class _SorteoDetailView extends StatelessWidget {
     final bytes = await RotuloEnvioPdfGenerator.generate(
       rotulos: seleccion
           .map((p) => DatosRotulo(
-                nombre: p.ganadorNombre,
-                dni: p.ganadorDni,
+                // REGALO: el destinatario del rótulo es quien RECIBE
+                // (la agencia valida nombre y DNI al entregar).
+                nombre: p.esRegalo ? p.recibeNombre! : p.ganadorNombre,
+                dni: p.esRegalo ? p.recibeDni : p.ganadorDni,
                 celular: p.ganadorCelular,
                 agenciaNombre: p.agenciaNombre,
                 destinoDepartamento: p.destinoDepartamento,
@@ -766,6 +768,27 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                     ),
                   ],
                 ),
+                // REGALO: el premio lo recibirá otra persona.
+                if (p.recibeNombre != null && p.recibeNombre!.isNotEmpty)
+                  Row(
+                    children: [
+                      Icon(Icons.card_giftcard,
+                          size: 10, color: Colors.purple.shade700),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          'Recibe: ${p.recibeNombre}'
+                          '${p.recibeDni != null ? ' · DNI ${p.recibeDni}' : ''}',
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.purple.shade700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 // Datos de envío que dejó en el bot (si gana, la entrega
                 // ya está lista).
                 if (p.envioTexto != null)
@@ -1180,6 +1203,28 @@ class _PremioCard extends StatelessWidget {
                 ),
               ],
             ),
+            // REGALO: lo recibe otra persona — el rótulo y la agencia
+            // usan estos datos como destinatario.
+            if (premio.esRegalo)
+              Row(
+                children: [
+                  Icon(Icons.card_giftcard,
+                      size: 11, color: Colors.purple.shade700),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      'Recibe: ${premio.recibeNombre}'
+                      '${premio.recibeDni != null ? ' · DNI ${premio.recibeDni}' : ''}',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.purple.shade700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 6),
             Row(
               children: [

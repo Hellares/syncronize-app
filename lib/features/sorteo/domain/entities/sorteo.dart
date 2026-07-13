@@ -180,6 +180,10 @@ class SorteoParticipante {
   final EstadoParticipanteSorteo estado;
   final int? numeroTicket;
 
+  /// REGALO: quien recibe el premio si NO es el propio jugador.
+  final String? recibeNombre;
+  final String? recibeDni;
+
   /// Datos de envío que dejó en el bot al registrarse (opcionales) —
   /// si gana, la entrega ya está lista.
   final String? agenciaNombre;
@@ -195,6 +199,8 @@ class SorteoParticipante {
     required this.dni,
     required this.estado,
     this.numeroTicket,
+    this.recibeNombre,
+    this.recibeDni,
     this.agenciaNombre,
     this.destinoDepartamento,
     this.destinoProvincia,
@@ -233,6 +239,11 @@ class SorteoPremio {
   /// Participación (SorteoParticipante) que originó este premio — un
   /// DNI puede jugar varias veces y cada jugada tiene su premio.
   final String? participanteId;
+
+  /// REGALO: quien recibe (null = el propio ganador). El rotulo usa
+  /// estos datos como destinatario.
+  final String? recibeNombre;
+  final String? recibeDni;
   final String ganadorId;
   final String? ganadorDni;
   final String ganadorNombre;
@@ -280,6 +291,8 @@ class SorteoPremio {
     required this.id,
     required this.sorteoId,
     this.participanteId,
+    this.recibeNombre,
+    this.recibeDni,
     required this.ganadorId,
     this.ganadorDni,
     required this.ganadorNombre,
@@ -310,6 +323,9 @@ class SorteoPremio {
   });
 
   bool get rotuloImpreso => rotuloImpresoEn != null;
+
+  /// El premio lo recibe OTRA persona (regalo del jugador).
+  bool get esRegalo => recibeNombre != null && recibeNombre!.isNotEmpty;
 
   /// El ticket ya le llegó al ganador por WhatsApp automático.
   bool get whatsappEnviado => whatsappEnviadoEn != null;
