@@ -151,6 +151,89 @@ class _SorteoDetailView extends StatelessWidget {
   }
 
   Widget _cuerpo(BuildContext context, Sorteo sorteo) {
+    // RIFA (tipo SORTEO): dos tabs — la operación (catálogo + tickets de
+    // participantes) y los GANADORES aparte. En dinámicas el premio ES
+    // el flujo principal, así que siguen en una sola vista.
+    if (sorteo.tipo == TipoSorteo.sorteo) {
+      final ganadores = sorteo.premios
+          .where((p) => p.estado != EstadoPremioSorteo.anulado)
+          .length;
+      return DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            Container(
+              color: AppColors.blue1,
+              child: TabBar(
+                indicatorColor: Colors.white,
+                indicatorWeight: 2.5,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                labelStyle: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700),
+                tabs: [
+                  const Tab(height: 38, text: '🎟️ Participantes'),
+                  Tab(
+                      height: 38,
+                      text:
+                          '🏆 Ganadores${ganadores > 0 ? ' ($ganadores)' : ''}'),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _tabPrincipal(context, sorteo, conPremios: false),
+                  _tabGanadores(context, sorteo),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return _tabPrincipal(context, sorteo, conPremios: true);
+  }
+
+  /// Pestaña GANADORES de la rifa: solo las cards de premios.
+  Widget _tabGanadores(BuildContext context, Sorteo sorteo) {
+    return RefreshIndicator(
+      onRefresh: () => context.read<SorteoDetailCubit>().reload(),
+      child: sorteo.premios.isEmpty
+          ? ListView(
+              padding: const EdgeInsets.only(top: 70),
+              children: [
+                Icon(Icons.emoji_events,
+                    size: 52, color: Colors.grey.shade300),
+                const SizedBox(height: 10),
+                Center(
+                  child: Text(
+                    'Aún no hay ganadores — cierra las ventas\ny usa 🎲 JUGAR con los tickets del ánfora',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 12.5, color: Colors.grey.shade500),
+                  ),
+                ),
+              ],
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 90),
+              children: [
+                for (final premio in sorteo.premios) ...[
+                  _PremioCard(
+                    premio: premio,
+                    onImprimirRotulo: () =>
+                        _imprimirRotulo(context, sorteo, premio),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _tabPrincipal(BuildContext context, Sorteo sorteo,
+      {required bool conPremios}) {
     final f = sorteo.fechaSorteo;
     final fecha =
         '${f.day.toString().padLeft(2, '0')}/${f.month.toString().padLeft(2, '0')}/${f.year}';
@@ -233,29 +316,31 @@ class _SorteoDetailView extends StatelessWidget {
             _ParticipantesSection(sorteo: sorteo),
           ],
           const SizedBox(height: 10),
-          if (sorteo.premios.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 60),
-              child: Column(
-                children: [
-                  Icon(Icons.emoji_events,
-                      size: 52, color: Colors.grey.shade300),
-                  const SizedBox(height: 10),
-                  Text('Registra al primer ganador del sorteo',
-                      style: TextStyle(
-                          fontSize: 12.5, color: Colors.grey.shade500)),
-                ],
-              ),
-            )
-          else
-            for (final premio in sorteo.premios) ...[
-              _PremioCard(
-                premio: premio,
-                onImprimirRotulo: () =>
-                    _imprimirRotulo(context, sorteo, premio),
-              ),
-              const SizedBox(height: 8),
-            ],
+          // Premios inline SOLO en dinámicas (en la rifa van en su tab).
+          if (conPremios)
+            if (sorteo.premios.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 60),
+                child: Column(
+                  children: [
+                    Icon(Icons.emoji_events,
+                        size: 52, color: Colors.grey.shade300),
+                    const SizedBox(height: 10),
+                    Text('Registra al primer ganador del sorteo',
+                        style: TextStyle(
+                            fontSize: 12.5, color: Colors.grey.shade500)),
+                  ],
+                ),
+              )
+            else
+              for (final premio in sorteo.premios) ...[
+                _PremioCard(
+                  premio: premio,
+                  onImprimirRotulo: () =>
+                      _imprimirRotulo(context, sorteo, premio),
+                ),
+                const SizedBox(height: 8),
+              ],
         ],
       ),
     );
