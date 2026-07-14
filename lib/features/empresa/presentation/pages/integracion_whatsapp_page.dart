@@ -35,6 +35,8 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
   final _plantillaCtrl = TextEditingController();
   final _plantillaPagoDinamicaCtrl = TextEditingController();
   final _plantillaPagoSorteoCtrl = TextEditingController();
+  final _plantillaConfDinamicaCtrl = TextEditingController();
+  final _plantillaConfSorteoCtrl = TextEditingController();
   final _agenciaCtrl = TextEditingController();
 
   bool _loading = true;
@@ -47,6 +49,8 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
   String _plantillaDefault = '';
   String _plantillaPagoDinamicaDefault = '';
   String _plantillaPagoSorteoDefault = '';
+  String _plantillaConfDinamicaDefault = '';
+  String _plantillaConfSorteoDefault = '';
 
   /// QR vigente (bytes decodificados del data-uri) mientras se vincula.
   Uint8List? _qrBytes;
@@ -69,6 +73,8 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
     _plantillaCtrl.dispose();
     _plantillaPagoDinamicaCtrl.dispose();
     _plantillaPagoSorteoCtrl.dispose();
+    _plantillaConfDinamicaCtrl.dispose();
+    _plantillaConfSorteoCtrl.dispose();
     _agenciaCtrl.dispose();
     super.dispose();
   }
@@ -100,6 +106,16 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
         _plantillaPagoSorteoCtrl.text =
             (cfg['plantillaPagoSorteo'] as String?) ??
                 _plantillaPagoSorteoDefault;
+        _plantillaConfDinamicaDefault =
+            (cfg['plantillaConfirmacionDinamicaDefault'] as String?) ?? '';
+        _plantillaConfDinamicaCtrl.text =
+            (cfg['plantillaConfirmacionDinamica'] as String?) ??
+                _plantillaConfDinamicaDefault;
+        _plantillaConfSorteoDefault =
+            (cfg['plantillaConfirmacionSorteoDefault'] as String?) ?? '';
+        _plantillaConfSorteoCtrl.text =
+            (cfg['plantillaConfirmacionSorteo'] as String?) ??
+                _plantillaConfSorteoDefault;
         _agenciaCtrl.text = (cfg['agenciaEnvio'] as String?) ?? 'SHALOM';
         _loading = false;
       });
@@ -214,6 +230,10 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
           restaurarDefault ? '' : _plantillaPagoDinamicaCtrl.text.trimRight();
       final textoPagoSor =
           restaurarDefault ? '' : _plantillaPagoSorteoCtrl.text.trimRight();
+      final textoConfDin =
+          restaurarDefault ? '' : _plantillaConfDinamicaCtrl.text.trimRight();
+      final textoConfSor =
+          restaurarDefault ? '' : _plantillaConfSorteoCtrl.text.trimRight();
       // Si el texto es idéntico a la default, guardamos '' (= default):
       // así futuras mejoras de la plantilla del sistema le llegan solas.
       final esDefault = texto.trim() == _plantillaDefault.trim();
@@ -221,6 +241,10 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
           textoPagoDin.trim() == _plantillaPagoDinamicaDefault.trim();
       final esDefaultPagoSor =
           textoPagoSor.trim() == _plantillaPagoSorteoDefault.trim();
+      final esDefaultConfDin =
+          textoConfDin.trim() == _plantillaConfDinamicaDefault.trim();
+      final esDefaultConfSor =
+          textoConfSor.trim() == _plantillaConfSorteoDefault.trim();
       final cfg = await _empresaDs.updateWhatsapp(
         empresaId: id,
         data: {
@@ -229,6 +253,10 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
               esDefaultPagoDin || restaurarDefault ? '' : textoPagoDin,
           'plantillaPagoSorteo':
               esDefaultPagoSor || restaurarDefault ? '' : textoPagoSor,
+          'plantillaConfirmacionDinamica':
+              esDefaultConfDin || restaurarDefault ? '' : textoConfDin,
+          'plantillaConfirmacionSorteo':
+              esDefaultConfSor || restaurarDefault ? '' : textoConfSor,
           'agenciaEnvio': _agenciaCtrl.text.trim(),
           'habilitado': _habilitado,
         },
@@ -244,6 +272,12 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
         _plantillaPagoSorteoCtrl.text =
             (cfg['plantillaPagoSorteo'] as String?) ??
                 _plantillaPagoSorteoDefault;
+        _plantillaConfDinamicaCtrl.text =
+            (cfg['plantillaConfirmacionDinamica'] as String?) ??
+                _plantillaConfDinamicaDefault;
+        _plantillaConfSorteoCtrl.text =
+            (cfg['plantillaConfirmacionSorteo'] as String?) ??
+                _plantillaConfSorteoDefault;
         _agenciaCtrl.text = (cfg['agenciaEnvio'] as String?) ?? 'SHALOM';
       });
       _snack('Configuración guardada', ok: true);
@@ -500,6 +534,35 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
               maxLines: null,
               minLines: 4,
             ),
+            const SizedBox(height: 14),
+            AppTitle('Confirmación de pago (bot)',
+                fontSize: 13, color: AppColors.blue1),
+            const SizedBox(height: 4),
+            const AppSubtitle(
+              'Cabecera del mensaje cuando VALIDAS el pago (después el bot '
+              'pide/confirma los datos de envío). Variables: {nombre} '
+              '{titulo} {ticket} {empresa}.',
+              fontSize: 10,
+              color: AppColors.blueGrey,
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _plantillaConfDinamicaCtrl,
+              label: 'Confirmación — dinámicas (editable)',
+              borderColor: AppColors.blue1,
+              keyboardType: TextInputType.multiline,
+              maxLines: null,
+              minLines: 3,
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _plantillaConfSorteoCtrl,
+              label: 'Confirmación — sorteos (editable)',
+              borderColor: AppColors.blue1,
+              keyboardType: TextInputType.multiline,
+              maxLines: null,
+              minLines: 3,
+            ),
             const SizedBox(height: 6),
             CustomSwitchTile(
               title: 'Envíos automáticos habilitados',
@@ -526,6 +589,10 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
                                 _plantillaPagoDinamicaDefault;
                             _plantillaPagoSorteoCtrl.text =
                                 _plantillaPagoSorteoDefault;
+                            _plantillaConfDinamicaCtrl.text =
+                                _plantillaConfDinamicaDefault;
+                            _plantillaConfSorteoCtrl.text =
+                                _plantillaConfSorteoDefault;
                             _guardar(restaurarDefault: true);
                           },
                   ),
