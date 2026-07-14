@@ -38,6 +38,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
   final _plantillaConfDinamicaCtrl = TextEditingController();
   final _plantillaConfSorteoCtrl = TextEditingController();
   final _agenciaCtrl = TextEditingController();
+  final _numeroPagoCtrl = TextEditingController();
 
   bool _loading = true;
   bool _guardando = false;
@@ -76,6 +77,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
     _plantillaConfDinamicaCtrl.dispose();
     _plantillaConfSorteoCtrl.dispose();
     _agenciaCtrl.dispose();
+    _numeroPagoCtrl.dispose();
     super.dispose();
   }
 
@@ -117,6 +119,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
             (cfg['plantillaConfirmacionSorteo'] as String?) ??
                 _plantillaConfSorteoDefault;
         _agenciaCtrl.text = (cfg['agenciaEnvio'] as String?) ?? 'SHALOM';
+        _numeroPagoCtrl.text = (cfg['numeroPago'] as String?) ?? '';
         _loading = false;
       });
     } catch (e) {
@@ -222,6 +225,13 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
   Future<void> _guardar({bool restaurarDefault = false}) async {
     final id = _empresaId;
     if (id == null) return;
+    final numeroPago = _numeroPagoCtrl.text.trim();
+    if (numeroPago.isNotEmpty &&
+        !RegExp(r'^9\d{8}$').hasMatch(numeroPago)) {
+      _snack('El celular de pagos debe tener 9 dígitos (empieza en 9)',
+          ok: false);
+      return;
+    }
     setState(() => _guardando = true);
     try {
       final texto =
@@ -258,6 +268,8 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
           'plantillaConfirmacionSorteo':
               esDefaultConfSor || restaurarDefault ? '' : textoConfSor,
           'agenciaEnvio': _agenciaCtrl.text.trim(),
+          // '' = quitar (el bot usa Yape de la integración o el vinculado).
+          'numeroPago': numeroPago,
           'habilitado': _habilitado,
         },
       );
@@ -279,6 +291,7 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
             (cfg['plantillaConfirmacionSorteo'] as String?) ??
                 _plantillaConfSorteoDefault;
         _agenciaCtrl.text = (cfg['agenciaEnvio'] as String?) ?? 'SHALOM';
+        _numeroPagoCtrl.text = (cfg['numeroPago'] as String?) ?? '';
       });
       _snack('Configuración guardada', ok: true);
     } catch (e) {
@@ -510,11 +523,20 @@ class _IntegracionWhatsappPageState extends State<IntegracionWhatsappPage> {
             const AppSubtitle(
               'Mensaje del bot tras registrar al participante — uno por '
               'tipo. Variables: {monto} (precio de la participación) '
-              '{numero} (Yape de la empresa) {empresa}. Puedes agregar el '
+              '{numero} (celular de pagos) {empresa}. Puedes agregar el '
               'nombre de tu cuenta Yape, ej. "Yapea *{monto}* al '
               '*{numero}* (SYNCRONIZE)".',
               fontSize: 10,
               color: AppColors.blueGrey,
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _numeroPagoCtrl,
+              label: 'Celular para pagos — {numero}',
+              hintText: 'vacío = Yape configurado o el WhatsApp vinculado',
+              borderColor: AppColors.blue1,
+              keyboardType: TextInputType.phone,
+              maxLength: 9,
             ),
             const SizedBox(height: 10),
             CustomText(
