@@ -19,11 +19,12 @@ class DatosTicketAnfora {
 }
 
 /// Tickets del sorteo para IMPRIMIR y recortar (ánfora física): grilla
-/// A4 de 5 columnas × 8 filas (40 por hoja) con recuadros de corte.
+/// A4 de 4 columnas × 8 filas (32 por hoja) con recuadros de corte —
+/// tickets más anchos, fáciles de recortar y doblar para el ánfora.
 /// Cada ticket lleva el título del sorteo, su NÚMERO y el nombre + DNI
 /// del participante — quien compró 20 sale 20 veces.
 class TicketsAnforaPdfGenerator {
-  static const _porFila = 5;
+  static const _porFila = 4;
   static const _filasPorPagina = 8;
   static const _porPagina = _porFila * _filasPorPagina;
 
@@ -91,7 +92,7 @@ class TicketsAnforaPdfGenerator {
             textAlign: pw.TextAlign.center,
             maxLines: 1,
             style: pw.TextStyle(
-              fontSize: 6,
+              fontSize: 7,
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.grey700,
             ),
@@ -100,7 +101,7 @@ class TicketsAnforaPdfGenerator {
             '#${t.numero}',
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
-              fontSize: 15,
+              fontSize: 17,
               fontWeight: pw.FontWeight.bold,
             ),
           ),
@@ -111,7 +112,7 @@ class TicketsAnforaPdfGenerator {
                 textAlign: pw.TextAlign.center,
                 maxLines: 2,
                 style: pw.TextStyle(
-                  fontSize: 7,
+                  fontSize: 8,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
@@ -120,7 +121,7 @@ class TicketsAnforaPdfGenerator {
                   'DNI ${t.dni}',
                   textAlign: pw.TextAlign.center,
                   style: const pw.TextStyle(
-                      fontSize: 6, color: PdfColors.grey700),
+                      fontSize: 7, color: PdfColors.grey700),
                 ),
             ],
           ),
@@ -129,7 +130,7 @@ class TicketsAnforaPdfGenerator {
             textAlign: pw.TextAlign.center,
             maxLines: 1,
             style:
-                const pw.TextStyle(fontSize: 5, color: PdfColors.grey600),
+                const pw.TextStyle(fontSize: 6, color: PdfColors.grey600),
           ),
         ],
       ),
