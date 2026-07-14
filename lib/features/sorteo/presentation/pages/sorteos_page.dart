@@ -34,7 +34,7 @@ class _SorteosView extends StatelessWidget {
     return Scaffold(
       appBar: SmartAppBar(
         customHeight: 40,
-        title: 'Sorteos',
+        title: 'Sorteos y dinámicas',
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
         actions: [
@@ -55,40 +55,78 @@ class _SorteosView extends StatelessWidget {
         label: const Text('Nuevo sorteo', style: TextStyle(fontSize: 12.5)),
         onPressed: () => _crearSorteo(context),
       ),
-      body: BlocBuilder<SorteosCubit, SorteosState>(
-        builder: (context, state) {
-          if (state is SorteosLoading || state is SorteosInitial) {
-            return const Center(
-                child: CircularProgressIndicator(strokeWidth: 2));
-          }
-          if (state is SorteosError) {
-            return _mensaje(
-              context,
-              icono: Icons.wifi_off,
-              texto: state.message,
-              reintentar: () => context.read<SorteosCubit>().reload(),
-            );
-          }
-          final sorteos = (state as SorteosLoaded).sorteos;
-          if (sorteos.isEmpty) {
-            return _mensaje(
-              context,
-              icono: Icons.card_giftcard,
-              texto:
-                  'Aún no hay sorteos.\nRegistra el primero y lleva el control '
-                  'de ganadores y envíos.',
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () => context.read<SorteosCubit>().reload(),
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
-              itemCount: sorteos.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _SorteoCard(sorteo: sorteos[i]),
+      // Sorteos (rifas) y dinámicas NO se mezclan: cada tipo en su tab.
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            Container(
+              color: AppColors.blue1,
+              child: const TabBar(
+                indicatorColor: Colors.white,
+                indicatorWeight: 2.5,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                labelStyle:
+                    TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                tabs: [
+                  Tab(height: 38, text: '🎟️ Sorteos'),
+                  Tab(height: 38, text: '🎯 Dinámicas'),
+                ],
+              ),
             ),
-          );
-        },
+            Expanded(
+              child: BlocBuilder<SorteosCubit, SorteosState>(
+                builder: (context, state) {
+                  if (state is SorteosLoading || state is SorteosInitial) {
+                    return const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2));
+                  }
+                  if (state is SorteosError) {
+                    return _mensaje(
+                      context,
+                      icono: Icons.wifi_off,
+                      texto: state.message,
+                      reintentar: () => context.read<SorteosCubit>().reload(),
+                    );
+                  }
+                  final todos = (state as SorteosLoaded).sorteos;
+                  final rifas = todos
+                      .where((s) => s.tipo == TipoSorteo.sorteo)
+                      .toList();
+                  final dinamicas = todos
+                      .where((s) => s.tipo == TipoSorteo.dinamica)
+                      .toList();
+                  return TabBarView(
+                    children: [
+                      _lista(context, rifas,
+                          'Aún no hay sorteos.\nRegistra el primero y vende tickets para el ánfora.'),
+                      _lista(context, dinamicas,
+                          'Aún no hay dinámicas.\nCrea una y el bot registra a los jugadores.'),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _lista(
+      BuildContext context, List<Sorteo> sorteos, String textoVacio) {
+    if (sorteos.isEmpty) {
+      return _mensaje(context,
+          icono: Icons.card_giftcard, texto: textoVacio);
+    }
+    return RefreshIndicator(
+      onRefresh: () => context.read<SorteosCubit>().reload(),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
+        itemCount: sorteos.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) => _SorteoCard(sorteo: sorteos[i]),
       ),
     );
   }
