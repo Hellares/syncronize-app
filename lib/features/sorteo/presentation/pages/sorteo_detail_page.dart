@@ -113,7 +113,18 @@ class _SorteoDetailView extends StatelessWidget {
                       size: 20, color: Colors.white),
                   onPressed: () => _cerrarSorteo(context),
                 ),
-              if (sorteo != null && sorteo.estado == EstadoSorteo.cerrado)
+              // La rifa cerrada sigue en juego: FINALIZAR = ya se sorteó
+              // todo, cierre definitivo.
+              if (sorteo != null &&
+                  sorteo.estado == EstadoSorteo.cerrado &&
+                  sorteo.tipo == TipoSorteo.sorteo)
+                IconButton(
+                  tooltip: 'Finalizar sorteo (ya se jugó todo)',
+                  icon: const Icon(Icons.sports_score,
+                      size: 20, color: Colors.white),
+                  onPressed: () => _finalizarSorteo(context),
+                ),
+              if (sorteo != null && sorteo.estado != EstadoSorteo.abierto)
                 IconButton(
                   tooltip: 'Reabrir para regularizar',
                   icon: const Icon(Icons.lock_open,
@@ -257,7 +268,7 @@ class _SorteoDetailView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${sorteo.tipo == TipoSorteo.dinamica ? 'DINÁMICA · ' : ''}${sorteo.canal.label} · $fecha · ${sorteo.estado.label}'
+                  '${sorteo.tipo == TipoSorteo.dinamica ? 'DINÁMICA · ' : ''}${sorteo.canal.label} · $fecha · ${sorteo.estadoTexto}'
                   '${sorteo.reabierto && sorteo.estado == EstadoSorteo.abierto ? ' (REABIERTO — bot inactivo)' : ''}'
                   '${sorteo.precioParticipacion != null ? ' · Jugada S/ ${sorteo.precioParticipacion!.toStringAsFixed(2)}' : ''}',
                   style: TextStyle(
@@ -571,6 +582,28 @@ class _SorteoDetailView extends StatelessWidget {
       onLayout: (_) async => bytes,
       name: 'tickets_anfora.pdf',
     );
+  }
+
+  Future<void> _finalizarSorteo(BuildContext context) async {
+    final cubit = context.read<SorteoDetailCubit>();
+    final ok = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.warning,
+      title: 'Finalizar sorteo',
+      message: 'Confirma que YA SE JUGARON los premios. El sorteo quedará '
+          'FINALIZADO (cierre definitivo) y ya no se podrá seguir jugando. '
+          '¿Finalizar?',
+      confirmText: 'Finalizar',
+      icon: Icons.sports_score,
+    );
+    if (ok != true) return;
+    final error = await cubit.finalizarSorteo();
+    if (!context.mounted) return;
+    if (error != null) {
+      _snack(context, error, error: true);
+    } else {
+      _snack(context, '🏁 Sorteo finalizado — ¡buen juego!');
+    }
   }
 
   Future<void> _reabrirSorteo(BuildContext context) async {

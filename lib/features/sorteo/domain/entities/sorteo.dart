@@ -3,7 +3,8 @@
 
 enum EstadoSorteo {
   abierto('ABIERTO', 'Abierto'),
-  cerrado('CERRADO', 'Cerrado');
+  cerrado('CERRADO', 'Cerrado'),
+  finalizado('FINALIZADO', 'Finalizado');
 
   final String apiValue;
   final String label;
@@ -193,6 +194,15 @@ class Sorteo {
     this.participantes = const [],
     this.premiosCatalogo = const [],
   });
+
+  /// Etiqueta visual del estado: la rifa CERRADA aún está en juego
+  /// ("JUGANDO 🎲") hasta que se marque FINALIZADO.
+  String get estadoTexto {
+    if (estado == EstadoSorteo.cerrado && tipo == TipoSorteo.sorteo) {
+      return 'Jugando 🎲';
+    }
+    return estado.label;
+  }
 }
 
 enum EstadoParticipanteSorteo {

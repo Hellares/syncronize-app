@@ -267,7 +267,10 @@ class _SorteoCard extends StatelessWidget {
     final f = sorteo.fechaSorteo;
     final fecha =
         '${f.day.toString().padLeft(2, '0')}/${f.month.toString().padLeft(2, '0')}/${f.year}';
-    final cerrado = sorteo.estado == EstadoSorteo.cerrado;
+    final cerrado = sorteo.estado != EstadoSorteo.abierto;
+    // La rifa cerrada sigue EN JUEGO hasta marcarse finalizada.
+    final jugando = sorteo.estado == EstadoSorteo.cerrado &&
+        sorteo.tipo == TipoSorteo.sorteo;
     // GradientContainer de la casa (mismo patrón que cola POS).
     return GradientContainer(
       borderColor: cerrado ? Colors.grey.shade400 : AppColors.blueborder,
@@ -315,16 +318,24 @@ class _SorteoCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (cerrado ? Colors.grey : Colors.green)
+                  color: (jugando
+                          ? Colors.purple
+                          : cerrado
+                              ? Colors.grey
+                              : Colors.green)
                       .withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  sorteo.estado.label.toUpperCase(),
+                  sorteo.estadoTexto.toUpperCase(),
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: cerrado ? Colors.grey.shade700 : Colors.green.shade700,
+                    color: jugando
+                        ? Colors.purple.shade700
+                        : cerrado
+                            ? Colors.grey.shade700
+                            : Colors.green.shade700,
                   ),
                 ),
               ),
