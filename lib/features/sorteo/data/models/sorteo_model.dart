@@ -42,6 +42,7 @@ class SorteoModel {
       tipo: TipoSorteo.fromApi(json['tipo'] as String?),
       fechaSorteo: _fecha(json['fechaSorteo']) ?? DateTime.now(),
       estado: EstadoSorteo.fromApi(json['estado'] as String?),
+      reabierto: json['reabierto'] == true,
       precioParticipacion: _numero(json['precioParticipacion']),
       cantidadPremios: count ?? premiosJson.length,
       premios: premiosJson

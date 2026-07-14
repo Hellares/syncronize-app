@@ -211,4 +211,18 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     await reload();
     return null;
   }
+
+  /// Reabre un sorteo cerrado SOLO para regularizar (registrar premios o
+  /// validar participantes que quedaron pendientes). El backend lo marca
+  /// como reabierto y el bot de WhatsApp lo ignora por completo.
+  Future<String?> reabrirSorteo() async {
+    final id = _sorteoId;
+    if (id == null) return 'Sorteo no cargado';
+    final result =
+        await _repository.actualizarSorteo(id, estado: EstadoSorteo.abierto);
+    if (isClosed) return null;
+    if (result is Error<Sorteo>) return result.message;
+    await reload();
+    return null;
+  }
 }

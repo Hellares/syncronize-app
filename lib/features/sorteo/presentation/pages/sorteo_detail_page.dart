@@ -99,6 +99,13 @@ class _SorteoDetailView extends StatelessWidget {
                       size: 20, color: Colors.white),
                   onPressed: () => _cerrarSorteo(context),
                 ),
+              if (sorteo != null && sorteo.estado == EstadoSorteo.cerrado)
+                IconButton(
+                  tooltip: 'Reabrir para regularizar',
+                  icon: const Icon(Icons.lock_open,
+                      size: 20, color: Colors.white),
+                  onPressed: () => _reabrirSorteo(context),
+                ),
             ],
           ),
           floatingActionButton:
@@ -154,6 +161,7 @@ class _SorteoDetailView extends StatelessWidget {
               children: [
                 Text(
                   '${sorteo.tipo == TipoSorteo.dinamica ? 'DINÁMICA · ' : ''}${sorteo.canal.label} · $fecha · ${sorteo.estado.label}'
+                  '${sorteo.reabierto && sorteo.estado == EstadoSorteo.abierto ? ' (REABIERTO — bot inactivo)' : ''}'
                   '${sorteo.precioParticipacion != null ? ' · Jugada S/ ${sorteo.precioParticipacion!.toStringAsFixed(2)}' : ''}',
                   style: TextStyle(
                       fontSize: 11,
@@ -259,6 +267,7 @@ class _SorteoDetailView extends StatelessWidget {
           final marcados = <String>{};
           return StatefulBuilder(
             builder: (ctx, setLocal) => SafeArea(
+              top: false,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -270,23 +279,37 @@ class _SorteoDetailView extends StatelessWidget {
                           fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                   ),
-                  for (final p in otros.take(6))
-                    CheckboxListTile(
-                      dense: true,
-                      value: marcados.contains(p.id),
-                      activeColor: AppColors.blue1,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      title: Text(p.ganadorNombre,
-                          style: const TextStyle(fontSize: 12)),
-                      subtitle: Text(p.descripcion,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 10, color: Colors.grey.shade600)),
-                      onChanged: (v) => setLocal(() => v == true
-                          ? marcados.add(p.id)
-                          : marcados.remove(p.id)),
+                  // Con varios premios el Column desborda el alto máximo del
+                  // sheet y el botón queda fuera de los límites (visible pero
+                  // sin hit-test): la lista scrollea y el botón queda anclado.
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final p in otros.take(6))
+                            CheckboxListTile(
+                              dense: true,
+                              value: marcados.contains(p.id),
+                              activeColor: AppColors.blue1,
+                              controlAffinity:
+                                  ListTileControlAffinity.leading,
+                              title: Text(p.ganadorNombre,
+                                  style: const TextStyle(fontSize: 12)),
+                              subtitle: Text(p.descripcion,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600)),
+                              onChanged: (v) => setLocal(() => v == true
+                                  ? marcados.add(p.id)
+                                  : marcados.remove(p.id)),
+                            ),
+                        ],
+                      ),
                     ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
                     child: SizedBox(
@@ -412,6 +435,28 @@ class _SorteoDetailView extends StatelessWidget {
     if (ok != true) return;
     final error = await cubit.cerrarSorteo();
     if (error != null && context.mounted) _snack(context, error, error: true);
+  }
+
+  Future<void> _reabrirSorteo(BuildContext context) async {
+    final cubit = context.read<SorteoDetailCubit>();
+    final ok = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.info,
+      title: 'Reabrir para regularizar',
+      message: 'Podrás registrar ganadores y validar participantes que '
+          'quedaron pendientes. El bot de WhatsApp NO lo ofrecerá ni '
+          'enviará mensajes por este sorteo. ¿Reabrir?',
+      confirmText: 'Reabrir',
+      icon: Icons.lock_open,
+    );
+    if (ok != true) return;
+    final error = await cubit.reabrirSorteo();
+    if (!context.mounted) return;
+    if (error != null) {
+      _snack(context, error, error: true);
+    } else {
+      _snack(context, 'Sorteo reabierto — el bot lo ignorará 🤖🚫');
+    }
   }
 
   /// Flujo completo: elegir/registrar ganador por DNI (Factiliza crea la

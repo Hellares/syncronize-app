@@ -123,6 +123,10 @@ class Sorteo {
   final DateTime fechaSorteo;
   final EstadoSorteo estado;
 
+  /// Se reabrió tras cerrarse (solo para regularizar): el bot de
+  /// WhatsApp lo ignora por completo.
+  final bool reabierto;
+
   /// Precio default de la participación ("jugada") en S/.
   final double? precioParticipacion;
   final int cantidadPremios;
@@ -144,6 +148,7 @@ class Sorteo {
     this.tipo = TipoSorteo.sorteo,
     required this.fechaSorteo,
     required this.estado,
+    this.reabierto = false,
     this.precioParticipacion,
     this.cantidadPremios = 0,
     this.premios = const [],
