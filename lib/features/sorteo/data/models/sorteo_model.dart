@@ -41,6 +41,8 @@ class SorteoModel {
       canal: CanalSorteo.fromApi(json['canal'] as String?),
       tipo: TipoSorteo.fromApi(json['tipo'] as String?),
       fechaSorteo: _fecha(json['fechaSorteo']) ?? DateTime.now(),
+      ventaDesde: _fecha(json['ventaDesde']),
+      ventaHasta: _fecha(json['ventaHasta']),
       estado: EstadoSorteo.fromApi(json['estado'] as String?),
       reabierto: json['reabierto'] == true,
       precioParticipacion: _numero(json['precioParticipacion']),

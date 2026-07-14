@@ -131,6 +131,34 @@ class _SorteosView extends StatelessWidget {
     );
   }
 
+  /// Botón compacto de fecha para el dialog de creación.
+  Widget _fechaBtn(String label, String valor, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Column(
+          children: [
+            Text(label,
+                style:
+                    TextStyle(fontSize: 8.5, color: Colors.grey.shade600)),
+            const SizedBox(height: 2),
+            Text(valor,
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue1)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _mensaje(BuildContext context,
       {required IconData icono,
       required String texto,
@@ -168,6 +196,24 @@ class _SorteosView extends StatelessWidget {
     final precioCtrl = TextEditingController();
     var canal = CanalSorteo.facebook;
     var tipo = TipoSorteo.sorteo;
+    DateTime? ventaDesde;
+    DateTime? ventaHasta;
+    DateTime? fechaSorteo;
+
+    String fmt(DateTime? d) => d == null
+        ? '—'
+        : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+    Future<DateTime?> pickFecha(
+        BuildContext ctx, DateTime? actual) async {
+      final hoy = DateTime.now();
+      return showDatePicker(
+        context: ctx,
+        initialDate: actual ?? hoy,
+        firstDate: hoy.subtract(const Duration(days: 1)),
+        lastDate: hoy.add(const Duration(days: 365)),
+      );
+    }
 
     final crear = await showDialog<bool>(
       context: context,
@@ -201,6 +247,47 @@ class _SorteosView extends StatelessWidget {
                 'Dinámica: el participante paga, juega y lo que saca YA lo '
                 'ganó — cada jugador se registra como ganador con su premio.',
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
+            ],
+            // Rifa: ventana de venta de tickets + fecha del juego (el bot
+            // las anuncia al cliente).
+            if (tipo == TipoSorteo.sorteo) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _fechaBtn(
+                      'Venta desde',
+                      fmt(ventaDesde),
+                      () async {
+                        final d = await pickFecha(ctx, ventaDesde);
+                        if (d != null) setLocal(() => ventaDesde = d);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _fechaBtn(
+                      'Venta hasta',
+                      fmt(ventaHasta),
+                      () async {
+                        final d = await pickFecha(ctx, ventaHasta);
+                        if (d != null) setLocal(() => ventaHasta = d);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _fechaBtn(
+                      'Se sortea el',
+                      fmt(fechaSorteo),
+                      () async {
+                        final d = await pickFecha(ctx, fechaSorteo);
+                        if (d != null) setLocal(() => fechaSorteo = d);
+                      },
+                    ),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: 8),
@@ -279,6 +366,11 @@ class _SorteosView extends StatelessWidget {
     );
     if (crear != true || !context.mounted) return;
 
+    // Fechas como mediodía UTC (07:00 Lima): fecha-only sin corrimiento
+    // de día por zona horaria.
+    DateTime? aUtc(DateTime? d) =>
+        d == null ? null : DateTime.utc(d.year, d.month, d.day, 12);
+
     // El stock de los premios sale de la sede activa.
     final sede = context.read<SedeActivaCubit>().state.activa;
     final sorteo = await cubit.crearSorteo(
@@ -286,6 +378,9 @@ class _SorteosView extends StatelessWidget {
       descripcion: descCtrl.text.trim(),
       canal: canal,
       tipo: tipo,
+      fechaSorteo: aUtc(fechaSorteo),
+      ventaDesde: aUtc(ventaDesde),
+      ventaHasta: aUtc(ventaHasta),
       sedeId: sede?.id,
       precioParticipacion:
           double.tryParse(precioCtrl.text.trim().replaceAll(',', '.')),

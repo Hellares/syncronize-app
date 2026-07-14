@@ -245,9 +245,15 @@ class _SorteoDetailView extends StatelessWidget {
 
   Widget _tabPrincipal(BuildContext context, Sorteo sorteo,
       {required bool conPremios}) {
+    String dm(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
     final f = sorteo.fechaSorteo;
-    final fecha =
-        '${f.day.toString().padLeft(2, '0')}/${f.month.toString().padLeft(2, '0')}/${f.year}';
+    final fecha = '${dm(f)}/${f.year}';
+    // Ventana de venta de tickets (si la empresa la definió).
+    final venta = sorteo.ventaHasta != null
+        ? ' · Venta${sorteo.ventaDesde != null ? ' ${dm(sorteo.ventaDesde!)}' : ''}'
+            '–${dm(sorteo.ventaHasta!)}'
+        : '';
     final resumen = sorteo.resumen;
     return RefreshIndicator(
       onRefresh: () => context.read<SorteoDetailCubit>().reload(),
@@ -268,7 +274,7 @@ class _SorteoDetailView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${sorteo.tipo == TipoSorteo.dinamica ? 'DINÁMICA · ' : ''}${sorteo.canal.label} · $fecha · ${sorteo.estadoTexto}'
+                  '${sorteo.tipo == TipoSorteo.dinamica ? 'DINÁMICA · ' : ''}${sorteo.canal.label} · $fecha$venta · ${sorteo.estadoTexto}'
                   '${sorteo.reabierto && sorteo.estado == EstadoSorteo.abierto ? ' (REABIERTO — bot inactivo)' : ''}'
                   '${sorteo.precioParticipacion != null ? ' · Jugada S/ ${sorteo.precioParticipacion!.toStringAsFixed(2)}' : ''}',
                   style: TextStyle(

@@ -12,6 +12,8 @@ abstract class SorteoRepository {
     CanalSorteo? canal,
     TipoSorteo? tipo,
     DateTime? fechaSorteo,
+    DateTime? ventaDesde,
+    DateTime? ventaHasta,
     String? sedeId,
     double? precioParticipacion,
   });

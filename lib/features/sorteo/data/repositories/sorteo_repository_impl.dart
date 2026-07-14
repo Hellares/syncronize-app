@@ -47,6 +47,8 @@ class SorteoRepositoryImpl implements SorteoRepository {
     CanalSorteo? canal,
     TipoSorteo? tipo,
     DateTime? fechaSorteo,
+    DateTime? ventaDesde,
+    DateTime? ventaHasta,
     String? sedeId,
     double? precioParticipacion,
   }) =>
@@ -59,6 +61,10 @@ class SorteoRepositoryImpl implements SorteoRepository {
           if (tipo != null) 'tipo': tipo.apiValue,
           if (fechaSorteo != null)
             'fechaSorteo': fechaSorteo.toIso8601String(),
+          if (ventaDesde != null)
+            'ventaDesde': ventaDesde.toIso8601String(),
+          if (ventaHasta != null)
+            'ventaHasta': ventaHasta.toIso8601String(),
           if (sedeId != null) 'sedeId': sedeId,
           if (precioParticipacion != null)
             'precioParticipacion': precioParticipacion,

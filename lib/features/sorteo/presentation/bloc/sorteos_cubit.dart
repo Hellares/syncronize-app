@@ -38,6 +38,9 @@ class SorteosCubit extends Cubit<SorteosState> {
     String? descripcion,
     CanalSorteo? canal,
     TipoSorteo? tipo,
+    DateTime? fechaSorteo,
+    DateTime? ventaDesde,
+    DateTime? ventaHasta,
     String? sedeId,
     double? precioParticipacion,
   }) async {
@@ -46,6 +49,9 @@ class SorteosCubit extends Cubit<SorteosState> {
       descripcion: descripcion,
       canal: canal,
       tipo: tipo,
+      fechaSorteo: fechaSorteo,
+      ventaDesde: ventaDesde,
+      ventaHasta: ventaHasta,
       sedeId: sedeId,
       precioParticipacion: precioParticipacion,
     );

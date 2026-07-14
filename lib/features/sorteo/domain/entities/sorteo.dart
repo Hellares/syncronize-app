@@ -155,6 +155,10 @@ class Sorteo {
   final CanalSorteo canal;
   final TipoSorteo tipo;
   final DateTime fechaSorteo;
+
+  /// Ventana de VENTA de tickets (informativa; el cierre es manual).
+  final DateTime? ventaDesde;
+  final DateTime? ventaHasta;
   final EstadoSorteo estado;
 
   /// Se reabrió tras cerrarse (solo para regularizar): el bot de
@@ -184,6 +188,8 @@ class Sorteo {
     required this.canal,
     this.tipo = TipoSorteo.sorteo,
     required this.fechaSorteo,
+    this.ventaDesde,
+    this.ventaHasta,
     required this.estado,
     this.reabierto = false,
     this.precioParticipacion,
