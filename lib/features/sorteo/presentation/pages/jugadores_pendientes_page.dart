@@ -33,13 +33,22 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
   final _procesando = <String>{};
   StreamSubscription? _realtimeSub;
 
+  /// Evento realtime llegó MIENTRAS cargaba → recargar al terminar
+  /// (antes se perdía y la cola quedaba desactualizada).
+  bool _reloadPendiente = false;
+
   @override
   void initState() {
     super.initState();
     _cargar();
     // Otro device validó / el bot registró a alguien → recargar la cola.
     _realtimeSub = locator<RealtimeSyncService>().events.listen((e) {
-      if (mounted && e is RealtimeSorteoCambiado && !_loading) _cargar();
+      if (!mounted || e is! RealtimeSorteoCambiado) return;
+      if (_loading) {
+        _reloadPendiente = true;
+        return;
+      }
+      _cargar();
     });
   }
 
@@ -67,6 +76,11 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
         _error = e.toString();
         _loading = false;
       });
+    }
+    // Llegó un evento durante la carga: la lista ya está vieja.
+    if (_reloadPendiente && mounted) {
+      _reloadPendiente = false;
+      _cargar();
     }
   }
 
