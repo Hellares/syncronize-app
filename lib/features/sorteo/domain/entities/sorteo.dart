@@ -135,7 +135,8 @@ class SorteoPremioCatalogo {
 /// cada jugador termina registrado como ganador con su premio).
 enum TipoSorteo {
   sorteo('SORTEO', 'Sorteo'),
-  dinamica('DINAMICA', 'Dinámica');
+  dinamica('DINAMICA', 'Dinámica'),
+  bingo('BINGO', 'Bingo');
 
   final String apiValue;
   final String label;
@@ -180,6 +181,9 @@ class Sorteo {
   /// Catálogo de premios de la rifa (tipo SORTEO).
   final List<SorteoPremioCatalogo> premiosCatalogo;
 
+  /// BINGO: bolillas cantadas en orden.
+  final List<int> bolillas;
+
   const Sorteo({
     required this.id,
     this.sedeId,
@@ -199,13 +203,14 @@ class Sorteo {
     this.resumen,
     this.participantes = const [],
     this.premiosCatalogo = const [],
+    this.bolillas = const [],
   });
 
-  /// Etiqueta visual del estado: la rifa CERRADA aún está en juego
-  /// ("JUGANDO 🎲") hasta que se marque FINALIZADO.
+  /// Etiqueta visual del estado: la rifa/bingo CERRADO aún está en
+  /// juego ("JUGANDO") hasta que se marque FINALIZADO.
   String get estadoTexto {
-    if (estado == EstadoSorteo.cerrado && tipo == TipoSorteo.sorteo) {
-      return 'Jugando 🎲';
+    if (estado == EstadoSorteo.cerrado && tipo != TipoSorteo.dinamica) {
+      return tipo == TipoSorteo.bingo ? 'Jugando 🎱' : 'Jugando 🎲';
     }
     return estado.label;
   }

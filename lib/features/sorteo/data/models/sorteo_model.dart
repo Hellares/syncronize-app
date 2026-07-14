@@ -90,6 +90,9 @@ class SorteoModel {
                     (e['imagen'] as Map?)?['urlThumbnail'] as String?,
               ))
           .toList(),
+      bolillas: ((json['bolillas'] as List?) ?? const [])
+          .map((e) => (e as num).toInt())
+          .toList(),
       resumen: resumenJson == null
           ? null
           : ResumenSorteo(

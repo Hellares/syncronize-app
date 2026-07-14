@@ -162,10 +162,10 @@ class _SorteoDetailView extends StatelessWidget {
   }
 
   Widget _cuerpo(BuildContext context, Sorteo sorteo) {
-    // RIFA (tipo SORTEO): dos tabs — la operación (catálogo + tickets de
-    // participantes) y los GANADORES aparte. En dinámicas el premio ES
-    // el flujo principal, así que siguen en una sola vista.
-    if (sorteo.tipo == TipoSorteo.sorteo) {
+    // RIFA/BINGO: dos tabs — la operación (catálogo + tickets/cartillas)
+    // y los GANADORES aparte. En dinámicas el premio ES el flujo
+    // principal, así que siguen en una sola vista.
+    if (sorteo.tipo != TipoSorteo.dinamica) {
       final ganadores = sorteo.premios
           .where((p) => p.estado != EstadoPremioSorteo.anulado)
           .length;
@@ -322,10 +322,16 @@ class _SorteoDetailView extends StatelessWidget {
               ],
             ),
           ],
-          // ── Catálogo de premios de la rifa (solo tipo SORTEO) ──
-          if (sorteo.tipo == TipoSorteo.sorteo) ...[
+          // ── Catálogo de premios (rifa y bingo) ──
+          if (sorteo.tipo != TipoSorteo.dinamica) ...[
             const SizedBox(height: 10),
             _PremiosCatalogoSection(sorteo: sorteo),
+          ],
+          // ── BINGO jugando: cantar bolillas ──
+          if (sorteo.tipo == TipoSorteo.bingo &&
+              sorteo.estado == EstadoSorteo.cerrado) ...[
+            const SizedBox(height: 10),
+            _BolillasSection(sorteo: sorteo),
           ],
           // ── Participantes captados por el bot de WhatsApp ──
           if (sorteo.participantes.isNotEmpty) ...[
@@ -1006,7 +1012,8 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                       TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
                 ),
                 Text(
-                  '🎟️ ${grupo.length} tickets'
+                  '${widget.sorteo.tipo == TipoSorteo.bingo ? '🎱' : '🎟️'} '
+                  '${grupo.length} ${widget.sorteo.tipo == TipoSorteo.bingo ? 'cartillas' : 'tickets'}'
                   '${precio != null ? ' · S/ ${(grupo.length * precio).toStringAsFixed(2)}' : ''}',
                   style: TextStyle(
                       fontSize: 9.5,
@@ -2271,6 +2278,179 @@ class _PremioCard extends StatelessWidget {
         await _enviarWhatsApp(context, ticketLocal: file);
       }
     }
+  }
+}
+
+/// BINGO jugando: registrar las bolillas que van saliendo — el backend
+/// marca TODAS las cartillas y devuelve los logros nuevos (¡LÍNEA! /
+/// ¡BINGO!) al instante. El premio se adjudica con 🎲 JUGAR (número de
+/// la cartilla ganadora + premio del catálogo).
+class _BolillasSection extends StatefulWidget {
+  final Sorteo sorteo;
+  const _BolillasSection({required this.sorteo});
+
+  @override
+  State<_BolillasSection> createState() => _BolillasSectionState();
+}
+
+class _BolillasSectionState extends State<_BolillasSection> {
+  final _ds = locator<SorteoRemoteDataSource>();
+  bool _ocupado = false;
+
+  Future<void> _cantar() async {
+    final numCtrl = TextEditingController();
+    final ok = await StyledDialog.show<bool>(
+      context,
+      accentColor: Colors.purple.shade700,
+      icon: Icons.casino_outlined,
+      titulo: 'Cantar bolilla',
+      content: [
+        CustomText(
+          controller: numCtrl,
+          label: 'Número de la bolilla (1-75)',
+          hintText: 'ej. 42',
+          borderColor: AppColors.blue1,
+          keyboardType: TextInputType.number,
+        ),
+      ],
+      actions: [
+        Builder(
+          builder: (ctx) => TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
+          ),
+        ),
+        Builder(
+          builder: (ctx) => CustomButton(
+            text: 'Cantar',
+            backgroundColor: Colors.purple.shade700,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ),
+      ],
+    );
+    if (ok != true || !mounted) return;
+    final numero = int.tryParse(numCtrl.text.trim());
+    if (numero == null || numero < 1 || numero > 75) {
+      _snack(context, 'La bolilla debe ser un número del 1 al 75',
+          error: true);
+      return;
+    }
+    setState(() => _ocupado = true);
+    try {
+      final r = await _ds.cantarBolilla(widget.sorteo.id, numero);
+      if (!mounted) return;
+      await context.read<SorteoDetailCubit>().reload();
+      if (!mounted) return;
+      final eventos = (r['eventos'] as List?) ?? const [];
+      if (eventos.isEmpty) {
+        _snack(context, '🎱 Bolilla $numero cantada — sin ganadores aún');
+      } else {
+        // ¡Hay línea/bingo! Mostrarlo en grande.
+        final lineas = eventos
+            .map((e) =>
+                '🎉 Cartilla #${(e as Map)['numeroCartilla']} · ${e['nombre']}'
+                ' · ¡${e['logro'] == 'BINGO' ? 'BINGO' : 'LÍNEA'}!')
+            .join('\n');
+        await ConfirmDialog.show(
+          context: context,
+          type: ConfirmDialogType.success,
+          title: '¡Tenemos ganador! 🎱',
+          message: '$lineas\n\nUsa 🎲 JUGAR (arriba, en Premios) con el '
+              'número de la cartilla para asignarle su premio.',
+          confirmText: 'Entendido',
+          icon: Icons.emoji_events,
+        );
+      }
+    } catch (e) {
+      if (mounted) _snack(context, '$e', error: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bolillas = widget.sorteo.bolillas;
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.casino_outlined,
+                    size: 16, color: Colors.purple.shade700),
+                const SizedBox(width: 6),
+                Text(
+                  'Bolillas cantadas (${bolillas.length})',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.purple.shade700),
+                ),
+                const Spacer(),
+                if (_ocupado)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      foregroundColor: Colors.purple.shade700,
+                    ),
+                    icon: const Icon(Icons.campaign_outlined, size: 16),
+                    label: const Text('CANTAR',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700)),
+                    onPressed: _cantar,
+                  ),
+              ],
+            ),
+            if (bolillas.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  'Canta cada bolilla que salga: el sistema marca TODAS '
+                  'las cartillas y avisa al instante quién hace línea o bingo.',
+                  style:
+                      TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+              )
+            else
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  for (final b in bolillas)
+                    Container(
+                      width: 26,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withValues(alpha: 0.10),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$b',
+                        style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.purple.shade700),
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

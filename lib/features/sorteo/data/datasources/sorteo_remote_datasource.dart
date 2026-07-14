@@ -153,6 +153,17 @@ class SorteoRemoteDataSource {
   Future<void> subirImagenPremioCatalogo(String catalogoId, File file) =>
       _subirArchivo('$_basePath/premios-catalogo/$catalogoId/imagen', file);
 
+  /// POST /sorteos/:id/bolillas — BINGO jugando: canta una bolilla y
+  /// devuelve {bolillas, eventos} con los logros nuevos (línea/bingo).
+  Future<Map<String, dynamic>> cantarBolilla(
+      String sorteoId, int numero) async {
+    final response = await _dioClient.post(
+      '$_basePath/$sorteoId/bolillas',
+      data: {'numero': numero},
+    );
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
   /// POST /sorteos/:id/jugar — salió el ticket #N del ánfora: adjudicar
   /// un premio del catálogo (solo sorteo CERRADO).
   Future<Map<String, dynamic>> jugarTicket(

@@ -55,9 +55,10 @@ class _SorteosView extends StatelessWidget {
         label: const Text('Nuevo sorteo', style: TextStyle(fontSize: 12.5)),
         onPressed: () => _crearSorteo(context),
       ),
-      // Sorteos (rifas) y dinámicas NO se mezclan: cada tipo en su tab.
+      // Sorteos (rifas), bingos y dinámicas NO se mezclan: cada tipo en
+      // su tab.
       body: DefaultTabController(
-        length: 2,
+        length: 3,
         child: Column(
           children: [
             Container(
@@ -68,9 +69,10 @@ class _SorteosView extends StatelessWidget {
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white70,
                 labelStyle:
-                    TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
                 tabs: [
                   Tab(height: 38, text: '🎟️ Sorteos'),
+                  Tab(height: 38, text: '🎱 Bingos'),
                   Tab(height: 38, text: '🎯 Dinámicas'),
                 ],
               ),
@@ -94,6 +96,9 @@ class _SorteosView extends StatelessWidget {
                   final rifas = todos
                       .where((s) => s.tipo == TipoSorteo.sorteo)
                       .toList();
+                  final bingos = todos
+                      .where((s) => s.tipo == TipoSorteo.bingo)
+                      .toList();
                   final dinamicas = todos
                       .where((s) => s.tipo == TipoSorteo.dinamica)
                       .toList();
@@ -101,6 +106,8 @@ class _SorteosView extends StatelessWidget {
                     children: [
                       _lista(context, rifas,
                           'Aún no hay sorteos.\nRegistra el primero y vende tickets para el ánfora.'),
+                      _lista(context, bingos,
+                          'Aún no hay bingos.\nCrea uno: el bot vende las cartillas y tú cantas las bolillas.'),
                       _lista(context, dinamicas,
                           'Aún no hay dinámicas.\nCrea una y el bot registra a los jugadores.'),
                     ],
@@ -249,9 +256,9 @@ class _SorteosView extends StatelessWidget {
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
               ),
             ],
-            // Rifa: ventana de venta de tickets + fecha del juego (el bot
-            // las anuncia al cliente).
-            if (tipo == TipoSorteo.sorteo) ...[
+            // Rifa/bingo: ventana de venta + fecha del juego (el bot las
+            // anuncia al cliente).
+            if (tipo != TipoSorteo.dinamica) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -401,9 +408,9 @@ class _SorteoCard extends StatelessWidget {
     final fecha =
         '${f.day.toString().padLeft(2, '0')}/${f.month.toString().padLeft(2, '0')}/${f.year}';
     final cerrado = sorteo.estado != EstadoSorteo.abierto;
-    // La rifa cerrada sigue EN JUEGO hasta marcarse finalizada.
+    // La rifa/bingo cerrado sigue EN JUEGO hasta marcarse finalizado.
     final jugando = sorteo.estado == EstadoSorteo.cerrado &&
-        sorteo.tipo == TipoSorteo.sorteo;
+        sorteo.tipo != TipoSorteo.dinamica;
     // GradientContainer de la casa (mismo patrón que cola POS).
     return GradientContainer(
       borderColor: cerrado ? Colors.grey.shade400 : AppColors.blueborder,
