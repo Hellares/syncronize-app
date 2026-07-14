@@ -19,12 +19,12 @@ class DatosTicketAnfora {
 }
 
 /// Tickets del sorteo para IMPRIMIR y recortar (ánfora física): grilla
-/// A4 de 2 columnas × 5 filas (10 por hoja) con líneas de corte. Cada
-/// ticket lleva el título del sorteo, su NÚMERO y el nombre + DNI del
-/// participante — quien compró 20 sale 20 veces.
+/// A4 de 5 columnas × 8 filas (40 por hoja) con recuadros de corte.
+/// Cada ticket lleva el título del sorteo, su NÚMERO y el nombre + DNI
+/// del participante — quien compró 20 sale 20 veces.
 class TicketsAnforaPdfGenerator {
-  static const _porFila = 2;
-  static const _filasPorPagina = 5;
+  static const _porFila = 5;
+  static const _filasPorPagina = 8;
   static const _porPagina = _porFila * _filasPorPagina;
 
   static Future<Uint8List> generate({
@@ -76,11 +76,11 @@ class TicketsAnforaPdfGenerator {
     String Function(String) sanitize,
   ) {
     return pw.Container(
-      margin: const pw.EdgeInsets.all(4),
-      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      margin: const pw.EdgeInsets.all(2),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(width: 1, color: PdfColors.grey700),
-        borderRadius: pw.BorderRadius.circular(6),
+        border: pw.Border.all(width: 0.8, color: PdfColors.grey700),
+        borderRadius: pw.BorderRadius.circular(4),
       ),
       child: pw.Column(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -91,16 +91,16 @@ class TicketsAnforaPdfGenerator {
             textAlign: pw.TextAlign.center,
             maxLines: 1,
             style: pw.TextStyle(
-              fontSize: 9,
+              fontSize: 6,
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.grey700,
             ),
           ),
           pw.Text(
-            'TICKET #${t.numero}',
+            '#${t.numero}',
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: pw.FontWeight.bold,
             ),
           ),
@@ -111,7 +111,7 @@ class TicketsAnforaPdfGenerator {
                 textAlign: pw.TextAlign.center,
                 maxLines: 2,
                 style: pw.TextStyle(
-                  fontSize: 11,
+                  fontSize: 7,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
@@ -120,7 +120,7 @@ class TicketsAnforaPdfGenerator {
                   'DNI ${t.dni}',
                   textAlign: pw.TextAlign.center,
                   style: const pw.TextStyle(
-                      fontSize: 8, color: PdfColors.grey700),
+                      fontSize: 6, color: PdfColors.grey700),
                 ),
             ],
           ),
@@ -129,7 +129,7 @@ class TicketsAnforaPdfGenerator {
             textAlign: pw.TextAlign.center,
             maxLines: 1,
             style:
-                const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+                const pw.TextStyle(fontSize: 5, color: PdfColors.grey600),
           ),
         ],
       ),
