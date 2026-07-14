@@ -813,6 +813,26 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                     ),
                   ],
                 ),
+                // El YAPE lo hace un tercero: clave para cuadrar el pago.
+                if (p.pagadorTexto != null)
+                  Row(
+                    children: [
+                      Icon(Icons.payments_outlined,
+                          size: 10, color: Colors.teal.shade700),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          'Yapea: ${p.pagadorTexto}',
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.teal.shade700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 // REGALO: el premio lo recibirá otra persona.
                 if (p.recibeNombre != null && p.recibeNombre!.isNotEmpty)
                   Row(

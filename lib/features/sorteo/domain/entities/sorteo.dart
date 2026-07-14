@@ -189,6 +189,11 @@ class SorteoParticipante {
   final String? recibeNombre;
   final String? recibeDni;
 
+  /// Quién hará el YAPE si NO es el propio jugador (null = él mismo) —
+  /// clave para cuadrar la notificación de Yape al validar.
+  final String? pagadorNombre;
+  final String? pagadorCelular;
+
   /// Datos de envío que dejó en el bot al registrarse (opcionales) —
   /// si gana, la entrega ya está lista.
   final String? agenciaNombre;
@@ -206,12 +211,24 @@ class SorteoParticipante {
     this.numeroTicket,
     this.recibeNombre,
     this.recibeDni,
+    this.pagadorNombre,
+    this.pagadorCelular,
     this.agenciaNombre,
     this.destinoDepartamento,
     this.destinoProvincia,
     this.agenciaDireccion,
     required this.creadoEn,
   });
+
+  /// "MARÍA LÓPEZ · 987654321" — quien yapea si no es el jugador (o null).
+  String? get pagadorTexto {
+    if (pagadorNombre == null || pagadorNombre!.isEmpty) return null;
+    return [
+      pagadorNombre,
+      if (pagadorCelular != null && pagadorCelular!.isNotEmpty)
+        '· $pagadorCelular',
+    ].join(' ');
+  }
 
   /// "SHALOM → TARAPOTO, SAN MARTÍN · JR. LOS PINOS 123" (o null).
   String? get envioTexto {

@@ -215,6 +215,15 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
             if (destino.isNotEmpty) '→ $destino',
             if (direccion != null && direccion.isNotEmpty) '· $direccion',
           ].join(' ');
+    final pagadorNombre = p['pagadorNombre'] as String?;
+    final pagadorCelular = p['pagadorCelular'] as String?;
+    final pagador = pagadorNombre == null || pagadorNombre.isEmpty
+        ? null
+        : [
+            pagadorNombre,
+            if (pagadorCelular != null && pagadorCelular.isNotEmpty)
+              '· $pagadorCelular',
+          ].join(' ');
     final ocupado = _procesando.contains(id);
 
     return GradientContainer(
@@ -280,6 +289,26 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
                       ),
                     ],
                   ),
+                  // El YAPE lo hace un tercero — cuadrar el pago con esto.
+                  if (pagador != null)
+                    Row(
+                      children: [
+                        Icon(Icons.payments_outlined,
+                            size: 10, color: Colors.teal.shade700),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            'Yapea: $pagador',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.teal.shade700,
+                                fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   if (envio != null)
                     Row(
                       children: [

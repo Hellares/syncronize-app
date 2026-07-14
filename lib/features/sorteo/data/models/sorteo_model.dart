@@ -61,6 +61,8 @@ class SorteoModel {
                 numeroTicket: (e['numeroTicket'] as num?)?.toInt(),
                 recibeNombre: e['recibeNombre'] as String?,
                 recibeDni: e['recibeDni'] as String?,
+                pagadorNombre: e['pagadorNombre'] as String?,
+                pagadorCelular: e['pagadorCelular'] as String?,
                 agenciaNombre: e['agenciaNombre'] as String?,
                 destinoDepartamento: e['destinoDepartamento'] as String?,
                 destinoProvincia: e['destinoProvincia'] as String?,
