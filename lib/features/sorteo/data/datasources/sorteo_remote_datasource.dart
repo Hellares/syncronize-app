@@ -133,6 +133,37 @@ class SorteoRemoteDataSource {
   Future<void> subirImagenSorteo(String sorteoId, File file) =>
       _subirArchivo('$_basePath/$sorteoId/imagen', file);
 
+  // ── Catálogo de premios de la rifa (ánfora) ─────────────────────────
+
+  /// POST /sorteos/:id/premios-catalogo
+  Future<void> crearPremioCatalogo(
+      String sorteoId, String descripcion, int cantidad) async {
+    await _dioClient.post(
+      '$_basePath/$sorteoId/premios-catalogo',
+      data: {'descripcion': descripcion, 'cantidad': cantidad},
+    );
+  }
+
+  /// DELETE /sorteos/premios-catalogo/:catalogoId (solo si no se sorteó)
+  Future<void> eliminarPremioCatalogo(String catalogoId) async {
+    await _dioClient.delete('$_basePath/premios-catalogo/$catalogoId');
+  }
+
+  /// POST /sorteos/premios-catalogo/:catalogoId/imagen (multipart)
+  Future<void> subirImagenPremioCatalogo(String catalogoId, File file) =>
+      _subirArchivo('$_basePath/premios-catalogo/$catalogoId/imagen', file);
+
+  /// POST /sorteos/:id/jugar — salió el ticket #N del ánfora: adjudicar
+  /// un premio del catálogo (solo sorteo CERRADO).
+  Future<Map<String, dynamic>> jugarTicket(
+      String sorteoId, int numeroTicket, String catalogoId) async {
+    final response = await _dioClient.post(
+      '$_basePath/$sorteoId/jugar',
+      data: {'numeroTicket': numeroTicket, 'catalogoId': catalogoId},
+    );
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
   Future<Response> _subirArchivo(String path, File file) async {
     final fileName = file.path.split('/').last.isNotEmpty
         ? file.path.split('/').last

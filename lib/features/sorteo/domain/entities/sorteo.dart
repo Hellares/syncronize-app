@@ -96,6 +96,39 @@ class ResumenSorteo {
   });
 }
 
+/// Ganador de una unidad del catálogo (con el ticket que salió).
+class GanadorCatalogo {
+  final String nombre;
+  final int? numeroTicket;
+
+  const GanadorCatalogo({required this.nombre, this.numeroTicket});
+}
+
+/// Item del catálogo de premios de la RIFA con ánfora: se registra
+/// antes de jugar ("3× S/ 500 EN EFECTIVO") y cada unidad se adjudica
+/// al salir un ticket ganador.
+class SorteoPremioCatalogo {
+  final String id;
+  final String descripcion;
+  final int cantidad;
+  final int sorteados;
+  final List<GanadorCatalogo> ganadores;
+  final String? imagenUrl;
+  final String? imagenThumbnail;
+
+  const SorteoPremioCatalogo({
+    required this.id,
+    required this.descripcion,
+    this.cantidad = 1,
+    this.sorteados = 0,
+    this.ganadores = const [],
+    this.imagenUrl,
+    this.imagenThumbnail,
+  });
+
+  bool get agotado => sorteados >= cantidad;
+}
+
 /// SORTEO clásico (se sortea entre participantes) o DINÁMICA (el
 /// participante paga, juega — canasta, etc. — y lo que saca YA lo ganó:
 /// cada jugador termina registrado como ganador con su premio).
@@ -139,6 +172,9 @@ class Sorteo {
   /// Participantes captados por el BOT de WhatsApp (Fase A).
   final List<SorteoParticipante> participantes;
 
+  /// Catálogo de premios de la rifa (tipo SORTEO).
+  final List<SorteoPremioCatalogo> premiosCatalogo;
+
   const Sorteo({
     required this.id,
     this.sedeId,
@@ -155,6 +191,7 @@ class Sorteo {
     this.imagenes = const [],
     this.resumen,
     this.participantes = const [],
+    this.premiosCatalogo = const [],
   });
 }
 

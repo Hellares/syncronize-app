@@ -71,6 +71,23 @@ class SorteoModel {
                 creadoEn: _fecha(e['creadoEn']) ?? DateTime.now(),
               ))
           .toList(),
+      premiosCatalogo: ((json['premiosCatalogo'] as List?) ?? const [])
+          .map((e) => SorteoPremioCatalogo(
+                id: (e as Map)['id'] as String? ?? '',
+                descripcion: e['descripcion'] as String? ?? '',
+                cantidad: (e['cantidad'] as num?)?.toInt() ?? 1,
+                sorteados: (e['sorteados'] as num?)?.toInt() ?? 0,
+                ganadores: ((e['ganadores'] as List?) ?? const [])
+                    .map((g) => GanadorCatalogo(
+                          nombre: (g as Map)['nombre'] as String? ?? '',
+                          numeroTicket: (g['numeroTicket'] as num?)?.toInt(),
+                        ))
+                    .toList(),
+                imagenUrl: (e['imagen'] as Map?)?['url'] as String?,
+                imagenThumbnail:
+                    (e['imagen'] as Map?)?['urlThumbnail'] as String?,
+              ))
+          .toList(),
       resumen: resumenJson == null
           ? null
           : ResumenSorteo(

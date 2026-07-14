@@ -22,6 +22,7 @@ import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../data/datasources/sorteo_remote_datasource.dart';
 import '../../domain/entities/sorteo.dart';
 import '../bloc/sorteo_detail_cubit.dart';
 import '../services/rotulo_envio_pdf_generator.dart';
@@ -220,6 +221,11 @@ class _SorteoDetailView extends StatelessWidget {
                 ),
               ],
             ),
+          ],
+          // ── Catálogo de premios de la rifa (solo tipo SORTEO) ──
+          if (sorteo.tipo == TipoSorteo.sorteo) ...[
+            const SizedBox(height: 10),
+            _PremiosCatalogoSection(sorteo: sorteo),
           ],
           // ── Participantes captados por el bot de WhatsApp ──
           if (sorteo.participantes.isNotEmpty) ...[
@@ -2142,4 +2148,384 @@ class _PremioCard extends StatelessWidget {
       }
     }
   }
+}
+
+/// Catálogo de PREMIOS de la rifa con ánfora (tipo SORTEO): se registran
+/// antes de jugar ("3× S/ 500 EN EFECTIVO", con imagen opcional). Con el
+/// sorteo CERRADO aparece el modo JUGAR: sale un ticket del ánfora → se
+/// busca al dueño → se le adjudica un premio pendiente.
+class _PremiosCatalogoSection extends StatefulWidget {
+  final Sorteo sorteo;
+  const _PremiosCatalogoSection({required this.sorteo});
+
+  @override
+  State<_PremiosCatalogoSection> createState() =>
+      _PremiosCatalogoSectionState();
+}
+
+class _PremiosCatalogoSectionState extends State<_PremiosCatalogoSection> {
+  final _ds = locator<SorteoRemoteDataSource>();
+  bool _ocupado = false;
+
+  int get _totalUnidades =>
+      widget.sorteo.premiosCatalogo.fold(0, (s, c) => s + c.cantidad);
+  int get _totalSorteados =>
+      widget.sorteo.premiosCatalogo.fold(0, (s, c) => s + c.sorteados);
+
+  Future<void> _reload() => context.read<SorteoDetailCubit>().reload();
+
+  // ── Agregar premio (descripción + cantidad) ─────────────────────────
+  Future<void> _agregar() async {
+    final descCtrl = TextEditingController();
+    final cantCtrl = TextEditingController(text: '1');
+    final ok = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.blue1,
+      icon: Icons.card_giftcard,
+      titulo: 'Agregar premio a la rifa',
+      content: [
+        CustomText(
+          controller: descCtrl,
+          label: 'Premio',
+          hintText: 'ej. S/ 500 EN EFECTIVO · CELULAR SAMSUNG',
+          borderColor: AppColors.blue1,
+          textCase: TextCase.upper,
+        ),
+        const SizedBox(height: 10),
+        CustomText(
+          controller: cantCtrl,
+          label: 'Cantidad (unidades de este premio)',
+          borderColor: AppColors.blue1,
+          keyboardType: TextInputType.number,
+        ),
+      ],
+      actions: [
+        Builder(
+          builder: (ctx) => TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
+          ),
+        ),
+        Builder(
+          builder: (ctx) => CustomButton(
+            text: 'Agregar',
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ),
+      ],
+    );
+    final desc = descCtrl.text.trim();
+    final cant = int.tryParse(cantCtrl.text.trim()) ?? 1;
+    if (ok != true) return;
+    if (desc.isEmpty || cant < 1) {
+      if (mounted) {
+        _snack(context, 'Indica el premio y una cantidad válida',
+            error: true);
+      }
+      return;
+    }
+    try {
+      await _ds.crearPremioCatalogo(widget.sorteo.id, desc, cant);
+      await _reload();
+    } catch (e) {
+      if (mounted) _snack(context, 'No se pudo agregar: $e', error: true);
+    }
+  }
+
+  Future<void> _eliminar(SorteoPremioCatalogo item) async {
+    final ok = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.destructive,
+      title: 'Quitar premio',
+      message: '¿Quitar "${item.descripcion}" de la rifa?',
+      confirmText: 'Quitar',
+      icon: Icons.delete_outline,
+    );
+    if (ok != true) return;
+    try {
+      await _ds.eliminarPremioCatalogo(item.id);
+      await _reload();
+    } catch (e) {
+      if (mounted) _snack(context, 'No se pudo quitar: $e', error: true);
+    }
+  }
+
+  Future<void> _subirImagen(SorteoPremioCatalogo item) async {
+    final source = await _elegirFuenteImagen(context);
+    if (source == null || !mounted) return;
+    final picked =
+        await ImagePicker().pickImage(source: source, imageQuality: 82);
+    if (picked == null || !mounted) return;
+    setState(() => _ocupado = true);
+    try {
+      await _ds.subirImagenPremioCatalogo(item.id, File(picked.path));
+      await _reload();
+    } catch (e) {
+      if (mounted) _snack(context, 'No se pudo subir: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  // ── Modo JUGAR ──────────────────────────────────────────────────────
+  Future<void> _jugar() async {
+    final pendientes =
+        widget.sorteo.premiosCatalogo.where((c) => !c.agotado).toList();
+    if (pendientes.isEmpty) {
+      _snack(context, 'Ya se sortearon todos los premios 🎉');
+      return;
+    }
+    final numCtrl = TextEditingController();
+    String? catalogoId = pendientes.first.id;
+    final ok = await StyledDialog.show<bool>(
+      context,
+      accentColor: Colors.purple.shade700,
+      icon: Icons.casino_outlined,
+      titulo: 'Salió un ticket del ánfora',
+      content: [
+        CustomText(
+          controller: numCtrl,
+          label: 'Número del ticket ganador',
+          hintText: 'ej. 47',
+          borderColor: AppColors.blue1,
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: 10),
+        StatefulBuilder(
+          builder: (ctx, setLocal) => DropdownButtonFormField<String>(
+            initialValue: catalogoId,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Premio que se sortea',
+              labelStyle: TextStyle(fontSize: 12),
+              border: OutlineInputBorder(),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+            items: [
+              for (final c in pendientes)
+                DropdownMenuItem(
+                  value: c.id,
+                  child: Text(
+                    '${c.descripcion} (${c.cantidad - c.sorteados} disp.)',
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (v) => setLocal(() => catalogoId = v),
+          ),
+        ),
+      ],
+      actions: [
+        Builder(
+          builder: (ctx) => TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
+          ),
+        ),
+        Builder(
+          builder: (ctx) => CustomButton(
+            text: 'Asignar premio',
+            backgroundColor: Colors.purple.shade700,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ),
+      ],
+    );
+    if (ok != true || !mounted) return;
+    final numero = int.tryParse(numCtrl.text.trim());
+    if (numero == null || numero < 1 || catalogoId == null) {
+      _snack(context, 'Indica el número del ticket ganador', error: true);
+      return;
+    }
+    setState(() => _ocupado = true);
+    try {
+      final r = await _ds.jugarTicket(widget.sorteo.id, numero, catalogoId!);
+      await _reload();
+      if (!mounted) return;
+      final nombre = (r['ganadorNombre'] as String?) ?? '';
+      final restantes = (r['ticketsRestantes'] as num?)?.toInt();
+      _snack(
+        context,
+        '🏆 Ticket #$numero: ¡$nombre gana ${r['premioDescripcion']}!'
+        '${restantes != null ? ' (le quedan $restantes tickets jugando)' : ''}',
+      );
+    } catch (e) {
+      if (mounted) _snack(context, '$e', error: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sorteo = widget.sorteo;
+    final items = sorteo.premiosCatalogo;
+    final cerrado = sorteo.estado == EstadoSorteo.cerrado;
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.card_giftcard, size: 16, color: AppColors.blue1),
+                const SizedBox(width: 6),
+                const Text(
+                  'Premios de la rifa',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue1),
+                ),
+                const SizedBox(width: 8),
+                if (items.isNotEmpty)
+                  Text(
+                    '$_totalSorteados/$_totalUnidades sorteados',
+                    style:
+                        TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                const Spacer(),
+                if (_ocupado)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else ...[
+                  if (cerrado && items.any((c) => !c.agotado))
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: Colors.purple.shade700,
+                      ),
+                      icon: const Icon(Icons.casino_outlined, size: 16),
+                      label: const Text('JUGAR',
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.w700)),
+                      onPressed: _jugar,
+                    ),
+                  IconButton(
+                    tooltip: 'Agregar premio',
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(Icons.add_circle_outline,
+                        size: 18, color: AppColors.blue1),
+                    onPressed: _agregar,
+                  ),
+                ],
+              ],
+            ),
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  'Registra los premios que se jugarán (ej. 3× S/ 500, '
+                  '2× celular) — con el sorteo CERRADO aparece el modo JUGAR.',
+                  style:
+                      TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+              )
+            else
+              for (final c in items) _itemCatalogo(c),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _itemCatalogo(SorteoPremioCatalogo c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Imagen opcional (thumb) o icono.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: c.imagenThumbnail != null || c.imagenUrl != null
+                ? Image.network(
+                    c.imagenThumbnail ?? c.imagenUrl!,
+                    width: 34,
+                    height: 34,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _iconoPremio(),
+                  )
+                : _iconoPremio(),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${c.cantidad > 1 ? '${c.cantidad}× ' : ''}${c.descripcion}',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: c.agotado ? Colors.grey.shade500 : Colors.black87,
+                    decoration:
+                        c.agotado ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                Text(
+                  c.agotado
+                      ? '✅ Sorteado completo'
+                      : c.sorteados > 0
+                          ? '${c.sorteados}/${c.cantidad} sorteados'
+                          : 'Pendiente de sortear',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight:
+                        c.agotado ? FontWeight.w700 : FontWeight.w400,
+                    color: c.agotado
+                        ? Colors.green.shade700
+                        : Colors.grey.shade600,
+                  ),
+                ),
+                for (final g in c.ganadores)
+                  Text(
+                    '🏆 ${g.nombre}'
+                    '${g.numeroTicket != null ? ' · ticket #${g.numeroTicket}' : ''}',
+                    style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.amber.shade900),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Foto del premio (opcional)',
+            visualDensity: VisualDensity.compact,
+            icon: Icon(Icons.photo_camera_outlined,
+                size: 17, color: Colors.grey.shade600),
+            onPressed: _ocupado ? null : () => _subirImagen(c),
+          ),
+          if (c.sorteados == 0)
+            IconButton(
+              tooltip: 'Quitar',
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.delete_outline,
+                  size: 17, color: Colors.red.shade400),
+              onPressed: _ocupado ? null : () => _eliminar(c),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconoPremio() => Container(
+        width: 34,
+        height: 34,
+        color: AppColors.blue1.withValues(alpha: 0.08),
+        child: Icon(Icons.card_giftcard, size: 18, color: AppColors.blue1),
+      );
 }
