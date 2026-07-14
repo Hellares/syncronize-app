@@ -84,22 +84,28 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
     }
   }
 
-  Future<void> _cambiarEstado(Map<String, dynamic> p, String estado) async {
+  /// Valida/rechaza un GRUPO (compra de tickets = varias filas, un solo
+  /// pago): el backend activa toda la compra con tickets consecutivos.
+  Future<void> _cambiarEstado(
+      List<Map<String, dynamic>> grupo, String estado) async {
+    final p = grupo.first;
     final id = p['id'] as String;
+    final ids = grupo.map((x) => x['id'] as String).toSet();
     final nombre = (p['nombre'] as String?) ?? '';
     final esDinamica =
         ((p['sorteo'] as Map?)?['tipo'] as String?) == 'DINAMICA';
     final activar = estado == 'ACTIVO';
+    final tickets = grupo.length > 1 ? ' (${grupo.length} tickets)' : '';
 
     final ok = await ConfirmDialog.show(
       context: context,
       type: activar ? ConfirmDialogType.info : ConfirmDialogType.destructive,
       title: activar ? 'Validar pago' : 'Rechazar jugador',
       message: activar
-          ? '¿Confirmar el pago de $nombre? Se le asignará su ticket y el '
-              'bot le confirmará por WhatsApp.'
+          ? '¿Confirmar el pago de $nombre$tickets? Se le asignará su '
+              'número y el bot le confirmará por WhatsApp.'
               '${esDinamica ? ' Como es DINÁMICA, su premio se registrará automáticamente con los datos que dejó.' : ''}'
-          : '¿Rechazar a $nombre?',
+          : '¿Rechazar a $nombre$tickets?',
       confirmText: activar ? 'Validar' : 'Rechazar',
       icon: activar ? Icons.check_circle_outline : Icons.cancel_outlined,
     );
@@ -111,13 +117,14 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
       if (!mounted) return;
       setState(() {
         _procesando.remove(id);
-        _pendientes = [..._pendientes]..removeWhere((x) => x['id'] == id);
+        _pendientes = [..._pendientes]
+          ..removeWhere((x) => ids.contains(x['id']));
       });
       _snack(
         activar
             ? (esDinamica
                 ? '🏆 ${nombre.split(' ').first} activado — premio creado automáticamente'
-                : '🎟️ ${nombre.split(' ').first} activado — el bot le confirmó su ticket')
+                : '🎟️ ${nombre.split(' ').first} activado${grupo.length > 1 ? ' — ${grupo.length} tickets confirmados por WhatsApp' : ' — el bot le confirmó su ticket'}')
             : 'Jugador rechazado',
         ok: true,
       );
@@ -126,6 +133,16 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
       setState(() => _procesando.remove(id));
       _snack('No se pudo: $e', ok: false);
     }
+  }
+
+  /// Agrupa por COMPRA (compraId): una card por compra de tickets.
+  List<List<Map<String, dynamic>>> get _grupos {
+    final mapa = <String, List<Map<String, dynamic>>>{};
+    for (final p in _pendientes) {
+      final key = (p['compraId'] as String?) ?? (p['id'] as String);
+      mapa.putIfAbsent(key, () => []).add(p);
+    }
+    return mapa.values.toList();
   }
 
   /// "12/07 22:53" en hora local del device.
@@ -201,21 +218,33 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
                     )
                   : RefreshIndicator(
                       onRefresh: _cargar,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _pendientes.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (_, i) => _card(_pendientes[i]),
-                      ),
+                      child: Builder(builder: (_) {
+                        final grupos = _grupos;
+                        return ListView.separated(
+                          padding: const EdgeInsets.all(12),
+                          itemCount: grupos.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) => _card(grupos[i]),
+                        );
+                      }),
                     ),
     );
   }
 
-  Widget _card(Map<String, dynamic> p) {
+  Widget _card(List<Map<String, dynamic>> grupo) {
+    final p = grupo.first;
     final id = p['id'] as String;
     final sorteo = (p['sorteo'] as Map?) ?? const {};
     final esDinamica = sorteo['tipo'] == 'DINAMICA';
+    // Compra de tickets: cantidad y monto total (precio Decimal llega
+    // como String — parser tolerante).
+    final precio =
+        double.tryParse('${sorteo['precioParticipacion'] ?? ''}');
+    final compra = grupo.length > 1
+        ? '🎟️ ${grupo.length} tickets'
+            '${precio != null ? ' · S/ ${(grupo.length * precio).toStringAsFixed(2)}' : ''}'
+        : null;
     final agencia = p['agenciaNombre'] as String?;
     final destino = [p['destinoProvincia'], p['destinoDepartamento']]
         .whereType<String>()
@@ -303,6 +332,15 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
                       ),
                     ],
                   ),
+                  // Compra de tickets: cantidad + monto total a cuadrar.
+                  if (compra != null)
+                    Text(
+                      compra,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue1),
+                    ),
                   // El YAPE lo hace un tercero — cuadrar el pago con esto.
                   if (pagador != null)
                     Row(
@@ -362,14 +400,14 @@ class _JugadoresPendientesPageState extends State<JugadoresPendientesPage> {
                 visualDensity: VisualDensity.compact,
                 icon: Icon(Icons.check_circle_outline,
                     size: 20, color: Colors.green.shade700),
-                onPressed: () => _cambiarEstado(p, 'ACTIVO'),
+                onPressed: () => _cambiarEstado(grupo, 'ACTIVO'),
               ),
               IconButton(
                 tooltip: 'Rechazar',
                 visualDensity: VisualDensity.compact,
                 icon: Icon(Icons.cancel_outlined,
                     size: 20, color: Colors.red.shade400),
-                onPressed: () => _cambiarEstado(p, 'RECHAZADO'),
+                onPressed: () => _cambiarEstado(grupo, 'RECHAZADO'),
               ),
             ],
           ],

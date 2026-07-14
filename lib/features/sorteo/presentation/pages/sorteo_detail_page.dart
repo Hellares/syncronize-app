@@ -25,6 +25,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import '../../domain/entities/sorteo.dart';
 import '../bloc/sorteo_detail_cubit.dart';
 import '../services/rotulo_envio_pdf_generator.dart';
+import '../services/tickets_anfora_pdf_generator.dart';
 import '../widgets/editar_entrega_sheet.dart';
 import '../widgets/enviar_whatsapp_premio_sheet.dart';
 import '../widgets/registrar_premio_sheet.dart';
@@ -92,6 +93,18 @@ class _SorteoDetailView extends StatelessWidget {
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
             actions: [
+              // Tickets físicos para el ánfora (solo sorteos clásicos).
+              if (sorteo != null &&
+                  sorteo.tipo == TipoSorteo.sorteo &&
+                  sorteo.participantes.any((p) =>
+                      p.estado == EstadoParticipanteSorteo.activo &&
+                      p.numeroTicket != null))
+                IconButton(
+                  tooltip: 'Imprimir tickets del ánfora',
+                  icon: const Icon(Icons.print_outlined,
+                      size: 20, color: Colors.white),
+                  onPressed: () => _imprimirTickets(context, sorteo),
+                ),
               if (sorteo != null && sorteo.estado == EstadoSorteo.abierto)
                 IconButton(
                   tooltip: 'Cerrar sorteo',
@@ -437,6 +450,38 @@ class _SorteoDetailView extends StatelessWidget {
     if (error != null && context.mounted) _snack(context, error, error: true);
   }
 
+  /// Tickets del ánfora: el nombre de cada participante impreso una vez
+  /// POR TICKET validado (quien compró 20, sale 20 veces) — para
+  /// recortar y meter al ánfora física.
+  Future<void> _imprimirTickets(BuildContext context, Sorteo sorteo) async {
+    final tickets = sorteo.participantes
+        .where((p) =>
+            p.estado == EstadoParticipanteSorteo.activo &&
+            p.numeroTicket != null)
+        .map((p) => DatosTicketAnfora(
+            numero: p.numeroTicket!, nombre: p.nombre, dni: p.dni))
+        .toList()
+      ..sort((a, b) => a.numero.compareTo(b.numero));
+    if (tickets.isEmpty) {
+      _snack(context, 'Aún no hay tickets validados para imprimir',
+          error: true);
+      return;
+    }
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final empresaNombre = ctxState is EmpresaContextLoaded
+        ? ctxState.context.empresa.nombre
+        : '';
+    final bytes = await TicketsAnforaPdfGenerator.generate(
+      sorteoTitulo: sorteo.titulo,
+      empresaNombre: empresaNombre,
+      tickets: tickets,
+    );
+    await Printing.layoutPdf(
+      onLayout: (_) async => bytes,
+      name: 'tickets_anfora.pdf',
+    );
+  }
+
   Future<void> _reabrirSorteo(BuildContext context) async {
     final cubit = context.read<SorteoDetailCubit>();
     final ok = await ConfirmDialog.show(
@@ -748,10 +793,169 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
             ),
             if (_expandido) ...[
               const SizedBox(height: 4),
-              for (final p in visibles) _fila(context, p),
+              // SORTEO clásico: una compra de N tickets = UNA fila con
+              // su rango. Dinámicas siguen fila por jugada.
+              if (esDinamica)
+                for (final p in visibles) _fila(context, p)
+              else
+                for (final g in _grupos(visibles)) _filaGrupo(context, g),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Agrupa por COMPRA (compraId) — filas sin compra van solas.
+  List<List<SorteoParticipante>> _grupos(List<SorteoParticipante> lista) {
+    final mapa = <String, List<SorteoParticipante>>{};
+    for (final p in lista) {
+      mapa.putIfAbsent(p.compraId ?? p.id, () => []).add(p);
+    }
+    return mapa.values.toList();
+  }
+
+  /// COMPRA de tickets: una fila por compra con el rango ("#1–#20"),
+  /// la cantidad y el monto total. Validar opera sobre TODA la compra
+  /// (el backend activa todas las filas con tickets consecutivos).
+  Widget _filaGrupo(BuildContext context, List<SorteoParticipante> grupo) {
+    if (grupo.length == 1) return _fila(context, grupo.first);
+    final p = grupo.first;
+    final esPendiente = p.estado == EstadoParticipanteSorteo.pendientePago;
+    final esActivo = p.estado == EstadoParticipanteSorteo.activo;
+    final nums = grupo
+        .map((x) => x.numeroTicket)
+        .whereType<int>()
+        .toList()
+      ..sort();
+    final rango = nums.isEmpty
+        ? '×${grupo.length}'
+        : nums.length == 1
+            ? '#${nums.first}'
+            : '#${nums.first}–${nums.last}';
+    final precio = widget.sorteo.precioParticipacion;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 52,
+            child: Text(
+              rango,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color:
+                    esActivo ? Colors.green.shade700 : Colors.grey.shade400,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  p.nombre,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: p.estado == EstadoParticipanteSorteo.rechazado
+                        ? Colors.grey.shade400
+                        : Colors.black87,
+                    decoration:
+                        p.estado == EstadoParticipanteSorteo.rechazado
+                            ? TextDecoration.lineThrough
+                            : null,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'DNI ${p.dni} · ${p.celular}',
+                  style:
+                      TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
+                ),
+                Text(
+                  '🎟️ ${grupo.length} tickets'
+                  '${precio != null ? ' · S/ ${(grupo.length * precio).toStringAsFixed(2)}' : ''}',
+                  style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue1),
+                ),
+                if (p.pagadorTexto != null)
+                  Text(
+                    '💳 Yapea: ${p.pagadorTexto}',
+                    style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.teal.shade700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (p.recibeNombre != null && p.recibeNombre!.isNotEmpty)
+                  Text(
+                    '🎁 Recibe: ${p.recibeNombre}'
+                    '${p.recibeDni != null ? ' · DNI ${p.recibeDni}' : ''}',
+                    style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.purple.shade700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (p.envioTexto != null)
+                  Text(
+                    '🚚 ${p.envioTexto}',
+                    style: TextStyle(
+                        fontSize: 9.5,
+                        color: AppColors.blue1,
+                        fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          if (esPendiente) ...[
+            IconButton(
+              tooltip:
+                  'Validar pago (activa los ${grupo.length} tickets y confirma por WhatsApp)',
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.check_circle_outline,
+                  size: 19, color: Colors.green.shade700),
+              onPressed: () =>
+                  _cambiarEstado(context, p, EstadoParticipanteSorteo.activo),
+            ),
+            IconButton(
+              tooltip: 'Rechazar la compra completa',
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.cancel_outlined,
+                  size: 19, color: Colors.red.shade400),
+              onPressed: () => _cambiarEstado(
+                  context, p, EstadoParticipanteSorteo.rechazado),
+            ),
+          ] else
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: (esActivo ? Colors.green : Colors.red)
+                    .withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                p.estado.label.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: esActivo
+                      ? Colors.green.shade700
+                      : Colors.red.shade400,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

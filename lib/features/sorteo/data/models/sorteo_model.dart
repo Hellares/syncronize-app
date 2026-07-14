@@ -59,6 +59,7 @@ class SorteoModel {
                 estado:
                     EstadoParticipanteSorteo.fromApi(e['estado'] as String?),
                 numeroTicket: (e['numeroTicket'] as num?)?.toInt(),
+                compraId: e['compraId'] as String?,
                 recibeNombre: e['recibeNombre'] as String?,
                 recibeDni: e['recibeDni'] as String?,
                 pagadorNombre: e['pagadorNombre'] as String?,

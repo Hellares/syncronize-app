@@ -185,6 +185,10 @@ class SorteoParticipante {
   final EstadoParticipanteSorteo estado;
   final int? numeroTicket;
 
+  /// COMPRA de tickets (tipo SORTEO): "quiero 20" = 20 filas con el
+  /// mismo compraId — un pago, una validación, tickets consecutivos.
+  final String? compraId;
+
   /// REGALO: quien recibe el premio si NO es el propio jugador.
   final String? recibeNombre;
   final String? recibeDni;
@@ -209,6 +213,7 @@ class SorteoParticipante {
     required this.dni,
     required this.estado,
     this.numeroTicket,
+    this.compraId,
     this.recibeNombre,
     this.recibeDni,
     this.pagadorNombre,
