@@ -19,13 +19,13 @@ class DatosTicketAnfora {
 }
 
 /// Tickets del sorteo para IMPRIMIR y recortar (ánfora física): grilla
-/// A4 de 3 columnas × 8 filas (24 por hoja) con recuadros de corte —
-/// tickets ANCHOS (misma altura), fáciles de recortar y doblar para el
-/// ánfora. Cada ticket lleva el título del sorteo, su NÚMERO y el
-/// nombre + DNI del participante — quien compró 20 sale 20 veces.
+/// A4 de 3 columnas × 9 filas (27 por hoja) con recuadros de corte —
+/// tickets ANCHOS, fáciles de recortar y doblar para el ánfora. Cada
+/// ticket lleva el título del sorteo, su NÚMERO y el nombre + DNI del
+/// participante — quien compró 20 sale 20 veces.
 class TicketsAnforaPdfGenerator {
   static const _porFila = 3;
-  static const _filasPorPagina = 8;
+  static const _filasPorPagina = 9;
   static const _porPagina = _porFila * _filasPorPagina;
 
   static Future<Uint8List> generate({
