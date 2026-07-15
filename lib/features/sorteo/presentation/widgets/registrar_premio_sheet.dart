@@ -27,6 +27,10 @@ class RegistrarPremioData {
   final String? agenciaDireccion;
   final String? observaciones;
 
+  /// Premio en EFECTIVO 💸: se yapea al ganador (el bot le confirma su
+  /// número de abono) — sin envío por agencia.
+  final bool esEfectivo;
+
   const RegistrarPremioData({
     required this.descripcion,
     this.productoId,
@@ -39,6 +43,7 @@ class RegistrarPremioData {
     this.destinoProvincia,
     this.agenciaDireccion,
     this.observaciones,
+    this.esEfectivo = false,
   });
 }
 
@@ -134,6 +139,9 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
   int _cantidad = 1;
   var _modalidad = ModalidadEntregaPremio.retiroTienda;
   bool _prellenadoDePremioAnterior = false;
+
+  /// EFECTIVO 💸: oculta la sección de entrega (se yapea, no se envía).
+  bool _esEfectivo = false;
 
   @override
   void initState() {
@@ -322,6 +330,30 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
               const SizedBox(height: 12),
 
               // ── Entrega ──
+              // EFECTIVO: se yapea al ganador (el bot le confirma su
+              // número de abono) — sin envío por agencia.
+              InkWell(
+                onTap: () => setState(() => _esEfectivo = !_esEfectivo),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _esEfectivo,
+                      activeColor: AppColors.blue1,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: (v) =>
+                          setState(() => _esEfectivo = v ?? false),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Premio en EFECTIVO 💸 — se yapea al ganador',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!_esEfectivo) ...[
               Text('Entrega del premio',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
               const SizedBox(height: 4),
@@ -343,7 +375,9 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
                   ],
                 ],
               ),
-              if (_modalidad == ModalidadEntregaPremio.envioAgencia) ...[
+              ],
+              if (!_esEfectivo &&
+                  _modalidad == ModalidadEntregaPremio.envioAgencia) ...[
                 const SizedBox(height: 8),
                 if (_prellenadoDePremioAnterior) ...[
                   Container(
@@ -502,11 +536,14 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
       cantidad: _descontarStock ? _producto!.cantidad * 1 : 1,
       montoParticipacion: double.tryParse(
           _participacionCtrl.text.trim().replaceAll(',', '.')),
-      modalidad: _modalidad,
-      agenciaNombre: _agenciaCtrl.text.trim(),
-      destinoDepartamento: _destinoDepCtrl.text.trim(),
-      destinoProvincia: _destinoProvCtrl.text.trim(),
-      agenciaDireccion: _agenciaDirCtrl.text.trim(),
+      // EFECTIVO: sin datos de agencia (se yapea al ganador).
+      esEfectivo: _esEfectivo,
+      modalidad:
+          _esEfectivo ? ModalidadEntregaPremio.retiroTienda : _modalidad,
+      agenciaNombre: _esEfectivo ? '' : _agenciaCtrl.text.trim(),
+      destinoDepartamento: _esEfectivo ? '' : _destinoDepCtrl.text.trim(),
+      destinoProvincia: _esEfectivo ? '' : _destinoProvCtrl.text.trim(),
+      agenciaDireccion: _esEfectivo ? '' : _agenciaDirCtrl.text.trim(),
       observaciones: _obsCtrl.text.trim(),
     ));
   }

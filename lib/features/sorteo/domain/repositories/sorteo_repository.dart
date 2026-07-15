@@ -46,6 +46,7 @@ abstract class SorteoRepository {
     String? agenciaDireccion,
     String? observaciones,
     String? sedeId,
+    bool esEfectivo = false,
   });
 
   Future<Resource<SorteoPremio>> cambiarEstadoPremio({

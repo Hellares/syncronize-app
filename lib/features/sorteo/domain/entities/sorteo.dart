@@ -112,6 +112,10 @@ class SorteoPremioCatalogo {
   final String id;
   final String descripcion;
   final int cantidad;
+
+  /// Premio en EFECTIVO 💸: se yapea al ganador (el bot le confirma su
+  /// número de abono en vez de pedirle dirección de agencia).
+  final bool esEfectivo;
   final int sorteados;
   final List<GanadorCatalogo> ganadores;
   final String? imagenUrl;
@@ -121,6 +125,7 @@ class SorteoPremioCatalogo {
     required this.id,
     required this.descripcion,
     this.cantidad = 1,
+    this.esEfectivo = false,
     this.sorteados = 0,
     this.ganadores = const [],
     this.imagenUrl,
@@ -357,6 +362,12 @@ class SorteoPremio {
   final String? envioCodigo;
   final String? envioClave;
 
+  /// Premio en EFECTIVO 💸: se yapea al ganador (sin envío por agencia).
+  /// [abonoNumero] = número confirmado por el ganador con el bot
+  /// (null = aún no confirma; fallback su celular).
+  final bool esEfectivo;
+  final String? abonoNumero;
+
   /// Rótulo de envío ya impreso (chip IMPRESO en la card).
   final DateTime? rotuloImpresoEn;
 
@@ -396,6 +407,8 @@ class SorteoPremio {
     this.envioNumeroOrden,
     this.envioCodigo,
     this.envioClave,
+    this.esEfectivo = false,
+    this.abonoNumero,
     this.rotuloImpresoEn,
     this.whatsappEnviadoEn,
     required this.estado,

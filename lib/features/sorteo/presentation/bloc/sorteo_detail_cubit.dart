@@ -66,10 +66,12 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     String? agenciaDireccion,
     String? observaciones,
     String? sedeId,
+    bool esEfectivo = false,
   }) async {
     final id = _sorteoId;
     if (id == null) return 'Sorteo no cargado';
     final result = await _repository.registrarPremio(
+      esEfectivo: esEfectivo,
       sorteoId: id,
       participanteId: participanteId,
       ganadorDni: ganadorDni,

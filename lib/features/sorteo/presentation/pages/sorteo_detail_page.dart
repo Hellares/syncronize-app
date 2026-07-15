@@ -680,6 +680,7 @@ class _SorteoDetailView extends StatelessWidget {
       varianteId: datos.varianteId,
       cantidad: datos.cantidad,
       montoParticipacion: datos.montoParticipacion,
+      esEfectivo: datos.esEfectivo,
       modalidad: datos.modalidad,
       agenciaNombre: datos.agenciaNombre,
       destinoDepartamento: datos.destinoDepartamento,
@@ -1315,6 +1316,7 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
       varianteId: datos.varianteId,
       cantidad: datos.cantidad,
       montoParticipacion: datos.montoParticipacion,
+      esEfectivo: datos.esEfectivo,
       modalidad: datos.modalidad,
       agenciaNombre: datos.agenciaNombre,
       destinoDepartamento: datos.destinoDepartamento,
@@ -1678,34 +1680,56 @@ class _PremioCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  premio.modalidad == ModalidadEntregaPremio.envioAgencia
-                      ? Icons.local_shipping_outlined
-                      : Icons.storefront_outlined,
-                  size: 14,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    premio.modalidad == ModalidadEntregaPremio.envioAgencia
-                        ? [
-                            premio.agenciaNombre ?? 'Agencia',
-                            if (premio.destinoTexto != null)
-                              '→ ${premio.destinoTexto}',
-                            if (premio.agenciaDireccion != null &&
-                                premio.agenciaDireccion!.isNotEmpty)
-                              '· ${premio.agenciaDireccion}',
-                          ].join(' ')
-                        : 'Retiro en tienda',
-                    style:
-                        TextStyle(fontSize: 10.5, color: Colors.grey.shade700),
+            // EFECTIVO 💸: se yapea al número que el ganador confirmó con
+            // el bot (fallback su celular, marcado "por confirmar").
+            if (premio.esEfectivo)
+              Row(
+                children: [
+                  Icon(Icons.currency_exchange,
+                      size: 14, color: Colors.teal.shade700),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      premio.abonoNumero != null
+                          ? '💸 Yapear a: ${premio.abonoNumero}'
+                          : '💸 Yapear a: ${premio.ganadorCelular ?? '—'} (por confirmar con el bot)',
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.teal.shade700),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Icon(
+                    premio.modalidad == ModalidadEntregaPremio.envioAgencia
+                        ? Icons.local_shipping_outlined
+                        : Icons.storefront_outlined,
+                    size: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      premio.modalidad == ModalidadEntregaPremio.envioAgencia
+                          ? [
+                              premio.agenciaNombre ?? 'Agencia',
+                              if (premio.destinoTexto != null)
+                                '→ ${premio.destinoTexto}',
+                              if (premio.agenciaDireccion != null &&
+                                  premio.agenciaDireccion!.isNotEmpty)
+                                '· ${premio.agenciaDireccion}',
+                            ].join(' ')
+                          : 'Retiro en tienda',
+                      style: TextStyle(
+                          fontSize: 10.5, color: Colors.grey.shade700),
+                    ),
+                  ),
+                ],
+              ),
             if (premio.envioNumeroOrden != null ||
                 premio.envioCodigo != null ||
                 premio.envioClave != null) ...[
@@ -2478,10 +2502,11 @@ class _PremiosCatalogoSectionState extends State<_PremiosCatalogoSection> {
 
   Future<void> _reload() => context.read<SorteoDetailCubit>().reload();
 
-  // ── Agregar premio (descripción + cantidad) ─────────────────────────
+  // ── Agregar premio (descripción + cantidad + efectivo) ──────────────
   Future<void> _agregar() async {
     final descCtrl = TextEditingController();
     final cantCtrl = TextEditingController(text: '1');
+    bool esEfectivo = false;
     final ok = await StyledDialog.show<bool>(
       context,
       accentColor: AppColors.blue1,
@@ -2496,11 +2521,46 @@ class _PremiosCatalogoSectionState extends State<_PremiosCatalogoSection> {
           textCase: TextCase.upper,
         ),
         const SizedBox(height: 10),
-        CustomText(
-          controller: cantCtrl,
-          label: 'Cantidad (unidades de este premio)',
-          borderColor: AppColors.blue1,
-          keyboardType: TextInputType.number,
+        StatefulBuilder(
+          builder: (ctx, setLocal) => Row(
+            children: [
+              Expanded(
+                child: CustomText(
+                  controller: cantCtrl,
+                  label: 'Cantidad',
+                  borderColor: AppColors.blue1,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // EFECTIVO: se yapea al ganador (el bot le confirma su
+              // número) — sin envío por agencia.
+              Expanded(
+                child: InkWell(
+                  onTap: () => setLocal(() => esEfectivo = !esEfectivo),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: esEfectivo,
+                        activeColor: AppColors.blue1,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                        onChanged: (v) =>
+                            setLocal(() => esEfectivo = v ?? false),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'En efectivo 💸 (se yapea)',
+                          style: TextStyle(fontSize: 10.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
       actions: [
@@ -2531,7 +2591,8 @@ class _PremiosCatalogoSectionState extends State<_PremiosCatalogoSection> {
       return;
     }
     try {
-      await _ds.crearPremioCatalogo(widget.sorteo.id, desc, cant);
+      await _ds.crearPremioCatalogo(widget.sorteo.id, desc, cant,
+          esEfectivo: esEfectivo);
       await _reload();
     } catch (e) {
       if (mounted) _snack(context, 'No se pudo agregar: $e', error: true);
@@ -2768,7 +2829,8 @@ class _PremiosCatalogoSectionState extends State<_PremiosCatalogoSection> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${c.cantidad > 1 ? '${c.cantidad}× ' : ''}${c.descripcion}',
+                  '${c.cantidad > 1 ? '${c.cantidad}× ' : ''}${c.descripcion}'
+                  '${c.esEfectivo ? ' 💸' : ''}',
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,

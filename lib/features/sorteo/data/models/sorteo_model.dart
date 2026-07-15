@@ -78,6 +78,7 @@ class SorteoModel {
                 id: (e as Map)['id'] as String? ?? '',
                 descripcion: e['descripcion'] as String? ?? '',
                 cantidad: (e['cantidad'] as num?)?.toInt() ?? 1,
+                esEfectivo: e['esEfectivo'] as bool? ?? false,
                 sorteados: (e['sorteados'] as num?)?.toInt() ?? 0,
                 ganadores: ((e['ganadores'] as List?) ?? const [])
                     .map((g) => GanadorCatalogo(
@@ -136,6 +137,8 @@ class SorteoPremioModel {
       envioNumeroOrden: json['envioNumeroOrden'] as String?,
       envioCodigo: json['envioCodigo'] as String?,
       envioClave: json['envioClave'] as String?,
+      esEfectivo: json['esEfectivo'] as bool? ?? false,
+      abonoNumero: json['abonoNumero'] as String?,
       rotuloImpresoEn: _fecha(json['rotuloImpresoEn']),
       whatsappEnviadoEn: _fecha(json['whatsappEnviadoEn']),
       estado: EstadoPremioSorteo.fromApi(json['estado'] as String?),

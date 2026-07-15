@@ -137,10 +137,15 @@ class SorteoRemoteDataSource {
 
   /// POST /sorteos/:id/premios-catalogo
   Future<void> crearPremioCatalogo(
-      String sorteoId, String descripcion, int cantidad) async {
+      String sorteoId, String descripcion, int cantidad,
+      {bool esEfectivo = false}) async {
     await _dioClient.post(
       '$_basePath/$sorteoId/premios-catalogo',
-      data: {'descripcion': descripcion, 'cantidad': cantidad},
+      data: {
+        'descripcion': descripcion,
+        'cantidad': cantidad,
+        'esEfectivo': esEfectivo,
+      },
     );
   }
 

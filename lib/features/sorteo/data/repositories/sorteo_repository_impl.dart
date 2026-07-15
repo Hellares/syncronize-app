@@ -114,9 +114,11 @@ class SorteoRepositoryImpl implements SorteoRepository {
     String? agenciaDireccion,
     String? observaciones,
     String? sedeId,
+    bool esEfectivo = false,
   }) =>
       _guard(() async {
         final model = await _remoteDataSource.registrarPremio(sorteoId, {
+          'esEfectivo': esEfectivo,
           if (participanteId != null) 'participanteId': participanteId,
           'ganadorDni': ganadorDni,
           'ganadorNombre': ganadorNombre,
