@@ -81,6 +81,9 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
   List<ProductoMarketplace> _masVistos = [];
   // ignore: unused_field  ("Lo más vendido" oculto temporalmente para pruebas)
   List<ProductoMarketplace> _masVendidos = [];
+  // Cortina de plataforma: cuando el super admin la activa tapa TODA la
+  // sección de productos (chips, secciones del home y grid) con un mensaje.
+  CortinaMarketplace _cortina = const CortinaMarketplace();
 
   /// URLs ya precargadas, para no relanzar precache en cada rebuild de la grilla.
   final Set<String> _prefetchedImages = {};
@@ -188,6 +191,7 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
       _ofertas = home.ofertas;
       _masVendidos = home.masVendidos;
       _masVistos = home.masVistos;
+      _cortina = home.cortina;
     });
   }
 
@@ -512,7 +516,17 @@ class _MarketplaceViewState extends State<_MarketplaceView> {
           child: CustomScrollView(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
+            // Cortina activa: se reemplaza TODO (chips, banners, secciones y
+            // grid) por la pantalla de cortina. Pull-to-refresh sigue vivo
+            // para re-consultar cuando el admin la desactive.
+            slivers: _cortina.activa
+                ? [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _CortinaMarketplaceView(cortina: _cortina),
+                    ),
+                  ]
+                : [
               // Ocultos temporalmente para pruebas (widget de ubicación +
               // slider de banners). Reactivar descomentando.
               // SliverToBoxAdapter(
@@ -1073,6 +1087,90 @@ class _StaticBannerCarouselState extends State<_StaticBannerCarousel> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Cortina de plataforma: pantalla que tapa toda la sección de productos del
+/// marketplace cuando el super admin la activa desde syncronize-admin
+/// (Configuración del Sistema → Marketplace).
+class _CortinaMarketplaceView extends StatelessWidget {
+  final CortinaMarketplace cortina;
+
+  const _CortinaMarketplaceView({required this.cortina});
+
+  @override
+  Widget build(BuildContext context) {
+    final titulo = (cortina.titulo ?? '').trim().isEmpty
+        ? 'Marketplace en mantenimiento'
+        : cortina.titulo!.trim();
+    final mensaje = (cortina.mensaje ?? '').trim();
+
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [AppColors.blue2, AppColors.blue1],
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.storefront_rounded,
+              size: 56,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            titulo,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (mensaje.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.refresh_rounded,
+                  size: 14, color: Colors.white.withValues(alpha: 0.6)),
+              const SizedBox(width: 6),
+              Text(
+                'Desliza hacia abajo para actualizar',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

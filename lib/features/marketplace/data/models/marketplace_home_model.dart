@@ -7,12 +7,14 @@ class MarketplaceHomeModel {
   final List<ProductoMarketplaceModel> masVendidos;
   final List<ProductoMarketplaceModel> masVistos;
   final List<CategoriaMarketplaceModel> categorias;
+  final CortinaMarketplace cortina;
 
   const MarketplaceHomeModel({
     this.ofertas = const [],
     this.masVendidos = const [],
     this.masVistos = const [],
     this.categorias = const [],
+    this.cortina = const CortinaMarketplace(),
   });
 
   static List<ProductoMarketplaceModel> _productos(dynamic raw) {
@@ -24,6 +26,7 @@ class MarketplaceHomeModel {
 
   factory MarketplaceHomeModel.fromJson(Map<String, dynamic> json) {
     final cats = json['categorias'] as List<dynamic>? ?? const [];
+    final cortinaJson = json['cortina'] as Map<String, dynamic>?;
     return MarketplaceHomeModel(
       ofertas: _productos(json['ofertas']),
       masVendidos: _productos(json['masVendidos']),
@@ -31,6 +34,11 @@ class MarketplaceHomeModel {
       categorias: cats
           .map((e) => CategoriaMarketplaceModel.fromJson(e as Map<String, dynamic>))
           .toList(),
+      cortina: CortinaMarketplace(
+        activa: cortinaJson?['activa'] as bool? ?? false,
+        titulo: cortinaJson?['titulo'] as String?,
+        mensaje: cortinaJson?['mensaje'] as String?,
+      ),
     );
   }
 
@@ -39,5 +47,6 @@ class MarketplaceHomeModel {
         masVendidos: masVendidos.map((p) => p.toEntity()).toList(),
         masVistos: masVistos.map((p) => p.toEntity()).toList(),
         categorias: categorias.map((c) => c.toEntity()).toList(),
+        cortina: cortina,
       );
 }
