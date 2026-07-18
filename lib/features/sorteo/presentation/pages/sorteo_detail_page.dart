@@ -251,6 +251,7 @@ class _SorteoDetailView extends StatelessWidget {
                     premio: premio,
                     direccionConfirmada:
                         _direccionConfirmadaDe(sorteo, premio),
+                    participante: _participanteDelPremio(sorteo, premio),
                     onImprimirRotulo: () =>
                         _imprimirRotulo(context, sorteo, premio),
                   ),
@@ -379,6 +380,7 @@ class _SorteoDetailView extends StatelessWidget {
                   premio: premio,
                   direccionConfirmada:
                       _direccionConfirmadaDe(sorteo, premio),
+                  participante: _participanteDelPremio(sorteo, premio),
                   onImprimirRotulo: () =>
                       _imprimirRotulo(context, sorteo, premio),
                 ),
@@ -766,6 +768,156 @@ class _SorteoDetailView extends StatelessWidget {
   }
 }
 
+/// Historial desplegable de una PARTICIPACIÓN — vive tanto en la card
+/// del participante (pendientes) como en la del premio/jugada (en
+/// dinámicas el validado se muestra como premio y la historia lo sigue).
+/// Autónomo: cada card maneja su propio abierto/cerrado.
+class _HistorialParticipante extends StatefulWidget {
+  final SorteoParticipante p;
+  final int tickets;
+  const _HistorialParticipante({required this.p, this.tickets = 1});
+
+  @override
+  State<_HistorialParticipante> createState() =>
+      _HistorialParticipanteState();
+}
+
+class _HistorialParticipanteState extends State<_HistorialParticipante> {
+  bool _abierto = false;
+
+  String _fechaHora(DateTime t) {
+    final l = t.toLocal();
+    String d2(int v) => v.toString().padLeft(2, '0');
+    return '${d2(l.day)}/${d2(l.month)} ${d2(l.hour)}:${d2(l.minute)}';
+  }
+
+  Widget _linea(IconData icon, String texto, {Color? color}) => Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 10, color: color ?? Colors.grey.shade600),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                texto,
+                style: TextStyle(
+                    fontSize: 9,
+                    color: color ?? Colors.grey.shade700,
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.p;
+    final tickets = widget.tickets;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _abierto = !_abierto),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.history, size: 10, color: AppColors.blue1),
+                const SizedBox(width: 3),
+                Text(
+                  _abierto ? 'Ocultar historial' : 'Historial',
+                  style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue1),
+                ),
+                Icon(_abierto ? Icons.expand_less : Icons.expand_more,
+                    size: 11, color: AppColors.blue1),
+              ],
+            ),
+          ),
+        ),
+        if (_abierto)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.fromLTRB(8, 5, 8, 7),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200, width: 0.6),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _linea(
+                    Icons.edit_note,
+                    '📝 Registrado el ${_fechaHora(p.creadoEn)}'
+                    '${tickets > 1 ? ' · compra de $tickets tickets' : ''}'),
+                if (p.yapeAnticipadoEn != null)
+                  _linea(
+                      Icons.front_hand_outlined,
+                      'Declaró yape ANTES de registrarse '
+                      '(${_fechaHora(p.yapeAnticipadoEn!)}) — validación manual',
+                      color: Colors.orange.shade800),
+                _linea(
+                  Icons.account_balance_wallet_outlined,
+                  p.pagadorTexto != null
+                      ? 'Yapea OTRA persona: ${p.pagadorTexto}'
+                      : 'Yapea él/ella mism${p.nombre.endsWith('A') ? 'a' : 'o'}',
+                ),
+                if (p.yapePaymentId != null)
+                  _linea(Icons.price_check,
+                      'Pago Yape vinculado ✓ (consumido — no reutilizable)',
+                      color: Colors.green.shade700),
+                if (p.envioTexto != null)
+                  _linea(
+                    Icons.local_shipping_outlined,
+                    'Envío: ${p.envioTexto}'
+                    '${p.direccionConfirmada ? ' · confirmada por el cliente el ${_fechaHora(p.direccionConfirmadaEn!)}' : ' · SIN confirmar por el cliente'}',
+                    color: p.direccionConfirmada
+                        ? Colors.green.shade700
+                        : Colors.grey.shade700,
+                  ),
+                if (p.recibeNombre != null && p.recibeNombre!.isNotEmpty)
+                  _linea(
+                      Icons.card_giftcard,
+                      'Recoge: ${p.recibeNombre}'
+                      '${p.recibeDni != null ? ' · DNI ${p.recibeDni}' : ''}',
+                      color: Colors.purple.shade700),
+                if (p.activadoEn != null)
+                  _linea(
+                      Icons.verified_outlined,
+                      'Validado el ${_fechaHora(p.activadoEn!)}'
+                      '${p.numeroTicket != null ? ' · ticket #${p.numeroTicket}${tickets > 1 ? ' al #${p.numeroTicket! + tickets - 1}' : ''}' : ''}',
+                      color: Colors.green.shade700)
+                else
+                  _linea(Icons.hourglass_empty, 'Pago por validar',
+                      color: Colors.orange.shade800),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Participante vinculado a un premio (por jugada o por DNI) — para que
+/// la card del premio muestre el mismo historial de la participación.
+SorteoParticipante? _participanteDelPremio(Sorteo sorteo, SorteoPremio premio) {
+  for (final x in sorteo.participantes) {
+    if (premio.participanteId != null && x.id == premio.participanteId) {
+      return x;
+    }
+  }
+  for (final x in sorteo.participantes) {
+    if (premio.ganadorDni != null && x.dni == premio.ganadorDni) return x;
+  }
+  return null;
+}
+
 void _snack(BuildContext context, String msg, {bool error = false}) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
     content: Text(msg, style: const TextStyle(fontSize: 12)),
@@ -1023,124 +1175,6 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
   /// COMPRA de tickets: una fila por compra con el rango ("#1–#20"),
   /// la cantidad y el monto total. Validar opera sobre TODA la compra
   /// (el backend activa todas las filas con tickets consecutivos).
-  /// Cards con el historial desplegado (por participante/compra).
-  final Set<String> _historialAbierto = {};
-
-  /// "18/07 21:35" — para la línea de tiempo del historial.
-  String _fechaHora(DateTime t) {
-    final l = t.toLocal();
-    String d2(int v) => v.toString().padLeft(2, '0');
-    return '${d2(l.day)}/${d2(l.month)} ${d2(l.hour)}:${d2(l.minute)}';
-  }
-
-  /// Toggle "Historial ▾" al pie de la card + línea de tiempo de la
-  /// participación (registro, quién yapea, yape anticipado, pago
-  /// consumido, dirección, validación). Solo visual.
-  List<Widget> _historialWidgets(SorteoParticipante p, {int tickets = 1}) {
-    final abierto = _historialAbierto.contains(p.id);
-    Widget linea(IconData icon, String texto, {Color? color}) => Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 10, color: color ?? Colors.grey.shade600),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  texto,
-                  style: TextStyle(
-                      fontSize: 9,
-                      color: color ?? Colors.grey.shade700,
-                      fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
-        );
-    return [
-      InkWell(
-        onTap: () => setState(() {
-          abierto ? _historialAbierto.remove(p.id) : _historialAbierto.add(p.id);
-        }),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.history, size: 10, color: AppColors.blue1),
-              const SizedBox(width: 3),
-              Text(
-                abierto ? 'Ocultar historial' : 'Historial',
-                style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.blue1),
-              ),
-              Icon(abierto ? Icons.expand_less : Icons.expand_more,
-                  size: 11, color: AppColors.blue1),
-            ],
-          ),
-        ),
-      ),
-      if (abierto)
-        Container(
-          margin: const EdgeInsets.only(top: 4),
-          padding: const EdgeInsets.fromLTRB(8, 5, 8, 7),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade200, width: 0.6),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              linea(Icons.edit_note,
-                  '📝 Registrado el ${_fechaHora(p.creadoEn)}'
-                  '${tickets > 1 ? ' · compra de $tickets tickets' : ''}'),
-              if (p.yapeAnticipadoEn != null)
-                linea(Icons.front_hand_outlined,
-                    'Declaró yape ANTES de registrarse '
-                    '(${_fechaHora(p.yapeAnticipadoEn!)}) — validación manual',
-                    color: Colors.orange.shade800),
-              linea(
-                Icons.account_balance_wallet_outlined,
-                p.pagadorTexto != null
-                    ? 'Yapea OTRA persona: ${p.pagadorTexto}'
-                    : 'Yapea él/ella mism${p.nombre.endsWith('A') ? 'a' : 'o'}',
-              ),
-              if (p.yapePaymentId != null)
-                linea(Icons.price_check,
-                    'Pago Yape vinculado ✓ (consumido — no reutilizable)',
-                    color: Colors.green.shade700),
-              if (p.envioTexto != null)
-                linea(
-                  Icons.local_shipping_outlined,
-                  'Envío: ${p.envioTexto}'
-                  '${p.direccionConfirmada ? ' · confirmada por el cliente el ${_fechaHora(p.direccionConfirmadaEn!)}' : ' · SIN confirmar por el cliente'}',
-                  color: p.direccionConfirmada
-                      ? Colors.green.shade700
-                      : Colors.grey.shade700,
-                ),
-              if (p.recibeNombre != null && p.recibeNombre!.isNotEmpty)
-                linea(Icons.card_giftcard,
-                    'Recoge: ${p.recibeNombre}'
-                    '${p.recibeDni != null ? ' · DNI ${p.recibeDni}' : ''}',
-                    color: Colors.purple.shade700),
-              if (p.activadoEn != null)
-                linea(
-                    Icons.verified_outlined,
-                    'Validado el ${_fechaHora(p.activadoEn!)}'
-                    '${p.numeroTicket != null ? ' · ticket #${p.numeroTicket}${tickets > 1 ? ' al #${p.numeroTicket! + tickets - 1}' : ''}' : ''}',
-                    color: Colors.green.shade700)
-              else
-                linea(Icons.hourglass_empty, 'Pago por validar',
-                    color: Colors.orange.shade800),
-            ],
-          ),
-        ),
-    ];
-  }
-
   /// Sugerencia de pago Yape/Plin (api-yape, match por nombre) para un
   /// participante PENDIENTE — null si no hay o no aplica.
   PagoYapeSugerido? _sugerenciaYape(BuildContext context, SorteoParticipante p) {
@@ -1311,7 +1345,7 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                 // 💸 Posible pago detectado por api-yape (match nombre).
                 if (_sugerenciaYape(context, p) != null)
                   _chipYape(_sugerenciaYape(context, p)!),
-                ..._historialWidgets(p, tickets: grupo.length),
+                _HistorialParticipante(p: p, tickets: grupo.length),
               ],
             ),
           ),
@@ -1497,7 +1531,7 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                 // 💸 Posible pago detectado por api-yape (match nombre).
                 if (_sugerenciaYape(context, p) != null)
                   _chipYape(_sugerenciaYape(context, p)!),
-                ..._historialWidgets(p),
+                _HistorialParticipante(p: p),
               ],
             ),
           ),
@@ -1807,10 +1841,15 @@ class _PremioCard extends StatelessWidget {
   /// vinculado) — chip verde bajo la línea del envío.
   final bool direccionConfirmada;
 
+  /// Participación de origen (por jugada o DNI): en dinámicas el
+  /// validado se muestra como PREMIO y el historial lo acompaña aquí.
+  final SorteoParticipante? participante;
+
   const _PremioCard({
     required this.premio,
     this.onImprimirRotulo,
     this.direccionConfirmada = false,
+    this.participante,
   });
 
   Color get _colorEstado => switch (premio.estado) {
@@ -2044,6 +2083,9 @@ class _PremioCard extends StatelessWidget {
                   ],
                 ),
               ),
+            // Historial de la PARTICIPACIÓN que originó este premio.
+            if (participante != null)
+              _HistorialParticipante(p: participante!),
             if (premio.envioNumeroOrden != null ||
                 premio.envioCodigo != null ||
                 premio.envioClave != null) ...[
