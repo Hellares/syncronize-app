@@ -249,6 +249,8 @@ class _SorteoDetailView extends StatelessWidget {
                 for (final premio in sorteo.premios) ...[
                   _PremioCard(
                     premio: premio,
+                    direccionConfirmada:
+                        _direccionConfirmadaDe(sorteo, premio),
                     onImprimirRotulo: () =>
                         _imprimirRotulo(context, sorteo, premio),
                   ),
@@ -375,6 +377,8 @@ class _SorteoDetailView extends StatelessWidget {
               for (final premio in sorteo.premios) ...[
                 _PremioCard(
                   premio: premio,
+                  direccionConfirmada:
+                      _direccionConfirmadaDe(sorteo, premio),
                   onImprimirRotulo: () =>
                       _imprimirRotulo(context, sorteo, premio),
                 ),
@@ -536,6 +540,15 @@ class _SorteoDetailView extends StatelessWidget {
         seleccion.map((p) => p.id).toList(),
       );
     }
+  }
+
+  /// El participante vinculado al premio (por jugada o por DNI) confirmó
+  /// su dirección con el bot — alimenta el chip verde de la card.
+  bool _direccionConfirmadaDe(Sorteo sorteo, SorteoPremio premio) {
+    return sorteo.participantes.any((x) =>
+        x.direccionConfirmada &&
+        ((premio.participanteId != null && x.id == premio.participanteId) ||
+            (premio.ganadorDni != null && x.dni == premio.ganadorDni)));
   }
 
   Widget _statBox(String label, String valor, Color color) {
@@ -1593,7 +1606,16 @@ class _PreviewImagenesPageState extends State<_PreviewImagenesPage> {
 class _PremioCard extends StatelessWidget {
   final SorteoPremio premio;
   final VoidCallback? onImprimirRotulo;
-  const _PremioCard({required this.premio, this.onImprimirRotulo});
+
+  /// El CLIENTE confirmó su dirección con el bot (sello del participante
+  /// vinculado) — chip verde bajo la línea del envío.
+  final bool direccionConfirmada;
+
+  const _PremioCard({
+    required this.premio,
+    this.onImprimirRotulo,
+    this.direccionConfirmada = false,
+  });
 
   Color get _colorEstado => switch (premio.estado) {
         EstadoPremioSorteo.registrado => Colors.blueGrey,
@@ -1804,6 +1826,27 @@ class _PremioCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            if (!premio.esEfectivo &&
+                premio.modalidad == ModalidadEntregaPremio.envioAgencia &&
+                direccionConfirmada)
+              Padding(
+                padding: const EdgeInsets.only(left: 19, top: 1),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.verified,
+                        size: 11, color: Colors.green.shade700),
+                    const SizedBox(width: 3),
+                    Text(
+                      'Dirección confirmada por el cliente',
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade700),
+                    ),
+                  ],
+                ),
               ),
             if (premio.envioNumeroOrden != null ||
                 premio.envioCodigo != null ||
