@@ -235,38 +235,35 @@ class _SorteosView extends StatelessWidget {
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
               ),
             ],
-            // Rifa/bingo: ventana de venta + fecha del juego (el bot las
-            // anuncia al cliente). CustomDate = calendario de la casa.
+            // Rifa/bingo: ventana de venta (rango) + fecha del juego (el
+            // bot las anuncia al cliente). CustomDate de la casa.
             if (tipo != TipoSorteo.dinamica) ...[
               const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
+                    flex: 3,
                     child: CustomDate(
-                      label: 'Venta desde',
-                      hintText: 'dd/mm/aaaa',
+                      label: 'Venta de tickets (desde – hasta)',
+                      hintText: 'Elige el rango',
                       borderColor: AppColors.blue1,
-                      initialDate: ventaDesde,
+                      dateType: DateFieldType.dateRange,
                       firstDate: primeraFecha,
                       lastDate: ultimaFecha,
-                      onDateSelected: (d) => setLocal(() => ventaDesde = d),
+                      showDaysSelectedLabel: false,
+                      initialDateRange: (ventaDesde != null || ventaHasta != null)
+                          ? DateRange(startDate: ventaDesde, endDate: ventaHasta)
+                          : null,
+                      onDateRangeSelected: (r) => setLocal(() {
+                        ventaDesde = r?.startDate;
+                        ventaHasta = r?.endDate;
+                      }),
                     ),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: CustomDate(
-                      label: 'Venta hasta',
-                      hintText: 'dd/mm/aaaa',
-                      borderColor: AppColors.blue1,
-                      initialDate: ventaHasta,
-                      firstDate: primeraFecha,
-                      lastDate: ultimaFecha,
-                      onDateSelected: (d) => setLocal(() => ventaHasta = d),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
+                    flex: 2,
                     child: CustomDate(
                       label: 'Se sortea el',
                       hintText: 'dd/mm/aaaa',
