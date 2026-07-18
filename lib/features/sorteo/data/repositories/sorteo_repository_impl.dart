@@ -91,6 +91,7 @@ class SorteoRepositoryImpl implements SorteoRepository {
                   receivedAt: DateTime.tryParse(e['receivedAt'] as String? ?? ''),
                   montoEsperado: (e['montoEsperado'] as num?)?.toDouble(),
                   montoCoincide: e['montoCoincide'] == true,
+                  anticipado: e['anticipado'] == true,
                 ))
             .toList();
       });

@@ -349,6 +349,10 @@ class PagoYapeSugerido {
   final double? montoEsperado;
   final bool montoCoincide;
 
+  /// Yape ANTERIOR al registro ("yape en el aire" declarado con el bot):
+  /// jamás se auto-valida — el admin lo revisa con más ojo.
+  final bool anticipado;
+
   const PagoYapeSugerido({
     required this.participanteId,
     this.compraId,
@@ -358,6 +362,7 @@ class PagoYapeSugerido {
     this.receivedAt,
     this.montoEsperado,
     this.montoCoincide = false,
+    this.anticipado = false,
   });
 
   /// Clave de lookup en las cards: la compra agrupa n tickets.

@@ -1054,7 +1054,8 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
           child: Text(
             '$proveedor recibido: ${sug.senderName ?? '—'} · '
             'S/ ${sug.amount.toStringAsFixed(2)}$extra'
-            '${hace != null ? ' · $hace' : ''}',
+            '${hace != null ? ' · $hace' : ''}'
+            '${sug.anticipado ? ' · ⚠️ previo al registro' : ''}',
             style: TextStyle(
                 fontSize: 9, fontWeight: FontWeight.w700, color: color),
             maxLines: 1,
