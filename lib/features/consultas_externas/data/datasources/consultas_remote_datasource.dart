@@ -9,6 +9,7 @@ import '../models/consulta_ruc_model.dart';
 abstract class ConsultasRemoteDataSource {
   Future<ConsultaRucModel> consultarRuc(String ruc);
   Future<ConsultaDniModel> consultarDni(String dni);
+  Future<ConsultaDniModel> consultarCee(String cee);
   Future<ConsultaLicenciaModel> consultarLicencia(String dni);
   Future<ConsultaPlacaModel> consultarPlaca(String placa);
 }
@@ -28,6 +29,14 @@ class ConsultasRemoteDataSourceImpl implements ConsultasRemoteDataSource {
   @override
   Future<ConsultaDniModel> consultarDni(String dni) async {
     final response = await _client.get('/consultas/dni/$dni');
+    return ConsultaDniModel.fromJson(response.data);
+  }
+
+  /// CE (Carné de Extranjería): misma forma de respuesta que el DNI
+  /// pero sin dirección/ubigeo (Migraciones solo da nombres).
+  @override
+  Future<ConsultaDniModel> consultarCee(String cee) async {
+    final response = await _client.get('/consultas/cee/$cee');
     return ConsultaDniModel.fromJson(response.data);
   }
 

@@ -59,6 +59,24 @@ class ConsultasRepositoryImpl implements ConsultasRepository {
   }
 
   @override
+  Future<Resource<ConsultaDni>> consultarCee(String cee) async {
+    if (!await networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final result = await remoteDataSource.consultarCee(cee);
+      return Success(result.toEntity());
+    } catch (e) {
+      return errorHandler.handleException(
+        e,
+        context: 'Consulta CE',
+        defaultMessage: 'No se pudo consultar el CE. Intente nuevamente.',
+      );
+    }
+  }
+
+  @override
   Future<Resource<ConsultaLicencia>> consultarLicencia(String dni) async {
     if (!await networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');

@@ -476,6 +476,8 @@ import '../../features/consultas_externas/data/repositories/consultas_repository
     as _i36;
 import '../../features/consultas_externas/domain/repositories/consultas_repository.dart'
     as _i112;
+import '../../features/consultas_externas/domain/usecases/consultar_cee_usecase.dart'
+    as _i962;
 import '../../features/consultas_externas/domain/usecases/consultar_dni_usecase.dart'
     as _i53;
 import '../../features/consultas_externas/domain/usecases/consultar_licencia_usecase.dart'
@@ -2504,6 +2506,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i324.ReporteIncidenciaRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
       ),
+    );
+    gh.lazySingleton<_i962.ConsultarCeeUseCase>(
+      () => _i962.ConsultarCeeUseCase(gh<_i112.ConsultasRepository>()),
     );
     gh.lazySingleton<_i53.ConsultarDniUseCase>(
       () => _i53.ConsultarDniUseCase(gh<_i112.ConsultasRepository>()),

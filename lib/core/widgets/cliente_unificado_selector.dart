@@ -23,6 +23,7 @@ import '../../features/cliente/presentation/bloc/cliente_form/cliente_form_state
 import '../services/realtime_sync_service.dart';
 import '../../features/consultas_externas/domain/entities/consulta_dni.dart';
 import '../../features/consultas_externas/domain/entities/consulta_ruc.dart';
+import '../../features/consultas_externas/domain/usecases/consultar_cee_usecase.dart';
 import '../../features/consultas_externas/domain/usecases/consultar_dni_usecase.dart';
 import '../../features/consultas_externas/domain/usecases/consultar_ruc_usecase.dart';
 import '../../features/cliente_empresa/data/cache/cliente_empresa_catalogo_service.dart';
@@ -345,8 +346,11 @@ class _PersonaTabState extends State<_PersonaTab>
 
   /// Modo CE (Carné de Extranjería, 9 dígitos): se elige EXPLÍCITO con
   /// el chip — así el auto-lookup RENIEC del DNI no se dispara al pasar
-  /// por los 8 dígitos cuando en realidad se está tipeando un CE.
+  /// por los 8 dígitos cuando en realidad se está tipeando un CE. El CE
+  /// tiene su propia consulta (Migraciones vía Factiliza) al 9° dígito.
   bool _modoCe = false;
+
+  int get _docLen => _modoCe ? 9 : 8;
   String? _dniError;
   String? _nombresError;
   String? _apellidosError;
@@ -361,13 +365,13 @@ class _PersonaTabState extends State<_PersonaTab>
     super.initState();
     _formCubit = locator<ClienteFormCubit>();
     // Documento inicial → directo a registro con el documento puesto +
-    // lookup (solo DNI: el CE de 9 dígitos no tiene consulta RENIEC).
+    // lookup (8 = DNI/RENIEC, 9 = CE/Migraciones).
     final doc = widget.docInicial;
     if (doc != null && RegExp(r'^\d{1,9}$').hasMatch(doc)) {
       _mode = _PersonaMode.register;
       _dniController.text = doc;
       if (doc.length == 9) _modoCe = true;
-      if (doc.length == 8) {
+      if (doc.length == 8 || doc.length == 9) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _lookupDni();
         });
@@ -475,10 +479,11 @@ class _PersonaTabState extends State<_PersonaTab>
   // ─── DNI Lookup ───
 
   Future<void> _lookupDni() async {
-    if (_modoCe) return; // CE no tiene consulta.
     final dni = _dniController.text.trim();
-    if (dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
-      setState(() => _dniError = 'Ingresa un DNI válido de 8 dígitos');
+    if (dni.length != _docLen || !RegExp(r'^\d+$').hasMatch(dni)) {
+      setState(() => _dniError = _modoCe
+          ? 'Ingresa un CE válido de 9 dígitos'
+          : 'Ingresa un DNI válido de 8 dígitos');
       return;
     }
 
@@ -488,8 +493,9 @@ class _PersonaTabState extends State<_PersonaTab>
     });
 
     try {
-      final useCase = locator<ConsultarDniUseCase>();
-      final result = await useCase(dni);
+      final result = _modoCe
+          ? await locator<ConsultarCeeUseCase>()(dni)
+          : await locator<ConsultarDniUseCase>()(dni);
       if (!mounted) return;
 
       if (result is Success<ConsultaDni>) {
@@ -536,8 +542,10 @@ class _PersonaTabState extends State<_PersonaTab>
         _origenDatos = null;
       });
     }
-    // Auto-lookup SOLO en modo DNI (en CE se tipea de largo sin requests).
-    if (!_modoCe && value.length == 8 && RegExp(r'^\d{8}$').hasMatch(value)) {
+    // Auto-lookup al completar el documento del modo elegido: DNI a los
+    // 8 dígitos (RENIEC), CE a los 9 (Migraciones). Los chips evitan que
+    // un CE dispare la consulta de DNI al pasar por los 8.
+    if (value.length == _docLen && RegExp(r'^\d+$').hasMatch(value)) {
       _lookupDni();
     }
   }
@@ -681,7 +689,7 @@ class _PersonaTabState extends State<_PersonaTab>
                     _dniController.text = query;
                     // 9 dígitos = venía buscando un CE.
                     if (query.length == 9) _modoCe = true;
-                    if (query.length == 8) _lookupDni();
+                    if (query.length == 8 || query.length == 9) _lookupDni();
                   }
                   setState(() => _mode = _PersonaMode.register);
                 },
@@ -956,7 +964,8 @@ class _PersonaTabState extends State<_PersonaTab>
                 const SizedBox(height: 4),
                 Text(
                   _modoCe
-                      ? 'Carné de Extranjería: 9 dígitos, datos manuales.'
+                      ? 'Ingresa el CE (9 dígitos) para autocompletar '
+                          'desde Migraciones.'
                       : 'Ingresa el DNI para autocompletar los datos.',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                 ),
@@ -978,36 +987,34 @@ class _PersonaTabState extends State<_PersonaTab>
                         onChanged: _onDniChanged,
                       ),
                     ),
-                    // En modo CE no hay consulta: sin botón de búsqueda.
-                    if (!_modoCe) ...[
-                      const SizedBox(width: 12),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: _isLookingUpDni
-                            ? const SizedBox(
-                                width: 35,
-                                height: 35,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1,
-                                      color: AppColors.blue2,
-                                    ),
+                    const SizedBox(width: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _isLookingUpDni
+                          ? const SizedBox(
+                              width: 35,
+                              height: 35,
+                              child: Center(
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1,
+                                    color: AppColors.blue2,
                                   ),
                                 ),
-                              )
-                            : FloatingButtonIcon(
-                                size: 35,
-                                icon: Icons.search,
-                                backgroundColor: AppColors.blue2,
-                                onPressed: _dniController.text.length != 8
-                                    ? () {}
-                                    : _lookupDni,
                               ),
-                      ),
-                    ],
+                            )
+                          : FloatingButtonIcon(
+                              size: 35,
+                              icon: Icons.search,
+                              backgroundColor: AppColors.blue2,
+                              onPressed:
+                                  _dniController.text.length != _docLen
+                                      ? () {}
+                                      : _lookupDni,
+                            ),
+                    ),
                   ],
                 ),
                 if (_dniFieldsFilled) ...[
@@ -1023,33 +1030,12 @@ class _PersonaTabState extends State<_PersonaTab>
                           child: Text(
                             _origenDatos == 'INTERNO'
                                 ? 'Persona encontrada en el sistema'
-                                : 'Datos autocompletados desde RENIEC',
+                                : _origenDatos == 'MIGRACIONES'
+                                    ? 'Datos autocompletados desde Migraciones'
+                                    : 'Datos autocompletados desde RENIEC',
                             style: TextStyle(
                               fontSize: 9,
                               color: Colors.green.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else if (_modoCe) ...[
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Row(
-                      children: [
-                        Icon(Icons.public,
-                            size: 11, color: Colors.orange.shade800),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            'Carné de Extranjería: completa los datos '
-                            'manualmente (no hay consulta automática)',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.orange.shade800,
                               fontWeight: FontWeight.w500,
                             ),
                           ),

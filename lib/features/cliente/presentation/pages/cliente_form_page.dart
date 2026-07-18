@@ -14,6 +14,7 @@ import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text.dart'
     show CustomText, FieldType;
 import '../../../consultas_externas/domain/entities/consulta_dni.dart';
+import '../../../consultas_externas/domain/usecases/consultar_cee_usecase.dart';
 import '../../../consultas_externas/domain/usecases/consultar_dni_usecase.dart';
 import '../bloc/cliente_form/cliente_form_cubit.dart';
 import '../bloc/cliente_form/cliente_form_state.dart';
@@ -50,8 +51,11 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
 
   /// Modo CE (Carné de Extranjería, 9 dígitos): explícito con el chip —
   /// el auto-lookup RENIEC del DNI no debe dispararse al pasar por 8
-  /// dígitos cuando se está tipeando un CE.
+  /// dígitos cuando se está tipeando un CE. El CE tiene su propia
+  /// consulta (Migraciones vía Factiliza) al 9° dígito.
   bool _modoCe = false;
+
+  int get _docLen => _modoCe ? 9 : 8;
 
   void _cambiarModoDocumento(bool ce) {
     if (_modoCe == ce) return;
@@ -87,11 +91,12 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
   }
 
   Future<void> _lookupDni() async {
-    if (_modoCe) return; // CE no tiene consulta.
     final dni = _dniController.text.trim();
 
-    if (dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
-      setState(() => _dniError = 'Ingresa un DNI válido de 8 dígitos');
+    if (dni.length != _docLen || !RegExp(r'^\d+$').hasMatch(dni)) {
+      setState(() => _dniError = _modoCe
+          ? 'Ingresa un CE válido de 9 dígitos'
+          : 'Ingresa un DNI válido de 8 dígitos');
       return;
     }
 
@@ -100,7 +105,9 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
       _dniError = null;
     });
 
-    final result = await _consultarDniUseCase(dni);
+    final result = _modoCe
+        ? await locator<ConsultarCeeUseCase>()(dni)
+        : await _consultarDniUseCase(dni);
 
     if (!mounted) return;
 
@@ -151,8 +158,9 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
         _origenDatos = null;
       });
     }
-    // Auto-search when 8 digits are entered — solo en modo DNI.
-    if (!_modoCe && value.length == 8 && RegExp(r'^\d{8}$').hasMatch(value)) {
+    // Auto-search al completar el documento del modo elegido: DNI a los
+    // 8 dígitos (RENIEC), CE a los 9 (Migraciones).
+    if (value.length == _docLen && RegExp(r'^\d+$').hasMatch(value)) {
       _lookupDni();
     }
   }
@@ -353,8 +361,8 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
             const SizedBox(height: 4),
             Text(
               _modoCe
-                  ? 'Carné de Extranjería: 9 dígitos, datos manuales '
-                      '(sin consulta automática).'
+                  ? 'Ingresa el CE (9 dígitos) para autocompletar '
+                      'desde Migraciones.'
                   : 'Ingresa el DNI para autocompletar los datos del cliente.',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
@@ -390,7 +398,7 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
                   IconButton(
                     icon: const Icon(Icons.search, size: 20),
                     color: AppColors.blue2,
-                    onPressed: (!_modoCe && _dniController.text.length == 8)
+                    onPressed: _dniController.text.length == _docLen
                         ? _lookupDni
                         : null,
                     padding: EdgeInsets.zero,
@@ -433,7 +441,9 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
                       child: Text(
                         _origenDatos == 'INTERNO'
                             ? 'Persona encontrada en el sistema'
-                            : 'Datos autocompletados desde RENIEC',
+                            : _origenDatos == 'MIGRACIONES'
+                                ? 'Datos autocompletados desde Migraciones'
+                                : 'Datos autocompletados desde RENIEC',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.green.shade700,
@@ -524,7 +534,7 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionTitle('Ubicación', Icons.location_on_outlined),
-            if (_dniFieldsFilled) ...[
+            if (_dniFieldsFilled && _origenDatos != 'MIGRACIONES') ...[
               const SizedBox(height: 6),
               Text(
                 'Dirección obtenida de RENIEC. Puedes editarla si necesitas.',
