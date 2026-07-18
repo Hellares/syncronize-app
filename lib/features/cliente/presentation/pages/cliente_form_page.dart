@@ -48,6 +48,30 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
   String? _dniError;
   String? _origenDatos;
 
+  /// Modo CE (Carné de Extranjería, 9 dígitos): explícito con el chip —
+  /// el auto-lookup RENIEC del DNI no debe dispararse al pasar por 8
+  /// dígitos cuando se está tipeando un CE.
+  bool _modoCe = false;
+
+  void _cambiarModoDocumento(bool ce) {
+    if (_modoCe == ce) return;
+    setState(() {
+      _modoCe = ce;
+      _dniController.clear();
+      _nombresController.clear();
+      _apellidosController.clear();
+      _telefonoController.clear();
+      _emailController.clear();
+      _direccionController.clear();
+      _distritoController.clear();
+      _provinciaController.clear();
+      _departamentoController.clear();
+      _dniFieldsFilled = false;
+      _origenDatos = null;
+      _dniError = null;
+    });
+  }
+
   @override
   void dispose() {
     _dniController.dispose();
@@ -63,11 +87,11 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
   }
 
   Future<void> _lookupDni() async {
+    if (_modoCe) return; // CE no tiene consulta.
     final dni = _dniController.text.trim();
 
     if (dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
-      setState(() => _dniError =
-          'La consulta automática es solo para DNI (8 dígitos)');
+      setState(() => _dniError = 'Ingresa un DNI válido de 8 dígitos');
       return;
     }
 
@@ -127,8 +151,8 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
         _origenDatos = null;
       });
     }
-    // Auto-search when 8 digits are entered
-    if (value.length == 8 && RegExp(r'^\d{8}$').hasMatch(value)) {
+    // Auto-search when 8 digits are entered — solo en modo DNI.
+    if (!_modoCe && value.length == 8 && RegExp(r'^\d{8}$').hasMatch(value)) {
       _lookupDni();
     }
   }
@@ -140,9 +164,15 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
     final telefono = _telefonoController.text.trim();
     final email = _emailController.text.trim();
 
-    if (dni.isEmpty || !RegExp(r'^\d{8,9}$').hasMatch(dni)) {
+    final docOk = _modoCe
+        ? RegExp(r'^\d{9}$').hasMatch(dni)
+        : RegExp(r'^\d{8}$').hasMatch(dni);
+    if (!docOk) {
       SnackBarHelper.showError(
-          context, 'El documento debe tener 8 dígitos (DNI) o 9 (CE)');
+          context,
+          _modoCe
+              ? 'El CE debe tener 9 dígitos'
+              : 'El DNI debe tener 8 dígitos');
       return false;
     }
     if (nombres.isEmpty) {
@@ -298,21 +328,44 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('Buscar por documento', Icons.search),
+            _buildSectionTitle('Documento del cliente', Icons.search),
             const SizedBox(height: 6),
+            Row(
+              children: [
+                ChoiceChip(
+                  label: const Text('DNI', style: TextStyle(fontSize: 10)),
+                  selected: !_modoCe,
+                  selectedColor: AppColors.blue1.withValues(alpha: 0.15),
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (_) => _cambiarModoDocumento(false),
+                ),
+                const SizedBox(width: 6),
+                ChoiceChip(
+                  label: const Text('CE extranjero 🌎',
+                      style: TextStyle(fontSize: 10)),
+                  selected: _modoCe,
+                  selectedColor: AppColors.blue1.withValues(alpha: 0.15),
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (_) => _cambiarModoDocumento(true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
             Text(
-              'DNI (8 dígitos): autocompleta los datos. '
-              'CE extranjero (9 dígitos): se registra manual.',
+              _modoCe
+                  ? 'Carné de Extranjería: 9 dígitos, datos manuales '
+                      '(sin consulta automática).'
+                  : 'Ingresa el DNI para autocompletar los datos del cliente.',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 14),
             CustomSearchField(
               controller: _dniController,
-              label: 'DNI / CE',
-              hintText: '12345678',
+              label: _modoCe ? 'CE (9 dígitos)' : 'DNI',
+              hintText: _modoCe ? '001234567' : '12345678',
               borderColor: AppColors.blue1,
               enabled: !_isLookingUpDni,
-              maxLength: 9,
+              maxLength: _modoCe ? 9 : 8,
               searchIcon: Icons.badge_outlined,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               debounceDelay: Duration.zero,
@@ -337,7 +390,7 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
                   IconButton(
                     icon: const Icon(Icons.search, size: 20),
                     color: AppColors.blue2,
-                    onPressed: _dniController.text.length == 8
+                    onPressed: (!_modoCe && _dniController.text.length == 8)
                         ? _lookupDni
                         : null,
                     padding: EdgeInsets.zero,
