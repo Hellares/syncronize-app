@@ -2653,8 +2653,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               return;
             }
             if (tipo == 'BOLETA' &&
-                !((doc.length == 8 || doc.length == 11) && int.tryParse(doc) != null)) {
-              setDialogState(() => errorDoc = 'Boleta requiere DNI (8) o RUC (11 dígitos)');
+                !((doc.length == 8 || doc.length == 9 || doc.length == 11) &&
+                    int.tryParse(doc) != null)) {
+              setDialogState(() =>
+                  errorDoc = 'Boleta requiere DNI (8), CE (9) o RUC (11 dígitos)');
               return;
             }
             Navigator.pop(ctx);
@@ -2662,7 +2664,8 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               v.id,
               tipo,
               documentoCliente: doc,
-              tipoDocumentoCliente: doc.length == 11 ? '6' : '1',
+              tipoDocumentoCliente:
+                  doc.length == 11 ? '6' : (doc.length == 9 ? '4' : '1'),
             );
           }
 

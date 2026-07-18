@@ -24,9 +24,9 @@ class RegistrarClienteUseCase {
     String? departamento,
     String? notas,
   }) async {
-    // Validaciones básicas
-    if (dni.length != 8) {
-      return Error('El DNI debe tener 8 dígitos');
+    // Validaciones básicas: DNI (8 dígitos) o CE extranjero (9).
+    if (dni.length != 8 && dni.length != 9) {
+      return Error('El documento debe tener 8 dígitos (DNI) o 9 (CE)');
     }
 
     if (telefono.length != 9) {

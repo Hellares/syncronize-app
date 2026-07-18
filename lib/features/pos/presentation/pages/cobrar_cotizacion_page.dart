@@ -1210,11 +1210,13 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
           'numeroCuotas': _numeroCuotas,
       };
 
-      // Tipo de documento según comprobante
+      // Tipo de documento según comprobante (9 dígitos = CE extranjero).
       if (_tipoComprobante == 'FACTURA') {
         data['tipoDocumentoCliente'] = '6'; // RUC
       } else {
-        data['tipoDocumentoCliente'] = '1'; // DNI
+        final docCliente =
+            _documentoClienteOverride ?? _cotizacion?.documentoCliente ?? '';
+        data['tipoDocumentoCliente'] = docCliente.length == 9 ? '4' : '1';
       }
 
       if (_observacionesController.text.trim().isNotEmpty) {

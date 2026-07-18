@@ -957,7 +957,8 @@ class _CobroViewState extends State<_CobroView> {
         clienteId: result.clienteId,
         clienteEmpresaId: null,
         nombre: result.nombreCompleto ?? '',
-        tipoDoc: 'DNI',
+        // 9 dígitos = CE (extranjero) — evita el lookup RENIEC al editar.
+        tipoDoc: (result.dni?.length ?? 0) == 9 ? 'CE' : 'DNI',
         numeroDoc: result.dni,
       );
       _docCtrl.text = result.dni ?? '';

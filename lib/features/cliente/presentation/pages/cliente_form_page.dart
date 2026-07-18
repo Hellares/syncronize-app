@@ -66,7 +66,8 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
     final dni = _dniController.text.trim();
 
     if (dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
-      setState(() => _dniError = 'Ingresa un DNI válido de 8 dígitos');
+      setState(() => _dniError =
+          'La consulta automática es solo para DNI (8 dígitos)');
       return;
     }
 
@@ -139,8 +140,9 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
     final telefono = _telefonoController.text.trim();
     final email = _emailController.text.trim();
 
-    if (dni.isEmpty || dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
-      SnackBarHelper.showError(context, 'El DNI debe tener 8 dígitos');
+    if (dni.isEmpty || !RegExp(r'^\d{8,9}$').hasMatch(dni)) {
+      SnackBarHelper.showError(
+          context, 'El documento debe tener 8 dígitos (DNI) o 9 (CE)');
       return false;
     }
     if (nombres.isEmpty) {
@@ -296,20 +298,21 @@ class _ClienteFormPageState extends State<ClienteFormPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('Buscar por DNI', Icons.search),
+            _buildSectionTitle('Buscar por documento', Icons.search),
             const SizedBox(height: 6),
             Text(
-              'Ingresa el DNI para autocompletar los datos del cliente.',
+              'DNI (8 dígitos): autocompleta los datos. '
+              'CE extranjero (9 dígitos): se registra manual.',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 14),
             CustomSearchField(
               controller: _dniController,
-              label: 'DNI',
+              label: 'DNI / CE',
               hintText: '12345678',
               borderColor: AppColors.blue1,
               enabled: !_isLookingUpDni,
-              maxLength: 8,
+              maxLength: 9,
               searchIcon: Icons.badge_outlined,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               debounceDelay: Duration.zero,

@@ -342,6 +342,10 @@ class _PersonaTabState extends State<_PersonaTab>
 
   bool _isLookingUpDni = false;
   bool _dniFieldsFilled = false;
+
+  /// CE (Carné de Extranjería) = 9 dígitos: sin consulta RENIEC, los
+  /// datos se tipean a mano. DNI = 8 dígitos con lookup.
+  bool get _esCe => _dniController.text.trim().length == 9;
   String? _dniError;
   String? _nombresError;
   String? _apellidosError;
@@ -355,9 +359,10 @@ class _PersonaTabState extends State<_PersonaTab>
   void initState() {
     super.initState();
     _formCubit = locator<ClienteFormCubit>();
-    // Documento inicial → directo a registro con el DNI puesto + lookup.
+    // Documento inicial → directo a registro con el documento puesto +
+    // lookup (solo DNI: el CE de 9 dígitos no tiene consulta RENIEC).
     final doc = widget.docInicial;
-    if (doc != null && RegExp(r'^\d{1,8}$').hasMatch(doc)) {
+    if (doc != null && RegExp(r'^\d{1,9}$').hasMatch(doc)) {
       _mode = _PersonaMode.register;
       _dniController.text = doc;
       if (doc.length == 8) {
@@ -470,7 +475,8 @@ class _PersonaTabState extends State<_PersonaTab>
   Future<void> _lookupDni() async {
     final dni = _dniController.text.trim();
     if (dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
-      setState(() => _dniError = 'Ingresa un DNI válido de 8 dígitos');
+      setState(() => _dniError =
+          'La consulta automática es solo para DNI (8 dígitos)');
       return;
     }
 
@@ -530,6 +536,9 @@ class _PersonaTabState extends State<_PersonaTab>
     }
     if (value.length == 8 && RegExp(r'^\d{8}$').hasMatch(value)) {
       _lookupDni();
+    } else {
+      // Refrescar el hint de CE (aparece al 9° dígito).
+      setState(() {});
     }
   }
 
@@ -541,8 +550,9 @@ class _PersonaTabState extends State<_PersonaTab>
     final apellidos = _apellidosController.text.trim();
     final telefono = _telefonoController.text.trim();
 
-    if (dni.isEmpty || dni.length != 8 || !RegExp(r'^\d{8}$').hasMatch(dni)) {
-      SnackBarHelper.showError(context, 'El DNI debe tener 8 dígitos');
+    if (dni.isEmpty || !RegExp(r'^\d{8,9}$').hasMatch(dni)) {
+      SnackBarHelper.showError(
+          context, 'El documento debe tener 8 dígitos (DNI) o 9 (CE)');
       return false;
     }
     if (nombres.isEmpty) {
@@ -631,7 +641,7 @@ class _PersonaTabState extends State<_PersonaTab>
                 child: CustomSearchField(
                   controller: _searchController,
                   borderColor: AppColors.blue1,
-                  hintText: 'Buscar por nombre, DNI o teléfono...',
+                  hintText: 'Buscar por nombre, DNI/CE o teléfono...',
                   onChanged: _onSearchChanged,
                 ),
               ),
@@ -643,7 +653,7 @@ class _PersonaTabState extends State<_PersonaTab>
                 onPressed: () {
                   final query = _searchController.text.trim();
                   if (query.isNotEmpty &&
-                      RegExp(r'^\d{1,8}$').hasMatch(query)) {
+                      RegExp(r'^\d{1,9}$').hasMatch(query)) {
                     _dniController.text = query;
                     if (query.length == 8) _lookupDni();
                   }
@@ -779,7 +789,7 @@ class _PersonaTabState extends State<_PersonaTab>
                   Row(
                     children: [
                       Text(
-                        'DNI: ${cliente.dni ?? '-'}',
+                        '${(cliente.dni?.length ?? 0) == 9 ? 'CE' : 'DNI'}: ${cliente.dni ?? '-'}',
                         style:
                             TextStyle(fontSize: 10, color: Colors.grey[600]),
                       ),
@@ -895,9 +905,10 @@ class _PersonaTabState extends State<_PersonaTab>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // DNI lookup
+                // Documento: DNI (8, con lookup RENIEC) o CE (9, manual).
                 Text(
-                  'Ingresa el DNI para autocompletar los datos.',
+                  'DNI (8 dígitos): autocompleta los datos. '
+                  'CE extranjero (9 dígitos): se registra manual.',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                 ),
                 const SizedBox(height: 10),
@@ -907,10 +918,10 @@ class _PersonaTabState extends State<_PersonaTab>
                     Expanded(
                       child: CustomText(
                         controller: _dniController,
-                        label: 'DNI',
+                        label: 'DNI / CE',
                         hintText: '12345678',
                         fieldType: FieldType.number,
-                        maxLength: 8,
+                        maxLength: 9,
                         prefixIcon: const Icon(Icons.badge_outlined),
                         borderColor: AppColors.blue1,
                         enabled: !_isLookingUpDni,
@@ -964,6 +975,29 @@ class _PersonaTabState extends State<_PersonaTab>
                             style: TextStyle(
                               fontSize: 9,
                               color: Colors.green.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (_esCe) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.public,
+                            size: 11, color: Colors.orange.shade800),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Carné de Extranjería: completa los datos '
+                            'manualmente (no hay consulta automática)',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.orange.shade800,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
