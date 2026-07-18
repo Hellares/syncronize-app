@@ -29,6 +29,7 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     if (isClosed) return;
     if (result is Success<Sorteo>) {
       emit(SorteoDetailLoaded(result.data));
+      _cargarPagosYape();
     } else if (result is Error<Sorteo>) {
       emit(SorteoDetailError(result.message));
     }
@@ -39,7 +40,25 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     if (id == null) return;
     final result = await _repository.getSorteoDetalle(id);
     if (isClosed) return;
-    if (result is Success<Sorteo>) emit(SorteoDetailLoaded(result.data));
+    if (result is Success<Sorteo>) {
+      emit(SorteoDetailLoaded(result.data));
+      _cargarPagosYape();
+    }
+  }
+
+  /// Sugerencias de pago Yape/Plin para las cards de pendientes —
+  /// best-effort: si api-yape no aplica o falla, simplemente no hay chip.
+  Future<void> _cargarPagosYape() async {
+    final result = await _repository.getSugerenciasPagosYape();
+    if (isClosed) return;
+    final actual = state;
+    if (actual is! SorteoDetailLoaded) return;
+    if (result is Success<List<PagoYapeSugerido>> && result.data.isNotEmpty) {
+      emit(SorteoDetailLoaded(
+        actual.sorteo,
+        pagosYape: {for (final s in result.data) s.clave: s},
+      ));
+    }
   }
 
   /// Refresco instantáneo desde realtime (FCM SORTEO_CAMBIADO): otro

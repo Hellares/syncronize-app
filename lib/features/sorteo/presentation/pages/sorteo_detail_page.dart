@@ -1008,6 +1008,57 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
   /// COMPRA de tickets: una fila por compra con el rango ("#1–#20"),
   /// la cantidad y el monto total. Validar opera sobre TODA la compra
   /// (el backend activa todas las filas con tickets consecutivos).
+  /// Sugerencia de pago Yape/Plin (api-yape, match por nombre) para un
+  /// participante PENDIENTE — null si no hay o no aplica.
+  PagoYapeSugerido? _sugerenciaYape(BuildContext context, SorteoParticipante p) {
+    if (p.estado != EstadoParticipanteSorteo.pendientePago) return null;
+    final st = context.read<SorteoDetailCubit>().state;
+    if (st is! SorteoDetailLoaded) return null;
+    return st.pagosYape[p.compraId ?? p.id];
+  }
+
+  /// "💸 Yape recibido: SEBASTIANA C. · S/ 20.00 ✓ · hace 2 min" —
+  /// verde si el monto calza con lo esperado (tickets × precio), ámbar
+  /// si no. La empresa decide; esto solo evita ir a mirar el celular.
+  Widget _chipYape(PagoYapeSugerido sug) {
+    final color =
+        sug.montoCoincide ? Colors.green.shade700 : Colors.orange.shade800;
+    final proveedor =
+        (sug.provider ?? '').toLowerCase() == 'plin' ? 'Plin' : 'Yape';
+    final extra = sug.montoCoincide
+        ? ' ✓'
+        : sug.montoEsperado != null
+            ? ' (esperado S/ ${sug.montoEsperado!.toStringAsFixed(2)})'
+            : '';
+    final hace = _haceTexto(sug.receivedAt);
+    return Row(
+      children: [
+        Icon(Icons.price_check, size: 11, color: color),
+        const SizedBox(width: 3),
+        Expanded(
+          child: Text(
+            '$proveedor recibido: ${sug.senderName ?? '—'} · '
+            'S/ ${sug.amount.toStringAsFixed(2)}$extra'
+            '${hace != null ? ' · $hace' : ''}',
+            style: TextStyle(
+                fontSize: 9, fontWeight: FontWeight.w700, color: color),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String? _haceTexto(DateTime? t) {
+    if (t == null) return null;
+    final d = DateTime.now().difference(t.toLocal());
+    if (d.inMinutes < 1) return 'ahora';
+    if (d.inMinutes < 60) return 'hace ${d.inMinutes} min';
+    if (d.inHours < 24) return 'hace ${d.inHours} h';
+    return 'hace ${d.inDays} d';
+  }
+
   Widget _filaGrupo(BuildContext context, List<SorteoParticipante> grupo) {
     if (grupo.length == 1) return _fila(context, grupo.first);
     final p = grupo.first;
@@ -1123,6 +1174,9 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                       ),
                     ],
                   ),
+                // 💸 Posible pago detectado por api-yape (match nombre).
+                if (_sugerenciaYape(context, p) != null)
+                  _chipYape(_sugerenciaYape(context, p)!),
               ],
             ),
           ),
@@ -1305,6 +1359,9 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                       ),
                     ],
                   ),
+                // 💸 Posible pago detectado por api-yape (match nombre).
+                if (_sugerenciaYape(context, p) != null)
+                  _chipYape(_sugerenciaYape(context, p)!),
               ],
             ),
           ),

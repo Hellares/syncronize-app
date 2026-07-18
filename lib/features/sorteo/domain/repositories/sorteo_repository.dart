@@ -20,6 +20,8 @@ abstract class SorteoRepository {
 
   Future<Resource<Sorteo>> getSorteoDetalle(String id);
 
+  Future<Resource<List<PagoYapeSugerido>>> getSugerenciasPagosYape();
+
   Future<Resource<Sorteo>> actualizarSorteo(
     String id, {
     String? titulo,

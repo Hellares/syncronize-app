@@ -61,6 +61,15 @@ class SorteoRemoteDataSource {
     return SorteoPremioModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// GET /sorteos/pagos-yape/sugerencias — pagos Yape/Plin recientes
+  /// (api-yape) cruzados por NOMBRE con los participantes pendientes.
+  Future<List<Map<String, dynamic>>> getSugerenciasPagosYape() async {
+    final response = await _dioClient.get('$_basePath/pagos-yape/sugerencias');
+    final data = response.data;
+    final list = data is Map ? data['sugerencias'] : null;
+    return list is List ? list.cast<Map<String, dynamic>>() : const [];
+  }
+
   /// GET /sorteos/participantes/pendientes — cola global de jugadores
   /// con pago por validar (sorteos/dinámicas abiertos), con su sorteo.
   Future<List<Map<String, dynamic>>> getParticipantesPendientes() async {

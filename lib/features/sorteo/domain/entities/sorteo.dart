@@ -336,6 +336,34 @@ class SorteoParticipante {
   }
 }
 
+/// Sugerencia de match Yape/Plin → participante pendiente (api-yape):
+/// mismo nombre (del jugador o del pagador que capturó el bot). La
+/// decisión de validar sigue siendo de la empresa.
+class PagoYapeSugerido {
+  final String participanteId;
+  final String? compraId;
+  final String? senderName;
+  final double amount;
+  final String? provider; // yape | plin
+  final DateTime? receivedAt;
+  final double? montoEsperado;
+  final bool montoCoincide;
+
+  const PagoYapeSugerido({
+    required this.participanteId,
+    this.compraId,
+    this.senderName,
+    required this.amount,
+    this.provider,
+    this.receivedAt,
+    this.montoEsperado,
+    this.montoCoincide = false,
+  });
+
+  /// Clave de lookup en las cards: la compra agrupa n tickets.
+  String get clave => compraId ?? participanteId;
+}
+
 class TicketEnvio {
   final String id;
   final String url;

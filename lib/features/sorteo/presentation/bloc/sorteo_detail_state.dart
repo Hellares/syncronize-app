@@ -12,10 +12,15 @@ class SorteoDetailLoading extends SorteoDetailState {
 
 class SorteoDetailLoaded extends SorteoDetailState {
   final Sorteo sorteo;
-  const SorteoDetailLoaded(this.sorteo);
+
+  /// Sugerencias de pago Yape/Plin por clave de compra/participante
+  /// (best-effort desde api-yape — vacío si no aplica).
+  final Map<String, PagoYapeSugerido> pagosYape;
+
+  const SorteoDetailLoaded(this.sorteo, {this.pagosYape = const {}});
 
   @override
-  List<Object?> get props => [sorteo];
+  List<Object?> get props => [sorteo, pagosYape];
 }
 
 class SorteoDetailError extends SorteoDetailState {

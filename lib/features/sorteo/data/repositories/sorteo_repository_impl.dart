@@ -78,6 +78,24 @@ class SorteoRepositoryImpl implements SorteoRepository {
           (await _remoteDataSource.getSorteoDetalle(id)).toEntity());
 
   @override
+  Future<Resource<List<PagoYapeSugerido>>> getSugerenciasPagosYape() =>
+      _guard(() async {
+        final rows = await _remoteDataSource.getSugerenciasPagosYape();
+        return rows
+            .map((e) => PagoYapeSugerido(
+                  participanteId: e['participanteId'] as String? ?? '',
+                  compraId: e['compraId'] as String?,
+                  senderName: e['senderName'] as String?,
+                  amount: (e['amount'] as num?)?.toDouble() ?? 0,
+                  provider: e['provider'] as String?,
+                  receivedAt: DateTime.tryParse(e['receivedAt'] as String? ?? ''),
+                  montoEsperado: (e['montoEsperado'] as num?)?.toDouble(),
+                  montoCoincide: e['montoCoincide'] == true,
+                ))
+            .toList();
+      });
+
+  @override
   Future<Resource<Sorteo>> actualizarSorteo(
     String id, {
     String? titulo,
