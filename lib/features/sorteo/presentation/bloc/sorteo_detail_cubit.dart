@@ -203,6 +203,18 @@ class SorteoDetailCubit extends Cubit<SorteoDetailState> {
     return null;
   }
 
+  /// Guarda los links del LIVE (Facebook/TikTok/etc.) — lista vacía los
+  /// quita. El bot de WhatsApp los comparte desde el siguiente mensaje.
+  Future<String?> guardarLiveLinks(List<LiveLinkSorteo> links) async {
+    final id = _sorteoId;
+    if (id == null) return 'Sorteo no cargado';
+    final result = await _repository.actualizarSorteo(id, liveLinks: links);
+    if (isClosed) return null;
+    if (result is Error<Sorteo>) return result.message;
+    await reload();
+    return null;
+  }
+
   Future<String?> cerrarSorteo() async {
     final id = _sorteoId;
     if (id == null) return 'Sorteo no cargado';

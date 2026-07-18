@@ -29,6 +29,7 @@ import '../services/rotulo_envio_pdf_generator.dart';
 import '../services/tickets_anfora_pdf_generator.dart';
 import '../widgets/editar_entrega_sheet.dart';
 import '../widgets/enviar_whatsapp_premio_sheet.dart';
+import '../widgets/live_links_sheet.dart';
 import '../widgets/registrar_premio_sheet.dart';
 
 /// Detalle del sorteo: ganadores registrados, estados de envío, foto del
@@ -94,6 +95,21 @@ class _SorteoDetailView extends StatelessWidget {
             backgroundColor: AppColors.blue1,
             foregroundColor: Colors.white,
             actions: [
+              // Links del LIVE (Facebook/TikTok): el bot los comparte.
+              // Rojo = ya hay links puestos. Visible mientras el juego
+              // esté vivo (abierto o jugando).
+              if (sorteo != null && sorteo.estado != EstadoSorteo.finalizado)
+                IconButton(
+                  tooltip: 'Links del LIVE',
+                  icon: Icon(
+                    Icons.sensors,
+                    size: 20,
+                    color: sorteo.liveLinks.isNotEmpty
+                        ? Colors.redAccent.shade100
+                        : Colors.white,
+                  ),
+                  onPressed: () => _editarLiveLinks(context, sorteo),
+                ),
               // Tickets físicos para el ánfora (solo sorteos clásicos).
               if (sorteo != null &&
                   sorteo.tipo == TipoSorteo.sorteo &&
@@ -546,6 +562,30 @@ class _SorteoDetailView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// El creador pega los links de su transmisión (Facebook/TikTok/etc.)
+  /// y el bot de WhatsApp los comparte para que el cliente entre directo.
+  Future<void> _editarLiveLinks(BuildContext context, Sorteo sorteo) async {
+    final cubit = context.read<SorteoDetailCubit>();
+    final links = await showLiveLinksSheet(
+      context: context,
+      actuales: sorteo.liveLinks,
+    );
+    if (links == null || !context.mounted) return;
+    final error = await cubit.guardarLiveLinks(links);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        error ??
+            (links.isEmpty
+                ? 'Links del live quitados'
+                : '🔴 ¡Listo! El bot ya comparte tu live'),
+        style: const TextStyle(fontSize: 12),
+      ),
+      backgroundColor:
+          error != null ? Colors.orange.shade800 : Colors.green.shade700,
+    ));
   }
 
   Future<void> _cerrarSorteo(BuildContext context) async {
@@ -1857,6 +1897,8 @@ class _PremioCard extends StatelessWidget {
                   ],
                   if (_siguienteEstado != null)
                     CustomButton(
+
+                      
                       text: 'Marcar ${_siguienteEstado!.label.toLowerCase()}',
                       height: 28,
                       borderRadius: 4,

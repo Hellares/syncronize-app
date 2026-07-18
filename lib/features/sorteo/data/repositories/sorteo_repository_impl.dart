@@ -84,6 +84,7 @@ class SorteoRepositoryImpl implements SorteoRepository {
     String? descripcion,
     CanalSorteo? canal,
     EstadoSorteo? estado,
+    List<LiveLinkSorteo>? liveLinks,
   }) =>
       _guard(() async {
         final model = await _remoteDataSource.actualizarSorteo(id, {
@@ -91,6 +92,11 @@ class SorteoRepositoryImpl implements SorteoRepository {
           if (descripcion != null) 'descripcion': descripcion,
           if (canal != null) 'canal': canal.apiValue,
           if (estado != null) 'estado': estado.apiValue,
+          // Lista vacía = quitar los links (por eso no se filtra).
+          if (liveLinks != null)
+            'liveLinks': liveLinks
+                .map((l) => {'plataforma': l.plataforma, 'url': l.url})
+                .toList(),
         });
         return model.toEntity();
       });

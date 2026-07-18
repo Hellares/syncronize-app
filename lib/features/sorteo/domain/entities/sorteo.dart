@@ -153,6 +153,16 @@ enum TipoSorteo {
       );
 }
 
+/// Link de la transmisión EN VIVO del sorteo (Facebook, TikTok, etc.):
+/// el creador lo pega al arrancar el live y el bot lo comparte para que
+/// el participante entre directo.
+class LiveLinkSorteo {
+  final String plataforma; // FACEBOOK | TIKTOK | INSTAGRAM | YOUTUBE | OTRO
+  final String url;
+
+  const LiveLinkSorteo({required this.plataforma, required this.url});
+}
+
 class Sorteo {
   final String id;
   final String? sedeId;
@@ -189,6 +199,9 @@ class Sorteo {
   /// BINGO: bolillas cantadas en orden.
   final List<int> bolillas;
 
+  /// Links del LIVE (los comparte el bot de WhatsApp).
+  final List<LiveLinkSorteo> liveLinks;
+
   const Sorteo({
     required this.id,
     this.sedeId,
@@ -209,6 +222,7 @@ class Sorteo {
     this.participantes = const [],
     this.premiosCatalogo = const [],
     this.bolillas = const [],
+    this.liveLinks = const [],
   });
 
   /// Etiqueta visual del estado: la rifa/bingo CERRADO aún está en

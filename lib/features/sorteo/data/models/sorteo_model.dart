@@ -94,6 +94,14 @@ class SorteoModel {
       bolillas: ((json['bolillas'] as List?) ?? const [])
           .map((e) => (e as num).toInt())
           .toList(),
+      liveLinks: ((json['liveLinks'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => LiveLinkSorteo(
+                plataforma: (e['plataforma'] as String?) ?? 'OTRO',
+                url: (e['url'] as String?) ?? '',
+              ))
+          .where((l) => l.url.isNotEmpty)
+          .toList(),
       resumen: resumenJson == null
           ? null
           : ResumenSorteo(

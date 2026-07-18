@@ -26,6 +26,7 @@ abstract class SorteoRepository {
     String? descripcion,
     CanalSorteo? canal,
     EstadoSorteo? estado,
+    List<LiveLinkSorteo>? liveLinks,
   });
 
   Future<Resource<SorteoPremio>> registrarPremio({
