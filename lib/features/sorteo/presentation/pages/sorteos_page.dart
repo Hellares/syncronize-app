@@ -6,6 +6,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/date/custom_date.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -148,34 +149,6 @@ class _SorteosView extends StatelessWidget {
     );
   }
 
-  /// Botón compacto de fecha para el dialog de creación.
-  Widget _fechaBtn(String label, String valor, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Column(
-          children: [
-            Text(label,
-                style:
-                    TextStyle(fontSize: 8.5, color: Colors.grey.shade600)),
-            const SizedBox(height: 2),
-            Text(valor,
-                style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.blue1)),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _mensaje(BuildContext context,
       {required IconData icono,
       required String texto,
@@ -217,20 +190,9 @@ class _SorteosView extends StatelessWidget {
     DateTime? ventaHasta;
     DateTime? fechaSorteo;
 
-    String fmt(DateTime? d) => d == null
-        ? '—'
-        : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-    Future<DateTime?> pickFecha(
-        BuildContext ctx, DateTime? actual) async {
-      final hoy = DateTime.now();
-      return showDatePicker(
-        context: ctx,
-        initialDate: actual ?? hoy,
-        firstDate: hoy.subtract(const Duration(days: 1)),
-        lastDate: hoy.add(const Duration(days: 365)),
-      );
-    }
+    final hoy = DateTime.now();
+    final primeraFecha = hoy.subtract(const Duration(days: 1));
+    final ultimaFecha = hoy.add(const Duration(days: 365));
 
     final crear = await showDialog<bool>(
       context: context,
@@ -274,41 +236,45 @@ class _SorteosView extends StatelessWidget {
               ),
             ],
             // Rifa/bingo: ventana de venta + fecha del juego (el bot las
-            // anuncia al cliente).
+            // anuncia al cliente). CustomDate = calendario de la casa.
             if (tipo != TipoSorteo.dinamica) ...[
               const SizedBox(height: 8),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: _fechaBtn(
-                      'Venta desde',
-                      fmt(ventaDesde),
-                      () async {
-                        final d = await pickFecha(ctx, ventaDesde);
-                        if (d != null) setLocal(() => ventaDesde = d);
-                      },
+                    child: CustomDate(
+                      label: 'Venta desde',
+                      hintText: 'dd/mm/aaaa',
+                      borderColor: AppColors.blue1,
+                      initialDate: ventaDesde,
+                      firstDate: primeraFecha,
+                      lastDate: ultimaFecha,
+                      onDateSelected: (d) => setLocal(() => ventaDesde = d),
                     ),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: _fechaBtn(
-                      'Venta hasta',
-                      fmt(ventaHasta),
-                      () async {
-                        final d = await pickFecha(ctx, ventaHasta);
-                        if (d != null) setLocal(() => ventaHasta = d);
-                      },
+                    child: CustomDate(
+                      label: 'Venta hasta',
+                      hintText: 'dd/mm/aaaa',
+                      borderColor: AppColors.blue1,
+                      initialDate: ventaHasta,
+                      firstDate: primeraFecha,
+                      lastDate: ultimaFecha,
+                      onDateSelected: (d) => setLocal(() => ventaHasta = d),
                     ),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: _fechaBtn(
-                      'Se sortea el',
-                      fmt(fechaSorteo),
-                      () async {
-                        final d = await pickFecha(ctx, fechaSorteo);
-                        if (d != null) setLocal(() => fechaSorteo = d);
-                      },
+                    child: CustomDate(
+                      label: 'Se sortea el',
+                      hintText: 'dd/mm/aaaa',
+                      borderColor: AppColors.blue1,
+                      initialDate: fechaSorteo,
+                      firstDate: primeraFecha,
+                      lastDate: ultimaFecha,
+                      onDateSelected: (d) => setLocal(() => fechaSorteo = d),
                     ),
                   ),
                 ],
