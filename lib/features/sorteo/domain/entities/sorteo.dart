@@ -281,6 +281,10 @@ class SorteoParticipante {
   final String? destinoDepartamento;
   final String? destinoProvincia;
   final String? agenciaDireccion;
+
+  /// El CLIENTE confirmó/dio su dirección con el bot (chip verde en la
+  /// card). null = solo copiada de una jugada anterior, sin confirmar.
+  final DateTime? direccionConfirmadaEn;
   final DateTime creadoEn;
 
   const SorteoParticipante({
@@ -299,8 +303,12 @@ class SorteoParticipante {
     this.destinoDepartamento,
     this.destinoProvincia,
     this.agenciaDireccion,
+    this.direccionConfirmadaEn,
     required this.creadoEn,
   });
+
+  /// El cliente confirmó su dirección con el bot.
+  bool get direccionConfirmada => direccionConfirmadaEn != null;
 
   /// "MARÍA LÓPEZ · 987654321" — quien yapea si no es el jugador (o null).
   String? get pagadorTexto {

@@ -1092,6 +1092,24 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                // El CLIENTE confirmó su dirección con el bot (vs. la
+                // copia silenciosa de una jugada anterior).
+                if (p.envioTexto != null && p.direccionConfirmada)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified,
+                          size: 10, color: Colors.green.shade700),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Dirección confirmada',
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade700),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -1254,6 +1272,23 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                      ),
+                    ],
+                  ),
+                // El CLIENTE confirmó su dirección con el bot (vs. la
+                // copia silenciosa de una jugada anterior).
+                if (p.envioTexto != null && p.direccionConfirmada)
+                  Row(
+                    children: [
+                      Icon(Icons.verified,
+                          size: 10, color: Colors.green.shade700),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Dirección confirmada',
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade700),
                       ),
                     ],
                   ),
