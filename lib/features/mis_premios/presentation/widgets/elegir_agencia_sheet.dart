@@ -44,6 +44,9 @@ class _ElegirAgenciaSheet extends StatefulWidget {
 }
 
 class _ElegirAgenciaSheetState extends State<_ElegirAgenciaSheet> {
+  // El snackbar queda tapado por el propio sheet modal — el aviso de
+  // validación va inline, debajo del campo.
+  bool _faltaAgencia = false;
   late final _agenciaCtrl =
       TextEditingController(text: widget.premio.agenciaNombre ?? '');
   late final _depCtrl =
@@ -106,7 +109,19 @@ class _ElegirAgenciaSheetState extends State<_ElegirAgenciaSheet> {
                 hintText: 'ej. Shalom / Olva / Marvisur',
                 borderColor: AppColors.blue1,
                 textCase: TextCase.upper,
+                onChanged: (_) {
+                  if (_faltaAgencia) setState(() => _faltaAgencia = false);
+                },
               ),
+              if (_faltaAgencia)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Indica el nombre de la agencia para continuar',
+                    style: TextStyle(
+                        fontSize: 10.5, color: Colors.red.shade700),
+                  ),
+                ),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
@@ -120,8 +135,10 @@ class _ElegirAgenciaSheetState extends State<_ElegirAgenciaSheet> {
                       side: BorderSide(
                           color: AppColors.blue1.withValues(alpha: 0.3),
                           width: 0.5),
-                      onPressed: () =>
-                          setState(() => _agenciaCtrl.text = a),
+                      onPressed: () => setState(() {
+                        _agenciaCtrl.text = a;
+                        _faltaAgencia = false;
+                      }),
                     ),
                 ],
               ),
@@ -179,7 +196,10 @@ class _ElegirAgenciaSheetState extends State<_ElegirAgenciaSheet> {
                       textColor: Colors.white,
                       onPressed: () {
                         final agencia = _agenciaCtrl.text.trim();
-                        if (agencia.isEmpty) return;
+                        if (agencia.isEmpty) {
+                          setState(() => _faltaAgencia = true);
+                          return;
+                        }
                         Navigator.of(context).pop(AgenciaElegida(
                           agenciaNombre: agencia,
                           destinoDepartamento: _depCtrl.text.trim(),
