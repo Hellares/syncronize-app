@@ -71,6 +71,9 @@ class SorteoModel {
                 destinoProvincia: e['destinoProvincia'] as String?,
                 agenciaDireccion: e['agenciaDireccion'] as String?,
                 direccionConfirmadaEn: _fecha(e['direccionConfirmadaEn']),
+                activadoEn: _fecha(e['activadoEn']),
+                yapeAnticipadoEn: _fecha(e['yapeAnticipadoEn']),
+                yapePaymentId: e['yapePaymentId'] as String?,
                 creadoEn: _fecha(e['creadoEn']) ?? DateTime.now(),
               ))
           .toList(),

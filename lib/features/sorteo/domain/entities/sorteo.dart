@@ -285,6 +285,15 @@ class SorteoParticipante {
   /// El CLIENTE confirmó/dio su dirección con el bot (chip verde en la
   /// card). null = solo copiada de una jugada anterior, sin confirmar.
   final DateTime? direccionConfirmadaEn;
+
+  /// Momento de la VALIDACIÓN (asignación del ticket).
+  final DateTime? activadoEn;
+
+  /// Declaró con el bot que yapeó ANTES de registrarse (yape en el aire).
+  final DateTime? yapeAnticipadoEn;
+
+  /// Pago de api-yape CONSUMIDO por esta participación al validarla.
+  final String? yapePaymentId;
   final DateTime creadoEn;
 
   const SorteoParticipante({
@@ -304,6 +313,9 @@ class SorteoParticipante {
     this.destinoProvincia,
     this.agenciaDireccion,
     this.direccionConfirmadaEn,
+    this.activadoEn,
+    this.yapeAnticipadoEn,
+    this.yapePaymentId,
     required this.creadoEn,
   });
 
