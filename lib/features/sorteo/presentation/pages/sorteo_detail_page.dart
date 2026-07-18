@@ -698,7 +698,11 @@ class _SorteoDetailView extends StatelessWidget {
   Future<void> _registrarGanador(BuildContext context, Sorteo sorteo) async {
     final cubit = context.read<SorteoDetailCubit>();
     final ctxState = context.read<EmpresaContextCubit>().state;
-    if (ctxState is! EmpresaContextLoaded) return;
+    if (ctxState is! EmpresaContextLoaded) {
+      _snack(context, 'Cargando datos de la empresa — intenta en un momento',
+          error: true);
+      return;
+    }
     final empresaId = ctxState.context.empresa.id;
 
     final ganador = await ClienteUnificadoSelector.show(
@@ -706,7 +710,13 @@ class _SorteoDetailView extends StatelessWidget {
       empresaId: empresaId,
       tipoPermitido: TipoClienteSeleccion.persona,
     );
-    if (ganador == null || ganador.dni == null || !context.mounted) return;
+    if (ganador == null || !context.mounted) return; // canceló
+    if (ganador.dni == null || ganador.dni!.isEmpty) {
+      _snack(context,
+          'Ese cliente no tiene documento registrado — complétalo primero',
+          error: true);
+      return;
+    }
 
     // Best-effort: si el DNI ya ganó antes con envío por agencia, prellenar
     // sus datos de entrega (casi nunca cambian entre sorteos).

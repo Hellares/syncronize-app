@@ -208,6 +208,11 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
                 hintText: 'ej. Laptop Lenovo IdeaPad 3 / pack de polos',
                 borderColor: AppColors.blue1,
                 textCase: TextCase.upper,
+                onChanged: (_) {
+                  if (_errorConfirmar != null) {
+                    setState(() => _errorConfirmar = null);
+                  }
+                },
               ),
               const SizedBox(height: 10),
 
@@ -475,6 +480,29 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
                 textCase: TextCase.upper,
               ),
               const SizedBox(height: 14),
+              // Aviso de validación INLINE (un snackbar quedaría tapado
+              // por el propio sheet — gotcha de validación silenciosa:
+              // "no me deja registrar" sin explicación).
+              if (_errorConfirmar != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          size: 13, color: Colors.red.shade700),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _errorConfirmar!,
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red.shade700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Row(
                 children: [
                   Expanded(
@@ -523,10 +551,21 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
     );
   }
 
+  /// Aviso de validación del botón Registrar (inline, bajo el form).
+  String? _errorConfirmar;
+
   void _confirmar() {
     final descripcion = _descripcionCtrl.text.trim();
-    if (descripcion.isEmpty) return;
-    if (_descontarStock && _producto == null) return;
+    if (descripcion.isEmpty) {
+      setState(() => _errorConfirmar =
+          'Escribe la descripción del premio (ej. CANASTA FAMILIAR)');
+      return;
+    }
+    if (_descontarStock && _producto == null) {
+      setState(() => _errorConfirmar =
+          'Elige el producto del premio o desactiva "Descontar stock"');
+      return;
+    }
     // La agencia NO es obligatoria: el ganador puede elegirla él mismo
     // desde Mis Premios (feature "ganador elige agencia").
     Navigator.of(context).pop(RegistrarPremioData(
@@ -566,6 +605,7 @@ class _RegistrarPremioSheetState extends State<_RegistrarPremioSheet> {
     setState(() {
       _producto = elegido;
       _cantidad = elegido.cantidad;
+      _errorConfirmar = null;
       // Autocompletar la descripción si estaba vacía.
       if (_descripcionCtrl.text.trim().isEmpty) {
         _descripcionCtrl.text = elegido.nombre;
