@@ -28,7 +28,7 @@ class MisPremiosRemoteDataSource {
   }
 
   /// PATCH /marketplace/mis-premios/:id/agencia — el ganador indica su
-  /// agencia de recojo (solo antes del despacho).
+  /// agencia de recojo (solo mientras el premio está REGISTRADO).
   Future<void> elegirAgencia(String id, Map<String, dynamic> data) async {
     await _dioClient.patch('$_basePath/$id/agencia', data: data);
   }

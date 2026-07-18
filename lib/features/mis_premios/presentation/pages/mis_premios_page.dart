@@ -259,10 +259,10 @@ class _PremioClienteCardState extends State<PremioClienteCard> {
               if (_expandido) ...[
                 const Divider(height: 20),
                 _detalleEntrega(),
-                // El ganador elige SU agencia de recojo — solo antes del
-                // despacho. Si no lo hace, la tienda la asigna.
-                if (premio.estado == EstadoPremioSorteo.registrado ||
-                    premio.estado == EstadoPremioSorteo.preparando) ...[
+                // El ganador elige SU agencia de recojo — solo mientras el
+                // premio está REGISTRADO (desde PREPARANDO la tienda ya
+                // arma el paquete). Si no lo hace, la tienda la asigna.
+                if (premio.estado == EstadoPremioSorteo.registrado) ...[
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
