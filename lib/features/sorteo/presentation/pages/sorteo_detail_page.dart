@@ -729,7 +729,12 @@ class _SorteoDetailView extends StatelessWidget {
       sedeId: sorteo.sedeId,
       ganadorNombre: ganador.nombreCompleto ?? '',
       precioParticipacionDefault: sorteo.precioParticipacion,
-      descripcionDefault: sorteo.descripcion,
+      // Mismo fallback que el auto-premio del bot: sin descripción del
+      // sorteo, el premio se describe con el TÍTULO (ej. "CAJAZOOO").
+      descripcionDefault:
+          (sorteo.descripcion?.trim().isNotEmpty ?? false)
+              ? sorteo.descripcion
+              : sorteo.titulo,
       entregaPrevia: entregaPrevia,
     );
     if (datos == null || !context.mounted) return;
@@ -1446,9 +1451,12 @@ class _ParticipantesSectionState extends State<_ParticipantesSection> {
       sedeId: sorteo.sedeId,
       ganadorNombre: p.nombre,
       precioParticipacionDefault: sorteo.precioParticipacion,
-      descripcionDefault: sorteo.tipo == TipoSorteo.dinamica
-          ? null // en la dinámica el premio es LO QUE SACÓ — se escribe
-          : sorteo.descripcion,
+      // Mismo fallback que el auto-premio: descripción del sorteo o su
+      // TÍTULO (editable — en dinámicas pueden precisar lo que sacó).
+      descripcionDefault:
+          (sorteo.descripcion?.trim().isNotEmpty ?? false)
+              ? sorteo.descripcion
+              : sorteo.titulo,
       entregaPrevia: (p.agenciaNombre != null && p.agenciaNombre!.isNotEmpty)
           ? EntregaPreviaGanador(
               agenciaNombre: p.agenciaNombre,
