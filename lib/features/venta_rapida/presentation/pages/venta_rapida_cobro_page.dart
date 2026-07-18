@@ -197,11 +197,12 @@ class _CobroViewState extends State<_CobroView> {
   void _onAnyChange() => setState(() {});
 
   /// Tope de dígitos por contexto del input. El numpad lo usa para
-  /// bloquear escritura más allá del tope (DNI=8, RUC=11, N° op=6).
+  /// bloquear escritura más allá del tope (DNI=8, CE=9, RUC=11, N° op=6).
   int? _maxDigitosPara(TextEditingController ctrl) {
     if (ctrl == _docCtrl) {
       final tipo = context.read<VentaRapidaCubit>().state.tipoDocCliente;
       if (tipo == 'DNI') return 8;
+      if (tipo == 'CE') return 9;
       if (tipo == 'RUC') return 11;
       return null;
     }
@@ -233,6 +234,9 @@ class _CobroViewState extends State<_CobroView> {
     }
     if (st.tipoDocCliente == 'DNI' && doc.length == 8 && doc != '00000000') {
       cubit.buscarClientePorDni(doc);
+    } else if (st.tipoDocCliente == 'CE' && doc.length == 9) {
+      // CE (extranjero): mismo flujo persona, resuelve vía Migraciones.
+      cubit.buscarClientePorDni(doc);
     } else if (st.tipoDocCliente == 'RUC' && doc.length == 11) {
       cubit.buscarClientePorRuc(doc);
     }
@@ -256,7 +260,9 @@ class _CobroViewState extends State<_CobroView> {
     }
     final max = state.tipoDocCliente == 'DNI'
         ? 8
-        : (state.tipoDocCliente == 'RUC' ? 11 : digitos.length);
+        : state.tipoDocCliente == 'CE'
+            ? 9
+            : (state.tipoDocCliente == 'RUC' ? 11 : digitos.length);
     _docCtrl.text =
         digitos.length > max ? digitos.substring(0, max) : digitos;
   }
@@ -1311,7 +1317,9 @@ class _CobroViewState extends State<_CobroView> {
                         borderColor: AppColors.blue1,
                         maxLength: state.tipoDocCliente == 'DNI'
                             ? 8
-                            : (state.tipoDocCliente == 'RUC' ? 11 : null),
+                            : state.tipoDocCliente == 'CE'
+                                ? 9
+                                : (state.tipoDocCliente == 'RUC' ? 11 : null),
                       ),
                     ),
                     // Pegar documento desde el portapapeles (el campo es

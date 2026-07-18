@@ -1128,17 +1128,24 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// Busca un cliente por DNI vía RENIEC y lo registra/reutiliza en backend.
   /// Pre-llena `clienteId` y `nombreClienteResuelto` para que `cobrar()` los use
   /// (sin pasar por la lógica de "genérico").
+  /// Busca (o crea) un cliente persona por documento: DNI de 8 dígitos
+  /// (RENIEC) o CE de 9 (Migraciones). Mismo endpoint backend.
   Future<void> buscarClientePorDni(String dni) async {
     if (state.buscandoCliente) return; // guard de re-entrada
     final dniLimpio = dni.trim();
-    if (!RegExp(r'^\d{8}$').hasMatch(dniLimpio)) {
-      emit(state.copyWith(error: 'El DNI debe tener 8 dígitos'));
+    if (!RegExp(r'^\d{8}$').hasMatch(dniLimpio) &&
+        !RegExp(r'^\d{9}$').hasMatch(dniLimpio)) {
+      emit(state.copyWith(
+          error: state.tipoDocCliente == 'CE'
+              ? 'El CE debe tener 9 dígitos'
+              : 'El DNI debe tener 8 dígitos'));
       return;
     }
     if (dniLimpio == '00000000') {
       emit(state.copyWith(error: 'Para cliente sin documento usá "Genérico"'));
       return;
     }
+    final tipoDoc = dniLimpio.length == 9 ? 'CE' : 'DNI';
 
     // Local-first: si el cliente ya está en el catálogo de la empresa,
     // resolución instantánea sin red (y funciona offline). El backend
@@ -1160,7 +1167,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
           clienteGenerico: false,
           clienteId: local.id,
           clearClienteEmpresaId: true,
-          tipoDocCliente: 'DNI',
+          tipoDocCliente: tipoDoc,
           numeroDocCliente: dniLimpio,
           nombreClienteResuelto: local.nombreCompleto,
           clearError: true,
@@ -1183,7 +1190,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         clienteGenerico: false,
         clienteId: c.clienteEmpresaId,
         clearClienteEmpresaId: true,
-        tipoDocCliente: 'DNI',
+        tipoDocCliente: tipoDoc,
         numeroDocCliente: c.dni,
         nombreClienteResuelto: c.nombreCompleto,
         clearDocSinResultado: true,
