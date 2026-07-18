@@ -13,6 +13,12 @@ import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../domain/entities/sorteo.dart';
 import '../bloc/sorteos_cubit.dart';
 
+/// BINGO temporalmente OCULTO (solo sorteos + dinámicas). La
+/// funcionalidad completa sigue intacta (tab, creación, cartillas,
+/// bolillas); para revivirlo poner esto en `true` — reaparece el tab de
+/// bingos y su botón en el dialog de crear.
+const bool _mostrarBingo = false;
+
 /// Listado de sorteos de la empresa + creación rápida.
 class SorteosPage extends StatelessWidget {
   const SorteosPage({super.key});
@@ -56,24 +62,27 @@ class _SorteosView extends StatelessWidget {
         onPressed: () => _crearSorteo(context),
       ),
       // Sorteos (rifas), bingos y dinámicas NO se mezclan: cada tipo en
-      // su tab.
+      // su tab. BINGO OCULTO por ahora (solo sorteos + dinámicas) — la
+      // funcionalidad sigue intacta; para revivirlo poner _mostrarBingo
+      // en true (tab + TabBarView de bingos + botón del dialog de crear).
       body: DefaultTabController(
-        length: 3,
+        length: _mostrarBingo ? 3 : 2,
         child: Column(
           children: [
             Container(
               color: AppColors.blue1,
-              child: const TabBar(
+              child: TabBar(
                 indicatorColor: Colors.white,
                 indicatorWeight: 2.5,
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white70,
-                labelStyle:
-                    TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                labelStyle: const TextStyle(
+                    fontSize: 11.5, fontWeight: FontWeight.w700),
                 tabs: [
-                  Tab(height: 38, text: '🎟️ Sorteos'),
-                  Tab(height: 38, text: '🎱 Bingos'),
-                  Tab(height: 38, text: '🎯 Dinámicas'),
+                  const Tab(height: 38, text: '🎟️ Sorteos'),
+                  if (_mostrarBingo)
+                    const Tab(height: 38, text: '🎱 Bingos'),
+                  const Tab(height: 38, text: '🎯 Dinámicas'),
                 ],
               ),
             ),
@@ -106,8 +115,9 @@ class _SorteosView extends StatelessWidget {
                     children: [
                       _lista(context, rifas,
                           'Aún no hay sorteos.\nRegistra el primero y vende tickets para el ánfora.'),
-                      _lista(context, bingos,
-                          'Aún no hay bingos.\nCrea uno: el bot vende las cartillas y tú cantas las bolillas.'),
+                      if (_mostrarBingo)
+                        _lista(context, bingos,
+                            'Aún no hay bingos.\nCrea uno: el bot vende las cartillas y tú cantas las bolillas.'),
                       _lista(context, dinamicas,
                           'Aún no hay dinámicas.\nCrea una y el bot registra a los jugadores.'),
                     ],
@@ -231,23 +241,30 @@ class _SorteosView extends StatelessWidget {
           titulo: 'Nuevo sorteo / dinámica',
           content: [
             // SORTEO: se sortea entre participantes. DINÁMICA: el que
-            // juega YA ganó lo que saca (canasta, etc.).
-            Row(
-              children: [
-                for (final t in TipoSorteo.values) ...[
-                  Expanded(
-                    child: ChoiceChip(
-                      label: Text(t.label,
-                          style: const TextStyle(fontSize: 10.5)),
-                      selected: tipo == t,
-                      selectedColor: AppColors.blue1.withValues(alpha: 0.15),
-                      onSelected: (_) => setLocal(() => tipo = t),
+            // juega YA ganó lo que saca (canasta, etc.). BINGO oculto
+            // por ahora (ver _mostrarBingo).
+            Builder(builder: (_) {
+              final tipos = TipoSorteo.values
+                  .where((t) => _mostrarBingo || t != TipoSorteo.bingo)
+                  .toList();
+              return Row(
+                children: [
+                  for (final t in tipos) ...[
+                    Expanded(
+                      child: ChoiceChip(
+                        label: Text(t.label,
+                            style: const TextStyle(fontSize: 10.5)),
+                        selected: tipo == t,
+                        selectedColor:
+                            AppColors.blue1.withValues(alpha: 0.15),
+                        onSelected: (_) => setLocal(() => tipo = t),
+                      ),
                     ),
-                  ),
-                  if (t != TipoSorteo.values.last) const SizedBox(width: 8),
+                    if (t != tipos.last) const SizedBox(width: 8),
+                  ],
                 ],
-              ],
-            ),
+              );
+            }),
             if (tipo == TipoSorteo.dinamica) ...[
               const SizedBox(height: 4),
               Text(
