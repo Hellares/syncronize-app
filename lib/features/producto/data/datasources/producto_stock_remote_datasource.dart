@@ -123,6 +123,28 @@ class ProductoStockRemoteDataSource {
         response.data as Map<String, dynamic>);
   }
 
+  /// Edición masiva de stock y precios de una sede (grilla).
+  /// El backend genera kardex por cada ajuste de stock e historial
+  /// por cada cambio de precio, todo en una transacción.
+  ///
+  /// PATCH /api/producto-stock/sede/:sedeId/bulk-editar
+  Future<Map<String, dynamic>> bulkEditarStockPrecios({
+    required String sedeId,
+    required String empresaId,
+    required List<Map<String, dynamic>> items,
+    String? motivo,
+  }) async {
+    final response = await _dioClient.patch(
+      '/producto-stock/sede/$sedeId/bulk-editar',
+      data: {
+        'items': items,
+        if (motivo != null && motivo.trim().isNotEmpty) 'motivo': motivo.trim(),
+      },
+    );
+
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Ajusta el stock (entrada o salida)
   ///
   /// PUT /api/producto-stock/:id/ajustar

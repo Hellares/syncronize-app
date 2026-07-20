@@ -3,6 +3,7 @@ import '../../../../core/utils/resource.dart';
 import '../entities/producto_stock.dart';
 import '../entities/movimiento_stock.dart';
 import '../entities/precio_historial_sede.dart';
+import '../entities/bulk_editar_stock_precios.dart';
 
 /// Repository interface para operaciones de stock por sede
 abstract class ProductoStockRepository {
@@ -50,6 +51,15 @@ abstract class ProductoStockRepository {
     required String productoId,
     required String empresaId,
     String? varianteId,
+  });
+
+  /// Edición masiva de stock y precios de una sede (grilla).
+  /// Cada ajuste de stock genera kardex; cada cambio de precio, historial.
+  Future<Resource<BulkEditarResumen>> bulkEditarStockPrecios({
+    required String sedeId,
+    required String empresaId,
+    required List<BulkEditarItem> items,
+    String? motivo,
   });
 
   /// Ajusta el stock (entrada o salida)

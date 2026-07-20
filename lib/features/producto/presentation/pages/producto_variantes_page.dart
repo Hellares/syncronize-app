@@ -23,6 +23,7 @@ import '../bloc/precio_nivel/precio_nivel_cubit.dart';
 import '../bloc/variante_atributo/variante_atributo_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/sede_selection/sede_selection_cubit.dart';
+import 'edicion_masiva_stock_page.dart';
 import '../widgets/producto_variante_form_dialog.dart';
 import '../widgets/generar_combinaciones_dialog.dart';
 import '../bloc/ajustar_stock/ajustar_stock_cubit.dart';
@@ -147,6 +148,24 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Edición masiva de stock y precios',
+            icon: const Icon(Icons.table_chart_outlined, size: 18),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EdicionMasivaStockPage(
+                    productoId: widget.productoId,
+                    productoNombre: widget.productoNombre,
+                    sedeIdInicial: _sedeId,
+                  ),
+                ),
+              );
+              // Refrescar al volver: la grilla pudo cambiar stock/precios
+              _loadData();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh, size: 18,),
             onPressed: _loadData,

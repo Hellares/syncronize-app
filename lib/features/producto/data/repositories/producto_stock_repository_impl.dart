@@ -6,6 +6,7 @@ import '../../../../core/utils/resource.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/entities/movimiento_stock.dart';
 import '../../domain/entities/precio_historial_sede.dart';
+import '../../domain/entities/bulk_editar_stock_precios.dart';
 import '../../domain/repositories/producto_stock_repository.dart';
 import '../datasources/producto_stock_remote_datasource.dart';
 import '../models/movimiento_stock_model.dart';
@@ -65,6 +66,47 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         fechaFinOferta: fechaFinOferta,
       );
       return Success(stock);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'ProductoStock');
+    }
+  }
+
+  @override
+  Future<Resource<BulkEditarResumen>> bulkEditarStockPrecios({
+    required String sedeId,
+    required String empresaId,
+    required List<BulkEditarItem> items,
+    String? motivo,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final data = await _remoteDataSource.bulkEditarStockPrecios(
+        sedeId: sedeId,
+        empresaId: empresaId,
+        motivo: motivo,
+        items: items
+            .map((item) => <String, dynamic>{
+                  if (item.varianteId != null) 'varianteId': item.varianteId,
+                  if (item.productoId != null) 'productoId': item.productoId,
+                  if (item.agregarStock != null && item.agregarStock != 0)
+                    'agregarStock': item.agregarStock,
+                  if (item.precio != null) 'precio': item.precio,
+                  if (item.precioCosto != null) 'precioCosto': item.precioCosto,
+                })
+            .toList(),
+      );
+
+      return Success(BulkEditarResumen(
+        stockAjustado: data['stockAjustado'] as int? ?? 0,
+        preciosActualizados: data['preciosActualizados'] as int? ?? 0,
+        registrosCreados: data['registrosCreados'] as int? ?? 0,
+      ));
     } catch (e) {
       return _errorHandler.handleException(e, context: 'ProductoStock');
     }

@@ -1020,6 +1020,8 @@ import '../../features/producto/domain/usecases/ajustar_stock_usecase.dart'
     as _i132;
 import '../../features/producto/domain/usecases/ajuste_masivo_precios_usecase.dart'
     as _i619;
+import '../../features/producto/domain/usecases/bulk_editar_stock_precios_usecase.dart'
+    as _i831;
 import '../../features/producto/domain/usecases/bulk_upload_productos_usecase.dart'
     as _i692;
 import '../../features/producto/domain/usecases/crear_incidencia_posterior_usecase.dart'
@@ -1098,6 +1100,8 @@ import '../../features/producto/presentation/bloc/crear_incidencia_posterior/cre
     as _i724;
 import '../../features/producto/presentation/bloc/crear_transferencia/crear_transferencia_cubit.dart'
     as _i238;
+import '../../features/producto/presentation/bloc/edicion_masiva_stock/edicion_masiva_stock_cubit.dart'
+    as _i763;
 import '../../features/producto/presentation/bloc/gestionar_transferencia/gestionar_transferencia_cubit.dart'
     as _i773;
 import '../../features/producto/presentation/bloc/historial_precios/historial_precios_cubit.dart'
@@ -2798,6 +2802,11 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           _i619.AjusteMasivoPreciosUseCase(gh<_i262.ProductoStockRepository>()),
     );
+    gh.factory<_i831.BulkEditarStockPreciosUseCase>(
+      () => _i831.BulkEditarStockPreciosUseCase(
+        gh<_i262.ProductoStockRepository>(),
+      ),
+    );
     gh.factory<_i494.CrearStockInicialUseCase>(
       () => _i494.CrearStockInicialUseCase(gh<_i262.ProductoStockRepository>()),
     );
@@ -3936,6 +3945,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i866.GetDetalleSolicitudUseCase>(),
         gh<_i420.RechazarSolicitudUseCase>(),
         gh<_i221.CotizarSolicitudUseCase>(),
+      ),
+    );
+    gh.factory<_i763.EdicionMasivaStockCubit>(
+      () => _i763.EdicionMasivaStockCubit(
+        gh<_i1047.ProductoRemoteDataSource>(),
+        gh<_i831.BulkEditarStockPreciosUseCase>(),
       ),
     );
     gh.factory<_i121.UnidadMedidaCubit>(
