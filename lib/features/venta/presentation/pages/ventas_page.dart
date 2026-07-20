@@ -41,6 +41,7 @@ class _VentasPageState extends State<VentasPage> {
   static const _canales = {
     'POS': 'Mostrador (POS)',
     'ONLINE': 'Marketplace',
+    'WHATSAPP_IA': 'Agente IA (WhatsApp)',
     'COTIZACION': 'Cotización',
   };
 
@@ -776,6 +777,36 @@ class _VentaListTile extends StatelessWidget {
 
   const _VentaListTile({required this.venta, required this.onTap});
 
+  /// Chip compacto de canal (Marketplace / Agente IA) junto al estado.
+  Widget _canalBadge(String label, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(color: color.withValues(alpha: 0.40), width: 0.6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 9, color: color),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Usar DateFormatter para formato consistente
@@ -799,81 +830,14 @@ class _VentaListTile extends StatelessWidget {
                   const SizedBox(width: 8),
                   VentaEstadoChip(estado: venta.estado),
                   // Badge de canal: distinguir a simple vista lo que llegó
-                  // por el marketplace de lo vendido en mostrador.
+                  // por el marketplace o el agente IA de lo vendido en
+                  // mostrador.
                   if (venta.canalVenta == 'ONLINE')
-                    Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(3),
-                          border: Border.all(
-                              color: Colors.teal.withValues(alpha: 0.40),
-                              width: 0.6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.storefront,
-                                size: 9, color: Colors.teal.shade700),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Marketplace',
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.teal.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Badge ENVÍO: venta que se despacha por agencia
-                  // (pedido por teléfono/WhatsApp) — rótulo en el detalle.
-                  if (venta.conEnvio)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: Colors.deepPurple.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(3),
-                          border: Border.all(
-                              color:
-                                  Colors.deepPurple.withValues(alpha: 0.40),
-                              width: 0.6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Impresora cuando el rótulo ya salió; camión
-                            // mientras el despacho está pendiente de rótulo.
-                            Icon(
-                                venta.envio?.rotuloImpreso == true
-                                    ? Icons.print
-                                    : Icons.local_shipping_outlined,
-                                size: 9,
-                                color: Colors.deepPurple.shade700),
-                            const SizedBox(width: 3),
-                            Text(
-                              // "· IMP" = rótulo de envío ya impreso.
-                              venta.envio?.rotuloImpreso == true
-                                  ? 'Envío · IMP'
-                                  : 'Envío',
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.deepPurple.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _canalBadge(
+                        'Marketplace', Icons.storefront, Colors.teal.shade700),
+                  if (venta.canalVenta == 'WHATSAPP_IA')
+                    _canalBadge('Agente IA', Icons.smart_toy_outlined,
+                        Colors.deepPurple.shade400),
                   // Badge OS-XXXXX: la venta cobró una orden de servicio.
                   ...venta.ordenesServicioCodigos.map(
                     (cod) => Padding(
@@ -997,6 +961,47 @@ class _VentaListTile extends StatelessWidget {
                   ),
                 ],
               ),
+              // Chip ENVÍO fuera del Row superior (evitaba overflow de ~37px):
+              // va debajo del precio, alineado a la derecha.
+              if (venta.conEnvio) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(
+                          color: Colors.deepPurple.withValues(alpha: 0.40),
+                          width: 0.6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                            venta.envio?.rotuloImpreso == true
+                                ? Icons.print
+                                : Icons.local_shipping_outlined,
+                            size: 9,
+                            color: Colors.deepPurple.shade700),
+                        const SizedBox(width: 3),
+                        Text(
+                          venta.envio?.rotuloImpreso == true
+                              ? 'Envío · IMP'
+                              : 'Envío',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.deepPurple.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
