@@ -15,7 +15,12 @@ import '../../../../core/widgets/smart_appbar.dart';
 class UbicacionElegida {
   final LatLng punto;
   final String? direccion;
-  const UbicacionElegida({required this.punto, this.direccion});
+
+  /// Distrito/zona del punto (para autollenar y para el match de zonas
+  /// de los repartidores freelance).
+  final String? zona;
+
+  const UbicacionElegida({required this.punto, this.direccion, this.zona});
 }
 
 /// Selector de ubicación EXACTA estilo Rappi/Uber: mueves el mapa bajo el
@@ -138,6 +143,7 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
     final punto = _mapController.camera.center;
     setState(() => _confirmando = true);
     String? direccion;
+    String? zona;
     try {
       final uri =
           Uri.parse('https://nominatim.openstreetmap.org/reverse').replace(
@@ -146,6 +152,7 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
           'lon': punto.longitude.toString(),
           'format': 'json',
           'zoom': '18',
+          'addressdetails': '1',
         },
       );
       final r = await http.get(
@@ -153,13 +160,31 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
         headers: {'User-Agent': 'SyncronizeApp/1.0 (delivery picker)'},
       ).timeout(const Duration(seconds: 8));
       if (r.statusCode == 200) {
-        final nombre =
-            (jsonDecode(r.body) as Map<String, dynamic>)['display_name']
-                ?.toString();
+        final body = jsonDecode(r.body) as Map<String, dynamic>;
+        final nombre = body['display_name']?.toString();
         if (nombre != null && nombre.isNotEmpty) {
           // display_name es larguísimo (hasta el país): las 3 primeras
           // partes bastan como dirección editable.
           direccion = nombre.split(',').take(3).map((s) => s.trim()).join(', ');
+        }
+        // Zona/distrito: Nominatim lo reporta con nombres distintos según
+        // el lugar — se toma el primero disponible de mayor precisión.
+        final addr = body['address'];
+        if (addr is Map<String, dynamic>) {
+          for (final clave in [
+            'suburb',
+            'city_district',
+            'district',
+            'village',
+            'town',
+            'city',
+          ]) {
+            final v = addr[clave]?.toString();
+            if (v != null && v.isNotEmpty) {
+              zona = v;
+              break;
+            }
+          }
         }
       }
     } catch (_) {}
@@ -168,7 +193,7 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
     setState(() => _confirmando = false);
     Navigator.pop(
       context,
-      UbicacionElegida(punto: punto, direccion: direccion),
+      UbicacionElegida(punto: punto, direccion: direccion, zona: zona),
     );
   }
 

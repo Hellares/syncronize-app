@@ -123,9 +123,12 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
     if (elegido == null || !mounted) return;
     setState(() {
       _destino = elegido.punto;
-      // La dirección del pin se autollena (editable después).
+      // Dirección y zona del pin se autollenan (editables después).
       if (elegido.direccion != null && elegido.direccion!.isNotEmpty) {
         _direccionCtrl.text = elegido.direccion!.toUpperCase();
+      }
+      if (elegido.zona != null && elegido.zona!.isNotEmpty) {
+        _distritoCtrl.text = elegido.zona!.toUpperCase();
       }
     });
   }
