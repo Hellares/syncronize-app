@@ -93,6 +93,13 @@ class AboutPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       _TeamMember(
+                        name: 'Jayli S. Flores',
+                        role: 'Consultor',
+                        icon: Icons.lightbulb_outline,
+                        iconColor: AppColors.blue2,
+                      ),
+                      const SizedBox(height: 10),
+                      _TeamMember(
                         name: 'Emily Fernandez Torres',
                         role: 'Colaboradora',
                         icon: Icons.handshake_outlined,
@@ -103,13 +110,6 @@ class AboutPage extends StatelessWidget {
                         name: 'Yesvi Fernandez Torres',
                         role: 'Colaboradora',
                         icon: Icons.handshake_outlined,
-                        iconColor: AppColors.blue2,
-                      ),
-                      const SizedBox(height: 10),
-                      _TeamMember(
-                        name: 'Jayli Salar Flores',
-                        role: 'Consultor',
-                        icon: Icons.lightbulb_outline,
                         iconColor: AppColors.blue2,
                       ),
                       const SizedBox(height: 10),
