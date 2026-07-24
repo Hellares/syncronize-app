@@ -120,7 +120,14 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
 
   Future<void> _fijarEnMapa() async {
     final elegido = await UbicacionPickerPage.show(context, inicial: _destino);
-    if (elegido != null && mounted) setState(() => _destino = elegido);
+    if (elegido == null || !mounted) return;
+    setState(() {
+      _destino = elegido.punto;
+      // La dirección del pin se autollena (editable después).
+      if (elegido.direccion != null && elegido.direccion!.isNotEmpty) {
+        _direccionCtrl.text = elegido.direccion!.toUpperCase();
+      }
+    });
   }
 
   @override
@@ -163,16 +170,8 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 12),
-              CustomText(
-                controller: _direccionCtrl,
-                label: 'Dirección de entrega',
-                hintText: 'ej. Av. Los Olivos 123',
-                borderColor: AppColors.blue1,
-                textCase: TextCase.upper,
-              ),
-              const SizedBox(height: 8),
-              // Pin exacto en el mapa (OSM gratis): NAVEGAR va al punto y
-              // el cliente ve el 📍 en su tracking.
+              // PRIMERO el mapa (autollena la dirección): buscar/pinear el
+              // punto exacto → NAVEGAR va al punto y el cliente ve el 📍.
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   foregroundColor:
@@ -194,8 +193,16 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                   size: 17,
                 ),
                 label: Text(_destino == null
-                    ? 'Fijar ubicación exacta en el mapa'
+                    ? 'Buscar y fijar ubicación en el mapa'
                     : '📍 Ubicación fijada — tocar para cambiar'),
+              ),
+              const SizedBox(height: 8),
+              CustomText(
+                controller: _direccionCtrl,
+                label: 'Dirección de entrega',
+                hintText: 'Se llena sola al fijar el pin (editable)',
+                borderColor: AppColors.blue1,
+                textCase: TextCase.upper,
               ),
               const SizedBox(height: 8),
               CustomText(

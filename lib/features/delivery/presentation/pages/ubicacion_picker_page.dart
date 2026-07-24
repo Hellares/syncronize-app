@@ -9,9 +9,18 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 
+/// Resultado del picker: el punto exacto + la dirección aproximada de ese
+/// punto (reverse geocoding de Nominatim, best-effort) para autollenar la
+/// caja de dirección.
+class UbicacionElegida {
+  final LatLng punto;
+  final String? direccion;
+  const UbicacionElegida({required this.punto, this.direccion});
+}
+
 /// Selector de ubicación EXACTA estilo Rappi/Uber: mueves el mapa bajo el
 /// pin fijo del centro y confirmas. OpenStreetMap vía flutter_map — gratis,
-/// sin API key. Devuelve el LatLng elegido (o null si canceló).
+/// sin API key. Devuelve la ubicación elegida (o null si canceló).
 class UbicacionPickerPage extends StatefulWidget {
   /// Centro inicial; si es null intenta la última posición conocida del
   /// dispositivo y cae a Chiclayo como default.
@@ -19,8 +28,9 @@ class UbicacionPickerPage extends StatefulWidget {
 
   const UbicacionPickerPage({super.key, this.inicial});
 
-  static Future<LatLng?> show(BuildContext context, {LatLng? inicial}) {
-    return Navigator.of(context).push<LatLng>(
+  static Future<UbicacionElegida?> show(BuildContext context,
+      {LatLng? inicial}) {
+    return Navigator.of(context).push<UbicacionElegida>(
       MaterialPageRoute(
         builder: (_) => UbicacionPickerPage(inicial: inicial),
       ),
@@ -111,8 +121,55 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
 
   void _irAResultado(({String nombre, double lat, double lon}) r) {
     FocusScope.of(context).unfocus();
-    setState(() => _resultados = const []);
+    setState(() {
+      _resultados = const [];
+      // Si confirma cerca de aquí y el reverse falla, usamos este nombre.
+      _ultimaDireccionBuscada = r.nombre;
+    });
     _mapController.move(LatLng(r.lat, r.lon), 17);
+  }
+
+  String? _ultimaDireccionBuscada;
+  bool _confirmando = false;
+
+  /// Reverse geocoding del punto final (Nominatim, best-effort): la
+  /// dirección corta se autollena en la caja del sheet.
+  Future<void> _confirmar() async {
+    final punto = _mapController.camera.center;
+    setState(() => _confirmando = true);
+    String? direccion;
+    try {
+      final uri =
+          Uri.parse('https://nominatim.openstreetmap.org/reverse').replace(
+        queryParameters: {
+          'lat': punto.latitude.toString(),
+          'lon': punto.longitude.toString(),
+          'format': 'json',
+          'zoom': '18',
+        },
+      );
+      final r = await http.get(
+        uri,
+        headers: {'User-Agent': 'SyncronizeApp/1.0 (delivery picker)'},
+      ).timeout(const Duration(seconds: 8));
+      if (r.statusCode == 200) {
+        final nombre =
+            (jsonDecode(r.body) as Map<String, dynamic>)['display_name']
+                ?.toString();
+        if (nombre != null && nombre.isNotEmpty) {
+          // display_name es larguísimo (hasta el país): las 3 primeras
+          // partes bastan como dirección editable.
+          direccion = nombre.split(',').take(3).map((s) => s.trim()).join(', ');
+        }
+      }
+    } catch (_) {}
+    direccion ??= _ultimaDireccionBuscada;
+    if (!mounted) return;
+    setState(() => _confirmando = false);
+    Navigator.pop(
+      context,
+      UbicacionElegida(punto: punto, direccion: direccion),
+    );
   }
 
   /// Best-effort: última posición conocida SIN pedir permisos nuevos.
@@ -286,12 +343,18 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          onPressed: () => Navigator.pop(
-                            context,
-                            _mapController.camera.center,
-                          ),
-                          icon: const Icon(Icons.check),
-                          label: const Text('Confirmar ubicación'),
+                          onPressed: _confirmando ? null : _confirmar,
+                          icon: _confirmando
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.check),
+                          label: Text(_confirmando
+                              ? 'Obteniendo dirección…'
+                              : 'Confirmar ubicación'),
                         ),
                       ),
                     ],
