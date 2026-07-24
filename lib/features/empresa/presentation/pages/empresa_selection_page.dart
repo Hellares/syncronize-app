@@ -76,6 +76,9 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
         try {
           await locator<RepartidorRemoteDataSource>().miPerfil();
           esRepartidor = true;
+          // Persistir el modo: el splash/resume lo honra.
+          await locator<LocalStorageService>()
+              .setString(StorageConstants.loginMode, 'repartidor');
         } catch (_) {}
         if (!mounted) return;
         WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -226,6 +226,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   if (allCompanies.isEmpty) {
                     try {
                       await locator<RepartidorRemoteDataSource>().miPerfil();
+                      // Persistir el modo: el splash/resume lo honra.
+                      await locator<LocalStorageService>().setString(
+                          StorageConstants.loginMode, 'repartidor');
                       if (context.mounted) context.go('/repartidor');
                       return;
                     } catch (_) {
@@ -292,6 +295,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   if (loginMode != 'management') {
                     try {
                       await locator<RepartidorRemoteDataSource>().miPerfil();
+                      // Persistir el modo: el splash/resume lo honra.
+                      await localStorage.setString(
+                          StorageConstants.loginMode, 'repartidor');
                       if (context.mounted) context.go('/repartidor');
                       return;
                     } catch (_) {

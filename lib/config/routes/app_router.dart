@@ -288,6 +288,12 @@ class AppRouter {
         final loginMode = localStorage.getString(StorageConstants.loginMode);
         final tenantId = localStorage.getString(StorageConstants.tenantId);
 
+        // Repartidor freelance: al reabrir la app vuelve a SU panel
+        // (sin esto, el resume lo tiraba al marketplace con todo el menú).
+        if (loginMode == 'repartidor') {
+          return '/repartidor';
+        }
+
         if (loginMode == 'management' && tenantId != null && tenantId.isNotEmpty) {
           return RoleNavigationHelper.getEmpresaRoute();
         }
