@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../pages/ubicacion_picker_page.dart';
 
 /// Datos del delivery recolectados por el sheet (el caller arma el payload
 /// con empresaId/ventaId y hace el POST).
@@ -14,11 +16,18 @@ class SolicitarDeliveryFormData {
   /// null = el backend aplica la tarifa default de la sede.
   final double? costoDelivery;
 
+  /// Pin del mapa (ubicación exacta): NAVEGAR del repartidor va al punto
+  /// y el cliente ve el 📍 en su tracking.
+  final double? destinoLat;
+  final double? destinoLon;
+
   const SolicitarDeliveryFormData({
     required this.direccion,
     this.referencia,
     this.distrito,
     this.costoDelivery,
+    this.destinoLat,
+    this.destinoLon,
   });
 
   Map<String, dynamic> toJson() => {
@@ -27,6 +36,10 @@ class SolicitarDeliveryFormData {
           'referencia': referencia,
         if (distrito != null && distrito!.isNotEmpty) 'distrito': distrito,
         if (costoDelivery != null) 'costoDelivery': costoDelivery,
+        if (destinoLat != null && destinoLon != null) ...{
+          'destinoLat': destinoLat,
+          'destinoLon': destinoLon,
+        },
       };
 }
 
@@ -59,6 +72,7 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
   final _referenciaCtrl = TextEditingController();
   final _distritoCtrl = TextEditingController();
   final _costoCtrl = TextEditingController();
+  LatLng? _destino;
 
   @override
   void dispose() {
@@ -99,7 +113,14 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
       referencia: _referenciaCtrl.text.trim(),
       distrito: _distritoCtrl.text.trim(),
       costoDelivery: costo,
+      destinoLat: _destino?.latitude,
+      destinoLon: _destino?.longitude,
     ));
+  }
+
+  Future<void> _fijarEnMapa() async {
+    final elegido = await UbicacionPickerPage.show(context, inicial: _destino);
+    if (elegido != null && mounted) setState(() => _destino = elegido);
   }
 
   @override
@@ -148,6 +169,33 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                 hintText: 'ej. Av. Los Olivos 123',
                 borderColor: AppColors.blue1,
                 textCase: TextCase.upper,
+              ),
+              const SizedBox(height: 8),
+              // Pin exacto en el mapa (OSM gratis): NAVEGAR va al punto y
+              // el cliente ve el 📍 en su tracking.
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor:
+                      _destino == null ? AppColors.blue1 : Colors.green[700],
+                  side: BorderSide(
+                    color: _destino == null
+                        ? AppColors.blue1
+                        : Colors.green[700]!,
+                  ),
+                  minimumSize: const Size(double.infinity, 38),
+                  textStyle: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                onPressed: _fijarEnMapa,
+                icon: Icon(
+                  _destino == null
+                      ? Icons.map_outlined
+                      : Icons.check_circle_outline,
+                  size: 17,
+                ),
+                label: Text(_destino == null
+                    ? 'Fijar ubicación exacta en el mapa'
+                    : '📍 Ubicación fijada — tocar para cambiar'),
               ),
               const SizedBox(height: 8),
               CustomText(
