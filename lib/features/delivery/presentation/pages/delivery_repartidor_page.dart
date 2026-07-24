@@ -45,7 +45,8 @@ class _DeliveryView extends StatefulWidget {
   State<_DeliveryView> createState() => _DeliveryViewState();
 }
 
-class _DeliveryViewState extends State<_DeliveryView> {
+class _DeliveryViewState extends State<_DeliveryView>
+    with WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   StreamSubscription? _realtimeSub;
   late final DeliveryGpsReporter _gps;
@@ -53,6 +54,7 @@ class _DeliveryViewState extends State<_DeliveryView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _gps = DeliveryGpsReporter(locator<DeliveryRemoteDataSource>());
     // Un delivery nuevo publicado → la lista se refresca sola.
     _realtimeSub = locator<RealtimeSyncService>().events.listen((e) {
@@ -63,9 +65,26 @@ class _DeliveryViewState extends State<_DeliveryView> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _realtimeSub?.cancel();
     _gps.detener();
     super.dispose();
+  }
+
+  /// Al VOLVER del background las listas quedaban congeladas (o vacías si
+  /// la 1ª carga corrió antes de tener el contexto de empresa) — recargar.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _asegurarCarga();
+  }
+
+  void _asegurarCarga() {
+    if (!mounted) return;
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final empresaId = empresaState is EmpresaContextLoaded
+        ? empresaState.context.empresa.id
+        : '';
+    context.read<DeliveryCubit>().asegurarCarga(empresaId);
   }
 
   /// GPS encendido ⟺ hay una entrega EN_CAMINO mía. La posición viaja al
@@ -88,8 +107,19 @@ class _DeliveryViewState extends State<_DeliveryView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<DeliveryCubit, DeliveryState>(
-      listener: (context, state) => _syncGps(state),
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<DeliveryCubit, DeliveryState>(
+          listener: (context, state) => _syncGps(state),
+        ),
+        // Si la página nació ANTES de que el contexto de empresa cargara
+        // (resume frío), la 1ª carga fue con empresa vacía → recargar aquí.
+        BlocListener<EmpresaContextCubit, EmpresaContextState>(
+          listener: (context, state) {
+            if (state is EmpresaContextLoaded) _asegurarCarga();
+          },
+        ),
+      ],
       child: _buildContenido(context),
     );
   }

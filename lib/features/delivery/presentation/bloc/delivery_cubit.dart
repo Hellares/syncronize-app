@@ -19,6 +19,19 @@ class DeliveryCubit extends Cubit<DeliveryState> {
     await _cargar();
   }
 
+  /// Garantiza datos frescos para ESTA empresa: carga completa si nunca
+  /// cargó (o cambió la empresa / quedó a medias), refresh silencioso si ya
+  /// hay datos. Lo llama la página al volver del background (resume) y
+  /// cuando el contexto de empresa termina de cargar.
+  Future<void> asegurarCarga(String empresaId) async {
+    if (empresaId.isEmpty) return;
+    if (_empresaId != empresaId || state is! DeliveryLoaded) {
+      await loadAll(empresaId);
+    } else {
+      await refresh();
+    }
+  }
+
   /// Recarga sin pasar por Loading (pull-to-refresh / push realtime).
   Future<void> refresh() => _cargar();
 
