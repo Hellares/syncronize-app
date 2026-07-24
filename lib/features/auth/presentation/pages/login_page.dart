@@ -609,11 +609,14 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                             ? null
                             : () => context.push('/register-repartidor'),
                         icon: const Icon(Icons.delivery_dining,
-                            size: 18, color: Colors.white),
+                            size: 18, color: AppColors.blue2),
                         label: const Text(
                           '¿Quieres repartir? Regístrate como repartidor',
-                          style:
-                              TextStyle(color: Colors.white, fontSize: 12),
+                          style: TextStyle(
+                            color: AppColors.blue2,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       SizedBox(height: 100)
