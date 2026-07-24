@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/realtime_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -415,24 +416,55 @@ class _DeliveryCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              if (accion != null)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accion!.color,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    textStyle: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+              // Navegación turn-by-turn en Google Maps hacia el destino
+              // (deep link gratis) — solo para la entrega activa.
+              if (d.esActivo)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.blue1,
+                      side: const BorderSide(color: AppColors.blue1),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      textStyle: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
+                    onPressed: () => launchUrl(
+                      Uri.parse(d.urlNavegacion),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    icon: const Icon(Icons.navigation_outlined, size: 15),
+                    label: const Text('NAVEGAR'),
                   ),
-                  onPressed: accion!.onTap,
-                  icon: Icon(accion!.icon, size: 16),
-                  label: Text(accion!.label),
                 ),
             ],
           ),
+          // Acción principal a lo ancho (labels largos + NAVEGAR arriba no
+          // caben en una sola fila sin overflow).
+          if (accion != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accion!.color,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  textStyle: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: accion!.onTap,
+                icon: Icon(accion!.icon, size: 16),
+                label: Text(accion!.label),
+              ),
+            ),
+          ],
         ],
       ),
     );

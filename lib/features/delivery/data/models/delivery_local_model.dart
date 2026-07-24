@@ -15,6 +15,8 @@ class DeliveryLocalModel extends DeliveryLocal {
     super.tomadoEn,
     super.enCaminoEn,
     super.entregadoEn,
+    super.destinoLat,
+    super.destinoLon,
   });
 
   factory DeliveryLocalModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,14 @@ class DeliveryLocalModel extends DeliveryLocal {
 
     DateTime? toDate(dynamic v) =>
         v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;
+
+    final destino = json['coordenadas'];
+    double? destinoLat;
+    double? destinoLon;
+    if (destino is Map<String, dynamic>) {
+      destinoLat = destino['lat'] is num ? (destino['lat'] as num).toDouble() : null;
+      destinoLon = destino['lon'] is num ? (destino['lon'] as num).toDouble() : null;
+    }
 
     return DeliveryLocalModel(
       id: json['id'] as String,
@@ -42,6 +52,8 @@ class DeliveryLocalModel extends DeliveryLocal {
       tomadoEn: toDate(json['tomadoEn']),
       enCaminoEn: toDate(json['enCaminoEn']),
       entregadoEn: toDate(json['entregadoEn']),
+      destinoLat: destinoLat,
+      destinoLon: destinoLon,
     );
   }
 

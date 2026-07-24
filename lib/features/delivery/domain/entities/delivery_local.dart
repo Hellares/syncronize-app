@@ -18,6 +18,10 @@ class DeliveryLocal extends Equatable {
   final DateTime? enCaminoEn;
   final DateTime? entregadoEn;
 
+  /// Coordenadas del destino (si el pedido las trae) — botón Navegar.
+  final double? destinoLat;
+  final double? destinoLon;
+
   const DeliveryLocal({
     required this.id,
     required this.estado,
@@ -32,7 +36,21 @@ class DeliveryLocal extends Equatable {
     this.tomadoEn,
     this.enCaminoEn,
     this.entregadoEn,
+    this.destinoLat,
+    this.destinoLon,
   });
+
+  /// Link de NAVEGACIÓN de Google Maps (turn-by-turn, gratis — deep link,
+  /// no API): coordenadas si existen, si no la dirección en texto.
+  String get urlNavegacion {
+    if (destinoLat != null && destinoLon != null) {
+      return 'https://www.google.com/maps/dir/?api=1&destination=$destinoLat,$destinoLon&travelmode=driving';
+    }
+    final consulta = Uri.encodeComponent(
+      [direccion, distrito].where((s) => s != null && s.isNotEmpty).join(', '),
+    );
+    return 'https://www.google.com/maps/dir/?api=1&destination=$consulta&travelmode=driving';
+  }
 
   bool get esSolicitado => estado == 'SOLICITADO';
   bool get esTomado => estado == 'TOMADO';
