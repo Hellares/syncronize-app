@@ -961,9 +961,51 @@ class _VentaListTile extends StatelessWidget {
                   ),
                 ],
               ),
-              // Chip ENVÍO fuera del Row superior (evitaba overflow de ~37px):
-              // va debajo del precio, alineado a la derecha.
-              if (venta.conEnvio) ...[
+              // Chip de despacho fuera del Row superior (evitaba overflow):
+              // va debajo del precio, alineado a la derecha. DELIVERY local
+              // (moto, naranja/verde según estado) manda sobre el envío por
+              // agencia (camión, morado).
+              if (venta.tieneDelivery) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Builder(builder: (context) {
+                    final entregado = venta.deliveryEstado == 'ENTREGADO';
+                    final color = entregado
+                        ? Colors.green.shade700
+                        : Colors.orange.shade800;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(
+                            color: color.withValues(alpha: 0.40), width: 0.6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.delivery_dining, size: 9, color: color),
+                          const SizedBox(width: 3),
+                          Text(
+                            entregado
+                                ? 'Delivery ✓'
+                                : venta.deliveryEstado == 'EN_CAMINO'
+                                    ? 'Delivery · EN CAMINO'
+                                    : 'Delivery',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              color: color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+              ] else if (venta.conEnvio) ...[
                 const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerRight,

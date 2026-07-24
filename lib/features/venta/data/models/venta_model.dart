@@ -38,6 +38,7 @@ class VentaModel extends Venta {
     super.direccionCliente,
     super.conEnvio,
     super.envio,
+    super.deliveryEstado,
     super.moneda,
     super.tipoCambio,
     required super.subtotal,
@@ -193,6 +194,9 @@ class VentaModel extends Venta {
       conEnvio: json['conEnvio'] as bool? ?? false,
       envio: json['envio'] is Map
           ? _envioFromJson((json['envio'] as Map).cast<String, dynamic>())
+          : null,
+      deliveryEstado: json['deliveryLocal'] is Map
+          ? (json['deliveryLocal'] as Map)['estado'] as String?
           : null,
       moneda: json['moneda'] as String? ?? 'PEN',
       tipoCambio: _toDoubleNullable(json['tipoCambio']),

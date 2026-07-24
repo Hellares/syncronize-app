@@ -284,6 +284,14 @@ class Venta extends Equatable {
   final bool conEnvio;
   final VentaEnvioData? envio;
 
+  /// Estado del DELIVERY LOCAL (repartidor propio/freelance) si la venta
+  /// va con uno: SOLICITADO/TOMADO/EN_CAMINO/ENTREGADO/CANCELADO. null =
+  /// sin delivery. La card muestra el chip "Delivery" en vez de "Envío".
+  final String? deliveryEstado;
+
+  bool get tieneDelivery =>
+      deliveryEstado != null && deliveryEstado != 'CANCELADO';
+
   // Moneda
   final String moneda;
   final double? tipoCambio;
@@ -385,6 +393,7 @@ class Venta extends Equatable {
     this.direccionCliente,
     this.conEnvio = false,
     this.envio,
+    this.deliveryEstado,
     this.moneda = 'PEN',
     this.tipoCambio,
     required this.subtotal,
