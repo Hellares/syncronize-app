@@ -378,6 +378,36 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                       ),
                       onPressed: _gestionarEnvio,
                     ),
+                  // Delivery local (repartidor propio/freelance): al costado
+                  // del envío por agencia. Encendido SOLO con la venta
+                  // pagada al 100% — el repartidor jamás cobra el producto.
+                  if (_venta != null)
+                    IconButton(
+                      tooltip: _venta!.estado == EstadoVenta.pagadaCompleta
+                          ? 'Solicitar delivery local'
+                          : 'Delivery local (requiere venta pagada al 100%)',
+                      icon: Icon(
+                        Icons.delivery_dining,
+                        size: 22,
+                        color: _venta!.estado == EstadoVenta.pagadaCompleta
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.45),
+                      ),
+                      onPressed: () {
+                        if (_venta!.estado != EstadoVenta.pagadaCompleta) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: const Text(
+                              'El delivery local requiere la venta pagada al 100%',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            backgroundColor: Colors.orange.shade800,
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                          return;
+                        }
+                        _solicitarDeliveryLocal();
+                      },
+                    ),
                   if (_venta != null)
                     PopupMenuButton<String>(
                       onSelected: (value) =>
@@ -399,18 +429,6 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             child: ListTile(
                               leading: Icon(Icons.payment),
                               title: Text('Registrar Pago'),
-                              dense: true,
-                            ),
-                          ),
-                        // Delivery local: SOLO ventas pagadas al 100% (el
-                        // repartidor jamás cobra el producto, solo su tarifa).
-                        if (_venta!.estado == EstadoVenta.pagadaCompleta)
-                          const PopupMenuItem(
-                            value: 'delivery',
-                            child: ListTile(
-                              leading: Icon(Icons.delivery_dining,
-                                  color: Colors.orange),
-                              title: Text('Solicitar delivery'),
                               dense: true,
                             ),
                           ),
@@ -2688,9 +2706,6 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         break;
       case 'ticket':
         context.push('/empresa/ventas/${widget.ventaId}/ticket');
-        break;
-      case 'delivery':
-        _solicitarDeliveryLocal();
         break;
       case 'devolucion':
         context.push('/empresa/devoluciones/desde-venta/${widget.ventaId}');
