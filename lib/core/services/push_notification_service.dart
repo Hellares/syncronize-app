@@ -179,6 +179,7 @@ class PushNotificationService {
       'CLIENTE_CAMBIADO', // delta-sync del catálogo de clientes
       'CLIENTE_EMPRESA_CAMBIADO', // ídem B2B
       'SORTEO_CAMBIADO', // recarga del detalle del sorteo/cola de pendientes
+      'DELIVERY_DISPONIBLE', // pool del repartidor se refresca solo
     };
     if (tipo != null && realtimeTipos.contains(tipo)) {
       onRealtimeData?.call(Map<String, dynamic>.from(message.data));

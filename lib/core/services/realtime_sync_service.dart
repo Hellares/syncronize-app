@@ -138,6 +138,13 @@ class RealtimeVentaPagada extends RealtimeEvent {
   const RealtimeVentaPagada({required this.empresaId, required this.ventaId});
 }
 
+/// Se publicó un delivery local nuevo (o cambió el pool). La pantalla del
+/// repartidor recarga sola: el pedido aparece sin que tenga que refrescar.
+class RealtimeDeliveryDisponible extends RealtimeEvent {
+  final String empresaId;
+  const RealtimeDeliveryDisponible({required this.empresaId});
+}
+
 /// Las imágenes de un producto fueron modificadas (upload/delete). El
 /// listener debe refrescar el catálogo — la URL puede ser nueva o
 /// haber desaparecido.
@@ -427,6 +434,10 @@ class RealtimeSyncService {
           empresaId: empresaId,
           sorteoId: _stringOrNull(data['sorteoId']),
         ));
+        break;
+
+      case 'DELIVERY_DISPONIBLE':
+        _eventsController.add(RealtimeDeliveryDisponible(empresaId: empresaId));
         break;
 
       case 'VENTA_PAGADA':

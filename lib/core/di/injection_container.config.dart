@@ -572,6 +572,13 @@ import '../../features/dashboard_vendedor/domain/usecases/get_dashboard_vendedor
     as _i355;
 import '../../features/dashboard_vendedor/presentation/bloc/dashboard_vendedor_cubit.dart'
     as _i551;
+import '../../features/delivery/data/datasources/delivery_remote_datasource.dart'
+    as _i93;
+import '../../features/delivery/data/repositories/delivery_repository_impl.dart'
+    as _i43;
+import '../../features/delivery/domain/repositories/delivery_repository.dart'
+    as _i1007;
+import '../../features/delivery/presentation/bloc/delivery_cubit.dart' as _i235;
 import '../../features/descuento/data/datasources/descuento_remote_datasource.dart'
     as _i1036;
 import '../../features/descuento/data/repositories/descuento_repository_impl.dart'
@@ -1782,6 +1789,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i340.DashboardVendedorRemoteDataSource>(
       () => _i340.DashboardVendedorRemoteDataSource(gh<_i667.DioClient>()),
     );
+    gh.lazySingleton<_i93.DeliveryRemoteDataSource>(
+      () => _i93.DeliveryRemoteDataSource(gh<_i667.DioClient>()),
+    );
     gh.lazySingleton<_i1036.DescuentoRemoteDataSource>(
       () => _i1036.DescuentoRemoteDataSource(gh<_i667.DioClient>()),
     );
@@ -2319,6 +2329,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i490.ErrorHandlerService>(),
       ),
     );
+    gh.lazySingleton<_i1007.DeliveryRepository>(
+      () => _i43.DeliveryRepositoryImpl(
+        gh<_i93.DeliveryRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+      ),
+    );
     gh.lazySingleton<_i830.SorteoRepository>(
       () => _i820.SorteoRepositoryImpl(
         gh<_i601.SorteoRemoteDataSource>(),
@@ -2672,6 +2689,9 @@ extension GetItInjectableX on _i174.GetIt {
         validarCompatibilidadUseCase:
             gh<_i76.ValidarCompatibilidadCotizacionUseCase>(),
       ),
+    );
+    gh.factory<_i235.DeliveryCubit>(
+      () => _i235.DeliveryCubit(gh<_i1007.DeliveryRepository>()),
     );
     gh.lazySingleton<_i640.PrecioNivelRepository>(
       () => _i92.PrecioNivelRepositoryImpl(

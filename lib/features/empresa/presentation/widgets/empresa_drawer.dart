@@ -55,11 +55,14 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           final loaded = state is EmpresaContextLoaded;
           final permissions = loaded ? state.context.permissions : null;
           final empresaId = loaded ? state.context.empresa.id : '';
+          final roles =
+              loaded ? state.context.roleNames : const <String>[];
 
           final nodes = _buildNodeTree(
             context: context,
             empresaId: empresaId,
             permissions: permissions,
+            roles: roles,
           );
 
           // Auto-expand: la primera vez, busca qué sección contiene la ruta
@@ -140,6 +143,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
     required BuildContext context,
     required String empresaId,
     required dynamic permissions,
+    List<String> roles = const [],
   }) {
     bool can(bool? v) => v ?? false;
 
@@ -178,6 +182,18 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
         visible: can(permissions?.canViewVentas),
         routeMatch: const _RouteMatch.startsWith('/empresa/dashboard-vendedor'),
         onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/dashboard-vendedor')),
+      ),
+      // Pool de entregas: la home del REPARTIDOR (admins también lo ven
+      // para supervisar/cubrir turnos).
+      tile(
+        title: 'Delivery',
+        icon: Icons.delivery_dining,
+        iconColor: Colors.orange,
+        visible: roles.contains('REPARTIDOR') ||
+            roles.contains('EMPRESA_ADMIN') ||
+            roles.contains('SUPER_ADMIN'),
+        routeMatch: const _RouteMatch.startsWith('/empresa/delivery'),
+        onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/delivery')),
       ),
 
       // ---------------- Productos ----------------
@@ -1044,6 +1060,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             visible: can(permissions?.canManageSettings),
             routeMatch: const _RouteMatch.startsWith('/empresa/whatsapp'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/whatsapp')),
+          ),
+          tile(
+            title: 'Agente IA (WhatsApp)',
+            icon: Icons.smart_toy_outlined,
+            visible: can(permissions?.canManageSettings),
+            routeMatch: const _RouteMatch.startsWith('/empresa/agente-ia'),
+            onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/agente-ia')),
           ),
           tile(
             title: 'Usuarios',

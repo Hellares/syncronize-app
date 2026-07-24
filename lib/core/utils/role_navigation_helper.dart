@@ -18,6 +18,8 @@ class RoleNavigationHelper {
     'CLIENTE': '/empresa/cliente',
     'TECNICO': '/empresa/ordenes',
     'CONTADOR': '/empresa/ventas/analytics',
+    // El repartidor vive en su pool de entregas — toda su operación está ahí.
+    'REPARTIDOR': '/empresa/delivery',
   };
 
   /// Determina la ruta correcta según el rol almacenado en localStorage

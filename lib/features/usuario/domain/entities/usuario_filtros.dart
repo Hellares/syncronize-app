@@ -21,7 +21,8 @@ enum RolUsuario {
   sedeAdmin('SEDE_ADMIN'),
   superAdmin('SUPER_ADMIN'),
   operador('OPERADOR'),
-  lectura('LECTURA');
+  lectura('LECTURA'),
+  repartidor('REPARTIDOR');
 
   final String value;
   const RolUsuario(this.value);
@@ -46,6 +47,8 @@ enum RolUsuario {
         return 'Operador';
       case RolUsuario.lectura:
         return 'Solo Lectura';
+      case RolUsuario.repartidor:
+        return 'Repartidor';
     }
   }
 }

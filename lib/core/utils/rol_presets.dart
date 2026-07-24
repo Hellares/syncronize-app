@@ -101,6 +101,18 @@ const Map<String, RolPreset> kRolPresets = {
       AccesosRapidosCatalogo.config,
     ],
   ),
+
+  'REPARTIDOR': RolPreset(
+    // Solo entrega pedidos: sin caja y sin accesos de venta/finanzas.
+    accesosRapidosOcultos: [
+      AccesosRapidosCatalogo.ventaRapida,
+      AccesosRapidosCatalogo.ventaAvanzada,
+      AccesosRapidosCatalogo.colaPos,
+      AccesosRapidosCatalogo.facturacion,
+      AccesosRapidosCatalogo.config,
+      AccesosRapidosCatalogo.cajaChica,
+    ],
+  ),
 };
 
 /// Devuelve el preset de un rol o un preset vacío si no está mapeado.
