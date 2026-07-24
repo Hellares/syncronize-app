@@ -9,6 +9,17 @@ class DeliveryRemoteDataSource {
 
   DeliveryRemoteDataSource(this._dioClient);
 
+  /// Publica el delivery de una venta PAGADA al 100% (staff). El backend
+  /// valida el pago, aplica la tarifa de la sede si no se manda costo y
+  /// notifica a los repartidores por push.
+  Future<DeliveryLocalModel> solicitar(Map<String, dynamic> data) async {
+    final response = await _dioClient.post(
+      '$_basePath/solicitar',
+      data: data,
+    );
+    return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Pool de deliveries SOLICITADOS listos para tomar.
   Future<List<DeliveryLocalModel>> getDisponibles(
     String empresaId, {
@@ -63,5 +74,19 @@ class DeliveryRemoteDataSource {
       data: {'empresaId': empresaId},
     );
     return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GPS: posición del repartidor mientras va EN_CAMINO (best-effort, el
+  /// backend ignora reportes tardíos o de no-dueños sin error).
+  Future<void> reportarPosicion(
+    String id,
+    String empresaId,
+    double lat,
+    double lon,
+  ) async {
+    await _dioClient.post(
+      '$_basePath/$id/posicion',
+      data: {'empresaId': empresaId, 'lat': lat, 'lon': lon},
+    );
   }
 }

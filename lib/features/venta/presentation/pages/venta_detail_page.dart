@@ -38,6 +38,9 @@ import '../bloc/venta_form/venta_form_cubit.dart';
 import '../bloc/venta_form/venta_form_state.dart';
 import '../widgets/flujo_documentos_widget.dart';
 import '../widgets/venta_envio_sheet.dart';
+import '../../../delivery/domain/entities/delivery_local.dart';
+import '../../../delivery/domain/repositories/delivery_repository.dart';
+import '../../../delivery/presentation/widgets/solicitar_delivery_sheet.dart';
 import '../widgets/venta_estado_chip.dart';
 import '../../../facturacion/domain/entities/crear_nota_item.dart';
 import '../../../facturacion/domain/entities/tipo_nota.dart';
@@ -203,6 +206,54 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     }
   }
 
+  // ── Delivery local (repartidor propio) ──────────────────────────────
+
+  /// Publica el delivery de una venta PAGADA al 100%: dirección + tarifa
+  /// (vacía = la default de la sede) → el backend lo pone en el pool y
+  /// notifica a los repartidores por push. El repartidor cobra SOLO la
+  /// tarifa al entregar — el producto ya está pagado.
+  Future<void> _solicitarDeliveryLocal() async {
+    final venta = _venta;
+    if (venta == null) return;
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final empresaId =
+        ctxState is EmpresaContextLoaded ? ctxState.context.empresa.id : '';
+    if (empresaId.isEmpty) return;
+
+    final datos = await showSolicitarDeliverySheet(
+      context: context,
+      ventaCodigo: venta.codigo,
+    );
+    if (datos == null || !mounted) return;
+
+    final res = await locator<DeliveryRepository>().solicitar({
+      'empresaId': empresaId,
+      'ventaId': venta.id,
+      ...datos.toJson(),
+    });
+    if (!mounted) return;
+    if (res is Success<DeliveryLocal>) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          '🛵 Delivery publicado (tarifa S/ '
+          '${res.data.costoDelivery.toStringAsFixed(2)}) — los repartidores '
+          'fueron notificados.',
+          style: const TextStyle(fontSize: 12),
+        ),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } else if (res is Error<DeliveryLocal>) {
+      // 409 = ya tiene delivery; 400 = venta no pagada. El backend manda
+      // el mensaje exacto — mostrarlo siempre (nada de fallos silenciosos).
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res.message, style: const TextStyle(fontSize: 12)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -348,6 +399,18 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             child: ListTile(
                               leading: Icon(Icons.payment),
                               title: Text('Registrar Pago'),
+                              dense: true,
+                            ),
+                          ),
+                        // Delivery local: SOLO ventas pagadas al 100% (el
+                        // repartidor jamás cobra el producto, solo su tarifa).
+                        if (_venta!.estado == EstadoVenta.pagadaCompleta)
+                          const PopupMenuItem(
+                            value: 'delivery',
+                            child: ListTile(
+                              leading: Icon(Icons.delivery_dining,
+                                  color: Colors.orange),
+                              title: Text('Solicitar delivery'),
                               dense: true,
                             ),
                           ),
@@ -2625,6 +2688,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         break;
       case 'ticket':
         context.push('/empresa/ventas/${widget.ventaId}/ticket');
+        break;
+      case 'delivery':
+        _solicitarDeliveryLocal();
         break;
       case 'devolucion':
         context.push('/empresa/devoluciones/desde-venta/${widget.ventaId}');

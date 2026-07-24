@@ -2,6 +2,8 @@ import '../../../../core/utils/resource.dart';
 import '../entities/delivery_local.dart';
 
 abstract class DeliveryRepository {
+  Future<Resource<DeliveryLocal>> solicitar(Map<String, dynamic> data);
+
   Future<Resource<List<DeliveryLocal>>> getDisponibles(
     String empresaId, {
     String? sedeId,

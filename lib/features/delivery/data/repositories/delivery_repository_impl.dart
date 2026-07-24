@@ -19,6 +19,19 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   );
 
   @override
+  Future<Resource<DeliveryLocal>> solicitar(Map<String, dynamic> data) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.solicitar(data);
+      return Success(result.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
   Future<Resource<List<DeliveryLocal>>> getDisponibles(
     String empresaId, {
     String? sedeId,

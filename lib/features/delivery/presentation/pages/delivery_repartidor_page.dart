@@ -11,9 +11,12 @@ import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/widgets/empresa_drawer.dart';
+import '../../data/datasources/delivery_remote_datasource.dart';
 import '../../domain/entities/delivery_local.dart';
 import '../bloc/delivery_cubit.dart';
 import '../bloc/delivery_state.dart';
+import '../services/delivery_gps_reporter.dart';
 
 /// Pantalla del REPARTIDOR: pool de deliveries disponibles para tomar y
 /// sus entregas (activas + historial). El producto ya está pagado — el
@@ -42,11 +45,14 @@ class _DeliveryView extends StatefulWidget {
 }
 
 class _DeliveryViewState extends State<_DeliveryView> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   StreamSubscription? _realtimeSub;
+  late final DeliveryGpsReporter _gps;
 
   @override
   void initState() {
     super.initState();
+    _gps = DeliveryGpsReporter(locator<DeliveryRemoteDataSource>());
     // Un delivery nuevo publicado → la lista se refresca sola.
     _realtimeSub = locator<RealtimeSyncService>().events.listen((e) {
       if (!mounted || e is! RealtimeDeliveryDisponible) return;
@@ -57,21 +63,55 @@ class _DeliveryViewState extends State<_DeliveryView> {
   @override
   void dispose() {
     _realtimeSub?.cancel();
+    _gps.detener();
     super.dispose();
+  }
+
+  /// GPS encendido ⟺ hay una entrega EN_CAMINO mía. La posición viaja al
+  /// backend y el cliente la ve en su página de tracking (mapa).
+  void _syncGps(DeliveryState state) {
+    if (state is! DeliveryLoaded) return;
+    final enCamino =
+        state.misEntregas.where((d) => d.esEnCamino).toList();
+    if (enCamino.isEmpty) {
+      _gps.detener();
+      return;
+    }
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final empresaId = empresaState is EmpresaContextLoaded
+        ? empresaState.context.empresa.id
+        : '';
+    if (empresaId.isEmpty) return;
+    _gps.asegurar(empresaId: empresaId, deliveryId: enCamino.first.id);
   }
 
   @override
   Widget build(BuildContext context) {
+    return BlocListener<DeliveryCubit, DeliveryState>(
+      listener: (context, state) => _syncGps(state),
+      child: _buildContenido(context),
+    );
+  }
+
+  Widget _buildContenido(BuildContext context) {
     return DefaultTabController(
       length: 2,
       child: GradientBackground(
         style: GradientStyle.professional,
         child: Scaffold(
+          key: _scaffoldKey,
           backgroundColor: Colors.transparent,
+          // El repartidor VIVE en esta pantalla (es su home): el drawer le da
+          // la salida (Mi Cuenta / cerrar sesión) sin abrirle módulos ajenos —
+          // los tiles ya se filtran por permisos/rol. SmartAppBar no implica
+          // hamburguesa sola → leftIcon + openDrawer explícitos.
+          drawer: const EmpresaDrawer(),
           appBar: SmartAppBar(
             title: 'Delivery',
             backgroundColor: AppColors.blue1,
             foregroundColor: AppColors.white,
+            leftIcon: Icons.menu,
+            onLeftTap: () => _scaffoldKey.currentState?.openDrawer(),
           ),
           body: Column(
             children: [
