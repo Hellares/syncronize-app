@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -221,6 +224,33 @@ class _RepartidorFreelancePageState extends State<RepartidorFreelancePage>
             title: 'Repartidor Syncronize',
             backgroundColor: AppColors.blue1,
             foregroundColor: AppColors.white,
+            actions: [
+              // Puede pasear por el marketplace como cualquier persona;
+              // con push, el botón atrás lo devuelve a su panel.
+              IconButton(
+                tooltip: 'Ir al marketplace',
+                icon: const Icon(Icons.storefront_outlined, size: 20),
+                onPressed: () => context.push('/marketplace'),
+              ),
+              IconButton(
+                tooltip: 'Cerrar sesión',
+                icon: const Icon(Icons.logout, size: 20),
+                onPressed: () async {
+                  final ok = await ConfirmDialog.show(
+                    context: context,
+                    type: ConfirmDialogType.warning,
+                    title: 'Cerrar sesión',
+                    message: '¿Seguro que quieres salir?',
+                    confirmText: 'Salir',
+                  );
+                  if (ok == true && context.mounted) {
+                    context
+                        .read<AuthBloc>()
+                        .add(const LogoutRequestedEvent());
+                  }
+                },
+              ),
+            ],
           ),
           body: _cargando
               ? const Center(
