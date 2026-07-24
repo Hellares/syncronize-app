@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -32,8 +35,11 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
   static const _fallback = LatLng(-6.7714, -79.8409); // Chiclayo
 
   final _mapController = MapController();
+  final _busquedaCtrl = TextEditingController();
   LatLng _centro = _fallback;
   bool _listo = false;
+  bool _buscando = false;
+  List<({String nombre, double lat, double lon})> _resultados = const [];
 
   @override
   void initState() {
@@ -44,6 +50,69 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
     } else {
       _resolverCentro();
     }
+  }
+
+  @override
+  void dispose() {
+    _busquedaCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Geocoding con Nominatim (OpenStreetMap) — gratis, sin API key. Se
+  /// busca al ENVIAR (no por tecla: su política pide máx 1 req/s).
+  Future<void> _buscarDireccion(String q) async {
+    final query = q.trim();
+    if (query.isEmpty) return;
+    setState(() => _buscando = true);
+    try {
+      final uri =
+          Uri.parse('https://nominatim.openstreetmap.org/search').replace(
+        queryParameters: {
+          'q': query,
+          'format': 'json',
+          'limit': '5',
+          'countrycodes': 'pe',
+        },
+      );
+      final r = await http.get(
+        uri,
+        headers: {'User-Agent': 'SyncronizeApp/1.0 (delivery picker)'},
+      ).timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) {
+        final lista = (jsonDecode(r.body) as List).cast<Map<String, dynamic>>();
+        final resultados = <({String nombre, double lat, double lon})>[];
+        for (final e in lista) {
+          final lat = double.tryParse(e['lat']?.toString() ?? '');
+          final lon = double.tryParse(e['lon']?.toString() ?? '');
+          final nombre = e['display_name']?.toString() ?? '';
+          if (lat != null && lon != null && nombre.isNotEmpty) {
+            resultados.add((nombre: nombre, lat: lat, lon: lon));
+          }
+        }
+        if (mounted) setState(() => _resultados = resultados);
+        if (resultados.isEmpty && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Sin resultados — prueba con calle y ciudad',
+                style: TextStyle(fontSize: 12)),
+          ));
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No se pudo buscar — revisa tu conexión',
+              style: TextStyle(fontSize: 12)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _buscando = false);
+    }
+  }
+
+  void _irAResultado(({String nombre, double lat, double lon}) r) {
+    FocusScope.of(context).unfocus();
+    setState(() => _resultados = const []);
+    _mapController.move(LatLng(r.lat, r.lon), 17);
   }
 
   /// Best-effort: última posición conocida SIN pedir permisos nuevos.
@@ -100,6 +169,88 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
                         ],
                       ),
                     ),
+                  ),
+                ),
+                // Buscador de direcciones (Nominatim/OSM): escribe y ENTER.
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  top: 10,
+                  child: Column(
+                    children: [
+                      Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(10),
+                        child: TextField(
+                          controller: _busquedaCtrl,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: _buscarDireccion,
+                          style: const TextStyle(fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: 'Buscar dirección… ej. Av. Balta 1234, Chiclayo',
+                            hintStyle: const TextStyle(fontSize: 12),
+                            isDense: true,
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            suffixIcon: _buscando
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(Icons.arrow_forward,
+                                        size: 18),
+                                    onPressed: () =>
+                                        _buscarDireccion(_busquedaCtrl.text),
+                                  ),
+                          ),
+                        ),
+                      ),
+                      if (_resultados.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          constraints: const BoxConstraints(maxHeight: 220),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 6),
+                            ],
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: _resultados.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, i) {
+                              final r = _resultados[i];
+                              return ListTile(
+                                dense: true,
+                                leading: const Icon(Icons.place_outlined,
+                                    size: 18, color: AppColors.blue1),
+                                title: Text(
+                                  r.nombre,
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () => _irAResultado(r),
+                              );
+                            },
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 Positioned(
