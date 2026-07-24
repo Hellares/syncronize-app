@@ -286,6 +286,19 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 if (widget.returnTo != null && widget.returnTo!.isNotEmpty) {
                   context.go(widget.returnTo!);
                 } else {
+                  // Repartidor freelance de Syncronize: su inicio es SU
+                  // PANEL, no el marketplace (este es el camino del login
+                  // directo — el de requiresSelection tiene su propio check).
+                  if (loginMode != 'management') {
+                    try {
+                      await locator<RepartidorRemoteDataSource>().miPerfil();
+                      if (context.mounted) context.go('/repartidor');
+                      return;
+                    } catch (_) {
+                      // No es repartidor → marketplace normal.
+                    }
+                    if (!context.mounted) return;
+                  }
                   // Navegar según el modo de login
                   if (loginMode == 'management') {
                     context.go(RoleNavigationHelper.getEmpresaRoute());
