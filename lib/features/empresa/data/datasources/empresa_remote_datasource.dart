@@ -171,6 +171,32 @@ class EmpresaRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  // ── Agente IA vendedor por WhatsApp ──
+
+  /// Config del agente IA (API key del proveedor propio enmascarada)
+  ///
+  /// GET /api/empresas/:empresaId/agente-ia
+  Future<Map<String, dynamic>> getAgenteIa(String empresaId) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.empresas}/$empresaId/agente-ia',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Crea/actualiza la config del agente IA de la empresa
+  ///
+  /// PUT /api/empresas/:empresaId/agente-ia
+  Future<Map<String, dynamic>> updateAgenteIa({
+    required String empresaId,
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await _dioClient.put(
+      '${ApiConstants.empresas}/$empresaId/agente-ia',
+      data: data,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   // ── WhatsApp de la empresa (Evolution API) ──
 
   /// Config + estado vivo de la vinculación de WhatsApp
