@@ -18,6 +18,7 @@ import '../../domain/entities/delivery_local.dart';
 import '../bloc/delivery_cubit.dart';
 import '../bloc/delivery_state.dart';
 import '../services/delivery_gps_reporter.dart';
+import '../widgets/pin_entrega_dialog.dart';
 
 /// Pantalla del REPARTIDOR: pool de deliveries disponibles para tomar y
 /// sus entregas (activas + historial). El producto ya está pagado — el
@@ -332,17 +333,14 @@ class _ListaMisEntregas extends StatelessWidget {
 
   Future<void> _entregado(BuildContext context, DeliveryLocal d) async {
     final cubit = context.read<DeliveryCubit>();
-    final ok = await ConfirmDialog.show(
+    // Prueba de entrega: el PIN lo tiene SOLO el cliente.
+    final pin = await showPinEntregaDialog(
       context: context,
-      type: ConfirmDialogType.success,
-      title: 'Confirmar entrega',
-      message: d.costoDelivery > 0
-          ? '¿Entregaste el pedido y cobraste los S/ ${d.costoDelivery.toStringAsFixed(2)} del delivery?'
-          : '¿Entregaste el pedido?',
-      confirmText: 'Sí, entregado',
+      ventaCodigo: d.ventaCodigo ?? 'Pedido',
+      costoDelivery: d.costoDelivery,
     );
-    if (ok != true) return;
-    final error = await cubit.marcarEntregado(d.id);
+    if (pin == null) return;
+    final error = await cubit.marcarEntregado(d.id, pin: pin);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       backgroundColor: error == null ? Colors.green[700] : Colors.red[700],

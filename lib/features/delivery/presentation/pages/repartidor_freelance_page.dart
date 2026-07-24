@@ -21,6 +21,7 @@ import '../../data/datasources/repartidor_remote_datasource.dart';
 import '../../domain/entities/delivery_local.dart';
 import '../../domain/repositories/delivery_repository.dart';
 import '../services/delivery_gps_reporter.dart';
+import '../widgets/pin_entrega_dialog.dart';
 
 /// Panel del repartidor FREELANCE de Syncronize — vive FUERA del tenant
 /// (no pertenece a ninguna empresa): verificación OTP, estado de su
@@ -189,17 +190,14 @@ class _RepartidorFreelancePageState extends State<RepartidorFreelancePage>
 
   Future<void> _entregado(DeliveryLocal d) async {
     if (d.empresaId == null) return;
-    final ok = await ConfirmDialog.show(
+    // Prueba de entrega: el PIN lo tiene SOLO el cliente.
+    final pin = await showPinEntregaDialog(
       context: context,
-      type: ConfirmDialogType.success,
-      title: 'Confirmar entrega',
-      message: d.costoDelivery > 0
-          ? '¿Entregaste y cobraste los S/ ${d.costoDelivery.toStringAsFixed(2)} del delivery?'
-          : '¿Entregaste el pedido?',
-      confirmText: 'Sí, entregado',
+      ventaCodigo: d.ventaCodigo ?? 'Pedido',
+      costoDelivery: d.costoDelivery,
     );
-    if (ok != true || !mounted) return;
-    final r = await _deliveryRepo.marcarEntregado(d.id, d.empresaId!);
+    if (pin == null || !mounted) return;
+    final r = await _deliveryRepo.marcarEntregado(d.id, d.empresaId!, pin: pin);
     if (!mounted) return;
     _snack(
       r is Success<DeliveryLocal>

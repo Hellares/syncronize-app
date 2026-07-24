@@ -67,8 +67,11 @@ class DeliveryCubit extends Cubit<DeliveryState> {
   Future<String?> marcarEnCamino(String deliveryId) =>
       _accion((id) => _repository.marcarEnCamino(id, _empresaId), deliveryId);
 
-  Future<String?> marcarEntregado(String deliveryId) =>
-      _accion((id) => _repository.marcarEntregado(id, _empresaId), deliveryId);
+  Future<String?> marcarEntregado(String deliveryId, {String? pin}) =>
+      _accion(
+        (id) => _repository.marcarEntregado(id, _empresaId, pin: pin),
+        deliveryId,
+      );
 
   Future<String?> _accion(
     Future<Resource<DeliveryLocal>> Function(String id) fn,

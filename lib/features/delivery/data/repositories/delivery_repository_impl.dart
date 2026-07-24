@@ -90,12 +90,16 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
 
   @override
   Future<Resource<DeliveryLocal>> marcarEntregado(
-      String id, String empresaId) async {
+    String id,
+    String empresaId, {
+    String? pin,
+  }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      final result = await _remoteDataSource.marcarEntregado(id, empresaId);
+      final result =
+          await _remoteDataSource.marcarEntregado(id, empresaId, pin: pin);
       return Success(result.toEntity());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'Delivery');

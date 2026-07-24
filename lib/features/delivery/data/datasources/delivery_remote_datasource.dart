@@ -67,11 +67,18 @@ class DeliveryRemoteDataSource {
     return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Entregar exige el PIN que el cliente recibió (prueba de entrega).
   Future<DeliveryLocalModel> marcarEntregado(
-      String id, String empresaId) async {
+    String id,
+    String empresaId, {
+    String? pin,
+  }) async {
     final response = await _dioClient.post(
       '$_basePath/$id/entregado',
-      data: {'empresaId': empresaId},
+      data: {
+        'empresaId': empresaId,
+        if (pin != null && pin.isNotEmpty) 'pin': pin,
+      },
     );
     return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
   }
