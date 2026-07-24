@@ -9,6 +9,9 @@ import 'package:syncronize/core/theme/gradient_background.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../../core/constants/storage_constants.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/storage/local_storage_service.dart';
 
 /// Drawer adaptable del Marketplace
 /// Muestra contenido diferente según el estado de autenticación
@@ -252,6 +255,44 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
             ),
           ),
 
+          // Repartidor freelance: menú ENFOCADO — solo sus entregas y su
+          // perfil (nada de compras/pedidos/empresas: su rol es repartir).
+          if (locator<LocalStorageService>()
+                  .getString(StorageConstants.loginMode) ==
+              'repartidor')
+            _DrawerSection(
+              title: 'Mi Cuenta',
+              children: [
+                _DrawerItem(
+                  icon: Icons.delivery_dining,
+                  title: 'Mis Entregas',
+                  subtitle: 'Panel de repartidor',
+                  textStyle: TextStyle(
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                    fontSize: 10,
+                    color: AppColors.blue,
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go('/repartidor');
+                  },
+                ),
+                _DrawerItem(
+                  icon: Icons.person_outline,
+                  title: 'Mi Perfil',
+                  textStyle: TextStyle(
+                    fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+                    fontSize: 10,
+                    color: AppColors.blue,
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/profile');
+                  },
+                ),
+              ],
+            )
+          else
           // Opciones de usuario autenticado
           _DrawerSection(
             title: 'Mi Cuenta',
@@ -391,6 +432,10 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
             ],
           ),
 
+          // El repartidor no gestiona ni crea empresas — sección oculta.
+          if (locator<LocalStorageService>()
+                  .getString(StorageConstants.loginMode) !=
+              'repartidor') ...[
           const Divider(height: 1),
 
           // Opciones de empresa (si tiene)
@@ -433,6 +478,7 @@ class _AuthenticatedDrawerContent extends StatelessWidget {
               ),
             ],
           ),
+          ],
 
           const Divider(height: 1),
 
