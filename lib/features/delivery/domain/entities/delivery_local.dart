@@ -7,6 +7,13 @@ class DeliveryLocal extends Equatable {
   final String id;
   final String estado; // SOLICITADO | TOMADO | EN_CAMINO | ENTREGADO | CANCELADO
   final String? ventaCodigo;
+
+  /// Empresa dueña del pedido — el freelance opera cross-empresa y las
+  /// transiciones/GPS la necesitan por delivery.
+  final String? empresaId;
+
+  /// Nombre de la empresa (solo viene en el pool EXTERNO del freelance).
+  final String? empresaNombre;
   final String destinatarioNombre;
   final String? destinatarioCelular;
   final String direccion;
@@ -26,6 +33,8 @@ class DeliveryLocal extends Equatable {
     required this.id,
     required this.estado,
     this.ventaCodigo,
+    this.empresaId,
+    this.empresaNombre,
     required this.destinatarioNombre,
     this.destinatarioCelular,
     required this.direccion,

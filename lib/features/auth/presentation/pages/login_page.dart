@@ -7,6 +7,7 @@ import 'package:syncronize/core/theme/gradient_background.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_logo_widget.dart';
+import '../../../delivery/data/datasources/repartidor_remote_datasource.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../../core/storage/local_storage_service.dart';
@@ -218,6 +219,19 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       showLoading: true,
                     );
                     return;
+                  }
+
+                  // SIN empresas: si es repartidor freelance de Syncronize,
+                  // su operación vive en /repartidor (fuera del tenant).
+                  if (allCompanies.isEmpty) {
+                    try {
+                      await locator<RepartidorRemoteDataSource>().miPerfil();
+                      if (context.mounted) context.go('/repartidor');
+                      return;
+                    } catch (_) {
+                      // No es repartidor → sigue el flujo normal.
+                    }
+                    if (!context.mounted) return;
                   }
 
                   // Múltiples empresas: mostrar selector de modo (Marketplace vs Management)
@@ -588,6 +602,19 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                         backgroundColor: Colors.white,
                         textColor: AppColors.blue2,
                         glowIntensity: 0.3,
+                      ),
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: isLoading
+                            ? null
+                            : () => context.push('/register-repartidor'),
+                        icon: const Icon(Icons.delivery_dining,
+                            size: 18, color: Colors.white),
+                        label: const Text(
+                          '¿Quieres repartir? Regístrate como repartidor',
+                          style:
+                              TextStyle(color: Colors.white, fontSize: 12),
+                        ),
                       ),
                       SizedBox(height: 100)
                     ],

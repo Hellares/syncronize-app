@@ -101,4 +101,43 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
       return _errorHandler.handleException(e, context: 'Delivery');
     }
   }
+
+  @override
+  Future<Resource<List<DeliveryLocal>>> getExternoDisponibles() async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.getExternoDisponibles();
+      return Success(result.map((e) => e.toEntity()).toList());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
+  Future<Resource<List<DeliveryLocal>>> getExternoMisEntregas() async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.getExternoMisEntregas();
+      return Success(result.map((e) => e.toEntity()).toList());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
+  Future<Resource<DeliveryLocal>> tomarExterno(String id) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.tomarExterno(id);
+      return Success(result.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
 }

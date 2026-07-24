@@ -10,6 +10,7 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../delivery/data/datasources/repartidor_remote_datasource.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/constants/storage_constants.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
@@ -69,9 +70,18 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
 
       // Manejar casos automáticamente
       if (empresas.isEmpty) {
+        // Repartidor freelance de Syncronize: sin empresas, su operación
+        // vive en /repartidor — no tiene sentido empujarlo a crear empresa.
+        bool esRepartidor = false;
+        try {
+          await locator<RepartidorRemoteDataSource>().miPerfil();
+          esRepartidor = true;
+        } catch (_) {}
+        if (!mounted) return;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            context.pushReplacement('/create-empresa');
+            context.pushReplacement(
+                esRepartidor ? '/repartidor' : '/create-empresa');
           }
         });
       } else if (empresas.length == 1) {

@@ -574,6 +574,8 @@ import '../../features/dashboard_vendedor/presentation/bloc/dashboard_vendedor_c
     as _i551;
 import '../../features/delivery/data/datasources/delivery_remote_datasource.dart'
     as _i93;
+import '../../features/delivery/data/datasources/repartidor_remote_datasource.dart'
+    as _i252;
 import '../../features/delivery/data/repositories/delivery_repository_impl.dart'
     as _i43;
 import '../../features/delivery/domain/repositories/delivery_repository.dart'
@@ -1791,6 +1793,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i93.DeliveryRemoteDataSource>(
       () => _i93.DeliveryRemoteDataSource(gh<_i667.DioClient>()),
+    );
+    gh.lazySingleton<_i252.RepartidorRemoteDataSource>(
+      () => _i252.RepartidorRemoteDataSource(gh<_i667.DioClient>()),
     );
     gh.lazySingleton<_i1036.DescuentoRemoteDataSource>(
       () => _i1036.DescuentoRemoteDataSource(gh<_i667.DioClient>()),

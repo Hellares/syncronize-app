@@ -76,6 +76,30 @@ class DeliveryRemoteDataSource {
     return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  // ── Pool EXTERNO (repartidor freelance de Syncronize) ──
+
+  /// Pool cross-empresa del freelance: empresas con opt-in, en SUS zonas.
+  Future<List<DeliveryLocalModel>> getExternoDisponibles() async {
+    final response = await _dioClient.get('$_basePath/externo/disponibles');
+    final list = response.data as List<dynamic>;
+    return list
+        .map((e) => DeliveryLocalModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<DeliveryLocalModel>> getExternoMisEntregas() async {
+    final response = await _dioClient.get('$_basePath/externo/mis-entregas');
+    final list = response.data as List<dynamic>;
+    return list
+        .map((e) => DeliveryLocalModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<DeliveryLocalModel> tomarExterno(String id) async {
+    final response = await _dioClient.post('$_basePath/$id/tomar-externo');
+    return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// GPS: posición del repartidor mientras va EN_CAMINO (best-effort, el
   /// backend ignora reportes tardíos o de no-dueños sin error).
   Future<void> reportarPosicion(

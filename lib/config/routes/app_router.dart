@@ -28,6 +28,8 @@ import '../../features/empresa/presentation/pages/qr_cobro_page.dart';
 import '../../features/empresa/presentation/pages/integracion_yape_page.dart';
 import '../../features/empresa/presentation/pages/agente_ia_config_page.dart';
 import '../../features/delivery/presentation/pages/delivery_repartidor_page.dart';
+import '../../features/delivery/presentation/pages/registro_repartidor_page.dart';
+import '../../features/delivery/presentation/pages/repartidor_freelance_page.dart';
 import '../../features/empresa/presentation/pages/integracion_whatsapp_page.dart';
 import '../../features/empresa/presentation/pages/banner_marketplace_config_page.dart';
 import '../../features/empresa/presentation/pages/empresa_profile_page.dart';
@@ -294,7 +296,7 @@ class AppRouter {
       }
 
       // Rutas públicas (no requieren autenticación)
-      final publicRoutes = ['/login', '/register', '/verify-email', '/change-password', '/forgot-password', '/reset-password', '/marketplace', '/about'];
+      final publicRoutes = ['/login', '/register', '/register-repartidor', '/verify-email', '/change-password', '/forgot-password', '/reset-password', '/marketplace', '/about'];
       final isPublicDynamic = state.matchedLocation.startsWith('/producto-detalle/') ||
           state.matchedLocation.startsWith('/vendedor/') ||
           state.matchedLocation.startsWith('/marketplace/');
@@ -333,6 +335,18 @@ class AppRouter {
         path: '/register',
         name: 'register',
         builder: (context, state) => const RegisterPage(),
+      ),
+      // Registro PÚBLICO de repartidor freelance de Syncronize.
+      GoRoute(
+        path: '/register-repartidor',
+        name: 'register-repartidor',
+        builder: (context, state) => const RegistroRepartidorPage(),
+      ),
+      // Panel del repartidor freelance (autenticado, SIN tenant/empresa).
+      GoRoute(
+        path: '/repartidor',
+        name: 'repartidor-freelance',
+        builder: (context, state) => const RepartidorFreelancePage(),
       ),
       GoRoute(
         path: '/verify-email',

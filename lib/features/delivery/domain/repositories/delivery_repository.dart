@@ -16,4 +16,12 @@ abstract class DeliveryRepository {
   Future<Resource<DeliveryLocal>> marcarEnCamino(String id, String empresaId);
 
   Future<Resource<DeliveryLocal>> marcarEntregado(String id, String empresaId);
+
+  // ── Pool externo (freelance) ──
+
+  Future<Resource<List<DeliveryLocal>>> getExternoDisponibles();
+
+  Future<Resource<List<DeliveryLocal>>> getExternoMisEntregas();
+
+  Future<Resource<DeliveryLocal>> tomarExterno(String id);
 }
