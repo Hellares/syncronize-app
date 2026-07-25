@@ -209,6 +209,8 @@ class VentaRepositoryImpl implements VentaRepository {
     String? fechaHasta,
     String? search,
     String? canalVenta,
+    String? tipoEntrega,
+    String? entregaBusqueda,
     required int limit,
     String? cursor,
   }) async {
@@ -223,6 +225,8 @@ class VentaRepositoryImpl implements VentaRepository {
         fechaHasta: fechaHasta,
         search: search,
         canalVenta: canalVenta,
+        tipoEntrega: tipoEntrega,
+        entregaBusqueda: entregaBusqueda,
         limit: limit,
         cursor: cursor,
       );

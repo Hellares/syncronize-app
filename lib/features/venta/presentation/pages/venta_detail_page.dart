@@ -523,6 +523,14 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           _buildItemsSection(v),
           const SizedBox(height: 12),
           _buildPagoSection(v),
+          if (v.envio != null) ...[
+            const SizedBox(height: 12),
+            _buildEnvioSection(v.envio!),
+          ],
+          if (v.delivery != null) ...[
+            const SizedBox(height: 12),
+            _buildDeliverySection(v.delivery!),
+          ],
           if (v.cuotas != null && v.cuotas!.isNotEmpty) ...[
             const SizedBox(height: 12),
             _buildCuotasSection(),
@@ -716,6 +724,91 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             if (v.direccionCliente != null)
               _buildDetailRow(Icons.location_on_outlined, 'Direccion',
                   v.direccionCliente!),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Datos del envío por agencia — para revisar destinatario/agencia/destino
+  /// después de registrarlo, igual que la sección de delivery.
+  Widget _buildEnvioSection(VentaEnvioData e) {
+    final destino = [e.destinoDepartamento, e.destinoProvincia]
+        .where((s) => s != null && s.trim().isNotEmpty)
+        .join(' / ');
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(Icons.local_shipping_outlined, 'ENVÍO'),
+            _buildDetailRow(Icons.flag_outlined, 'Rótulo',
+                e.rotuloImpreso ? 'Impreso' : 'Pendiente de imprimir'),
+            if (e.destinatarioNombre.trim().isNotEmpty)
+              _buildDetailRow(
+                  Icons.person_outline, 'Destinatario', e.destinatarioNombre),
+            if (e.destinatarioDni != null &&
+                e.destinatarioDni!.trim().isNotEmpty)
+              _buildDetailRow(
+                  Icons.badge_outlined, 'DNI', e.destinatarioDni!),
+            if (e.destinatarioCelular != null &&
+                e.destinatarioCelular!.trim().isNotEmpty)
+              _buildDetailRow(
+                  Icons.phone_outlined, 'Celular', e.destinatarioCelular!),
+            if (e.agenciaNombre != null && e.agenciaNombre!.trim().isNotEmpty)
+              _buildDetailRow(
+                  Icons.storefront_outlined, 'Agencia', e.agenciaNombre!),
+            if (e.agenciaDireccion != null &&
+                e.agenciaDireccion!.trim().isNotEmpty)
+              _buildDetailRow(Icons.location_on_outlined, 'Sede agencia',
+                  e.agenciaDireccion!),
+            if (destino.isNotEmpty)
+              _buildDetailRow(Icons.map_outlined, 'Destino', destino),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Datos del delivery publicado — para revisar la dirección/tarifa
+  /// después de solicitarlo (antes solo se veían al momento de publicar).
+  Widget _buildDeliverySection(VentaDeliveryData d) {
+    const estados = {
+      'SOLICITADO': 'Publicado — esperando repartidor',
+      'TOMADO': 'Tomado por repartidor',
+      'EN_CAMINO': 'En camino',
+      'ENTREGADO': 'Entregado',
+      'CANCELADO': 'Cancelado',
+    };
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(Icons.delivery_dining, 'DELIVERY'),
+            _buildDetailRow(Icons.flag_outlined, 'Estado',
+                estados[d.estado] ?? d.estado),
+            _buildDetailRow(
+                Icons.location_on_outlined, 'Direccion', d.direccion),
+            if (d.referencia != null && d.referencia!.trim().isNotEmpty)
+              _buildDetailRow(
+                  Icons.push_pin_outlined, 'Referencia', d.referencia!),
+            if (d.distrito != null && d.distrito!.trim().isNotEmpty)
+              _buildDetailRow(Icons.map_outlined, 'Distrito', d.distrito!),
+            if (d.destinatarioNombre != null &&
+                d.destinatarioNombre!.trim().isNotEmpty)
+              _buildDetailRow(Icons.person_outline, 'Recibe',
+                  d.destinatarioNombre!),
+            if (d.destinatarioCelular != null &&
+                d.destinatarioCelular!.trim().isNotEmpty)
+              _buildDetailRow(Icons.phone_outlined, 'Celular',
+                  d.destinatarioCelular!),
+            _buildDetailRow(Icons.payments_outlined, 'Tarifa repartidor',
+                'S/ ${d.costoDelivery.toStringAsFixed(2)}'),
           ],
         ),
       ),

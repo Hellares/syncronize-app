@@ -37,6 +37,8 @@ class GetVentasUseCase {
     String? fechaHasta,
     String? search,
     String? canalVenta,
+    String? tipoEntrega,
+    String? entregaBusqueda,
     required int limit,
     String? cursor,
   }) {
@@ -47,6 +49,8 @@ class GetVentasUseCase {
       fechaHasta: fechaHasta,
       search: search,
       canalVenta: canalVenta,
+      tipoEntrega: tipoEntrega,
+      entregaBusqueda: entregaBusqueda,
       limit: limit,
       cursor: cursor,
     );

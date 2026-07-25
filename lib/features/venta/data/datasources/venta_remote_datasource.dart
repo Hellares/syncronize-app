@@ -77,6 +77,8 @@ class VentaRemoteDataSource {
     String? fechaHasta,
     String? search,
     String? canalVenta,
+    String? tipoEntrega,
+    String? entregaBusqueda,
     required int limit,
     String? cursor,
   }) async {
@@ -87,6 +89,10 @@ class VentaRemoteDataSource {
     if (fechaHasta != null) queryParams['fechaHasta'] = fechaHasta;
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
     if (canalVenta != null) queryParams['canalVenta'] = canalVenta;
+    if (tipoEntrega != null) queryParams['tipoEntrega'] = tipoEntrega;
+    if (entregaBusqueda != null && entregaBusqueda.isNotEmpty) {
+      queryParams['entregaBusqueda'] = entregaBusqueda;
+    }
     if (cursor != null) queryParams['cursor'] = cursor;
 
     final response = await _dioClient.get(

@@ -261,6 +261,43 @@ class VentaEnvioData extends Equatable {
       ];
 }
 
+/// Datos del DELIVERY LOCAL publicado para la venta (solo en detalle):
+/// dirección/referencia capturadas al solicitar (picker con pin), tarifa
+/// del repartidor y estado del recorrido.
+class VentaDeliveryData extends Equatable {
+  final String estado;
+  final String? destinatarioNombre;
+  final String? destinatarioCelular;
+  final String direccion;
+  final String? referencia;
+  final String? distrito;
+  final double costoDelivery;
+  final DateTime? entregadoEn;
+
+  const VentaDeliveryData({
+    required this.estado,
+    this.destinatarioNombre,
+    this.destinatarioCelular,
+    required this.direccion,
+    this.referencia,
+    this.distrito,
+    this.costoDelivery = 0,
+    this.entregadoEn,
+  });
+
+  @override
+  List<Object?> get props => [
+        estado,
+        destinatarioNombre,
+        destinatarioCelular,
+        direccion,
+        referencia,
+        distrito,
+        costoDelivery,
+        entregadoEn,
+      ];
+}
+
 class Venta extends Equatable {
   final String id;
   final String empresaId;
@@ -288,6 +325,9 @@ class Venta extends Equatable {
   /// va con uno: SOLICITADO/TOMADO/EN_CAMINO/ENTREGADO/CANCELADO. null =
   /// sin delivery. La card muestra el chip "Delivery" en vez de "Envío".
   final String? deliveryEstado;
+
+  /// Datos completos del delivery (dirección, tarifa…) — solo en detalle.
+  final VentaDeliveryData? delivery;
 
   bool get tieneDelivery =>
       deliveryEstado != null && deliveryEstado != 'CANCELADO';
@@ -394,6 +434,7 @@ class Venta extends Equatable {
     this.conEnvio = false,
     this.envio,
     this.deliveryEstado,
+    this.delivery,
     this.moneda = 'PEN',
     this.tipoCambio,
     required this.subtotal,

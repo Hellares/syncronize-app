@@ -22,7 +22,22 @@ import '../bloc/venta_list/venta_list_state.dart';
 import '../widgets/venta_estado_chip.dart';
 
 class VentasPage extends StatefulWidget {
-  const VentasPage({super.key});
+  /// Filtros iniciales para el drill-down desde Estadísticas: llegar con
+  /// canal/tipo de entrega/búsqueda y periodo ya aplicados.
+  final String? initialCanal;
+  final String? initialTipoEntrega;
+  final String? initialEntregaBusqueda;
+  final DateTime? initialFechaDesde;
+  final DateTime? initialFechaHasta;
+
+  const VentasPage({
+    super.key,
+    this.initialCanal,
+    this.initialTipoEntrega,
+    this.initialEntregaBusqueda,
+    this.initialFechaDesde,
+    this.initialFechaHasta,
+  });
 
   @override
   State<VentasPage> createState() => _VentasPageState();
@@ -35,7 +50,14 @@ class _VentasPageState extends State<VentasPage> {
   /// COTIZACION. Filtro SERVER-side: con paginación por cursor, filtrar
   /// localmente dejaría totales/conteos inconsistentes.
   String? _filtroCanal;
+
+  /// Tipo de entrega (null = todas): ENVIO (agencia), DELIVERY (repartidor),
+  /// FISICA. `_filtroEntregaBusqueda` busca dentro de la entrega (agencia,
+  /// dirección, departamento, distrito…). Server-side como el canal.
+  String? _filtroTipoEntrega;
+  String? _filtroEntregaBusqueda;
   final _searchController = TextEditingController();
+  final _entregaBusquedaController = TextEditingController();
   String? _currentEmpresaId;
 
   static const _canales = {
@@ -45,15 +67,30 @@ class _VentasPageState extends State<VentasPage> {
     'COTIZACION': 'Cotización',
   };
 
+  static const _tiposEntrega = {
+    'ENVIO': 'Con envío (agencia)',
+    'DELIVERY': 'Delivery',
+    'RECOJO': 'Recoge en tienda',
+    'FISICA': 'Venta física',
+  };
+
   @override
   void initState() {
     super.initState();
+    // Drill-down desde Estadísticas: sembrar los filtros antes de cargar.
+    _filtroCanal = widget.initialCanal;
+    _filtroTipoEntrega = widget.initialTipoEntrega;
+    _filtroEntregaBusqueda = widget.initialEntregaBusqueda;
+    if (_filtroEntregaBusqueda != null) {
+      _entregaBusquedaController.text = _filtroEntregaBusqueda!;
+    }
     _loadVentas();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _entregaBusquedaController.dispose();
     super.dispose();
   }
 
@@ -64,6 +101,7 @@ class _VentasPageState extends State<VentasPage> {
       // Default: ventas del día de hoy. El cajero/vendedor entra a "Mis
       // Ventas" 20 veces al día y casi siempre quiere ver SOLO lo del día.
       // Si necesita ver más, usa el picker o "Limpiar fechas" para ver todo.
+      // Con drill-down desde Estadísticas llega el periodo de esa página.
       final hoy = DateTime.now();
       final inicioHoy = DateTime(hoy.year, hoy.month, hoy.day);
       // Multi-sede: ventas SOLO de la sede activa.
@@ -71,8 +109,11 @@ class _VentasPageState extends State<VentasPage> {
       context.read<VentaListCubit>().loadVentas(
             empresaId: _currentEmpresaId!,
             sedeId: sedeId,
-            fechaDesde: inicioHoy,
-            fechaHasta: inicioHoy,
+            fechaDesde: widget.initialFechaDesde ?? inicioHoy,
+            fechaHasta: widget.initialFechaHasta ?? inicioHoy,
+            canalVenta: _filtroCanal,
+            tipoEntrega: _filtroTipoEntrega,
+            entregaBusqueda: _filtroEntregaBusqueda,
           );
     }
   }
@@ -114,10 +155,13 @@ class _VentasPageState extends State<VentasPage> {
     // faltan ventas. Admin/contador ven todas con el título estándar.
     final empresaState = context.watch<EmpresaContextCubit>().state;
     bool esOperativo = false;
+    bool puedeVerEstadisticas = false;
     if (empresaState is EmpresaContextLoaded) {
       final p = empresaState.context.permissions;
       final esAdmin = p.canManageUsers || p.canManageSettings;
       esOperativo = p.canViewVentas && !esAdmin;
+      // Mismo gating que la entrada "Reportes Ventas" del drawer.
+      puedeVerEstadisticas = p.canViewReports;
     }
     return MultiBlocListener(
       listeners: [
@@ -145,6 +189,12 @@ class _VentasPageState extends State<VentasPage> {
           backgroundColor: AppColors.blue1,
           foregroundColor: AppColors.white,
           actions: [
+            if (puedeVerEstadisticas)
+              IconButton(
+                tooltip: 'Estadísticas de ventas',
+                icon: const Icon(Icons.bar_chart_rounded, size: 22),
+                onPressed: () => context.push('/empresa/ventas/analytics'),
+              ),
             // Icono de filtro de estado — abre bottom sheet con los chips.
             // Badge naranja si hay un estado activo (visible incluso scrolleando).
             Stack(
@@ -155,7 +205,10 @@ class _VentasPageState extends State<VentasPage> {
                   icon: const Icon(Icons.filter_list_rounded, size: 22),
                   onPressed: _mostrarFiltroEstados,
                 ),
-                if (_filtroEstado != null || _filtroCanal != null)
+                if (_filtroEstado != null ||
+                    _filtroCanal != null ||
+                    _filtroTipoEntrega != null ||
+                    _filtroEntregaBusqueda != null)
                   Positioned(
                     right: 8,
                     top: 8,
@@ -183,6 +236,7 @@ class _VentasPageState extends State<VentasPage> {
                   children: [
                     Expanded(
                       child: CustomSearchField(
+                        height: 32,
                         controller: _searchController,
                         borderColor: AppColors.blue1,
                         hintText: 'Buscar por codigo, cliente...',
@@ -225,7 +279,7 @@ class _VentasPageState extends State<VentasPage> {
                             initialDateRange: initial,
                             borderColor: AppColors.blue1,
                             hintText: 'Fecha',
-                            height: 35,
+                            height: 32,
                             // El "X días seleccionados" rompía la altura
                             // del Row al aparecer bajo el input.
                             showDaysSelectedLabel: false,
@@ -553,8 +607,12 @@ class _VentasPageState extends State<VentasPage> {
       builder: (sheetCtx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 12, 10, 20),
-            child: Column(
+            // viewInsets.bottom = alto del teclado: sin esto el teclado tapa
+            // el campo de búsqueda de entrega y no se ve lo que se escribe.
+            padding: EdgeInsets.fromLTRB(
+                10, 12, 10, 20 + MediaQuery.of(sheetCtx).viewInsets.bottom),
+            child: SingleChildScrollView(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -658,12 +716,87 @@ class _VentasPageState extends State<VentasPage> {
                         )),
                   ],
                 ),
+                const SizedBox(height: 14),
+                // ── Tipo de entrega (envío / delivery / física) ──
+                Row(
+                  children: [
+                    Icon(Icons.local_shipping_outlined,
+                        size: 18, color: AppColors.blue1),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Tipo de entrega',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    CustomFilterChip(
+                      label: 'Todas',
+                      selected: _filtroTipoEntrega == null,
+                      showCheckmark: true,
+                      onSelected: () {
+                        Navigator.pop(sheetCtx);
+                        _aplicarFiltroEntrega(null);
+                      },
+                    ),
+                    ..._tiposEntrega.entries.map((t) => CustomFilterChip(
+                          showCheckmark: true,
+                          label: t.value,
+                          selected: _filtroTipoEntrega == t.key,
+                          onSelected: () {
+                            Navigator.pop(sheetCtx);
+                            _aplicarFiltroEntrega(t.key);
+                          },
+                        )),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Busca dentro de la entrega (aplica con Enter o la lupa).
+                CustomSearchField(
+                  controller: _entregaBusquedaController,
+                  hintText: 'Agencia, dirección, departamento…',
+                  borderColor: AppColors.blueborder,
+                  onSubmitted: (texto) {
+                    Navigator.pop(sheetCtx);
+                    _aplicarFiltroEntrega(_filtroTipoEntrega,
+                        busqueda: texto);
+                  },
+                  onClear: () {
+                    Navigator.pop(sheetCtx);
+                    _aplicarFiltroEntrega(_filtroTipoEntrega, busqueda: '');
+                  },
+                ),
               ],
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  /// Aplica tipo de entrega + búsqueda de entrega (server-side). La
+  /// búsqueda vacía se limpia a null.
+  void _aplicarFiltroEntrega(String? tipo, {String? busqueda}) {
+    final texto = (busqueda ?? _entregaBusquedaController.text).trim();
+    setState(() {
+      _filtroTipoEntrega = tipo;
+      _filtroEntregaBusqueda = texto.isEmpty ? null : texto;
+    });
+    if ((busqueda ?? '').isEmpty && busqueda != null) {
+      _entregaBusquedaController.clear();
+    }
+    context
+        .read<VentaListCubit>()
+        .filterByEntrega(tipo, _filtroEntregaBusqueda);
   }
 
   /// Fila scrolleable con atajos rápidos de fecha. El backend recibe
@@ -686,7 +819,7 @@ class _VentasPageState extends State<VentasPage> {
         final hayFiltro = filtroDesde != null || filtroHasta != null;
 
         return SizedBox(
-          height: 28,
+          height: 23,
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -701,15 +834,16 @@ class _VentasPageState extends State<VentasPage> {
               if (hayFiltro) ...[
                 const SizedBox(width: 10),
                 CustomFilterChip(
+                  height: 20,
                   label: 'Limpiar fechas',
                   icon: Icons.close,
                   iconSize: 12,
                   backgroundColor: Colors.red.shade50,
                   textColor: Colors.red.shade700,
                   borderColor: Colors.red.shade300,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
                   onSelected: () => context
                       .read<VentaListCubit>()
                       .filterByFechas(null, null),
@@ -735,7 +869,7 @@ class _VentasPageState extends State<VentasPage> {
     return CustomFilterChip(
       label: label,
       selected: selected,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       onSelected: () =>
           context.read<VentaListCubit>().filterByFechas(r.desde, r.hasta),
     );
@@ -777,6 +911,40 @@ class _VentaListTile extends StatelessWidget {
 
   const _VentaListTile({required this.venta, required this.onTap});
 
+  /// Agencia + dirección de su sede ("Shalom · Atahualpa"), o null si
+  /// aún no se registró nada.
+  String? get _envioAgencia {
+    final e = venta.envio;
+    if (e == null) return null;
+    final partes = [e.agenciaNombre, e.agenciaDireccion]
+        .where((s) => s != null && s.trim().isNotEmpty)
+        .toList();
+    if (partes.isEmpty) return null;
+    return partes.join(' · ');
+  }
+
+  /// Dirección del delivery local, o null si no hay datos.
+  String? get _deliveryDireccion {
+    final d = venta.delivery?.direccion;
+    return (d == null || d.trim().isEmpty) ? null : d;
+  }
+
+  /// Distrito del delivery local, o null si no hay datos.
+  String? get _deliveryDistrito {
+    final d = venta.delivery?.distrito;
+    return (d == null || d.trim().isEmpty) ? null : d;
+  }
+
+  /// Destino del envío: "Departamento / Provincia", o null si no hay datos.
+  String? get _envioDireccion {
+    final e = venta.envio;
+    if (e == null) return null;
+    final destino = [e.destinoDepartamento, e.destinoProvincia]
+        .where((s) => s != null && s.trim().isNotEmpty)
+        .join(' / ');
+    return destino.isEmpty ? null : destino;
+  }
+
   /// Chip compacto de canal (Marketplace / Agente IA) junto al estado.
   Widget _canalBadge(String label, IconData icon, Color color) {
     return Padding(
@@ -793,12 +961,16 @@ class _VentaListTile extends StatelessWidget {
           children: [
             Icon(icon, size: 9, color: color),
             const SizedBox(width: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-                color: color,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
             ),
           ],
@@ -967,81 +1139,120 @@ class _VentaListTile extends StatelessWidget {
               // agencia (camión, morado).
               if (venta.tieneDelivery) ...[
                 const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Builder(builder: (context) {
-                    final entregado = venta.deliveryEstado == 'ENTREGADO';
-                    final color = entregado
-                        ? Colors.green.shade700
-                        : Colors.orange.shade800;
-                    return Container(
+                // Misma fila que el envío: chip Delivery + dirección (verde)
+                // + distrito (azul, tamaño natural para verse completo).
+                Builder(builder: (context) {
+                  final entregado = venta.deliveryEstado == 'ENTREGADO';
+                  final color = entregado
+                      ? Colors.green.shade700
+                      : Colors.orange.shade800;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(
+                              color: color.withValues(alpha: 0.40),
+                              width: 0.6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.delivery_dining, size: 9, color: color),
+                            const SizedBox(width: 3),
+                            Text(
+                              entregado
+                                  ? 'Delivery ✓'
+                                  : venta.deliveryEstado == 'EN_CAMINO'
+                                      ? 'Delivery · EN CAMINO'
+                                      : 'Delivery',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_deliveryDireccion != null)
+                        Flexible(
+                          child: _canalBadge(
+                            _deliveryDireccion!,
+                            Icons.location_on_outlined,
+                            Colors.green.shade700,
+                          ),
+                        ),
+                      if (_deliveryDistrito != null)
+                        _canalBadge(
+                          _deliveryDistrito!,
+                          Icons.map_outlined,
+                          Colors.blue.shade700,
+                        ),
+                    ],
+                  );
+                }),
+              ] else if (venta.conEnvio) ...[
+                const SizedBox(height: 4),
+                // Misma fila (pegada a la izquierda): chip Envío + agencia
+                // (verde) + dirección (azul, con la mayor parte del espacio)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.08),
+                        color: Colors.deepPurple.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(3),
                         border: Border.all(
-                            color: color.withValues(alpha: 0.40), width: 0.6),
+                            color: Colors.deepPurple.withValues(alpha: 0.40),
+                            width: 0.6),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.delivery_dining, size: 9, color: color),
+                          Icon(
+                              venta.envio?.rotuloImpreso == true
+                                  ? Icons.print
+                                  : Icons.local_shipping_outlined,
+                              size: 9,
+                              color: Colors.deepPurple.shade700),
                           const SizedBox(width: 3),
                           Text(
-                            entregado
-                                ? 'Delivery ✓'
-                                : venta.deliveryEstado == 'EN_CAMINO'
-                                    ? 'Delivery · EN CAMINO'
-                                    : 'Delivery',
+                            venta.envio?.rotuloImpreso == true
+                                ? 'Envío · IMP'
+                                : 'Envío',
                             style: TextStyle(
                               fontSize: 8,
                               fontWeight: FontWeight.w700,
-                              color: color,
+                              color: Colors.deepPurple.shade700,
                             ),
                           ),
                         ],
                       ),
-                    );
-                  }),
-                ),
-              ] else if (venta.conEnvio) ...[
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: Colors.deepPurple.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(
-                          color: Colors.deepPurple.withValues(alpha: 0.40),
-                          width: 0.6),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                            venta.envio?.rotuloImpreso == true
-                                ? Icons.print
-                                : Icons.local_shipping_outlined,
-                            size: 9,
-                            color: Colors.deepPurple.shade700),
-                        const SizedBox(width: 3),
-                        Text(
-                          venta.envio?.rotuloImpreso == true
-                              ? 'Envío · IMP'
-                              : 'Envío',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.deepPurple.shade700,
-                          ),
+                    // Solo la agencia (verde) se encoge; el destino (azul) va
+                    // a tamaño natural para que su texto siempre se vea completo.
+                    if (_envioAgencia != null)
+                      Flexible(
+                        child: _canalBadge(
+                          _envioAgencia!,
+                          Icons.storefront_outlined,
+                          Colors.green.shade700,
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    if (_envioDireccion != null)
+                      _canalBadge(
+                        _envioDireccion!,
+                        Icons.place_outlined,
+                        Colors.blue.shade700,
+                      ),
+                  ],
                 ),
               ],
             ],

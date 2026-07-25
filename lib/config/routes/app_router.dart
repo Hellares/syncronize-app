@@ -1160,7 +1160,20 @@ class AppRouter {
       GoRoute(
         path: '/empresa/ventas',
         name: 'empresa-ventas',
-        builder: (context, state) => const VentasPage(),
+        // Query params opcionales = drill-down desde Estadísticas (canal,
+        // tipo de entrega, búsqueda de entrega y periodo ya aplicados).
+        builder: (context, state) {
+          final q = state.uri.queryParameters;
+          return VentasPage(
+            initialCanal: q['canal'],
+            initialTipoEntrega: q['tipoEntrega'],
+            initialEntregaBusqueda: q['entregaBusqueda'],
+            initialFechaDesde:
+                q['fechaDesde'] != null ? DateTime.tryParse(q['fechaDesde']!) : null,
+            initialFechaHasta:
+                q['fechaHasta'] != null ? DateTime.tryParse(q['fechaHasta']!) : null,
+          );
+        },
       ),
       GoRoute(
         path: '/empresa/ventas/nueva',

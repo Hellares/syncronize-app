@@ -44,6 +44,8 @@ abstract class VentaRepository {
     String? fechaHasta,
     String? search,
     String? canalVenta,
+    String? tipoEntrega,
+    String? entregaBusqueda,
     required int limit,
     String? cursor,
   });

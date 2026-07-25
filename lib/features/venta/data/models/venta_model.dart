@@ -6,6 +6,28 @@ import 'venta_detalle_model.dart';
 import 'pago_venta_model.dart';
 import 'cuota_venta_model.dart';
 
+/// Datos del delivery local publicado (el listado solo manda {estado};
+/// el detalle manda dirección/tarifa — parseo defensivo con defaults).
+VentaDeliveryData? _deliveryFromJson(Map<String, dynamic> json) {
+  final direccion = json['direccion'] as String?;
+  if (direccion == null || direccion.trim().isEmpty) return null;
+  final costo = json['costoDelivery'];
+  return VentaDeliveryData(
+    estado: json['estado'] as String? ?? 'SOLICITADO',
+    destinatarioNombre: json['destinatarioNombre'] as String?,
+    destinatarioCelular: json['destinatarioCelular'] as String?,
+    direccion: direccion,
+    referencia: json['referencia'] as String?,
+    distrito: json['distrito'] as String?,
+    costoDelivery: costo is num
+        ? costo.toDouble()
+        : double.tryParse(costo?.toString() ?? '') ?? 0,
+    entregadoEn: json['entregadoEn'] is String
+        ? DateTime.tryParse(json['entregadoEn'] as String)
+        : null,
+  );
+}
+
 /// Datos de envío de la venta (rótulo de agencia).
 VentaEnvioData _envioFromJson(Map<String, dynamic> json) => VentaEnvioData(
       destinatarioNombre: json['destinatarioNombre'] as String? ?? '',
@@ -39,6 +61,7 @@ class VentaModel extends Venta {
     super.conEnvio,
     super.envio,
     super.deliveryEstado,
+    super.delivery,
     super.moneda,
     super.tipoCambio,
     required super.subtotal,
@@ -197,6 +220,10 @@ class VentaModel extends Venta {
           : null,
       deliveryEstado: json['deliveryLocal'] is Map
           ? (json['deliveryLocal'] as Map)['estado'] as String?
+          : null,
+      delivery: json['deliveryLocal'] is Map
+          ? _deliveryFromJson(
+              (json['deliveryLocal'] as Map).cast<String, dynamic>())
           : null,
       moneda: json['moneda'] as String? ?? 'PEN',
       tipoCambio: _toDoubleNullable(json['tipoCambio']),

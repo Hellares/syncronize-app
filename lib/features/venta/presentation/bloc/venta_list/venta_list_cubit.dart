@@ -27,6 +27,8 @@ class VentaListCubit extends Cubit<VentaListState> {
   DateTime? _filtroFechaDesde;
   DateTime? _filtroFechaHasta;
   String? _filtroCanal;
+  String? _filtroTipoEntrega;
+  String? _filtroEntregaBusqueda;
   String? _nextCursor;
 
   /// Token monotónico: descarta respuestas en vuelo de cargas viejas
@@ -41,6 +43,8 @@ class VentaListCubit extends Cubit<VentaListState> {
     DateTime? fechaDesde,
     DateTime? fechaHasta,
     String? canalVenta,
+    String? tipoEntrega,
+    String? entregaBusqueda,
   }) async {
     if (empresaId.isEmpty) {
       emit(const VentaListError('ID de empresa no valido'));
@@ -55,6 +59,8 @@ class VentaListCubit extends Cubit<VentaListState> {
     _filtroFechaDesde = fechaDesde;
     _filtroFechaHasta = fechaHasta;
     _filtroCanal = canalVenta;
+    _filtroTipoEntrega = tipoEntrega;
+    _filtroEntregaBusqueda = entregaBusqueda;
     _nextCursor = null;
 
     emit(const VentaListLoading());
@@ -66,6 +72,8 @@ class VentaListCubit extends Cubit<VentaListState> {
       fechaDesde: _toUtcIsoDayStart(fechaDesde),
       fechaHasta: _toUtcIsoDayEnd(fechaHasta),
       canalVenta: canalVenta,
+      tipoEntrega: tipoEntrega,
+      entregaBusqueda: entregaBusqueda,
       limit: _pageSize,
     );
     if (isClosed || myId != _loadId) return;
@@ -104,6 +112,8 @@ class VentaListCubit extends Cubit<VentaListState> {
       fechaDesde: _toUtcIsoDayStart(_filtroFechaDesde),
       fechaHasta: _toUtcIsoDayEnd(_filtroFechaHasta),
       canalVenta: _filtroCanal,
+      tipoEntrega: _filtroTipoEntrega,
+      entregaBusqueda: _filtroEntregaBusqueda,
       limit: _pageSize,
       cursor: _nextCursor,
     );
@@ -133,6 +143,8 @@ class VentaListCubit extends Cubit<VentaListState> {
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
       canalVenta: _filtroCanal,
+      tipoEntrega: _filtroTipoEntrega,
+      entregaBusqueda: _filtroEntregaBusqueda,
     );
   }
 
@@ -146,6 +158,8 @@ class VentaListCubit extends Cubit<VentaListState> {
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
       canalVenta: _filtroCanal,
+      tipoEntrega: _filtroTipoEntrega,
+      entregaBusqueda: _filtroEntregaBusqueda,
     );
   }
 
@@ -159,6 +173,8 @@ class VentaListCubit extends Cubit<VentaListState> {
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
       canalVenta: _filtroCanal,
+      tipoEntrega: _filtroTipoEntrega,
+      entregaBusqueda: _filtroEntregaBusqueda,
     );
   }
 
@@ -172,6 +188,8 @@ class VentaListCubit extends Cubit<VentaListState> {
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
       canalVenta: _filtroCanal,
+      tipoEntrega: _filtroTipoEntrega,
+      entregaBusqueda: _filtroEntregaBusqueda,
     );
   }
 
@@ -187,6 +205,25 @@ class VentaListCubit extends Cubit<VentaListState> {
       fechaDesde: _filtroFechaDesde,
       fechaHasta: _filtroFechaHasta,
       canalVenta: canalVenta,
+      tipoEntrega: _filtroTipoEntrega,
+      entregaBusqueda: _filtroEntregaBusqueda,
+    );
+  }
+
+  /// Filtra por tipo de entrega (ENVIO/DELIVERY/FISICA) + búsqueda dentro
+  /// de la entrega (agencia, dirección, departamento…) — SERVER-side.
+  Future<void> filterByEntrega(String? tipoEntrega, String? busqueda) async {
+    if (_currentEmpresaId == null) return;
+    await loadVentas(
+      empresaId: _currentEmpresaId!,
+      estado: _filtroEstado,
+      sedeId: _filtroSedeId,
+      search: _searchQuery,
+      fechaDesde: _filtroFechaDesde,
+      fechaHasta: _filtroFechaHasta,
+      canalVenta: _filtroCanal,
+      tipoEntrega: tipoEntrega,
+      entregaBusqueda: (busqueda?.trim().isEmpty ?? true) ? null : busqueda!.trim(),
     );
   }
 
@@ -203,6 +240,8 @@ class VentaListCubit extends Cubit<VentaListState> {
       fechaDesde: desde,
       fechaHasta: hasta,
       canalVenta: _filtroCanal,
+      tipoEntrega: _filtroTipoEntrega,
+      entregaBusqueda: _filtroEntregaBusqueda,
     );
   }
 
