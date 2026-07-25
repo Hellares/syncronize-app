@@ -11,6 +11,17 @@ abstract class DeliveryRepository {
     Map<String, dynamic> data,
   );
 
+  /// Delivery INTERNO: transiciones del staff (sin pool, sin PIN).
+  Future<Resource<DeliveryLocal>> enCaminoInterno(
+    String deliveryId,
+    String empresaId,
+  );
+
+  Future<Resource<DeliveryLocal>> entregadoInterno(
+    String deliveryId,
+    String empresaId,
+  );
+
   Future<Resource<List<DeliveryLocal>>> getDisponibles(
     String empresaId, {
     String? sedeId,

@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../pages/ubicacion_picker_page.dart';
 
@@ -21,6 +22,10 @@ class SolicitarDeliveryFormData {
   final double? destinoLat;
   final double? destinoLon;
 
+  /// Delivery INTERNO: lo lleva un empleado — NO se publica al pool.
+  final bool esInterno;
+  final String? encargadoInterno;
+
   const SolicitarDeliveryFormData({
     required this.direccion,
     this.referencia,
@@ -28,6 +33,8 @@ class SolicitarDeliveryFormData {
     this.costoDelivery,
     this.destinoLat,
     this.destinoLon,
+    this.esInterno = false,
+    this.encargadoInterno,
   });
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +46,11 @@ class SolicitarDeliveryFormData {
         if (destinoLat != null && destinoLon != null) ...{
           'destinoLat': destinoLat,
           'destinoLon': destinoLon,
+        },
+        if (esInterno) ...{
+          'esInterno': true,
+          if (encargadoInterno != null && encargadoInterno!.isNotEmpty)
+            'encargadoInterno': encargadoInterno,
         },
       };
 }
@@ -108,7 +120,11 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
   final _referenciaCtrl = TextEditingController();
   final _distritoCtrl = TextEditingController();
   final _costoCtrl = TextEditingController();
+  final _encargadoCtrl = TextEditingController();
   LatLng? _destino;
+
+  /// Delivery interno: lo lleva un empleado — no se publica al pool.
+  bool _esInterno = false;
 
   @override
   void initState() {
@@ -126,6 +142,7 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
     _referenciaCtrl.dispose();
     _distritoCtrl.dispose();
     _costoCtrl.dispose();
+    _encargadoCtrl.dispose();
     super.dispose();
   }
 
@@ -161,6 +178,8 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
       costoDelivery: costo,
       destinoLat: _destino?.latitude,
       destinoLon: _destino?.longitude,
+      esInterno: _esInterno,
+      encargadoInterno: _encargadoCtrl.text.trim(),
     ));
   }
 
@@ -311,11 +330,42 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                   'Tarifa vacía = se usa la tarifa configurada de la sede.',
                   style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                 ),
+              // Delivery INTERNO: lo lleva un empleado — se cobra la tarifa
+              // igual, pero NO se publica al pool de repartidores.
+              if (!widget.esEdicion) ...[
+                const SizedBox(height: 6),
+                CustomSwitchTile(
+                  title: 'Delivery interno',
+                  subtitle: _esInterno
+                      ? 'Lo lleva un empleado — NO se publica a repartidores'
+                      : 'Se publica al pool de repartidores',
+                  subtitleStyle: TextStyle(
+                    color: _esInterno
+                        ? Colors.teal
+                        : Colors.grey.shade600,
+                  ),
+                  value: _esInterno,
+                  onChanged: (v) => setState(() => _esInterno = v),
+                  activeColor: Colors.teal,
+                ),
+                if (_esInterno) ...[
+                  const SizedBox(height: 6),
+                  CustomText(
+                    controller: _encargadoCtrl,
+                    label: 'Encargado (opcional)',
+                    hintText: 'ej. Nombre del empleado que lo lleva',
+                    borderColor: Colors.teal,
+                    textCase: TextCase.upper,
+                  ),
+                ],
+              ],
               const SizedBox(height: 14),
               CustomButton(
                 text: widget.esEdicion
                     ? 'Actualizar dirección'
-                    : 'Publicar para repartidores',
+                    : _esInterno
+                        ? 'Crear delivery interno'
+                        : 'Publicar para repartidores',
                 backgroundColor: AppColors.blue1,
                 textColor: Colors.white,
                 icon: Icon(

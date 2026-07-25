@@ -826,8 +826,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   /// Datos del delivery publicado — para revisar la dirección/tarifa
   /// después de solicitarlo (antes solo se veían al momento de publicar).
   Widget _buildDeliverySection(VentaDeliveryData d) {
-    const estados = {
-      'SOLICITADO': 'Publicado — esperando repartidor',
+    final estados = {
+      'SOLICITADO': d.esInterno
+          ? 'Por salir (interno)'
+          : 'Publicado — esperando repartidor',
       'TOMADO': 'Tomado por repartidor',
       'EN_CAMINO': 'En camino',
       'ENTREGADO': 'Entregado',
@@ -886,12 +888,86 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 d.destinatarioCelular!.trim().isNotEmpty)
               _buildDetailRow(Icons.phone_outlined, 'Celular',
                   d.destinatarioCelular!),
-            _buildDetailRow(Icons.payments_outlined, 'Tarifa repartidor',
+            _buildDetailRow(
+                Icons.payments_outlined,
+                d.esInterno ? 'Tarifa delivery' : 'Tarifa repartidor',
                 'S/ ${d.costoDelivery.toStringAsFixed(2)}'),
+            if (d.esInterno)
+              _buildDetailRow(
+                  Icons.badge_outlined,
+                  'Interno',
+                  (d.encargadoInterno?.trim().isNotEmpty ?? false)
+                      ? 'Lo lleva ${d.encargadoInterno}'
+                      : 'Lo lleva un empleado de la empresa'),
+            // Interno: el staff avanza los estados (sin pool, sin PIN).
+            if (d.esInterno && d.id != null &&
+                (d.estado == 'SOLICITADO' || d.estado == 'EN_CAMINO')) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: d.estado == 'SOLICITADO'
+                        ? Colors.teal.shade700
+                        : Colors.green.shade700,
+                    side: BorderSide(
+                        color: d.estado == 'SOLICITADO'
+                            ? Colors.teal
+                            : Colors.green),
+                    textStyle: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: () => _avanzarDeliveryInterno(d),
+                  icon: Icon(
+                      d.estado == 'SOLICITADO'
+                          ? Icons.two_wheeler_outlined
+                          : Icons.check_circle_outline,
+                      size: 16),
+                  label: Text(d.estado == 'SOLICITADO'
+                      ? 'Marcar EN CAMINO (salió el empleado)'
+                      : 'Marcar ENTREGADO'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// Delivery interno: el staff avanza SOLICITADO → EN_CAMINO → ENTREGADO
+  /// (sin PIN — lo lleva personal de confianza). El cliente recibe su
+  /// WhatsApp en cada paso igual que con repartidor.
+  Future<void> _avanzarDeliveryInterno(VentaDeliveryData d) async {
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final empresaId =
+        ctxState is EmpresaContextLoaded ? ctxState.context.empresa.id : '';
+    if (empresaId.isEmpty || d.id == null) return;
+
+    final repo = locator<DeliveryRepository>();
+    final res = d.estado == 'SOLICITADO'
+        ? await repo.enCaminoInterno(d.id!, empresaId)
+        : await repo.entregadoInterno(d.id!, empresaId);
+    if (!mounted) return;
+    if (res is Success<DeliveryLocal>) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          d.estado == 'SOLICITADO'
+              ? '🛵 En camino — el cliente fue avisado por WhatsApp'
+              : '✅ Entregado — ¡delivery completado!',
+          style: const TextStyle(fontSize: 12),
+        ),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+      ));
+      _loadVenta();
+    } else if (res is Error<DeliveryLocal>) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res.message, style: const TextStyle(fontSize: 12)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   Widget _buildItemsSection(Venta v) {

@@ -281,6 +281,11 @@ class VentaDeliveryData extends Equatable {
   final double costoDelivery;
   final DateTime? entregadoEn;
 
+  /// Delivery INTERNO: lo lleva un empleado — no se publicó al pool; el
+  /// staff avanza los estados desde el detalle (sin PIN).
+  final bool esInterno;
+  final String? encargadoInterno;
+
   const VentaDeliveryData({
     this.id,
     required this.estado,
@@ -293,6 +298,8 @@ class VentaDeliveryData extends Equatable {
     this.lon,
     this.costoDelivery = 0,
     this.entregadoEn,
+    this.esInterno = false,
+    this.encargadoInterno,
   });
 
   bool get editable =>
@@ -311,6 +318,8 @@ class VentaDeliveryData extends Equatable {
         lon,
         costoDelivery,
         entregadoEn,
+        esInterno,
+        encargadoInterno,
       ];
 }
 

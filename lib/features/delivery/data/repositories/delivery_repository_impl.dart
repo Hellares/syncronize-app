@@ -49,6 +49,40 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   }
 
   @override
+  Future<Resource<DeliveryLocal>> enCaminoInterno(
+    String deliveryId,
+    String empresaId,
+  ) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result =
+          await _remoteDataSource.enCaminoInterno(deliveryId, empresaId);
+      return Success(result.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
+  Future<Resource<DeliveryLocal>> entregadoInterno(
+    String deliveryId,
+    String empresaId,
+  ) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result =
+          await _remoteDataSource.entregadoInterno(deliveryId, empresaId);
+      return Success(result.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
   Future<Resource<List<DeliveryLocal>>> getDisponibles(
     String empresaId, {
     String? sedeId,

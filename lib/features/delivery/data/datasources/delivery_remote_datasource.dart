@@ -33,6 +33,30 @@ class DeliveryRemoteDataSource {
     return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Delivery INTERNO: el empleado salió con el pedido (staff marca).
+  Future<DeliveryLocalModel> enCaminoInterno(
+    String deliveryId,
+    String empresaId,
+  ) async {
+    final response = await _dioClient.post(
+      '$_basePath/$deliveryId/interno/en-camino',
+      data: {'empresaId': empresaId},
+    );
+    return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Delivery INTERNO: el empleado entregó (staff marca, sin PIN).
+  Future<DeliveryLocalModel> entregadoInterno(
+    String deliveryId,
+    String empresaId,
+  ) async {
+    final response = await _dioClient.post(
+      '$_basePath/$deliveryId/interno/entregado',
+      data: {'empresaId': empresaId},
+    );
+    return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Pool de deliveries SOLICITADOS listos para tomar.
   Future<List<DeliveryLocalModel>> getDisponibles(
     String empresaId, {
