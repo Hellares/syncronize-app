@@ -160,8 +160,9 @@ class _VentasPageState extends State<VentasPage> {
       final p = empresaState.context.permissions;
       final esAdmin = p.canManageUsers || p.canManageSettings;
       esOperativo = p.canViewVentas && !esAdmin;
-      // Mismo gating que la entrada "Reportes Ventas" del drawer.
-      puedeVerEstadisticas = p.canViewReports;
+      // Estadísticas de EMPRESA: solo admins/contador (canViewStatistics).
+      // canViewReports lo tienen también los cajeros — no sirve de gate.
+      puedeVerEstadisticas = p.canViewStatistics;
     }
     return MultiBlocListener(
       listeners: [
@@ -231,7 +232,7 @@ class _VentasPageState extends State<VentasPage> {
               if (esOperativo) _buildBannerOperativo(),
               _buildTabsEstado(),
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
                 child: Row(
                   children: [
                     Expanded(
@@ -341,7 +342,7 @@ class _VentasPageState extends State<VentasPage> {
                       : 'S/';
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -448,7 +449,7 @@ class _VentasPageState extends State<VentasPage> {
                             context.read<VentaListCubit>().reload(),
                         child: ListView.separated(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
+                              horizontal: 6, vertical: 4),
                           // +1 = footer de paginación cuando hay más páginas.
                           itemCount: state.ventas.length +
                               (state.hasMore ? 1 : 0),
@@ -514,7 +515,7 @@ class _VentasPageState extends State<VentasPage> {
   Widget _buildTabsEstado() {
     final enAnuladas = _filtroEstado == EstadoVenta.anulada;
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      margin: const EdgeInsets.fromLTRB(6, 8, 6, 0),
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: Colors.grey.shade200,

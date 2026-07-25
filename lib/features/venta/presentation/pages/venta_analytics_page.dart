@@ -680,34 +680,6 @@ class _VentaAnalyticsPageState extends State<VentaAnalyticsPage> {
             }),
             const SizedBox(height: 8),
 
-            // Categoría (aplica a los rankings de productos)
-            BlocBuilder<CategoriasEmpresaCubit, CategoriasEmpresaState>(
-              builder: (context, catState) {
-                if (catState is! CategoriasEmpresaLoaded || catState.categorias.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                final categorias = catState.categorias.where((c) => c.isActive).toList();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CustomDropdown<String?>(
-                      height: 31,
-                      label: 'Categoría (rankings de productos)',
-                      value: _categoriaId,
-                      borderColor: AppColors.blue1,
-                      items: [
-                        const DropdownItem(value: null, label: 'Todas las categorías'),
-                        ...categorias.map((c) =>
-                            DropdownItem<String?>(value: c.id, label: c.nombreDisplay)),
-                      ],
-                      onChanged: (v) => setState(() => _categoriaId = v),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                );
-              },
-            ),
-
             // Botón buscar
             SizedBox(
               width: double.infinity,
@@ -1042,7 +1014,7 @@ class _VentaAnalyticsPageState extends State<VentaAnalyticsPage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
           color: selected ? AppColors.white : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(4),
@@ -1052,12 +1024,12 @@ class _VentaAnalyticsPageState extends State<VentaAnalyticsPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 12, color: selected ? AppColors.greendark : Colors.grey),
+              Icon(icon, size: 10, color: selected ? AppColors.greendark : Colors.grey),
               const SizedBox(width: 4),
             ],
             Text(label,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w500,
                   color: selected ? AppColors.greendark : Colors.grey.shade600,
                 )),
@@ -1211,8 +1183,50 @@ class _VentaAnalyticsPageState extends State<VentaAnalyticsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(child: AppSubtitle('Productos Más Vendidos', fontSize: 12)),
+              // Título en 2 líneas para que quepan en la misma fila el
+              // dropdown de categoría (izquierda) y el toggle de criterio.
+              const SizedBox(
+                width: 92,
+                child: AppSubtitle('Productos Más Vendidos',
+                    fontSize: 11, maxLines: 2),
+              ),
+              const SizedBox(width: 6),
               _buildCriterioToggle(),
+              const SizedBox(width: 6),
+              // Filtro de categoría a la DERECHA de los filtros de criterio
+              // — vive aquí porque solo aplica a los rankings; recarga al
+              // cambiar.
+              Expanded(
+                child: BlocBuilder<CategoriasEmpresaCubit,
+                    CategoriasEmpresaState>(
+                  builder: (context, catState) {
+                    if (catState is! CategoriasEmpresaLoaded ||
+                        catState.categorias.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    final categorias = catState.categorias
+                        .where((c) => c.isActive)
+                        .toList();
+                    return CustomDropdown<String?>(
+                      height: 30,
+                      value: _categoriaId,
+                      borderColor: AppColors.blueborder,
+                      hintText: 'Categorías',
+                      items: [
+                        const DropdownItem(
+                            value: null, label: 'Todas las categorías'),
+                        ...categorias.map((c) => DropdownItem<String?>(
+                            value: c.id, label: c.nombreDisplay)),
+                      ],
+                      onChanged: (v) {
+                        if (v == _categoriaId) return;
+                        setState(() => _categoriaId = v);
+                        _load();
+                      },
+                    );
+                  },
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1321,7 +1335,10 @@ class _VentaAnalyticsPageState extends State<VentaAnalyticsPage> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const AppSubtitle('Productos Menos Vendidos', fontSize: 12),
           const SizedBox(height: 2),
-          Text('Entre productos con al menos una venta en el periodo',
+          Text(
+              _categoriaId == null
+                  ? 'Entre productos con al menos una venta en el periodo'
+                  : 'Entre productos con ventas — misma categoría elegida en Más Vendidos',
               style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
           const SizedBox(height: 12),
           if (productos.isEmpty)

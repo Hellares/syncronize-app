@@ -475,7 +475,9 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Reportes Ventas',
             icon: Icons.bar_chart,
-            visible: can(permissions?.canViewReports),
+            // Estadísticas de EMPRESA: solo admins/contador — canViewReports
+            // lo tienen también los cajeros y NO deben ver esta página.
+            visible: can(permissions?.canViewStatistics),
             routeMatch: const _RouteMatch.startsWith('/empresa/ventas/analytics'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas/analytics')),
           ),
