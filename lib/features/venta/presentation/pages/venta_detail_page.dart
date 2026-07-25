@@ -903,30 +903,26 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             if (d.esInterno && d.id != null &&
                 (d.estado == 'SOLICITADO' || d.estado == 'EN_CAMINO')) ...[
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: d.estado == 'SOLICITADO'
+              CustomButton(
+                text: d.estado == 'SOLICITADO'
+                    ? 'Marcar EN CAMINO (salió el empleado)'
+                    : 'Marcar ENTREGADO',
+                isOutlined: true,
+                borderColor: d.estado == 'SOLICITADO'
+                    ? Colors.teal
+                    : Colors.green.shade700,
+                textColor: d.estado == 'SOLICITADO'
+                    ? Colors.teal.shade700
+                    : Colors.green.shade700,
+                icon: Icon(
+                    d.estado == 'SOLICITADO'
+                        ? Icons.two_wheeler_outlined
+                        : Icons.check_circle_outline,
+                    size: 16,
+                    color: d.estado == 'SOLICITADO'
                         ? Colors.teal.shade700
-                        : Colors.green.shade700,
-                    side: BorderSide(
-                        color: d.estado == 'SOLICITADO'
-                            ? Colors.teal
-                            : Colors.green),
-                    textStyle: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  onPressed: () => _avanzarDeliveryInterno(d),
-                  icon: Icon(
-                      d.estado == 'SOLICITADO'
-                          ? Icons.two_wheeler_outlined
-                          : Icons.check_circle_outline,
-                      size: 16),
-                  label: Text(d.estado == 'SOLICITADO'
-                      ? 'Marcar EN CAMINO (salió el empleado)'
-                      : 'Marcar ENTREGADO'),
-                ),
+                        : Colors.green.shade700),
+                onPressed: () => _avanzarDeliveryInterno(d),
               ),
             ],
           ],
