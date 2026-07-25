@@ -25,4 +25,21 @@ class EstadisticasServicioRemoteDataSource {
     return EstadisticasServicioModel.fromJson(
         response.data as Map<String, dynamic>);
   }
+
+  /// Dashboard consolidado (KPIs, embudo, técnicos, equipos, calidad) en
+  /// UNA respuesta — el shape se consume como Map en la página.
+  Future<Map<String, dynamic>> getDashboard({
+    String? fechaDesde,
+    String? fechaHasta,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (fechaDesde != null) queryParams['fechaDesde'] = fechaDesde;
+    if (fechaHasta != null) queryParams['fechaHasta'] = fechaHasta;
+
+    final response = await _dioClient.get(
+      '${ApiConstants.ordenesServicio}/estadisticas/dashboard',
+      queryParameters: queryParams,
+    );
+    return response.data as Map<String, dynamic>;
+  }
 }

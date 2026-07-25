@@ -29,6 +29,28 @@ class ServicioDashboardLoaded extends ServicioDashboardState {
   List<Object?> get props => [estadisticas];
 }
 
+/// Dashboard consolidado (shape crudo del backend):
+/// { resumen, porEstado, porTipo, porPrioridad, porMes, topTecnicos,
+///   topEquipos }
+class ServicioDashboardDataLoaded extends ServicioDashboardState {
+  final Map<String, dynamic> data;
+
+  /// Recarga manteniendo los datos visibles (sin flash de spinner).
+  final bool refreshing;
+
+  const ServicioDashboardDataLoaded({
+    required this.data,
+    this.refreshing = false,
+  });
+
+  ServicioDashboardDataLoaded copyWith({bool? refreshing}) =>
+      ServicioDashboardDataLoaded(
+          data: data, refreshing: refreshing ?? this.refreshing);
+
+  @override
+  List<Object?> get props => [data, refreshing];
+}
+
 class ServicioDashboardError extends ServicioDashboardState {
   final String message;
   const ServicioDashboardError(this.message);
@@ -62,6 +84,32 @@ class ServicioDashboardCubit extends Cubit<ServicioDashboardState> {
     if (result is Success<EstadisticasServicio>) {
       emit(ServicioDashboardLoaded(result.data));
     } else if (result is Error<EstadisticasServicio>) {
+      emit(ServicioDashboardError(result.message));
+    }
+  }
+
+  /// Dashboard consolidado en UN request, con recarga sin blanqueo (los
+  /// datos quedan visibles y se intercambian al llegar los nuevos).
+  Future<void> loadDashboard({
+    String? fechaDesde,
+    String? fechaHasta,
+  }) async {
+    final current = state;
+    if (current is ServicioDashboardDataLoaded) {
+      emit(current.copyWith(refreshing: true));
+    } else {
+      emit(const ServicioDashboardLoading());
+    }
+
+    final result = await _repository.getDashboard(
+      fechaDesde: fechaDesde,
+      fechaHasta: fechaHasta,
+    );
+    if (isClosed) return;
+
+    if (result is Success<Map<String, dynamic>>) {
+      emit(ServicioDashboardDataLoaded(data: result.data));
+    } else if (result is Error<Map<String, dynamic>>) {
       emit(ServicioDashboardError(result.message));
     }
   }

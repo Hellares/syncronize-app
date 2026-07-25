@@ -7,4 +7,10 @@ abstract class EstadisticasServicioRepository {
     String? fechaDesde,
     String? fechaHasta,
   });
+
+  /// Dashboard consolidado (una respuesta) — shape crudo del backend.
+  Future<Resource<Map<String, dynamic>>> getDashboard({
+    String? fechaDesde,
+    String? fechaHasta,
+  });
 }

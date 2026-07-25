@@ -39,4 +39,24 @@ class EstadisticasServicioRepositoryImpl
       return _errorHandler.handleException(e);
     }
   }
+
+  @override
+  Future<Resource<Map<String, dynamic>>> getDashboard({
+    String? fechaDesde,
+    String? fechaHasta,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('Sin conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+
+    try {
+      final result = await _remoteDataSource.getDashboard(
+        fechaDesde: fechaDesde,
+        fechaHasta: fechaHasta,
+      );
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e);
+    }
+  }
 }

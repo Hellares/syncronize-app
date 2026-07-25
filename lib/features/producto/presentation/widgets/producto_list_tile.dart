@@ -604,18 +604,22 @@ class ProductoListTile extends StatelessWidget {
           ],
         ],
 
-        // Línea 2: Stock badge + COMBO badge (horizontal)
+        // Línea 2: badges de stock/estado. Wrap (no Row): cuando coinciden
+        // varios (stock + inactivo + VARIANTES + GESTIONAR…) no caben en
+        // el ancho de la card y un Row desbordaba — con Wrap el sobrante
+        // baja a una segunda línea.
         const SizedBox(height: 4),
-        Row(
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             // Stock badge
             _buildStockBadge(),
 
             // Indicador de "no disponible para venta" (isActive=false).
-            // Solo icono compacto al lado del stock para evitar overflow
-            // del card en pantallas chicas.
-            if (!producto.isActive) ...[
-              const SizedBox(width: 6),
+            // Solo icono compacto al lado del stock.
+            if (!producto.isActive)
               Tooltip(
                 message: 'No disponible para venta',
                 child: Container(
@@ -635,15 +639,13 @@ class ProductoListTile extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
 
             // SIN PRECIO badge (solo si no tiene precio configurado y no es
             // producto con variantes; los insumos no se venden, así que no
             // aplica el concepto de "sin precio de venta").
             if (!producto.tieneVariantes &&
                 !producto.esInsumo &&
-                !_tienePrecioConfigurado()) ...[
-              const SizedBox(width: 8),
+                !_tienePrecioConfigurado())
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
                 decoration: BoxDecoration(
@@ -660,11 +662,9 @@ class ProductoListTile extends StatelessWidget {
                   color: Colors.orange.shade700,
                 ),
               ),
-            ],
 
             // COMBO badge + badge de reservación
-            if (producto.esCombo) ...[
-              const SizedBox(width: 8),
+            if (producto.esCombo)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
                 decoration: BoxDecoration(
@@ -681,11 +681,9 @@ class ProductoListTile extends StatelessWidget {
                   color: Colors.purple,
                 ),
               ),
-            ],
 
             // VARIANTES badge
             if (producto.tieneVariantes) ...[
-              const SizedBox(width: 8),
               Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -717,8 +715,7 @@ class ProductoListTile extends StatelessWidget {
                 ),
               ),
               // GESTIONAR badge → navega directo a la gestión de variantes
-              if (onManageVariants != null) ...[
-                const SizedBox(width: 4),
+              if (onManageVariants != null)
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -746,7 +743,6 @@ class ProductoListTile extends StatelessWidget {
                     ),
                   ),
                 ),
-              ],
             ],
           ],
         ),
