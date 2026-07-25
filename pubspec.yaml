@@ -106,6 +106,10 @@ dependencies:
   # Mapa del picker de delivery (SDK móvil de Google = gratis ilimitado;
   # la key vive en el AndroidManifest restringida por package+SHA1).
   google_maps_flutter: ^2.10.0
+  # PIN: 2.19.x viene compilado con Kotlin 2.3 y el proyecto usa el plugin
+  # Kotlin 2.1 (settings.gradle.kts) → "incompatible version of Kotlin".
+  # Al subir el plugin Kotlin del proyecto, se puede soltar este pin.
+  google_maps_flutter_android: 2.17.0
   latlong2: ^0.9.1
   collection: ^1.19.1
   android_intent_plus: ^6.0.0
