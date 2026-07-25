@@ -20,4 +20,18 @@ class GetResumenFinancieroUseCase {
       sedeId: sedeId,
     );
   }
+
+  /// Resumen + gráfico en UN request. Método del mismo usecase para no
+  /// tocar el registro de DI (mismo patrón que GetVentasUseCase.paginado).
+  Future<Resource<DashboardFinanciero>> dashboard({
+    String? fechaDesde,
+    String? fechaHasta,
+    String? sedeId,
+  }) {
+    return _repository.getDashboard(
+      fechaDesde: fechaDesde,
+      fechaHasta: fechaHasta,
+      sedeId: sedeId,
+    );
+  }
 }

@@ -40,6 +40,30 @@ class ResumenFinancieroRepositoryImpl implements ResumenFinancieroRepository {
   }
 
   @override
+  Future<Resource<DashboardFinanciero>> getDashboard({
+    String? fechaDesde,
+    String? fechaHasta,
+    String? sedeId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final data = await _remoteDataSource.getDashboard(
+        fechaDesde: fechaDesde,
+        fechaHasta: fechaHasta,
+        sedeId: sedeId,
+      );
+      return Success((
+        resumen: data.resumen.toEntity(),
+        grafico: data.grafico?.toEntity(),
+      ));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'ResumenFinanciero');
+    }
+  }
+
+  @override
   Future<Resource<GraficoDiario>> getGraficoDiario({
     String? fechaDesde,
     String? fechaHasta,

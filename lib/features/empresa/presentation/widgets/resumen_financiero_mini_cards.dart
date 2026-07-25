@@ -44,7 +44,14 @@ class ResumenFinancieroMiniCards extends StatelessWidget {
             );
           }
           if (state is ResumenFinancieroLoaded) {
-            return _buildGrid(state);
+            // Recarga: los datos quedan visibles con una barra sutil arriba
+            return Column(mainAxisSize: MainAxisSize.min, children: [
+              if (state.refreshing) ...[
+                const LinearProgressIndicator(minHeight: 2),
+                const SizedBox(height: 6),
+              ],
+              _buildGrid(state),
+            ]);
           }
           return const SizedBox.shrink();
         },

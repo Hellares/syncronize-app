@@ -99,7 +99,15 @@ class _ResumenFinancieroViewState extends State<_ResumenFinancieroView> {
               return Center(child: Text('Error al cargar'));
             }
             if (state is ResumenFinancieroLoaded) {
-              return _buildContent(state);
+              // Recarga en curso: barra sutil arriba, los datos siguen
+              // visibles y se actualizan en sitio (sin flash de spinner).
+              return Column(children: [
+                if (state.refreshing)
+                  const LinearProgressIndicator(minHeight: 2)
+                else
+                  const SizedBox(height: 2),
+                Expanded(child: _buildContent(state)),
+              ]);
             }
             return const Center(child: CircularProgressIndicator());
           },

@@ -34,9 +34,19 @@ class EmpresaContextCubit extends Cubit<EmpresaContextState> {
     await loadEmpresaContextById(empresaId);
   }
 
-  /// Carga el contexto de una empresa específica
+  /// Carga el contexto de una empresa específica.
+  ///
+  /// Si YA hay contexto cargado de la MISMA empresa, la recarga es
+  /// silenciosa: se mantiene lo visible y se intercambia al llegar la
+  /// respuesta (sin blanquear todo el dashboard). Al cambiar de empresa
+  /// sí se emite Loading — jamás mostrar datos de otra empresa.
   Future<void> loadEmpresaContextById(String empresaId) async {
-    emit(const EmpresaContextLoading());
+    final current = state;
+    final mismaEmpresa = current is EmpresaContextLoaded &&
+        current.context.empresa.id == empresaId;
+    if (!mismaEmpresa) {
+      emit(const EmpresaContextLoading());
+    }
 
     final result = await _getEmpresaContextUseCase(empresaId);
 
@@ -54,7 +64,11 @@ class EmpresaContextCubit extends Cubit<EmpresaContextState> {
 
       emit(EmpresaContextLoaded(result.data));
     } else if (result is Error<EmpresaContext>) {
-      emit(EmpresaContextError(result.message, errorCode: result.errorCode));
+      // Refresh silencioso fallido (misma empresa): conservar lo visible —
+      // un error transitorio de red no debe tumbar el dashboard entero.
+      if (!mismaEmpresa) {
+        emit(EmpresaContextError(result.message, errorCode: result.errorCode));
+      }
     }
   }
 
