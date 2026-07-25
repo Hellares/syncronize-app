@@ -9,12 +9,14 @@ class AplicarSincronizacionUseCase {
   AplicarSincronizacionUseCase(this._repository);
 
   Future<Resource<ResultadoSincronizacion>> call({
-    required String sedeId,
+    String? sedeId,
+    String? emisorId,
     required List<SeleccionSerie> selecciones,
     dynamic branchIdProveedor,
   }) {
     return _repository.aplicarSincronizacion(
       sedeId: sedeId,
+      emisorId: emisorId,
       selecciones: selecciones,
       branchIdProveedor: branchIdProveedor,
     );

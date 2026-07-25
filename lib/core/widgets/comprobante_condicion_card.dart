@@ -5,7 +5,9 @@ import '../theme/gradient_container.dart';
 
 /// Datos de un emisor (RUC) disponible para facturar
 class EmisorItem {
-  final String? sedeId; // null = empresa global
+  /// Id del EmisorFacturacion (RUC socio, a nivel empresa). null = el
+  /// emisor PRINCIPAL de la empresa.
+  final String? emisorId;
   final String ruc;
   final String razonSocial;
   final String? sedeNombre;
@@ -14,12 +16,17 @@ class EmisorItem {
   /// sede). Sin ningún emisor activo, la venta solo puede emitir Ticket.
   final bool activo;
 
+  /// Sede cuyas series representan al emisor PRINCIPAL (series por sede).
+  /// Los emisores socio no la usan: sus series viven en el propio emisor.
+  final String? sedeIdSeries;
+
   const EmisorItem({
-    this.sedeId,
+    this.emisorId,
     required this.ruc,
     required this.razonSocial,
     this.sedeNombre,
     this.activo = false,
+    this.sedeIdSeries,
   });
 
   String get label => sedeNombre != null
@@ -28,11 +35,12 @@ class EmisorItem {
 
   factory EmisorItem.fromJson(Map<String, dynamic> json) {
     return EmisorItem(
-      sedeId: json['id'] as String?,
+      emisorId: json['id'] as String?,
       ruc: json['ruc'] as String? ?? '',
       razonSocial: json['razonSocial'] as String? ?? '',
       sedeNombre: json['sedeNombre'] as String?,
       activo: (json['activo'] as bool?) ?? false,
+      sedeIdSeries: json['sedeIdSeries'] as String?,
     );
   }
 }

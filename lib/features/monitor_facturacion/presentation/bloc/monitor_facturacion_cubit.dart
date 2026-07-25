@@ -9,10 +9,14 @@ class MonitorFacturacionCubit extends Cubit<MonitorFacturacionState> {
   String? _filtroTipo;
   String? _filtroSunatStatus;
   String? _filtroSedeId;
+  // Multi-RUC: RUC del emisor del comprobante (principal o socio)
+  String? _filtroRucEmisor;
   String? _fechaDesde;
   String? _fechaHasta;
   String? _busqueda;
   int _currentPage = 1;
+
+  String? get filtroRucEmisor => _filtroRucEmisor;
 
   MonitorFacturacionCubit(this._repository) : super(MonitorFacturacionInitial());
 
@@ -24,6 +28,7 @@ class MonitorFacturacionCubit extends Cubit<MonitorFacturacionState> {
       tipo: _filtroTipo,
       sunatStatus: _filtroSunatStatus,
       sedeId: _filtroSedeId,
+      rucEmisor: _filtroRucEmisor,
       fechaDesde: _fechaDesde,
       fechaHasta: _fechaHasta,
       busqueda: _busqueda,
@@ -62,6 +67,12 @@ class MonitorFacturacionCubit extends Cubit<MonitorFacturacionState> {
     cargar();
   }
 
+  /// Multi-RUC: filtra por el RUC emisor del comprobante.
+  void setFiltroRucEmisor(String? rucEmisor) {
+    _filtroRucEmisor = rucEmisor;
+    cargar();
+  }
+
   void setFechas(String? desde, String? hasta) {
     _fechaDesde = desde;
     _fechaHasta = hasta;
@@ -76,6 +87,7 @@ class MonitorFacturacionCubit extends Cubit<MonitorFacturacionState> {
   void limpiarFiltros() {
     _filtroTipo = null;
     _filtroSunatStatus = null;
+    _filtroRucEmisor = null;
     _fechaDesde = null;
     _fechaHasta = null;
     _busqueda = null;

@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/comprobante_condicion_card.dart'
+    show EmisorItem;
 import '../../../../core/widgets/custom_switch_tile.dart';
+import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../domain/entities/sincronizacion_series.dart';
 import '../../domain/usecases/aplicar_sincronizacion_usecase.dart';
 import '../../domain/usecases/preview_sincronizacion_usecase.dart';
@@ -11,8 +14,22 @@ import '../bloc/sincronizar_series_cubit.dart';
 
 Future<bool?> showSincronizarSeriesDialog(
   BuildContext context, {
-  required String sedeId,
-}) {
+  String? sedeId,
+  String? emisorId,
+}) async {
+  // Multi-RUC: con 2+ emisores activos el sheet muestra tabs por RUC para
+  // ver las series y sincronización de cada uno. Si la consulta falla, el
+  // sheet funciona igual solo con la sede recibida.
+  var emisores = const <EmisorItem>[];
+  try {
+    emisores = (await locator<VentaRemoteDataSource>().listarEmisores())
+        // Principal: necesita una sede que represente sus series; socios
+        // llevan las series en el propio emisor.
+        .where((e) => e.activo && (e.emisorId != null || e.sedeIdSeries != null))
+        .toList();
+  } catch (_) {}
+  if (!context.mounted) return null;
+
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -26,15 +43,17 @@ Future<bool?> showSincronizarSeriesDialog(
           locator<PreviewSincronizacionUseCase>(),
           locator<AplicarSincronizacionUseCase>(),
           sedeId: sedeId,
+          emisorId: emisorId,
         )..cargarPreview(),
-        child: const _SincronizarSeriesView(),
+        child: _SincronizarSeriesView(emisores: emisores),
       );
     },
   );
 }
 
 class _SincronizarSeriesView extends StatelessWidget {
-  const _SincronizarSeriesView();
+  final List<EmisorItem> emisores;
+  const _SincronizarSeriesView({this.emisores = const []});
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +81,7 @@ class _SincronizarSeriesView extends StatelessWidget {
           return Column(
             children: [
               _Header(),
+              if (emisores.length > 1) _EmisorTabs(emisores: emisores),
               if (state is SincronizarSeriesLoadingPreview)
                 const Expanded(child: _LoadingView())
               else if (state is SincronizarSeriesError)
@@ -126,6 +146,91 @@ class _Header extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(false),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Tabs por RUC emisor (multi-RUC): cambia la sede cuyas series se
+/// previsualizan/sincronizan sin cerrar el sheet.
+class _EmisorTabs extends StatelessWidget {
+  final List<EmisorItem> emisores;
+  const _EmisorTabs({required this.emisores});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.watch<SincronizarSeriesCubit>();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: emisores.map((e) {
+            final selected = e.emisorId != null
+                ? cubit.emisorId == e.emisorId
+                : (cubit.emisorId == null && cubit.sedeId == e.sedeIdSeries);
+            return GestureDetector(
+              onTap: () => cubit.cambiarTarget(
+                nuevaSedeId: e.emisorId == null ? e.sedeIdSeries : null,
+                nuevoEmisorId: e.emisorId,
+              ),
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: selected ? Colors.teal.shade50 : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: selected ? Colors.teal : Colors.grey.shade300,
+                    width: selected ? 1.2 : 0.6,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          e.emisorId == null
+                              ? Icons.business
+                              : Icons.handshake_outlined,
+                          size: 12,
+                          color: selected
+                              ? Colors.teal.shade700
+                              : Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'RUC ${e.ruc}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: selected
+                                ? Colors.teal.shade800
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      e.razonSocial,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        color: selected
+                            ? Colors.teal.shade600
+                            : Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -200,7 +305,13 @@ class _PreviewContent extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
           child: Row(
             children: [
-              Icon(Icons.store_mall_directory, size: 14, color: Colors.grey.shade600),
+              Icon(
+                preview.emisorId != null
+                    ? Icons.handshake_outlined
+                    : Icons.store_mall_directory,
+                size: 14,
+                color: Colors.grey.shade600,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(preview.sedeNombre,
@@ -220,6 +331,62 @@ class _PreviewContent extends StatelessWidget {
             ],
           ),
         ),
+        // Emisor efectivo: con multi-RUC deja claro de QUÉ RUC son las
+        // series listadas (empresa principal o sede-socio).
+        if (preview.rucEmisor != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Row(
+              children: [
+                Icon(Icons.account_balance_outlined,
+                    size: 12, color: Colors.teal.shade700),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    'Emisor: ${preview.razonSocialEmisor ?? ''} · RUC ${preview.rucEmisor}',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.teal.shade800),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // Emisor socio SIN token propio: lo consultado es del emisor
+        // principal — avisar antes de que mezcle series.
+        if (!preview.credencialesPropias &&
+            preview.rucEmisor != null &&
+            preview.rucEmpresa != null &&
+            preview.rucEmisor != preview.rucEmpresa)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber,
+                    size: 16, color: Colors.orange.shade800),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Este emisor no tiene token propio y consulta con las credenciales '
+                    'del principal (RUC ${preview.rucEmpresa}): estas series NO son '
+                    'del socio. Registra su URL API y token en Emisores de Facturación.',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.orange.shade900,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (preview.seriesSincronizadasEn != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),

@@ -8,7 +8,7 @@ class PreviewSincronizacionUseCase {
   final MonitorFacturacionRepository _repository;
   PreviewSincronizacionUseCase(this._repository);
 
-  Future<Resource<SincronizacionPreview>> call(String sedeId) {
-    return _repository.previewSincronizacion(sedeId);
+  Future<Resource<SincronizacionPreview>> call({String? sedeId, String? emisorId}) {
+    return _repository.previewSincronizacion(sedeId: sedeId, emisorId: emisorId);
   }
 }

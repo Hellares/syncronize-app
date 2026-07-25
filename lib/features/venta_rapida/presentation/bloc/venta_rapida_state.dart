@@ -13,6 +13,13 @@ class VentaRapidaState extends Equatable {
 
   // Comprobante / Cliente
   final String tipoComprobante; // TICKET | BOLETA | FACTURA
+
+  /// Emisores (RUCs) con facturación ACTIVA — multi-RUC. Se cargan al pasar
+  /// del carrito al cobro. Con 2+ el cobro muestra el selector de emisor.
+  final List<EmisorItem> emisores;
+
+  /// Emisor elegido para Boleta/Factura. sedeId null = empresa principal.
+  final EmisorItem? emisorSeleccionado;
   final bool clienteGenerico;
   /// Id de EmpresaPersona (cliente persona natural por DNI o genérico).
   final String? clienteId;
@@ -78,6 +85,8 @@ class VentaRapidaState extends Equatable {
     this.moneda = 'PEN',
     this.items = const [],
     this.tipoComprobante = 'TICKET',
+    this.emisores = const [],
+    this.emisorSeleccionado,
     this.clienteGenerico = false,
     this.clienteId,
     this.clienteEmpresaId,
@@ -148,6 +157,8 @@ class VentaRapidaState extends Equatable {
     String? moneda,
     List<VentaDetalleInput>? items,
     String? tipoComprobante,
+    List<EmisorItem>? emisores,
+    EmisorItem? emisorSeleccionado,
     bool? clienteGenerico,
     String? clienteId,
     bool clearClienteId = false,
@@ -184,6 +195,8 @@ class VentaRapidaState extends Equatable {
       moneda: moneda ?? this.moneda,
       items: items ?? this.items,
       tipoComprobante: tipoComprobante ?? this.tipoComprobante,
+      emisores: emisores ?? this.emisores,
+      emisorSeleccionado: emisorSeleccionado ?? this.emisorSeleccionado,
       clienteGenerico: clienteGenerico ?? this.clienteGenerico,
       // Clear flags: el patrón `?? this.x` no permite limpiar con null —
       // cambiar de cliente persona→empresa dejaba AMBOS ids seteados.
@@ -223,7 +236,8 @@ class VentaRapidaState extends Equatable {
   @override
   List<Object?> get props => [
         empresaId, sedeId, vendedorId, impuestoPorcentaje, moneda,
-        items, tipoComprobante, clienteGenerico, clienteId, clienteEmpresaId,
+        items, tipoComprobante, emisores, emisorSeleccionado,
+        clienteGenerico, clienteId, clienteEmpresaId,
         tipoDocCliente, numeroDocCliente, nombreClienteResuelto, buscandoCliente,
         docSinResultado,
         condicionPago, numeroCuotas, plazoDias, conEnvio,

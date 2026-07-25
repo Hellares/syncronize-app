@@ -30,6 +30,8 @@ import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/utils/cuota_calculator.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/cliente_unificado_selector.dart';
+import '../../../../core/widgets/comprobante_condicion_card.dart'
+    show EmisorItem;
 import '../../../../core/widgets/popup_item.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../cliente/data/cache/cliente_catalogo_service.dart';
@@ -721,6 +723,74 @@ class _CobroViewState extends State<_CobroView> {
   /// numpad y muestra solo la barra Atrás/Cobrar para que no se
   /// superponga con el teclado nativo. En el resto del tiempo, el numpad
   /// completo es el centro de la operación con Atrás/Cobrar como acciones.
+  /// Bottom sheet para cambiar el emisor (RUC) del comprobante.
+  Future<void> _elegirEmisor(
+      BuildContext context, VentaRapidaState state) async {
+    final cubit = context.read<VentaRapidaCubit>();
+    final sel = await showModalBottomSheet<EmisorItem>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Row(
+                children: [
+                  Icon(Icons.account_balance_outlined,
+                      size: 16, color: Colors.teal.shade700),
+                  const SizedBox(width: 8),
+                  const Text('Emisor del comprobante',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ...state.emisores.map((e) {
+              final seleccionado =
+                  state.emisorSeleccionado?.ruc == e.ruc &&
+                      state.emisorSeleccionado?.emisorId == e.emisorId;
+              return ListTile(
+                dense: true,
+                leading: Icon(
+                  seleccionado
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  size: 18,
+                  color: seleccionado
+                      ? Colors.teal.shade700
+                      : Colors.grey.shade400,
+                ),
+                title: Text(
+                  e.razonSocial,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: seleccionado
+                          ? Colors.teal.shade900
+                          : Colors.grey.shade800),
+                ),
+                subtitle: Text(
+                  'RUC ${e.ruc}${e.sedeNombre != null ? ' • ${e.sedeNombre}' : ''}',
+                  style:
+                      TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                ),
+                onTap: () => Navigator.pop(ctx, e),
+              );
+            }),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (sel != null) cubit.setEmisorSeleccionado(sel);
+  }
+
   Widget _buildBottomBar(
       BuildContext context, VentaRapidaState state, double faltante) {
     final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
@@ -1213,6 +1283,56 @@ class _CobroViewState extends State<_CobroView> {
                     ),
                   ),
                 const SizedBox(height: 6),
+
+                // Multi-RUC: con 2+ emisores activos, Boleta/Factura pueden
+                // salir con el RUC de la empresa o el de una sede-socio.
+                if (state.emisores.length > 1 &&
+                    state.tipoComprobante != 'TICKET' &&
+                    state.emisorSeleccionado != null) ...[
+                  GestureDetector(
+                    onTap: () => _elegirEmisor(context, state),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: Colors.teal.shade300, width: 0.6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.account_balance_outlined,
+                              size: 15, color: Colors.teal.shade700),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Emisor',
+                                    style: TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.teal.shade600)),
+                                Text(
+                                  '${state.emisorSeleccionado!.razonSocial} · RUC ${state.emisorSeleccionado!.ruc}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.teal.shade900),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.unfold_more,
+                              size: 16, color: Colors.teal.shade700),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
 
                 // El tipo de documento se DERIVA del comprobante:
                 // FACTURA → RUC fijo (SUNAT); TICKET/BOLETA → DNI por

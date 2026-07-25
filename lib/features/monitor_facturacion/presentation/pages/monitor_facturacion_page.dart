@@ -14,6 +14,9 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_state.dart';
+import '../../../../core/widgets/comprobante_condicion_card.dart'
+    show EmisorItem;
+import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../domain/entities/comprobante_item.dart';
 import '../../domain/repositories/monitor_facturacion_repository.dart';
 import '../bloc/monitor_facturacion_cubit.dart';
@@ -55,6 +58,29 @@ class _MonitorViewState extends State<_MonitorView> {
   String? _filtroTipo;
   String? _filtroStatus;
 
+  /// Multi-RUC: emisores de la empresa (principal + socios). Con 2+ se
+  /// muestran los chips de filtro por emisor y el rótulo en cada card.
+  String? _filtroRucEmisor;
+  List<EmisorItem> _emisores = const [];
+  Map<String, String> _nombresEmisor = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarEmisores();
+  }
+
+  Future<void> _cargarEmisores() async {
+    try {
+      final emisores = await locator<VentaRemoteDataSource>().listarEmisores();
+      if (!mounted || emisores.length < 2) return;
+      setState(() {
+        _emisores = emisores;
+        _nombresEmisor = {for (final e in emisores) e.ruc: e.razonSocial};
+      });
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return GradientBackground(
@@ -68,6 +94,11 @@ class _MonitorViewState extends State<_MonitorView> {
               tooltip: 'Configuración de facturación',
               onPressed: () =>
                   context.push('/empresa/configuracion-facturacion'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.handshake_outlined, size: 20),
+              tooltip: 'Emisores (multi-RUC)',
+              onPressed: () => context.push('/empresa/emisores-facturacion'),
             ),
             IconButton(
               icon: const Icon(Icons.refresh, size: 20),
@@ -177,6 +208,11 @@ class _MonitorViewState extends State<_MonitorView> {
                 _statusChip('Procesando', 'PROCESANDO', Colors.blue),
                 _statusChip('Error', 'ERROR_COMUNICACION', Colors.orange),
                 _statusChip('Rechazado', 'RECHAZADO', Colors.red),
+                // Multi-RUC: filtro por emisor (solo con 2+ emisores)
+                if (_emisores.length > 1) ...[
+                  const SizedBox(width: 12),
+                  ..._emisores.map((e) => _emisorChip(e)),
+                ],
               ],
             ),
           ),
@@ -200,6 +236,54 @@ class _MonitorViewState extends State<_MonitorView> {
           ),
           child: Text(label,
               style: TextStyle(fontSize: 11, color: selected ? Colors.white : Colors.grey.shade700, fontWeight: FontWeight.w600)),
+        ),
+      ),
+    );
+  }
+
+  /// Chip de filtro por RUC emisor (multi-RUC). Toggle: tocar el activo
+  /// lo limpia. 🏢 = principal, 🤝 = socio.
+  Widget _emisorChip(EmisorItem e) {
+    final selected = _filtroRucEmisor == e.ruc;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: GestureDetector(
+        onTap: () {
+          final nuevo = selected ? null : e.ruc;
+          setState(() => _filtroRucEmisor = nuevo);
+          context.read<MonitorFacturacionCubit>().setFiltroRucEmisor(nuevo);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.teal.withValues(alpha: 0.15)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: selected ? Colors.teal : Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                e.emisorId == null
+                    ? Icons.business
+                    : Icons.handshake_outlined,
+                size: 11,
+                color: selected ? Colors.teal.shade700 : Colors.grey.shade500,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                e.razonSocial,
+                style: TextStyle(
+                    fontSize: 10,
+                    color:
+                        selected ? Colors.teal.shade700 : Colors.grey.shade700,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -260,6 +344,10 @@ class _MonitorViewState extends State<_MonitorView> {
                 item: state.comprobantes[i],
                 onReenviar: () => _reenviar(state.comprobantes[i]),
                 onNotaEmitida: () => context.read<MonitorFacturacionCubit>().cargar(page: state.currentPage),
+                emisorLabel: _emisores.length > 1
+                    ? (_nombresEmisor[state.comprobantes[i].rucEmisor] ??
+                        state.comprobantes[i].rucEmisor)
+                    : null,
               ),
             ),
           ),
@@ -461,10 +549,15 @@ class _ComprobanteCard extends StatelessWidget {
   final VoidCallback onReenviar;
   final VoidCallback onNotaEmitida;
 
+  /// Multi-RUC: razón social del emisor del comprobante. Solo llega cuando
+  /// la empresa tiene 2+ emisores (evita ruido en empresas normales).
+  final String? emisorLabel;
+
   const _ComprobanteCard({
     required this.item,
     required this.onReenviar,
     required this.onNotaEmitida,
+    this.emisorLabel,
   });
 
   bool get _puedeEmitirNota =>
@@ -544,6 +637,28 @@ class _ComprobanteCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
+            // Multi-RUC: emisor del comprobante (solo con 2+ emisores)
+            if (emisorLabel != null) ...[
+              Row(
+                children: [
+                  Icon(Icons.account_balance_outlined,
+                      size: 11, color: Colors.teal.shade700),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      emisorLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.teal.shade700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+            ],
             // Cliente + documento
             Row(
               children: [

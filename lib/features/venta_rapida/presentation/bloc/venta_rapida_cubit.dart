@@ -7,6 +7,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/services/realtime_sync_service.dart';
+import '../../../../core/widgets/comprobante_condicion_card.dart'
+    show EmisorItem;
 import '../../domain/combo_prorrateo.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../cliente/data/cache/cliente_catalogo_service.dart';
@@ -1070,6 +1072,20 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     ));
   }
 
+  /// Guarda los emisores ACTIVOS (multi-RUC) y pre-selecciona el primero
+  /// (la empresa principal siempre viene primera en `listarEmisores`).
+  void setEmisores(List<EmisorItem> emisores) {
+    if (emisores.isEmpty) return;
+    emit(state.copyWith(
+      emisores: emisores,
+      emisorSeleccionado: emisores.first,
+    ));
+  }
+
+  void setEmisorSeleccionado(EmisorItem emisor) {
+    emit(state.copyWith(emisorSeleccionado: emisor));
+  }
+
   /// Marca la venta como CON ENVÍO (pedido por teléfono/WhatsApp que se
   /// despachará por agencia — habilita el rótulo desde el detalle).
   void setConEnvio(bool valor) {
@@ -1393,6 +1409,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       if (docCliente.isNotEmpty) 'documentoCliente': docCliente,
       'moneda': state.moneda,
       'tipoComprobante': state.tipoComprobante,
+      // Multi-RUC: mismo criterio que en cobrar().
+      if (state.tipoComprobante != 'TICKET' &&
+          state.emisorSeleccionado?.emisorId != null)
+        'emisorId': state.emisorSeleccionado!.emisorId,
       'esCredito': false,
       if (state.conEnvio) 'conEnvio': true,
       // La bancarización ya la validó la página (contando la porción Yape como
@@ -1633,6 +1653,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       if (docCliente.isNotEmpty) 'documentoCliente': docCliente,
       'moneda': state.moneda,
       'tipoComprobante': state.tipoComprobante,
+      // Multi-RUC: Boleta/Factura salen con el RUC del emisor elegido.
+      // emisorId null = empresa principal (config global, no se envía).
+      if (state.tipoComprobante != 'TICKET' &&
+          state.emisorSeleccionado?.emisorId != null)
+        'emisorId': state.emisorSeleccionado!.emisorId,
       'esCredito': state.esCredito,
       if (state.conEnvio) 'conEnvio': true,
       if (state.esCredito) ...{

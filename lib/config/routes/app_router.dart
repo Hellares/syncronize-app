@@ -178,6 +178,7 @@ import '../../features/devolucion_venta/presentation/pages/devoluciones_venta_pa
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_form_page.dart';
 import '../../features/devolucion_venta/presentation/pages/devolucion_venta_detail_page.dart';
 import '../../features/facturacion/presentation/pages/anulaciones_page.dart';
+import '../../features/monitor_facturacion/presentation/pages/emisores_facturacion_page.dart';
 import '../../features/monitor_facturacion/presentation/pages/monitor_facturacion_page.dart';
 import '../../features/monitor_facturacion/presentation/pages/reporte_correlativos_page.dart';
 import '../../features/guia_remision/presentation/pages/guias_remision_page.dart';
@@ -1172,6 +1173,7 @@ class AppRouter {
             initialCanal: q['canal'],
             initialTipoEntrega: q['tipoEntrega'],
             initialEntregaBusqueda: q['entregaBusqueda'],
+            initialRucEmisor: q['rucEmisor'],
             initialFechaDesde:
                 q['fechaDesde'] != null ? DateTime.tryParse(q['fechaDesde']!) : null,
             initialFechaHasta:
@@ -1532,6 +1534,12 @@ class AppRouter {
         path: '/empresa/monitor-facturacion',
         name: 'empresa-monitor-facturacion',
         builder: (context, state) => const MonitorFacturacionPage(),
+      ),
+      // Emisores de facturación (multi-RUC a nivel empresa)
+      GoRoute(
+        path: '/empresa/emisores-facturacion',
+        name: 'empresa-emisores-facturacion',
+        builder: (context, state) => const EmisoresFacturacionPage(),
       ),
       GoRoute(
         path: '/empresa/reporte-correlativos',

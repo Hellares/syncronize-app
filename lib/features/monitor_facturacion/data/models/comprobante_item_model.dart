@@ -29,6 +29,7 @@ class ComprobanteItemModel extends ComprobanteItem {
     super.ventaId,
     super.sedeId,
     super.proveedorEmisor,
+    super.rucEmisor,
   });
 
   factory ComprobanteItemModel.fromJson(Map<String, dynamic> json) {
@@ -60,6 +61,7 @@ class ComprobanteItemModel extends ComprobanteItem {
       ventaId: json['ventaId'] as String?,
       sedeId: json['sedeId'] as String?,
       proveedorEmisor: json['proveedorEmisor'] as String?,
+      rucEmisor: json['rucEmisor'] as String?,
     );
   }
 

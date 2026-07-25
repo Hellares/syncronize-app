@@ -8,6 +8,7 @@ abstract class MonitorFacturacionRepository {
     String? tipo,
     String? sunatStatus,
     String? sedeId,
+    String? rucEmisor,
     String? fechaDesde,
     String? fechaHasta,
     String? busqueda,
@@ -21,12 +22,17 @@ abstract class MonitorFacturacionRepository {
   Future<Resource<Map<String, dynamic>>> anular(String comprobanteId, String motivo);
   Future<Resource<ReporteCorrelativos>> reporteCorrelativos({String? sedeId, String? fechaDesde, String? fechaHasta});
 
-  /// Consulta series del proveedor y las compara con la sede (dry-run).
-  Future<Resource<SincronizacionPreview>> previewSincronizacion(String sedeId);
+  /// Consulta series del proveedor y las compara con el target (dry-run).
+  /// Multi-RUC: sedeId (RUC principal, por sede) o emisorId (emisor socio).
+  Future<Resource<SincronizacionPreview>> previewSincronizacion({
+    String? sedeId,
+    String? emisorId,
+  });
 
-  /// Aplica selecciones del usuario a la sede.
+  /// Aplica selecciones del usuario al target (sede o emisor socio).
   Future<Resource<ResultadoSincronizacion>> aplicarSincronizacion({
-    required String sedeId,
+    String? sedeId,
+    String? emisorId,
     required List<SeleccionSerie> selecciones,
     dynamic branchIdProveedor,
   });

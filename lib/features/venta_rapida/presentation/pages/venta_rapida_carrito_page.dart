@@ -810,7 +810,9 @@ class _CarritoView extends StatelessWidget {
     try {
       final emisores =
           await locator<VentaRemoteDataSource>().listarEmisores();
-      facturacionActiva = emisores.any((e) => e.activo);
+      final activos = emisores.where((e) => e.activo).toList();
+      facturacionActiva = activos.isNotEmpty;
+      if (activos.isNotEmpty) cubit.setEmisores(activos);
     } catch (_) {}
     if (!context.mounted) return;
 

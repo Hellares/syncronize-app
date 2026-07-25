@@ -16,6 +16,7 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
     String? tipo,
     String? sunatStatus,
     String? sedeId,
+    String? rucEmisor,
     String? fechaDesde,
     String? fechaHasta,
     String? busqueda,
@@ -27,6 +28,7 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
         tipo: tipo,
         sunatStatus: sunatStatus,
         sedeId: sedeId,
+        rucEmisor: rucEmisor,
         fechaDesde: fechaDesde,
         fechaHasta: fechaHasta,
         busqueda: busqueda,
@@ -90,9 +92,13 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
   }
 
   @override
-  Future<Resource<SincronizacionPreview>> previewSincronizacion(String sedeId) async {
+  Future<Resource<SincronizacionPreview>> previewSincronizacion({
+    String? sedeId,
+    String? emisorId,
+  }) async {
     try {
-      final result = await _datasource.previewSincronizacion(sedeId);
+      final result = await _datasource.previewSincronizacion(
+          sedeId: sedeId, emisorId: emisorId);
       return Success(result);
     } catch (e) {
       return Error('No se pudo consultar series: ${_humanize(e)}');
@@ -101,13 +107,15 @@ class MonitorFacturacionRepositoryImpl implements MonitorFacturacionRepository {
 
   @override
   Future<Resource<ResultadoSincronizacion>> aplicarSincronizacion({
-    required String sedeId,
+    String? sedeId,
+    String? emisorId,
     required List<SeleccionSerie> selecciones,
     dynamic branchIdProveedor,
   }) async {
     try {
       final result = await _datasource.aplicarSincronizacion(
         sedeId: sedeId,
+        emisorId: emisorId,
         selecciones: selecciones,
         branchIdProveedor: branchIdProveedor,
       );

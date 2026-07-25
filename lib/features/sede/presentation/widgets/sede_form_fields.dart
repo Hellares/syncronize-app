@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/map_location_picker.dart';
@@ -27,18 +28,15 @@ class SedeFormFields extends StatelessWidget {
   final TextEditingController serieNotaDebitoController;
   final TextEditingController serieNotaDebitoBoletaController;
   final TextEditingController serieGuiaRemisionController;
-  // Facturación electrónica por sede (opcional, override)
-  final TextEditingController rucSedeController;
-  final TextEditingController razonSocialSedeController;
-  final TextEditingController direccionFiscalSedeController;
-  final TextEditingController proveedorRutaController;
-  final TextEditingController proveedorTokenController;
-  final TextEditingController resolucionSunatController;
   final TipoSede selectedTipoSede;
   final bool isActive;
   final bool isEditing;
   final ValueChanged<TipoSede> onTipoSedeChanged;
   final ValueChanged<bool> onIsActiveChanged;
+  // Traer series/correlativos del proveedor a la sede (solo al editar)
+  final VoidCallback? onSincronizarSeries;
+  // Abrir la pantalla de emisores multi-RUC (entidades de empresa)
+  final VoidCallback? onAbrirEmisores;
   final Map<String, dynamic>? horarioAtencion;
   final ValueChanged<Map<String, dynamic>>? onHorarioChanged;
   final Map<String, dynamic>? coordenadas;
@@ -74,17 +72,13 @@ class SedeFormFields extends StatelessWidget {
     required this.serieNotaDebitoController,
     required this.serieNotaDebitoBoletaController,
     required this.serieGuiaRemisionController,
-    required this.rucSedeController,
-    required this.razonSocialSedeController,
-    required this.direccionFiscalSedeController,
-    required this.proveedorRutaController,
-    required this.proveedorTokenController,
-    required this.resolucionSunatController,
     required this.selectedTipoSede,
     required this.isActive,
     required this.isEditing,
     required this.onTipoSedeChanged,
     required this.onIsActiveChanged,
+    this.onSincronizarSeries,
+    this.onAbrirEmisores,
     this.horarioAtencion,
     this.onHorarioChanged,
     this.coordenadas,
@@ -544,53 +538,61 @@ class SedeFormFields extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // Facturación electrónica (override por sede)
-          AppSubtitle('Facturación Electrónica (opcional)', color: Colors.teal),
-          const SizedBox(height: 4),
-          Text('Solo completar si esta sede factura con un RUC diferente al de la empresa.',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
-          const SizedBox(height: 12),
-          CustomText(
-            controller: rucSedeController,
-            label: 'RUC de la Sede',
-            hintText: 'Ej: 20XXXXXXXXX (11 dígitos)',
-            borderColor: Colors.teal,
-          ),
-          const SizedBox(height: 12),
-          CustomText(
-            controller: razonSocialSedeController,
-            label: 'Razón Social',
-            hintText: 'Ej: SOCIO EMPRESA EIRL',
-            borderColor: Colors.teal,
-          ),
-          const SizedBox(height: 12),
-          CustomText(
-            controller: direccionFiscalSedeController,
-            label: 'Dirección Fiscal',
-            hintText: 'Dirección registrada ante SUNAT',
-            borderColor: Colors.teal,
-          ),
-          const SizedBox(height: 12),
-          CustomText(
-            controller: proveedorRutaController,
-            label: 'URL API Facturación (URL API)',
-            hintText: 'https://api.nubefact.com/api/v1/...',
-            borderColor: Colors.teal,
-          ),
-          const SizedBox(height: 12),
-          CustomText(
-            controller: proveedorTokenController,
-            label: 'Token Facturación',
-            hintText: 'Token de autenticación',
-            borderColor: Colors.teal,
-          ),
-          const SizedBox(height: 12),
-          CustomText(
-            controller: resolucionSunatController,
-            label: 'Resolución SUNAT',
-            hintText: 'Ej: No.034-005-0005315',
-            borderColor: Colors.teal,
-          ),
+          if (onSincronizarSeries != null) ...[
+            const SizedBox(height: 4),
+            CustomButton(
+              text: 'Sincronizar Series (proveedor)',
+              isOutlined: true,
+              borderColor: AppColors.blue1,
+              textColor: AppColors.blue1,
+              onPressed: onSincronizarSeries,
+            ),
+          ],
+
+          const SizedBox(height: 20),
+
+          // Multi-RUC: los emisores socio son entidades de EMPRESA (no de
+          // sede) — se administran en su propia pantalla.
+          if (onAbrirEmisores != null)
+            GestureDetector(
+              onTap: onAbrirEmisores,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.teal.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.handshake_outlined,
+                        size: 18, color: Colors.teal.shade700),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Emisores de facturación (multi-RUC)',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.teal.shade800)),
+                          Text(
+                            '¿Emites con más de un RUC? Los RUC socio se '
+                            'configuran a nivel empresa y sirven en todas las sedes.',
+                            style: TextStyle(
+                                fontSize: 10, color: Colors.teal.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right,
+                        size: 18, color: Colors.teal.shade700),
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 24),
         ],
 

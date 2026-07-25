@@ -16,6 +16,7 @@ class MonitorFacturacionRemoteDatasource {
     String? tipo,
     String? sunatStatus,
     String? sedeId,
+    String? rucEmisor,
     String? fechaDesde,
     String? fechaHasta,
     String? busqueda,
@@ -29,6 +30,7 @@ class MonitorFacturacionRemoteDatasource {
     if (tipo != null) params['tipo'] = tipo;
     if (sunatStatus != null) params['sunatStatus'] = sunatStatus;
     if (sedeId != null) params['sedeId'] = sedeId;
+    if (rucEmisor != null) params['rucEmisor'] = rucEmisor;
     if (fechaDesde != null) params['fechaDesde'] = fechaDesde;
     if (fechaHasta != null) params['fechaHasta'] = fechaHasta;
     if (busqueda != null && busqueda.isNotEmpty) params['busqueda'] = busqueda;
@@ -75,21 +77,31 @@ class MonitorFacturacionRemoteDatasource {
     return ReporteCorrelativosModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<SincronizacionPreview> previewSincronizacion(String sedeId) async {
+  /// Multi-RUC: sedeId = series del RUC principal (por sede); emisorId =
+  /// series del emisor socio (a nivel empresa). Exactamente uno de los dos.
+  Future<SincronizacionPreview> previewSincronizacion({
+    String? sedeId,
+    String? emisorId,
+  }) async {
     final response = await _dioClient.get(
       '$_basePath/series/preview',
-      queryParameters: {'sedeId': sedeId},
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+        if (emisorId != null) 'emisorId': emisorId,
+      },
     );
     return SincronizacionPreviewModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<ResultadoSincronizacion> aplicarSincronizacion({
-    required String sedeId,
+    String? sedeId,
+    String? emisorId,
     required List<SeleccionSerie> selecciones,
     dynamic branchIdProveedor,
   }) async {
     final body = <String, dynamic>{
-      'sedeId': sedeId,
+      if (sedeId != null) 'sedeId': sedeId,
+      if (emisorId != null) 'emisorId': emisorId,
       'selecciones': selecciones.map((s) => s.toJson()).toList(),
     };
     if (branchIdProveedor != null) {

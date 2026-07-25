@@ -95,9 +95,19 @@ class BranchPreviewInfo extends Equatable {
 
 class SincronizacionPreview extends Equatable {
   final String empresaId;
-  final String sedeId;
+  /// Target sede (series del RUC principal); null si el target es un emisor.
+  final String? sedeId;
+  /// Target emisor socio (multi-RUC); null si el target es una sede.
+  final String? emisorId;
   final String sedeNombre;
   final String? rucEmpresa;
+  /// Emisor EFECTIVO de las series mostradas (rucSede de la sede o el de la
+  /// empresa). Con multi-RUC permite ver de qué emisor son las series.
+  final String? rucEmisor;
+  final String? razonSocialEmisor;
+  /// false = la sede consulta con el token GLOBAL → las series listadas son
+  /// del emisor principal, no del RUC propio de la sede.
+  final bool credencialesPropias;
   final String proveedorActivo;
   final DateTime? seriesSincronizadasEn;
   final List<BranchPreviewInfo> branches;
@@ -105,9 +115,13 @@ class SincronizacionPreview extends Equatable {
 
   const SincronizacionPreview({
     required this.empresaId,
-    required this.sedeId,
+    this.sedeId,
+    this.emisorId,
     required this.sedeNombre,
     this.rucEmpresa,
+    this.rucEmisor,
+    this.razonSocialEmisor,
+    this.credencialesPropias = true,
     required this.proveedorActivo,
     this.seriesSincronizadasEn,
     required this.branches,
@@ -115,7 +129,8 @@ class SincronizacionPreview extends Equatable {
   });
 
   @override
-  List<Object?> get props => [sedeId, proveedorActivo, branches, seriesSincronizadasEn];
+  List<Object?> get props =>
+      [sedeId, emisorId, rucEmisor, credencialesPropias, proveedorActivo, branches, seriesSincronizadasEn];
 }
 
 /// Selección que el usuario envía al aplicar.

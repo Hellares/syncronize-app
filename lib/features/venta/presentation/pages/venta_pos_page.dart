@@ -170,16 +170,8 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       final response = await datasource.listarEmisores();
       if (!mounted) return;
 
-      // Obtener sedeFacturacionId de la caja activa
-      String? cajaSedeFacturacionId;
-      try {
-        final dio = locator<DioClient>();
-        final cajaResponse = await dio.get('/caja/activa');
-        final cajaData = cajaResponse.data;
-        if (cajaData is Map<String, dynamic>) {
-          cajaSedeFacturacionId = cajaData['sedeFacturacionId'] as String?;
-        }
-      } catch (_) {}
+      // Multi-RUC: emisores ahora son entidades de empresa (EmisorFacturacion);
+      // la pre-selección por caja quedó obsoleta (era por sede emisora).
 
       setState(() {
         // Solo emisores con facturación ACTIVA: uno inactivo no puede
@@ -191,15 +183,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
           _tipoComprobante = 'TICKET';
         }
         if (_emisores.isNotEmpty) {
-          // Pre-seleccionar emisor de la caja si está configurado
-          if (cajaSedeFacturacionId != null) {
-            _emisorSeleccionado = _emisores.firstWhere(
-              (e) => e.sedeId == cajaSedeFacturacionId,
-              orElse: () => _emisores.first,
-            );
-          } else {
-            _emisorSeleccionado = _emisores.first;
-          }
+          _emisorSeleccionado = _emisores.first;
         }
       });
     } catch (_) {}
@@ -935,7 +919,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       if (_direccionController.text.isNotEmpty) 'direccionCliente': _direccionController.text,
       'moneda': _moneda,
       'tipoComprobante': _tipoComprobante,
-      if (_emisorSeleccionado?.sedeId != null) 'sedeFacturacionId': _emisorSeleccionado!.sedeId,
+      if (_emisorSeleccionado?.emisorId != null) 'emisorId': _emisorSeleccionado!.emisorId,
       'esCredito': _esCredito,
       if (_pagos.isNotEmpty) ...{
         'metodoPago': _pagos.first['metodo'],

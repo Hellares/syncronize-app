@@ -9,6 +9,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../monitor_facturacion/presentation/widgets/sincronizar_series_dialog.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -73,13 +74,6 @@ class _SedeFormViewState extends State<_SedeFormView> {
   final _serieNotaDebitoController = TextEditingController();
   final _serieNotaDebitoBoletaController = TextEditingController();
   final _serieGuiaRemisionController = TextEditingController();
-  // Facturación electrónica por sede
-  final _rucSedeController = TextEditingController();
-  final _razonSocialSedeController = TextEditingController();
-  final _direccionFiscalSedeController = TextEditingController();
-  final _proveedorRutaController = TextEditingController();
-  final _proveedorTokenController = TextEditingController();
-  final _resolucionSunatController = TextEditingController();
 
   TipoSede _selectedTipoSede = TipoSede.operativaCompleta;
   bool _isActive = true;
@@ -181,12 +175,6 @@ class _SedeFormViewState extends State<_SedeFormView> {
     _serieNotaDebitoController.text = sede.serieNotaDebito;
     _serieNotaDebitoBoletaController.text = sede.serieNotaDebitoBoleta;
     _serieGuiaRemisionController.text = sede.serieGuiaRemision ?? '';
-    _rucSedeController.text = sede.rucSede ?? '';
-    _razonSocialSedeController.text = sede.razonSocialSede ?? '';
-    _direccionFiscalSedeController.text = sede.direccionFiscalSede ?? '';
-    _proveedorRutaController.text = sede.proveedorRuta ?? '';
-    _proveedorTokenController.text = sede.proveedorToken ?? '';
-    _resolucionSunatController.text = sede.resolucionSunat ?? '';
 
     setState(() {
       _selectedTipoSede = sede.tipoSede;
@@ -288,6 +276,19 @@ class _SedeFormViewState extends State<_SedeFormView> {
     setState(() => _uploadProgress = null);
   }
 
+  /// Abre el diálogo de sincronización de series proveedor→sede (series del
+  /// RUC principal en esta sede). Al aplicar, recarga el form.
+  Future<void> _sincronizarSeries() async {
+    if (widget.sedeId == null || _currentEmpresaId == null) return;
+    final ok = await showSincronizarSeriesDialog(context, sedeId: widget.sedeId!);
+    if (ok == true && mounted) {
+      context.read<SedeFormCubit>().initForEdit(
+            empresaId: _currentEmpresaId!,
+            sedeId: widget.sedeId!,
+          );
+    }
+  }
+
   void _handleSubmit() {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -351,19 +352,8 @@ class _SedeFormViewState extends State<_SedeFormView> {
       if (_serieGuiaRemisionController.text.trim().isNotEmpty)
         'serieGuiaRemision':
             _serieGuiaRemisionController.text.trim().toUpperCase(),
-      // Facturación electrónica por sede (override)
-      if (_rucSedeController.text.trim().isNotEmpty)
-        'rucSede': _rucSedeController.text.trim(),
-      if (_razonSocialSedeController.text.trim().isNotEmpty)
-        'razonSocialSede': _razonSocialSedeController.text.trim(),
-      if (_direccionFiscalSedeController.text.trim().isNotEmpty)
-        'direccionFiscalSede': _direccionFiscalSedeController.text.trim(),
-      if (_proveedorRutaController.text.trim().isNotEmpty)
-        'proveedorRuta': _proveedorRutaController.text.trim(),
-      if (_proveedorTokenController.text.trim().isNotEmpty)
-        'proveedorToken': _proveedorTokenController.text.trim(),
-      if (_resolucionSunatController.text.trim().isNotEmpty)
-        'resolucionSunat': _resolucionSunatController.text.trim(),
+      // Multi-RUC: los emisores socio ya no viven en la sede — se
+      // administran en /empresa/emisores-facturacion (EmisorFacturacion).
       'isActive': _isActive,
     };
 
@@ -512,12 +502,6 @@ class _SedeFormViewState extends State<_SedeFormView> {
                                 _serieNotaDebitoBoletaController,
                             serieGuiaRemisionController:
                                 _serieGuiaRemisionController,
-                            rucSedeController: _rucSedeController,
-                            razonSocialSedeController: _razonSocialSedeController,
-                            direccionFiscalSedeController: _direccionFiscalSedeController,
-                            proveedorRutaController: _proveedorRutaController,
-                            proveedorTokenController: _proveedorTokenController,
-                            resolucionSunatController: _resolucionSunatController,
                             selectedTipoSede: _selectedTipoSede,
                             isActive: _isActive,
                             isEditing: widget.isEditing,
@@ -534,6 +518,10 @@ class _SedeFormViewState extends State<_SedeFormView> {
                                 _markAsChanged();
                               });
                             },
+                            onSincronizarSeries:
+                                widget.isEditing ? _sincronizarSeries : null,
+                            onAbrirEmisores: () => context
+                                .push('/empresa/emisores-facturacion'),
                             imagenes: _imagenes,
                             uploadProgress: _uploadProgress,
                             onAddImagenes: () => _pickAndUploadImages(),

@@ -43,9 +43,13 @@ class SincronizacionPreviewModel {
     }
     return SincronizacionPreview(
       empresaId: json['empresaId'] as String,
-      sedeId: json['sedeId'] as String,
+      sedeId: json['sedeId'] as String?,
+      emisorId: json['emisorId'] as String?,
       sedeNombre: json['sedeNombre'] as String? ?? '',
       rucEmpresa: json['rucEmpresa'] as String?,
+      rucEmisor: json['rucEmisor'] as String?,
+      razonSocialEmisor: json['razonSocialEmisor'] as String?,
+      credencialesPropias: json['credencialesPropias'] as bool? ?? true,
       proveedorActivo: json['proveedorActivo'] as String? ?? '',
       seriesSincronizadasEn: fecha,
       branches: branchesRaw

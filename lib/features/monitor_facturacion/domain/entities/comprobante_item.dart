@@ -32,6 +32,9 @@ class ComprobanteItem extends Equatable {
   /// Proveedor que emitió el comprobante: 'NUBEFACT', 'SYNCROFACT' o null (legacy).
   final String? proveedorEmisor;
 
+  /// Multi-RUC: RUC con el que se emitió (principal o emisor socio).
+  final String? rucEmisor;
+
   const ComprobanteItem({
     required this.id,
     required this.tipoComprobante,
@@ -60,6 +63,7 @@ class ComprobanteItem extends Equatable {
     this.ventaId,
     this.sedeId,
     this.proveedorEmisor,
+    this.rucEmisor,
   });
 
   /// Proveedores cuyas operaciones (reenviar/anular) están archivadas.
@@ -105,5 +109,5 @@ class ComprobanteItem extends Equatable {
   String get simboloMoneda => moneda == 'USD' ? '\$' : 'S/';
 
   @override
-  List<Object?> get props => [id, sunatStatus, estado, intentosEnvio, proveedorEmisor, sunatCodigo];
+  List<Object?> get props => [id, sunatStatus, estado, intentosEnvio, proveedorEmisor, sunatCodigo, rucEmisor];
 }

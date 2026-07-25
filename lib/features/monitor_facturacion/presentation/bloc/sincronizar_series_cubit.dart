@@ -101,17 +101,31 @@ bool _eq(dynamic a, dynamic b) {
 class SincronizarSeriesCubit extends Cubit<SincronizarSeriesState> {
   final PreviewSincronizacionUseCase _previewUseCase;
   final AplicarSincronizacionUseCase _aplicarUseCase;
-  final String sedeId;
+
+  /// Target: sede (series del RUC principal) o emisor socio (multi-RUC).
+  /// Exactamente uno de los dos está seteado.
+  String? sedeId;
+  String? emisorId;
 
   SincronizarSeriesCubit(
     this._previewUseCase,
     this._aplicarUseCase, {
-    required this.sedeId,
+    this.sedeId,
+    this.emisorId,
   }) : super(const SincronizarSeriesInitial());
+
+  /// Multi-RUC: cambia el emisor cuyas series se previsualizan (tab por RUC)
+  /// y recarga el preview con las credenciales de ese emisor.
+  void cambiarTarget({String? nuevaSedeId, String? nuevoEmisorId}) {
+    if (nuevaSedeId == sedeId && nuevoEmisorId == emisorId) return;
+    sedeId = nuevaSedeId;
+    emisorId = nuevoEmisorId;
+    cargarPreview();
+  }
 
   Future<void> cargarPreview() async {
     emit(const SincronizarSeriesLoadingPreview());
-    final result = await _previewUseCase(sedeId);
+    final result = await _previewUseCase(sedeId: sedeId, emisorId: emisorId);
     if (result is Success<SincronizacionPreview>) {
       final preview = result.data;
       if (preview.branches.isEmpty) {
@@ -211,6 +225,7 @@ class SincronizarSeriesCubit extends Cubit<SincronizarSeriesState> {
     emit(const SincronizarSeriesApplying());
     final result = await _aplicarUseCase(
       sedeId: sedeId,
+      emisorId: emisorId,
       selecciones: selecciones,
       branchIdProveedor: branch.esActualDeLaSede ? null : branch.branchIdProveedor,
     );
