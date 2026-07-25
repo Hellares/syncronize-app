@@ -63,6 +63,9 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
   String _tipoComprobante = 'TICKET';
   List<EmisorItem> _emisores = [];
   EmisorItem? _emisorSeleccionado;
+  // false hasta confirmar que hay al menos un emisor con facturación
+  // electrónica ACTIVA — sin eso solo se ofrece Ticket (nota de venta).
+  bool _facturacionActiva = false;
 
   // Pagos múltiples
   final List<Map<String, dynamic>> _pagos = [];
@@ -179,7 +182,14 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
       } catch (_) {}
 
       setState(() {
-        _emisores = response;
+        // Solo emisores con facturación ACTIVA: uno inactivo no puede
+        // emitir. Sin ninguno activo → la empresa no tiene facturación
+        // electrónica y el selector ofrece solo Ticket.
+        _emisores = response.where((e) => e.activo).toList();
+        _facturacionActiva = _emisores.isNotEmpty;
+        if (!_facturacionActiva && _tipoComprobante != 'TICKET') {
+          _tipoComprobante = 'TICKET';
+        }
         if (_emisores.isNotEmpty) {
           // Pre-seleccionar emisor de la caja si está configurado
           if (cajaSedeFacturacionId != null) {
@@ -482,6 +492,7 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                       emisores: _emisores,
                       emisorSeleccionado: _emisorSeleccionado,
                       onEmisorChanged: (e) => setState(() => _emisorSeleccionado = e),
+                      facturacionActiva: _facturacionActiva,
                     ),
                     const SizedBox(height: 20),
 
@@ -593,8 +604,11 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                             _emailController.text = result.email ?? '';
                             _telefonoController.text = result.telefono ?? '';
                             _direccionController.text = '';
-                            // Auto-default: DNI (8 dígitos) → BOLETA
-                            if ((result.dni ?? '').length == 8 && _tipoComprobante == 'TICKET') {
+                            // Auto-default: DNI (8 dígitos) → BOLETA (solo
+                            // con facturación electrónica configurada)
+                            if (_facturacionActiva &&
+                                (result.dni ?? '').length == 8 &&
+                                _tipoComprobante == 'TICKET') {
                               _tipoComprobante = 'BOLETA';
                             }
                           } else {
@@ -605,8 +619,11 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
                             _emailController.text = result.email ?? '';
                             _telefonoController.text = result.telefono ?? '';
                             _direccionController.text = result.direccion ?? '';
-                            // Auto-default: RUC (11 dígitos) → FACTURA
-                            if ((result.ruc ?? '').length == 11 && _tipoComprobante == 'TICKET') {
+                            // Auto-default: RUC (11 dígitos) → FACTURA (solo
+                            // con facturación electrónica configurada)
+                            if (_facturacionActiva &&
+                                (result.ruc ?? '').length == 11 &&
+                                _tipoComprobante == 'TICKET') {
                               _tipoComprobante = 'FACTURA';
                             }
                           }

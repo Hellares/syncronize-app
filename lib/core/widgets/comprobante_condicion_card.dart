@@ -10,11 +10,16 @@ class EmisorItem {
   final String razonSocial;
   final String? sedeNombre;
 
+  /// Facturación electrónica ACTIVA para este emisor (config empresa o
+  /// sede). Sin ningún emisor activo, la venta solo puede emitir Ticket.
+  final bool activo;
+
   const EmisorItem({
     this.sedeId,
     required this.ruc,
     required this.razonSocial,
     this.sedeNombre,
+    this.activo = false,
   });
 
   String get label => sedeNombre != null
@@ -27,6 +32,7 @@ class EmisorItem {
       ruc: json['ruc'] as String? ?? '',
       razonSocial: json['razonSocial'] as String? ?? '',
       sedeNombre: json['sedeNombre'] as String?,
+      activo: (json['activo'] as bool?) ?? false,
     );
   }
 }
@@ -49,6 +55,10 @@ class ComprobanteCondicionCard extends StatelessWidget {
   final EmisorItem? emisorSeleccionado;
   final ValueChanged<EmisorItem?>? onEmisorChanged;
 
+  /// false = la empresa NO tiene facturación electrónica configurada:
+  /// solo se ofrece Ticket (nota de venta), sin Boleta/Factura.
+  final bool facturacionActiva;
+
   const ComprobanteCondicionCard({
     super.key,
     required this.tipoComprobante,
@@ -61,9 +71,11 @@ class ComprobanteCondicionCard extends StatelessWidget {
     this.emisores,
     this.emisorSeleccionado,
     this.onEmisorChanged,
+    this.facturacionActiva = true,
   });
 
   bool get _mostrarEmisor =>
+      facturacionActiva &&
       emisores != null &&
       emisores!.length > 1 &&
       tipoComprobante != 'TICKET';
@@ -78,24 +90,27 @@ class ComprobanteCondicionCard extends StatelessWidget {
             Row(
               children: [
                 _comprobanteChip('TICKET', 'Ticket'),
-                const SizedBox(width: 8),
-                _comprobanteChip('BOLETA', 'Boleta'),
-                const SizedBox(width: 8),
-                _comprobanteChip('FACTURA', 'Factura'),
-                // Aviso en la misma fila, a la derecha del chip Factura.
-                if (tipoComprobante == 'FACTURA') ...[
+                // Boleta/Factura solo con facturación electrónica configurada
+                if (facturacionActiva) ...[
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Se requiere RUC del cliente',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.orange[700],
-                          fontStyle: FontStyle.italic),
+                  _comprobanteChip('BOLETA', 'Boleta'),
+                  const SizedBox(width: 8),
+                  _comprobanteChip('FACTURA', 'Factura'),
+                  // Aviso en la misma fila, a la derecha del chip Factura.
+                  if (tipoComprobante == 'FACTURA') ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Se requiere RUC del cliente',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.orange[700],
+                            fontStyle: FontStyle.italic),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ],
             ),

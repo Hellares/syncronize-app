@@ -12,6 +12,7 @@ import '../../../../core/widgets/producto_sede_selector/producto_sede_selector.d
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/venta_rapida_cubit.dart';
@@ -800,11 +801,27 @@ class _CarritoView extends StatelessWidget {
 
   Future<void> _siguiente(BuildContext context) async {
     final cubit = context.read<VentaRapidaCubit>();
-    final tipo = await showDialog<String>(
-      context: context,
-      builder: (_) => const TipoComprobanteDialog(),
-    );
-    if (tipo == null) return;
+
+    // Sin facturación electrónica configurada (ningún emisor ACTIVO) no
+    // hay nada que elegir: directo al cobro como Nota de venta, sin
+    // dialog. Si la consulta falla, también Ticket — el backend
+    // rechazaría igual una boleta sin configuración.
+    var facturacionActiva = false;
+    try {
+      final emisores =
+          await locator<VentaRemoteDataSource>().listarEmisores();
+      facturacionActiva = emisores.any((e) => e.activo);
+    } catch (_) {}
+    if (!context.mounted) return;
+
+    String? tipo = 'TICKET';
+    if (facturacionActiva) {
+      tipo = await showDialog<String>(
+        context: context,
+        builder: (_) => const TipoComprobanteDialog(),
+      );
+      if (tipo == null) return;
+    }
     cubit.setTipoComprobante(tipo);
     if (!context.mounted) return;
     context.push('/empresa/venta-rapida/cobro');

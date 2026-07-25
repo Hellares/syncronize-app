@@ -13,6 +13,7 @@ import '../../../../core/utils/resource.dart';
 import '../../domain/entities/cobrar_cotizacion_data.dart';
 import '../../domain/usecases/cargar_datos_cobro_usecase.dart';
 import '../../domain/usecases/cobrar_cotizacion_usecase.dart';
+import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../../venta/domain/entities/venta.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
@@ -102,8 +103,10 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
   // lógica que ya lo lee.
   late final NumpadController _numpadController;
 
-  // Comprobante
-  String _tipoComprobante = 'BOLETA';
+  // Comprobante. Arranca en TICKET y sube a BOLETA solo cuando se
+  // confirma que la empresa tiene facturación electrónica activa.
+  String _tipoComprobante = 'TICKET';
+  bool _facturacionActiva = false;
   // Cobro de cotización-a-venta siempre es CONTADO (el crédito vive en
   // otro flujo). Lo dejamos como `final` y ocultamos el selector.
   final String _condicionPago = 'CONTADO';
@@ -137,11 +140,32 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
     super.initState();
     _verificarCaja();
     _loadCotizacion();
+    _cargarFacturacionActiva();
     _numpadController = NumpadController(
       textController: _montoAgregarController,
     );
     _montoAgregarController.addListener(_onMontoChanged);
     _precargarReferenciaSiAplica();
+  }
+
+  /// Facturación electrónica configurada = hay al menos un emisor ACTIVO.
+  /// Sin eso el selector ofrece solo Ticket; con eso se restaura el
+  /// default BOLETA histórico de este flujo.
+  Future<void> _cargarFacturacionActiva() async {
+    try {
+      final emisores = await locator<VentaRemoteDataSource>().listarEmisores();
+      if (!mounted) return;
+      final activa = emisores.any((e) => e.activo);
+      setState(() {
+        _facturacionActiva = activa;
+        if (activa && _tipoComprobante == 'TICKET') {
+          _tipoComprobante = 'BOLETA';
+        }
+      });
+    } catch (_) {
+      // Sin señal (red) se queda en solo Ticket — el backend rechazaría
+      // igual una boleta sin configuración.
+    }
   }
 
   /// Listener del monto del numpad. Hace dos cosas:
@@ -1706,6 +1730,7 @@ class _CobrarCotizacionPageState extends State<CobrarCotizacionPage> {
                         header: ComprobanteCondicionCard(
                           embedded: true,
                           tipoComprobante: _tipoComprobante,
+                          facturacionActiva: _facturacionActiva,
                           onComprobanteChanged: (v) =>
                               setState(() => _tipoComprobante = v),
                           condicionPago: _condicionPago,
