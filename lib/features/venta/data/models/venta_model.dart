@@ -12,13 +12,17 @@ VentaDeliveryData? _deliveryFromJson(Map<String, dynamic> json) {
   final direccion = json['direccion'] as String?;
   if (direccion == null || direccion.trim().isEmpty) return null;
   final costo = json['costoDelivery'];
+  final coords = json['coordenadas'];
   return VentaDeliveryData(
+    id: json['id'] as String?,
     estado: json['estado'] as String? ?? 'SOLICITADO',
     destinatarioNombre: json['destinatarioNombre'] as String?,
     destinatarioCelular: json['destinatarioCelular'] as String?,
     direccion: direccion,
     referencia: json['referencia'] as String?,
     distrito: json['distrito'] as String?,
+    lat: coords is Map ? (coords['lat'] as num?)?.toDouble() : null,
+    lon: coords is Map ? (coords['lon'] as num?)?.toDouble() : null,
     costoDelivery: costo is num
         ? costo.toDouble()
         : double.tryParse(costo?.toString() ?? '') ?? 0,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -249,6 +250,53 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     } else if (res is Error<DeliveryLocal>) {
       // 409 = ya tiene delivery; 400 = venta no pagada. El backend manda
       // el mensaje exacto — mostrarlo siempre (nada de fallos silenciosos).
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res.message, style: const TextStyle(fontSize: 12)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  /// Edita la dirección del delivery (equivocada o el cliente pidió otro
+  /// punto): reusa el sheet en modo edición con los datos actuales; al
+  /// guardar, el backend avisa al repartidor si ya tomó el pedido.
+  Future<void> _editarDireccionDelivery(VentaDeliveryData d) async {
+    final venta = _venta;
+    if (venta == null || d.id == null) return;
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final empresaId =
+        ctxState is EmpresaContextLoaded ? ctxState.context.empresa.id : '';
+    if (empresaId.isEmpty) return;
+
+    final datos = await showSolicitarDeliverySheet(
+      context: context,
+      ventaCodigo: venta.codigo,
+      empresaId: empresaId,
+      telefonoCliente: venta.telefonoCliente,
+      esEdicion: true,
+      initDireccion: d.direccion,
+      initReferencia: d.referencia,
+      initDistrito: d.distrito,
+      initDestino:
+          (d.lat != null && d.lon != null) ? LatLng(d.lat!, d.lon!) : null,
+    );
+    if (datos == null || !mounted) return;
+
+    final res = await locator<DeliveryRepository>().actualizarDireccion(
+      d.id!,
+      {'empresaId': empresaId, ...datos.toJson()},
+    );
+    if (!mounted) return;
+    if (res is Success<DeliveryLocal>) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('📍 Dirección de entrega actualizada',
+            style: TextStyle(fontSize: 12)),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+      ));
+      _loadVenta(); // refresca la sección con la dirección nueva
+    } else if (res is Error<DeliveryLocal>) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(res.message, style: const TextStyle(fontSize: 12)),
         backgroundColor: Colors.orange.shade800,
@@ -792,7 +840,35 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader(Icons.delivery_dining, 'DELIVERY'),
+            Row(
+              children: [
+                Expanded(
+                    child: _buildSectionHeader(
+                        Icons.delivery_dining, 'DELIVERY')),
+                // Corregir dirección (equivocada o el cliente pidió otra).
+                // El backend avisa al repartidor si ya tomó el pedido.
+                if (d.editable)
+                  GestureDetector(
+                    onTap: () => _editarDireccionDelivery(d),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_location_alt_outlined,
+                              size: 15, color: AppColors.blue1),
+                          const SizedBox(width: 3),
+                          Text('Editar dirección',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.blue1)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             _buildDetailRow(Icons.flag_outlined, 'Estado',
                 estados[d.estado] ?? d.estado),
             _buildDetailRow(

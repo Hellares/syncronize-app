@@ -20,6 +20,19 @@ class DeliveryRemoteDataSource {
     return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Edita la dirección de entrega (staff). Si el delivery ya fue tomado o
+  /// va en camino, el backend avisa al repartidor por push.
+  Future<DeliveryLocalModel> actualizarDireccion(
+    String deliveryId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.patch(
+      '$_basePath/$deliveryId/direccion',
+      data: data,
+    );
+    return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Pool de deliveries SOLICITADOS listos para tomar.
   Future<List<DeliveryLocalModel>> getDisponibles(
     String empresaId, {

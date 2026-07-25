@@ -265,34 +265,50 @@ class VentaEnvioData extends Equatable {
 /// dirección/referencia capturadas al solicitar (picker con pin), tarifa
 /// del repartidor y estado del recorrido.
 class VentaDeliveryData extends Equatable {
+  /// Id del DeliveryLocal (para editar la dirección). El listado no lo
+  /// manda — solo el detalle.
+  final String? id;
   final String estado;
   final String? destinatarioNombre;
   final String? destinatarioCelular;
   final String direccion;
   final String? referencia;
   final String? distrito;
+
+  /// Pin del mapa ({lat, lon}) — prellena el picker al editar.
+  final double? lat;
+  final double? lon;
   final double costoDelivery;
   final DateTime? entregadoEn;
 
   const VentaDeliveryData({
+    this.id,
     required this.estado,
     this.destinatarioNombre,
     this.destinatarioCelular,
     required this.direccion,
     this.referencia,
     this.distrito,
+    this.lat,
+    this.lon,
     this.costoDelivery = 0,
     this.entregadoEn,
   });
 
+  bool get editable =>
+      estado != 'ENTREGADO' && estado != 'CANCELADO' && id != null;
+
   @override
   List<Object?> get props => [
+        id,
         estado,
         destinatarioNombre,
         destinatarioCelular,
         direccion,
         referencia,
         distrito,
+        lat,
+        lon,
         costoDelivery,
         entregadoEn,
       ];

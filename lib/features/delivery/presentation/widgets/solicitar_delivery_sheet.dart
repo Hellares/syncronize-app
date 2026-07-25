@@ -52,6 +52,14 @@ Future<SolicitarDeliveryFormData?> showSolicitarDeliverySheet({
   // Geocoder propio: habilitan búsqueda local + recientes del cliente.
   String? empresaId,
   String? telefonoCliente,
+  // Modo EDICIÓN: corregir la dirección de un delivery ya solicitado
+  // (dirección equivocada o el cliente pidió otro punto). Prellena los
+  // campos y oculta la tarifa (no cambia al editar).
+  bool esEdicion = false,
+  String? initDireccion,
+  String? initReferencia,
+  String? initDistrito,
+  LatLng? initDestino,
 }) {
   return showModalBottomSheet<SolicitarDeliveryFormData>(
     context: context,
@@ -61,6 +69,11 @@ Future<SolicitarDeliveryFormData?> showSolicitarDeliverySheet({
       ventaCodigo: ventaCodigo,
       empresaId: empresaId,
       telefonoCliente: telefonoCliente,
+      esEdicion: esEdicion,
+      initDireccion: initDireccion,
+      initReferencia: initReferencia,
+      initDistrito: initDistrito,
+      initDestino: initDestino,
     ),
   );
 }
@@ -69,10 +82,20 @@ class _SolicitarDeliverySheet extends StatefulWidget {
   final String ventaCodigo;
   final String? empresaId;
   final String? telefonoCliente;
+  final bool esEdicion;
+  final String? initDireccion;
+  final String? initReferencia;
+  final String? initDistrito;
+  final LatLng? initDestino;
   const _SolicitarDeliverySheet({
     required this.ventaCodigo,
     this.empresaId,
     this.telefonoCliente,
+    this.esEdicion = false,
+    this.initDireccion,
+    this.initReferencia,
+    this.initDistrito,
+    this.initDestino,
   });
 
   @override
@@ -86,6 +109,16 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
   final _distritoCtrl = TextEditingController();
   final _costoCtrl = TextEditingController();
   LatLng? _destino;
+
+  @override
+  void initState() {
+    super.initState();
+    // Modo edición: prellenar con lo actual del delivery.
+    _direccionCtrl.text = widget.initDireccion ?? '';
+    _referenciaCtrl.text = widget.initReferencia ?? '';
+    _distritoCtrl.text = widget.initDistrito ?? '';
+    _destino = widget.initDestino;
+  }
 
   @override
   void dispose() {
@@ -181,7 +214,9 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Delivery local — ${widget.ventaCodigo}',
+                      widget.esEdicion
+                          ? 'Editar dirección — ${widget.ventaCodigo}'
+                          : 'Delivery local — ${widget.ventaCodigo}',
                       style: const TextStyle(
                           fontSize: 13.5, fontWeight: FontWeight.w700),
                       maxLines: 1,
@@ -192,8 +227,11 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
               ),
               const SizedBox(height: 6),
               Text(
-                'El producto ya está pagado: el repartidor cobra SOLO la '
-                'tarifa del delivery al entregar.',
+                widget.esEdicion
+                    ? 'Si el repartidor ya tomó el pedido, recibirá un aviso '
+                        'con la dirección nueva.'
+                    : 'El producto ya está pagado: el repartidor cobra SOLO la '
+                        'tarifa del delivery al entregar.',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 12),
@@ -251,31 +289,41 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                       textCase: TextCase.upper,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: CustomText(
-                      controller: _costoCtrl,
-                      label: 'Tarifa S/',
-                      hintText: 'de la sede',
-                      borderColor: AppColors.blue1,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                  // La tarifa no cambia al editar la dirección.
+                  if (!widget.esEdicion) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: CustomText(
+                        controller: _costoCtrl,
+                        label: 'Tarifa S/',
+                        hintText: 'de la sede',
+                        borderColor: AppColors.blue1,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                'Tarifa vacía = se usa la tarifa configurada de la sede.',
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-              ),
+              if (!widget.esEdicion)
+                Text(
+                  'Tarifa vacía = se usa la tarifa configurada de la sede.',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                ),
               const SizedBox(height: 14),
               CustomButton(
-                text: 'Publicar para repartidores',
+                text: widget.esEdicion
+                    ? 'Actualizar dirección'
+                    : 'Publicar para repartidores',
                 backgroundColor: AppColors.blue1,
                 textColor: Colors.white,
-                icon: const Icon(Icons.delivery_dining,
-                    size: 16, color: Colors.white),
+                icon: Icon(
+                    widget.esEdicion
+                        ? Icons.edit_location_alt_outlined
+                        : Icons.delivery_dining,
+                    size: 16,
+                    color: Colors.white),
                 onPressed: _confirmar,
               ),
               const SizedBox(height: 8),

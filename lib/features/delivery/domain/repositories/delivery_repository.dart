@@ -4,6 +4,13 @@ import '../entities/delivery_local.dart';
 abstract class DeliveryRepository {
   Future<Resource<DeliveryLocal>> solicitar(Map<String, dynamic> data);
 
+  /// Edita la dirección de entrega (staff): dirección equivocada o el
+  /// cliente pidió otro punto. El backend avisa al repartidor si ya tomó.
+  Future<Resource<DeliveryLocal>> actualizarDireccion(
+    String deliveryId,
+    Map<String, dynamic> data,
+  );
+
   Future<Resource<List<DeliveryLocal>>> getDisponibles(
     String empresaId, {
     String? sedeId,
