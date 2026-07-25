@@ -223,6 +223,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     final datos = await showSolicitarDeliverySheet(
       context: context,
       ventaCodigo: venta.codigo,
+      // Geocoder propio: búsqueda local + direcciones recientes del cliente.
+      empresaId: empresaId,
+      telefonoCliente: venta.telefonoCliente,
     );
     if (datos == null || !mounted) return;
 

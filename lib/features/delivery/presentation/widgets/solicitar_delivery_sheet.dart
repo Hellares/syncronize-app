@@ -49,18 +49,31 @@ class SolicitarDeliveryFormData {
 Future<SolicitarDeliveryFormData?> showSolicitarDeliverySheet({
   required BuildContext context,
   required String ventaCodigo,
+  // Geocoder propio: habilitan búsqueda local + recientes del cliente.
+  String? empresaId,
+  String? telefonoCliente,
 }) {
   return showModalBottomSheet<SolicitarDeliveryFormData>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _SolicitarDeliverySheet(ventaCodigo: ventaCodigo),
+    builder: (_) => _SolicitarDeliverySheet(
+      ventaCodigo: ventaCodigo,
+      empresaId: empresaId,
+      telefonoCliente: telefonoCliente,
+    ),
   );
 }
 
 class _SolicitarDeliverySheet extends StatefulWidget {
   final String ventaCodigo;
-  const _SolicitarDeliverySheet({required this.ventaCodigo});
+  final String? empresaId;
+  final String? telefonoCliente;
+  const _SolicitarDeliverySheet({
+    required this.ventaCodigo,
+    this.empresaId,
+    this.telefonoCliente,
+  });
 
   @override
   State<_SolicitarDeliverySheet> createState() =>
@@ -119,7 +132,12 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
   }
 
   Future<void> _fijarEnMapa() async {
-    final elegido = await UbicacionPickerPage.show(context, inicial: _destino);
+    final elegido = await UbicacionPickerPage.show(
+      context,
+      inicial: _destino,
+      empresaId: widget.empresaId,
+      telefonoCliente: widget.telefonoCliente,
+    );
     if (elegido == null || !mounted) return;
     setState(() {
       _destino = elegido.punto;
@@ -129,6 +147,12 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
       }
       if (elegido.zona != null && elegido.zona!.isNotEmpty) {
         _distritoCtrl.text = elegido.zona!.toUpperCase();
+      }
+      // Referencia guardada de una dirección frecuente: solo si la caja
+      // sigue vacía (no pisar lo que el cajero ya escribió).
+      if ((elegido.referencia ?? '').isNotEmpty &&
+          _referenciaCtrl.text.trim().isEmpty) {
+        _referenciaCtrl.text = elegido.referencia!.toUpperCase();
       }
     });
   }

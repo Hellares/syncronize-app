@@ -6,6 +6,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 
@@ -20,24 +22,63 @@ class UbicacionElegida {
   /// de los repartidores freelance).
   final String? zona;
 
-  const UbicacionElegida({required this.punto, this.direccion, this.zona});
+  /// Referencia guardada (solo cuando se eligió una dirección frecuente).
+  final String? referencia;
+
+  const UbicacionElegida({
+    required this.punto,
+    this.direccion,
+    this.zona,
+    this.referencia,
+  });
 }
+
+/// Resultado de búsqueda: frecuente (geocoder propio) o de Nominatim/OSM.
+typedef _ResultadoBusqueda = ({
+  String nombre,
+  double lat,
+  double lon,
+  bool frecuente,
+  String? distrito,
+  String? referencia,
+});
 
 /// Selector de ubicación EXACTA estilo Rappi/Uber: mueves el mapa bajo el
 /// pin fijo del centro y confirmas. OpenStreetMap vía flutter_map — gratis,
 /// sin API key. Devuelve la ubicación elegida (o null si canceló).
+///
+/// Geocoder PROPIO (Fase 1): la búsqueda consulta PRIMERO las direcciones
+/// confirmadas de la empresa (los lugares reales de la zona) y muestra las
+/// recientes del cliente por su celular — Nominatim queda como complemento.
 class UbicacionPickerPage extends StatefulWidget {
   /// Centro inicial; si es null intenta la última posición conocida del
   /// dispositivo y cae a Chiclayo como default.
   final LatLng? inicial;
 
-  const UbicacionPickerPage({super.key, this.inicial});
+  /// Habilitan el geocoder propio (búsqueda local + recientes del cliente).
+  final String? empresaId;
+  final String? telefonoCliente;
 
-  static Future<UbicacionElegida?> show(BuildContext context,
-      {LatLng? inicial}) {
+  const UbicacionPickerPage({
+    super.key,
+    this.inicial,
+    this.empresaId,
+    this.telefonoCliente,
+  });
+
+  static Future<UbicacionElegida?> show(
+    BuildContext context, {
+    LatLng? inicial,
+    String? empresaId,
+    String? telefonoCliente,
+  }) {
     return Navigator.of(context).push<UbicacionElegida>(
       MaterialPageRoute(
-        builder: (_) => UbicacionPickerPage(inicial: inicial),
+        builder: (_) => UbicacionPickerPage(
+          inicial: inicial,
+          empresaId: empresaId,
+          telefonoCliente: telefonoCliente,
+        ),
       ),
     );
   }
@@ -54,7 +95,14 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
   LatLng _centro = _fallback;
   bool _listo = false;
   bool _buscando = false;
-  List<({String nombre, double lat, double lon})> _resultados = const [];
+  List<_ResultadoBusqueda> _resultados = const [];
+
+  /// Direcciones recientes del cliente (geocoder propio, por celular).
+  List<_ResultadoBusqueda> _recientes = const [];
+
+  /// Frecuente elegida: al confirmar se usa SU texto/zona/referencia (mejor
+  /// que el reverse de Nominatim — es lo que un humano ya confirmó antes).
+  _ResultadoBusqueda? _seleccionFrecuente;
 
   @override
   void initState() {
@@ -65,6 +113,53 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
     } else {
       _resolverCentro();
     }
+    _cargarRecientes();
+  }
+
+  /// Recientes del cliente por celular (best-effort, silencioso).
+  Future<void> _cargarRecientes() async {
+    final empresaId = widget.empresaId;
+    final telefono = widget.telefonoCliente?.trim();
+    if (empresaId == null || telefono == null || telefono.isEmpty) return;
+    try {
+      final r = await locator<DioClient>().get(
+        '/delivery-local/direcciones/buscar',
+        queryParameters: {'empresaId': empresaId, 'telefono': telefono},
+      );
+      final lista = ((r.data as Map)['delCliente'] as List? ?? const [])
+          .whereType<Map>()
+          .map(_mapFrecuente)
+          .toList();
+      if (mounted && lista.isNotEmpty) setState(() => _recientes = lista);
+    } catch (_) {}
+  }
+
+  _ResultadoBusqueda _mapFrecuente(Map d) => (
+        nombre: d['texto']?.toString() ?? '',
+        lat: ((d['lat'] ?? 0) as num).toDouble(),
+        lon: ((d['lon'] ?? 0) as num).toDouble(),
+        frecuente: true,
+        distrito: d['distrito']?.toString(),
+        referencia: d['referencia']?.toString(),
+      );
+
+  /// Búsqueda en el geocoder PROPIO (direcciones confirmadas de la empresa).
+  Future<List<_ResultadoBusqueda>> _buscarFrecuentes(String q) async {
+    final empresaId = widget.empresaId;
+    if (empresaId == null) return const [];
+    try {
+      final r = await locator<DioClient>().get(
+        '/delivery-local/direcciones/buscar',
+        queryParameters: {'empresaId': empresaId, 'q': q},
+      );
+      return ((r.data as Map)['coincidencias'] as List? ?? const [])
+          .whereType<Map>()
+          .map(_mapFrecuente)
+          .where((e) => e.nombre.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 
   @override
@@ -73,12 +168,39 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
     super.dispose();
   }
 
-  /// Geocoding con Nominatim (OpenStreetMap) — gratis, sin API key. Se
-  /// busca al ENVIAR (no por tecla: su política pide máx 1 req/s).
+  /// Busca al ENVIAR (no por tecla): PRIMERO el geocoder propio (direcciones
+  /// confirmadas de la zona) y en paralelo Nominatim/OSM como complemento.
   Future<void> _buscarDireccion(String q) async {
     final query = q.trim();
     if (query.isEmpty) return;
     setState(() => _buscando = true);
+    try {
+      final resultados = await Future.wait([
+        _buscarFrecuentes(query),
+        _buscarNominatim(query),
+      ]);
+      final combinados = [...resultados[0], ...resultados[1]];
+      if (mounted) setState(() => _resultados = combinados);
+      if (combinados.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sin resultados — prueba con calle y ciudad',
+              style: TextStyle(fontSize: 12)),
+        ));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No se pudo buscar — revisa tu conexión',
+              style: TextStyle(fontSize: 12)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _buscando = false);
+    }
+  }
+
+  /// Geocoding con Nominatim (OpenStreetMap) — gratis, sin API key.
+  Future<List<_ResultadoBusqueda>> _buscarNominatim(String query) async {
     try {
       final uri =
           Uri.parse('https://nominatim.openstreetmap.org/search').replace(
@@ -93,41 +215,36 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
         uri,
         headers: {'User-Agent': 'SyncronizeApp/1.0 (delivery picker)'},
       ).timeout(const Duration(seconds: 10));
-      if (r.statusCode == 200) {
-        final lista = (jsonDecode(r.body) as List).cast<Map<String, dynamic>>();
-        final resultados = <({String nombre, double lat, double lon})>[];
-        for (final e in lista) {
-          final lat = double.tryParse(e['lat']?.toString() ?? '');
-          final lon = double.tryParse(e['lon']?.toString() ?? '');
-          final nombre = e['display_name']?.toString() ?? '';
-          if (lat != null && lon != null && nombre.isNotEmpty) {
-            resultados.add((nombre: nombre, lat: lat, lon: lon));
-          }
-        }
-        if (mounted) setState(() => _resultados = resultados);
-        if (resultados.isEmpty && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Sin resultados — prueba con calle y ciudad',
-                style: TextStyle(fontSize: 12)),
+      if (r.statusCode != 200) return const [];
+      final lista = (jsonDecode(r.body) as List).cast<Map<String, dynamic>>();
+      final resultados = <_ResultadoBusqueda>[];
+      for (final e in lista) {
+        final lat = double.tryParse(e['lat']?.toString() ?? '');
+        final lon = double.tryParse(e['lon']?.toString() ?? '');
+        final nombre = e['display_name']?.toString() ?? '';
+        if (lat != null && lon != null && nombre.isNotEmpty) {
+          resultados.add((
+            nombre: nombre,
+            lat: lat,
+            lon: lon,
+            frecuente: false,
+            distrito: null,
+            referencia: null,
           ));
         }
       }
+      return resultados;
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No se pudo buscar — revisa tu conexión',
-              style: TextStyle(fontSize: 12)),
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _buscando = false);
+      return const [];
     }
   }
 
-  void _irAResultado(({String nombre, double lat, double lon}) r) {
+  void _irAResultado(_ResultadoBusqueda r) {
     FocusScope.of(context).unfocus();
     setState(() {
       _resultados = const [];
+      // Frecuente: al confirmar mandan su texto/zona/referencia guardados.
+      _seleccionFrecuente = r.frecuente ? r : null;
       // Si confirma cerca de aquí y el reverse falla, usamos este nombre.
       _ultimaDireccionBuscada = r.nombre;
     });
@@ -139,8 +256,25 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
 
   /// Reverse geocoding del punto final (Nominatim, best-effort): la
   /// dirección corta se autollena en la caja del sheet.
+  ///
+  /// Si se eligió una dirección FRECUENTE, se devuelven su texto/zona/
+  /// referencia guardados directamente (mejor que el reverse: es lo que un
+  /// humano ya confirmó antes) — sin llamada externa.
   Future<void> _confirmar() async {
     final punto = _mapController.camera.center;
+    final frecuente = _seleccionFrecuente;
+    if (frecuente != null) {
+      Navigator.pop(
+        context,
+        UbicacionElegida(
+          punto: punto,
+          direccion: frecuente.nombre,
+          zona: frecuente.distrito,
+          referencia: frecuente.referencia,
+        ),
+      );
+      return;
+    }
     setState(() => _confirmando = true);
     String? direccion;
     String? zona;
@@ -319,17 +453,88 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
                               final r = _resultados[i];
                               return ListTile(
                                 dense: true,
-                                leading: const Icon(Icons.place_outlined,
-                                    size: 18, color: AppColors.blue1),
+                                leading: Icon(
+                                  r.frecuente
+                                      ? Icons.star
+                                      : Icons.place_outlined,
+                                  size: 18,
+                                  color: r.frecuente
+                                      ? Colors.amber.shade700
+                                      : AppColors.blue1,
+                                ),
                                 title: Text(
                                   r.nombre,
                                   style: const TextStyle(fontSize: 12),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
+                                subtitle: r.frecuente
+                                    ? Text(
+                                        [
+                                          if (r.distrito != null &&
+                                              r.distrito!.isNotEmpty)
+                                            r.distrito!,
+                                          'usada antes',
+                                        ].join(' · '),
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.amber.shade800),
+                                      )
+                                    : null,
                                 onTap: () => _irAResultado(r),
                               );
                             },
+                          ),
+                        ),
+                      // Direcciones recientes del CLIENTE (por su celular):
+                      // atajo de un tap, sin escribir nada.
+                      if (_resultados.isEmpty && _recientes.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 6),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                                child: Text(
+                                  'Direcciones del cliente',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.grey.shade600),
+                                ),
+                              ),
+                              ..._recientes.map((r) => ListTile(
+                                    dense: true,
+                                    leading: Icon(Icons.history,
+                                        size: 18,
+                                        color: Colors.teal.shade700),
+                                    title: Text(
+                                      r.nombre,
+                                      style: const TextStyle(fontSize: 12),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: (r.distrito != null &&
+                                            r.distrito!.isNotEmpty)
+                                        ? Text(r.distrito!,
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                color:
+                                                    Colors.grey.shade500))
+                                        : null,
+                                    onTap: () => _irAResultado(r),
+                                  )),
+                            ],
                           ),
                         ),
                     ],
