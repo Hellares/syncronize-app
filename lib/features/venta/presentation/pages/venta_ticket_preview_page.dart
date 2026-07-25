@@ -47,6 +47,10 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
   // el ticket ESC-POS salía sin logo aunque la empresa tenga uno.
   Uint8List? _logoBytes;
 
+  /// Caché en memoria del logo por URL (vive toda la sesión del app):
+  /// evita re-descargarlo en cada ticket y en cada intento del polling.
+  static final Map<String, Uint8List> _logoCacheGlobal = {};
+
   // Identidad efectiva (sede override > empresa) para reusar en _printBluetooth.
   // Sin esto, el ticket Bluetooth caía a empresa.direccionFiscal aunque la
   // sede tuviera direccionFiscalSede propia.
@@ -161,63 +165,81 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
           configState.configuracion.impuestoDefaultPorcentaje;
     }
 
-    // Cargar configuración de documentos (colores, logo, márgenes, etc.)
+    // Config de documentos, config SUNAT y firma NO dependen entre sí →
+    // se piden EN PARALELO (antes eran 4 round-trips en serie y el ticket
+    // tardaba la suma de todos).
     ConfiguracionDocumentoCompleta? documentConfig;
-    try {
-      final configResult = await locator<GetConfiguracionCompletaUseCase>()(
-        tipo: 'TICKET_VENTA',
-        formato: 'TICKET_80MM',
-        sedeId: venta.sedeId,
-      );
-      if (configResult is Success<ConfiguracionDocumentoCompleta>) {
-        documentConfig = configResult.data;
-      }
-    } catch (_) {}
-
-    // Cargar config efectiva de facturación (sede > empresa)
     String? resolucionSunat;
     String? rucEfectivo;
     String? razonSocialEfectiva;
     String? nombreComercialEfectivo;
     String? direccionFiscalEfectiva;
     String? telefonoEfectivo;
-    try {
-      final datasource = locator<VentaRemoteDataSource>();
-      // Usar sede del comprobante (emisor) si existe, sino sede de la venta
-      final config = await datasource.getConfiguracionSunat(sedeId: venta.comprobanteSedeId ?? venta.sedeId);
-      resolucionSunat = config['resolucionSunat'] as String?;
-      rucEfectivo = config['ruc'] as String?;
-      razonSocialEfectiva = config['razonSocial'] as String?;
-      nombreComercialEfectivo = config['nombreComercial'] as String?;
-      direccionFiscalEfectiva = config['direccionFiscal'] as String?;
-      telefonoEfectivo = config['telefono'] as String?;
-    } catch (_) {}
+    Uint8List? firmaBytes;
 
-    // Logo: prioridad configuración de documentos > logo de empresa
+    await Future.wait([
+      // Configuración de documentos (colores, logo, márgenes, etc.)
+      () async {
+        try {
+          final configResult =
+              await locator<GetConfiguracionCompletaUseCase>()(
+            tipo: 'TICKET_VENTA',
+            formato: 'TICKET_80MM',
+            sedeId: venta.sedeId,
+          );
+          if (configResult is Success<ConfiguracionDocumentoCompleta>) {
+            documentConfig = configResult.data;
+          }
+        } catch (_) {}
+      }(),
+      // Config efectiva de facturación (sede del comprobante > venta)
+      () async {
+        try {
+          final config = await locator<VentaRemoteDataSource>()
+              .getConfiguracionSunat(
+                  sedeId: venta.comprobanteSedeId ?? venta.sedeId);
+          resolucionSunat = config['resolucionSunat'] as String?;
+          rucEfectivo = config['ruc'] as String?;
+          razonSocialEfectiva = config['razonSocial'] as String?;
+          nombreComercialEfectivo = config['nombreComercial'] as String?;
+          direccionFiscalEfectiva = config['direccionFiscal'] as String?;
+          telefonoEfectivo = config['telefono'] as String?;
+        } catch (_) {}
+      }(),
+      // Firma del cliente (si existe): lookup + descarga
+      () async {
+        try {
+          final archivos = await locator<StorageService>().getFilesByEntity(
+            entidadTipo: 'VENTA',
+            entidadId: venta.id,
+            empresaId: venta.empresaId,
+          );
+          final firmaArchivo =
+              archivos.where((a) => a.categoria == 'FIRMA').firstOrNull;
+          if (firmaArchivo != null) {
+            final response = await http.get(Uri.parse(firmaArchivo.url));
+            if (response.statusCode == 200) firmaBytes = response.bodyBytes;
+          }
+        } catch (_) {}
+      }(),
+    ]);
+
+    // Logo con caché en memoria por URL: se descarga UNA vez por sesión.
+    // Antes se bajaba en CADA ticket y en cada intento del polling SUNAT.
     Uint8List? logoBytes;
     final logoUrl = documentConfig?.configuracion.logoUrl ?? empresa.logo;
     if (logoUrl != null && logoUrl.isNotEmpty) {
-      try {
-        final response = await http.get(Uri.parse(logoUrl));
-        if (response.statusCode == 200) logoBytes = response.bodyBytes;
-      } catch (_) {}
-    }
-
-    // Cargar firma del cliente si existe
-    Uint8List? firmaBytes;
-    try {
-      final storageService = locator<StorageService>();
-      final archivos = await storageService.getFilesByEntity(
-        entidadTipo: 'VENTA',
-        entidadId: venta.id,
-        empresaId: venta.empresaId,
-      );
-      final firmaArchivo = archivos.where((a) => a.categoria == 'FIRMA').firstOrNull;
-      if (firmaArchivo != null) {
-        final response = await http.get(Uri.parse(firmaArchivo.url));
-        if (response.statusCode == 200) firmaBytes = response.bodyBytes;
+      logoBytes = _logoCacheGlobal[logoUrl];
+      if (logoBytes == null) {
+        try {
+          final response = await http.get(Uri.parse(logoUrl));
+          if (response.statusCode == 200) {
+            logoBytes = response.bodyBytes;
+            _logoCacheGlobal[logoUrl] = logoBytes;
+          }
+        } catch (_) {}
       }
-    } catch (_) {}
+    }
 
     try {
       final pdf = await PdfVentaGenerator.generarTicket(
