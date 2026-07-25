@@ -11,7 +11,11 @@ import 'package:syncronize/core/widgets/custom_filter_chip.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart' hide DateFormatter;
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/widgets/comprobante_condicion_card.dart'
+    show EmisorItem;
+import '../../data/datasources/venta_remote_datasource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
@@ -29,6 +33,8 @@ class VentasPage extends StatefulWidget {
   final String? initialEntregaBusqueda;
   final DateTime? initialFechaDesde;
   final DateTime? initialFechaHasta;
+  /// Multi-RUC: RUC emisor del comprobante ('SIN_COMPROBANTE' = tickets).
+  final String? initialRucEmisor;
 
   const VentasPage({
     super.key,
@@ -37,6 +43,7 @@ class VentasPage extends StatefulWidget {
     this.initialEntregaBusqueda,
     this.initialFechaDesde,
     this.initialFechaHasta,
+    this.initialRucEmisor,
   });
 
   @override
@@ -56,6 +63,11 @@ class _VentasPageState extends State<VentasPage> {
   /// dirección, departamento, distrito…). Server-side como el canal.
   String? _filtroTipoEntrega;
   String? _filtroEntregaBusqueda;
+
+  /// Multi-RUC: filtro por RUC emisor del comprobante. La sección solo se
+  /// muestra si la empresa tiene 2+ emisores.
+  String? _filtroRucEmisor;
+  List<EmisorItem> _emisores = const [];
   final _searchController = TextEditingController();
   final _entregaBusquedaController = TextEditingController();
   String? _currentEmpresaId;
@@ -81,10 +93,21 @@ class _VentasPageState extends State<VentasPage> {
     _filtroCanal = widget.initialCanal;
     _filtroTipoEntrega = widget.initialTipoEntrega;
     _filtroEntregaBusqueda = widget.initialEntregaBusqueda;
+    _filtroRucEmisor = widget.initialRucEmisor;
     if (_filtroEntregaBusqueda != null) {
       _entregaBusquedaController.text = _filtroEntregaBusqueda!;
     }
     _loadVentas();
+    _cargarEmisores();
+  }
+
+  /// Multi-RUC: con 2+ emisores el filtro por emisor aparece en el sheet.
+  Future<void> _cargarEmisores() async {
+    try {
+      final emisores = await locator<VentaRemoteDataSource>().listarEmisores();
+      if (!mounted || emisores.length < 2) return;
+      setState(() => _emisores = emisores);
+    } catch (_) {}
   }
 
   @override
@@ -114,6 +137,7 @@ class _VentasPageState extends State<VentasPage> {
             canalVenta: _filtroCanal,
             tipoEntrega: _filtroTipoEntrega,
             entregaBusqueda: _filtroEntregaBusqueda,
+            rucEmisor: _filtroRucEmisor,
           );
     }
   }
@@ -193,7 +217,8 @@ class _VentasPageState extends State<VentasPage> {
             if (puedeVerEstadisticas)
               IconButton(
                 tooltip: 'Estadísticas de ventas',
-                icon: const Icon(Icons.bar_chart_rounded, size: 22),
+                // icon: const Icon(Icons.bar_chart_rounded, size: 22),
+                icon: const Icon(Icons.bar_chart_sharp, size: 20),
                 onPressed: () => context.push('/empresa/ventas/analytics'),
               ),
             // Icono de filtro de estado — abre bottom sheet con los chips.
@@ -203,7 +228,7 @@ class _VentasPageState extends State<VentasPage> {
               children: [
                 IconButton(
                   tooltip: 'Filtrar por estado',
-                  icon: const Icon(Icons.filter_list_rounded, size: 22),
+                  icon: const Icon(Icons.filter_list_sharp, size: 20),
                   onPressed: _mostrarFiltroEstados,
                 ),
                 if (_filtroEstado != null ||
@@ -775,6 +800,59 @@ class _VentasPageState extends State<VentasPage> {
                     _aplicarFiltroEntrega(_filtroTipoEntrega, busqueda: '');
                   },
                 ),
+                // ── Emisor (multi-RUC) — solo con 2+ emisores ──
+                if (_emisores.length > 1) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Icon(Icons.account_balance_outlined,
+                          size: 18, color: AppColors.blue1),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Emisor (RUC)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      CustomFilterChip(
+                        label: 'Todos',
+                        selected: _filtroRucEmisor == null,
+                        showCheckmark: true,
+                        onSelected: () {
+                          Navigator.pop(sheetCtx);
+                          _aplicarFiltroEmisor(null);
+                        },
+                      ),
+                      ..._emisores.map((e) => CustomFilterChip(
+                            showCheckmark: true,
+                            label: '${e.razonSocial} (${e.ruc})',
+                            selected: _filtroRucEmisor == e.ruc,
+                            onSelected: () {
+                              Navigator.pop(sheetCtx);
+                              _aplicarFiltroEmisor(e.ruc);
+                            },
+                          )),
+                      CustomFilterChip(
+                        showCheckmark: true,
+                        label: 'Ticket (sin comprobante)',
+                        selected: _filtroRucEmisor == 'SIN_COMPROBANTE',
+                        onSelected: () {
+                          Navigator.pop(sheetCtx);
+                          _aplicarFiltroEmisor('SIN_COMPROBANTE');
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ],
               ),
             ),
@@ -798,6 +876,12 @@ class _VentasPageState extends State<VentasPage> {
     context
         .read<VentaListCubit>()
         .filterByEntrega(tipo, _filtroEntregaBusqueda);
+  }
+
+  /// Filtra por RUC emisor (multi-RUC) — server-side.
+  void _aplicarFiltroEmisor(String? rucEmisor) {
+    setState(() => _filtroRucEmisor = rucEmisor);
+    context.read<VentaListCubit>().filterByEmisor(rucEmisor);
   }
 
   /// Fila scrolleable con atajos rápidos de fecha. El backend recibe

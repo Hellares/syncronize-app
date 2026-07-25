@@ -98,6 +98,7 @@ class VentaAnalyticsPdfGenerator {
           _proyeccion(data.proyeccion),
           _comparativo(data.comparativo),
           _distribuciones(data),
+          _porEmisorPdf(data.porEmisor),
           _seccionTabla(
             'Productos mas vendidos',
             ['#', 'Producto', 'Categoria', 'Und.', 'Ingreso S/', 'Margen S/'],
@@ -285,6 +286,36 @@ class VentaAnalyticsPdfGenerator {
         cantidadLabel: 'pagos',
       ),
     ]);
+  }
+
+  /// Multi-RUC: participacion por RUC emisor. Solo si la empresa tiene
+  /// emisores socio (multiEmisor); los Tickets van como fila propia.
+  static pw.Widget _porEmisorPdf(Map<String, dynamic> data) {
+    if (data['multiEmisor'] != true) return pw.SizedBox();
+    final emisores = (data['emisores'] as List<dynamic>? ?? []);
+    final sinComp =
+        (data['sinComprobante'] as Map<String, dynamic>? ?? const {});
+    final items = <Map<String, dynamic>>[
+      for (final e in emisores.whereType<Map>())
+        {
+          'label': '${e['razonSocial'] ?? e['ruc']} - RUC ${e['ruc']}'
+              '${e['esPrincipal'] == true ? ' (Principal)' : ' (Socio)'}',
+          'monto': e['monto'],
+          'cantidad': e['ventas'],
+        },
+      if (((sinComp['ventas'] ?? 0) as num) > 0)
+        {
+          'label': 'Ticket (sin comprobante)',
+          'monto': sinComp['monto'],
+          'cantidad': sinComp['ventas'],
+        },
+    ];
+    return _tablaPct(
+      'Ventas por emisor (RUC)',
+      items,
+      (m) => (m['label'] ?? '') as String,
+      cantidadLabel: 'ventas',
+    );
   }
 
   static pw.Widget _porGrupo(String titulo, List<dynamic> items, String key) {

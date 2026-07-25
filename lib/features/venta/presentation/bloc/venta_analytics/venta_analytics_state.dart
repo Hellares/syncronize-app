@@ -48,6 +48,11 @@ class VentaAnalyticsLoaded extends VentaAnalyticsState {
   /// proyeccionMin/Max, mesAnterior, variacionPct } — cierre de mes
   final Map<String, dynamic> proyeccion;
 
+  /// Multi-RUC: { emisores: [{ruc, razonSocial, esPrincipal, ventas, monto}],
+  /// sinComprobante: {ventas, monto}, multiEmisor } — la card solo se
+  /// muestra si multiEmisor es true.
+  final Map<String, dynamic> porEmisor;
+
   /// true mientras se recargan los datos manteniendo los actuales en pantalla
   /// (evita el flash de la página al buscar de nuevo).
   final bool refreshing;
@@ -69,6 +74,7 @@ class VentaAnalyticsLoaded extends VentaAnalyticsState {
     required this.horasPico,
     required this.reposicion,
     required this.proyeccion,
+    this.porEmisor = const {},
     this.refreshing = false,
   });
 
@@ -90,6 +96,7 @@ class VentaAnalyticsLoaded extends VentaAnalyticsState {
       horasPico: horasPico,
       reposicion: reposicion,
       proyeccion: proyeccion,
+      porEmisor: porEmisor,
       refreshing: refreshing ?? this.refreshing,
     );
   }
@@ -112,6 +119,7 @@ class VentaAnalyticsLoaded extends VentaAnalyticsState {
         horasPico,
         reposicion,
         proyeccion,
+        porEmisor,
         refreshing,
       ];
 }

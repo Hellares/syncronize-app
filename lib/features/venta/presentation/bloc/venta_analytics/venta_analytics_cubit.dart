@@ -78,6 +78,8 @@ class VentaAnalyticsCubit extends Cubit<VentaAnalyticsState> {
         horasPico: data['horasPico'] as Map<String, dynamic>,
         reposicion: data['reposicion'] as List<dynamic>,
         proyeccion: data['proyeccion'] as Map<String, dynamic>,
+        // Tolerante a backend viejo (APK nueva + beta sin deploy): {} = oculta.
+        porEmisor: (data['porEmisor'] as Map<String, dynamic>?) ?? const {},
       ));
     } catch (e) {
       if (isClosed) return;

@@ -211,6 +211,7 @@ class VentaRepositoryImpl implements VentaRepository {
     String? canalVenta,
     String? tipoEntrega,
     String? entregaBusqueda,
+    String? rucEmisor,
     required int limit,
     String? cursor,
   }) async {
@@ -227,6 +228,7 @@ class VentaRepositoryImpl implements VentaRepository {
         canalVenta: canalVenta,
         tipoEntrega: tipoEntrega,
         entregaBusqueda: entregaBusqueda,
+        rucEmisor: rucEmisor,
         limit: limit,
         cursor: cursor,
       );

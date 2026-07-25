@@ -79,6 +79,7 @@ class VentaRemoteDataSource {
     String? canalVenta,
     String? tipoEntrega,
     String? entregaBusqueda,
+    String? rucEmisor,
     required int limit,
     String? cursor,
   }) async {
@@ -93,6 +94,7 @@ class VentaRemoteDataSource {
     if (entregaBusqueda != null && entregaBusqueda.isNotEmpty) {
       queryParams['entregaBusqueda'] = entregaBusqueda;
     }
+    if (rucEmisor != null) queryParams['rucEmisor'] = rucEmisor;
     if (cursor != null) queryParams['cursor'] = cursor;
 
     final response = await _dioClient.get(

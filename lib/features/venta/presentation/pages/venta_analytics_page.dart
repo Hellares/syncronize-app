@@ -211,12 +211,14 @@ class _VentaAnalyticsPageState extends State<VentaAnalyticsPage> {
     String? canal,
     String? tipoEntrega,
     String? entregaBusqueda,
+    String? rucEmisor,
   }) {
     final params = <String, String>{
       ..._paramsFechas(),
       if (canal != null) 'canal': canal,
       if (tipoEntrega != null) 'tipoEntrega': tipoEntrega,
       if (entregaBusqueda != null) 'entregaBusqueda': entregaBusqueda,
+      if (rucEmisor != null) 'rucEmisor': rucEmisor,
     };
     context.push(
         Uri(path: '/empresa/ventas', queryParameters: params).toString());
@@ -377,6 +379,11 @@ class _VentaAnalyticsPageState extends State<VentaAnalyticsPage> {
                   const SizedBox(height: 12),
                   _buildVentasPorCanal(state.porCanal),
                   const SizedBox(height: 12),
+                  // Multi-RUC: solo aparece si la empresa tiene emisores socio
+                  if (state.porEmisor['multiEmisor'] == true) ...[
+                    _buildVentasPorEmisor(state.porEmisor),
+                    const SizedBox(height: 12),
+                  ],
                   _buildTiposEntrega(state.entregas),
                   const SizedBox(height: 12),
                   _buildMetodosPago(state.metodosPago),
@@ -1346,6 +1353,129 @@ class _VentaAnalyticsPageState extends State<VentaAnalyticsPage> {
           else
             ...productos.take(10).toList().asMap().entries.map(
                 (e) => _buildProductoRow(e.value as Map<String, dynamic>, e.key, Colors.orange.shade700, 'menos')),
+        ]),
+      ),
+    );
+  }
+
+  /// Multi-RUC: participación de cada RUC emisor en el periodo (por el
+  /// comprobante de la venta). Los Tickets van como "Sin comprobante".
+  /// Tap en una fila → listado filtrado por ese emisor.
+  Widget _buildVentasPorEmisor(Map<String, dynamic> data) {
+    final emisores = (data['emisores'] as List<dynamic>? ?? []);
+    final sinComp =
+        (data['sinComprobante'] as Map<String, dynamic>? ?? const {});
+    final sinCompVentas = ((sinComp['ventas'] ?? 0) as num).toInt();
+    final sinCompMonto = ((sinComp['monto'] ?? 0) as num).toDouble();
+
+    final totalMonto = emisores.fold<double>(
+          0,
+          (s, e) => s + ((e['monto'] ?? 0) as num).toDouble(),
+        ) +
+        sinCompMonto;
+
+    Widget fila({
+      required String titulo,
+      required String sub,
+      required int ventas,
+      required double monto,
+      required Color color,
+      IconData icono = Icons.account_balance_outlined,
+      VoidCallback? onTap,
+    }) {
+      final pct = totalMonto > 0 ? monto / totalMonto : 0.0;
+      return GestureDetector(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(icono, size: 14, color: color),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(titulo,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.w700)),
+                      Text(sub,
+                          style: TextStyle(
+                              fontSize: 9, color: Colors.grey.shade500)),
+                    ]),
+              ),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Text('S/${_formatNumber(monto)}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: color)),
+                Text('$ventas ventas · ${(pct * 100).toStringAsFixed(1)}%',
+                    style:
+                        TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+              ]),
+            ]),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: pct,
+                minHeight: 5,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
+            ),
+          ]),
+        ),
+      );
+    }
+
+    return GradientContainer(
+      borderColor: Colors.teal.shade200,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const AppSubtitle('Ventas por Emisor (RUC)', fontSize: 12),
+          const SizedBox(height: 2),
+          Text('Según el comprobante emitido — toca para ver el listado',
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+          const SizedBox(height: 12),
+          if (emisores.isEmpty && sinCompVentas == 0)
+            Center(
+                child: Text('Sin datos',
+                    style: TextStyle(color: Colors.grey.shade500)))
+          else ...[
+            ...emisores.asMap().entries.map((entry) {
+              final e = entry.value as Map<String, dynamic>;
+              final esPrincipal = e['esPrincipal'] == true;
+              final ruc = (e['ruc'] ?? '') as String;
+              return fila(
+                titulo: (e['razonSocial'] ?? ruc) as String,
+                sub: 'RUC $ruc${esPrincipal ? ' · Principal' : ' · Socio'}',
+                ventas: ((e['ventas'] ?? 0) as num).toInt(),
+                monto: ((e['monto'] ?? 0) as num).toDouble(),
+                color: esPrincipal ? AppColors.blue1 : Colors.teal.shade700,
+                icono: esPrincipal
+                    ? Icons.business
+                    : Icons.handshake_outlined,
+                onTap: ruc.isEmpty
+                    ? null
+                    : () => _abrirListado(rucEmisor: ruc),
+              );
+            }),
+            if (sinCompVentas > 0)
+              fila(
+                titulo: 'Ticket (sin comprobante)',
+                sub: 'Notas de venta sin comprobante electrónico',
+                ventas: sinCompVentas,
+                monto: sinCompMonto,
+                color: Colors.grey.shade600,
+                icono: Icons.receipt_long_outlined,
+                onTap: () => _abrirListado(rucEmisor: 'SIN_COMPROBANTE'),
+              ),
+          ],
         ]),
       ),
     );

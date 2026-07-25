@@ -46,6 +46,7 @@ abstract class VentaRepository {
     String? canalVenta,
     String? tipoEntrega,
     String? entregaBusqueda,
+    String? rucEmisor,
     required int limit,
     String? cursor,
   });

@@ -29,6 +29,8 @@ class VentaListCubit extends Cubit<VentaListState> {
   String? _filtroCanal;
   String? _filtroTipoEntrega;
   String? _filtroEntregaBusqueda;
+  // Multi-RUC: RUC del emisor del comprobante ('SIN_COMPROBANTE' = tickets)
+  String? _filtroRucEmisor;
   String? _nextCursor;
 
   /// Token monotónico: descarta respuestas en vuelo de cargas viejas
@@ -45,6 +47,7 @@ class VentaListCubit extends Cubit<VentaListState> {
     String? canalVenta,
     String? tipoEntrega,
     String? entregaBusqueda,
+    String? rucEmisor,
   }) async {
     if (empresaId.isEmpty) {
       emit(const VentaListError('ID de empresa no valido'));
@@ -61,6 +64,7 @@ class VentaListCubit extends Cubit<VentaListState> {
     _filtroCanal = canalVenta;
     _filtroTipoEntrega = tipoEntrega;
     _filtroEntregaBusqueda = entregaBusqueda;
+    _filtroRucEmisor = rucEmisor;
     _nextCursor = null;
 
     emit(const VentaListLoading());
@@ -74,6 +78,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: canalVenta,
       tipoEntrega: tipoEntrega,
       entregaBusqueda: entregaBusqueda,
+      rucEmisor: rucEmisor,
       limit: _pageSize,
     );
     if (isClosed || myId != _loadId) return;
@@ -114,6 +119,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: _filtroCanal,
       tipoEntrega: _filtroTipoEntrega,
       entregaBusqueda: _filtroEntregaBusqueda,
+      rucEmisor: _filtroRucEmisor,
       limit: _pageSize,
       cursor: _nextCursor,
     );
@@ -145,6 +151,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: _filtroCanal,
       tipoEntrega: _filtroTipoEntrega,
       entregaBusqueda: _filtroEntregaBusqueda,
+      rucEmisor: _filtroRucEmisor,
     );
   }
 
@@ -160,6 +167,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: _filtroCanal,
       tipoEntrega: _filtroTipoEntrega,
       entregaBusqueda: _filtroEntregaBusqueda,
+      rucEmisor: _filtroRucEmisor,
     );
   }
 
@@ -175,6 +183,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: _filtroCanal,
       tipoEntrega: _filtroTipoEntrega,
       entregaBusqueda: _filtroEntregaBusqueda,
+      rucEmisor: _filtroRucEmisor,
     );
   }
 
@@ -190,6 +199,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: _filtroCanal,
       tipoEntrega: _filtroTipoEntrega,
       entregaBusqueda: _filtroEntregaBusqueda,
+      rucEmisor: _filtroRucEmisor,
     );
   }
 
@@ -207,6 +217,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: canalVenta,
       tipoEntrega: _filtroTipoEntrega,
       entregaBusqueda: _filtroEntregaBusqueda,
+      rucEmisor: _filtroRucEmisor,
     );
   }
 
@@ -224,8 +235,29 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: _filtroCanal,
       tipoEntrega: tipoEntrega,
       entregaBusqueda: (busqueda?.trim().isEmpty ?? true) ? null : busqueda!.trim(),
+      rucEmisor: _filtroRucEmisor,
     );
   }
+
+  /// Filtra por RUC emisor del comprobante (multi-RUC) — SERVER-side.
+  /// 'SIN_COMPROBANTE' = ventas Ticket; null = todos los emisores.
+  Future<void> filterByEmisor(String? rucEmisor) async {
+    if (_currentEmpresaId == null) return;
+    await loadVentas(
+      empresaId: _currentEmpresaId!,
+      estado: _filtroEstado,
+      sedeId: _filtroSedeId,
+      search: _searchQuery,
+      fechaDesde: _filtroFechaDesde,
+      fechaHasta: _filtroFechaHasta,
+      canalVenta: _filtroCanal,
+      tipoEntrega: _filtroTipoEntrega,
+      entregaBusqueda: _filtroEntregaBusqueda,
+      rucEmisor: rucEmisor,
+    );
+  }
+
+  String? get filtroRucEmisor => _filtroRucEmisor;
 
   /// Filtra el listado por un rango de fechas. Si ambos son null, limpia
   /// el filtro. Si solo se pasa `desde` o solo `hasta`, el otro extremo
@@ -242,6 +274,7 @@ class VentaListCubit extends Cubit<VentaListState> {
       canalVenta: _filtroCanal,
       tipoEntrega: _filtroTipoEntrega,
       entregaBusqueda: _filtroEntregaBusqueda,
+      rucEmisor: _filtroRucEmisor,
     );
   }
 
