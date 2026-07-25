@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
@@ -33,12 +33,14 @@ class UbicacionElegida {
   });
 }
 
-/// Resultado de búsqueda: frecuente (geocoder propio) o de Nominatim/OSM.
+/// Resultado de búsqueda: frecuente (geocoder propio), Nominatim/OSM o
+/// Google (fallback por botón, server-side).
 typedef _ResultadoBusqueda = ({
   String nombre,
   double lat,
   double lon,
   bool frecuente,
+  bool google,
   String? distrito,
   String? referencia,
 });
@@ -90,12 +92,18 @@ class UbicacionPickerPage extends StatefulWidget {
 class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
   static const _fallback = LatLng(-6.7714, -79.8409); // Chiclayo
 
-  final _mapController = MapController();
+  gmaps.GoogleMapController? _gmap;
   final _busquedaCtrl = TextEditingController();
   LatLng _centro = _fallback;
+
+  /// Centro actual de la cámara (el pin fijo apunta aquí).
+  LatLng _centroActual = _fallback;
   bool _listo = false;
   bool _buscando = false;
   List<_ResultadoBusqueda> _resultados = const [];
+
+  /// Última búsqueda enviada: habilita el botón "Buscar con Google".
+  String? _ultimaBusqueda;
 
   /// Direcciones recientes del cliente (geocoder propio, por celular).
   List<_ResultadoBusqueda> _recientes = const [];
@@ -139,9 +147,57 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
         lat: ((d['lat'] ?? 0) as num).toDouble(),
         lon: ((d['lon'] ?? 0) as num).toDouble(),
         frecuente: true,
+        google: false,
         distrito: d['distrito']?.toString(),
         referencia: d['referencia']?.toString(),
       );
+
+  /// Fase 2: geocodificación Google vía NUESTRO backend (key por IP, jamás
+  /// en el APK). Se dispara por BOTÓN — 1 llamada por búsqueda exacta.
+  Future<void> _buscarGoogle() async {
+    final query = _ultimaBusqueda ?? _busquedaCtrl.text.trim();
+    if (query.isEmpty) return;
+    setState(() => _buscando = true);
+    try {
+      final r = await locator<DioClient>().get(
+        '/delivery-local/direcciones/geocode',
+        queryParameters: {'q': query},
+      );
+      final lista = ((r.data as Map)['resultados'] as List? ?? const [])
+          .whereType<Map>()
+          .map((d) => (
+                nombre: d['nombre']?.toString() ?? '',
+                lat: ((d['lat'] ?? 0) as num).toDouble(),
+                lon: ((d['lon'] ?? 0) as num).toDouble(),
+                frecuente: false,
+                google: true,
+                distrito: null,
+                referencia: null,
+              ))
+          .where((e) => e.nombre.isNotEmpty)
+          .toList();
+      if (!mounted) return;
+      if (lista.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Google tampoco encontró esa dirección',
+              style: TextStyle(fontSize: 12)),
+        ));
+      } else {
+        // Google al tope (reemplaza lo anterior: el usuario pidió este
+        // fallback explícitamente).
+        setState(() => _resultados = lista);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No se pudo buscar con Google',
+              style: TextStyle(fontSize: 12)),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _buscando = false);
+    }
+  }
 
   /// Búsqueda en el geocoder PROPIO (direcciones confirmadas de la empresa).
   Future<List<_ResultadoBusqueda>> _buscarFrecuentes(String q) async {
@@ -173,7 +229,10 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
   Future<void> _buscarDireccion(String q) async {
     final query = q.trim();
     if (query.isEmpty) return;
-    setState(() => _buscando = true);
+    setState(() {
+      _buscando = true;
+      _ultimaBusqueda = query;
+    });
     try {
       final resultados = await Future.wait([
         _buscarFrecuentes(query),
@@ -183,7 +242,7 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
       if (mounted) setState(() => _resultados = combinados);
       if (combinados.isEmpty && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Sin resultados — prueba con calle y ciudad',
+          content: Text('Sin resultados locales — prueba "Buscar con Google"',
               style: TextStyle(fontSize: 12)),
         ));
       }
@@ -228,6 +287,7 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
             lat: lat,
             lon: lon,
             frecuente: false,
+            google: false,
             distrito: null,
             referencia: null,
           ));
@@ -243,12 +303,16 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
     FocusScope.of(context).unfocus();
     setState(() {
       _resultados = const [];
+      _ultimaBusqueda = null;
       // Frecuente: al confirmar mandan su texto/zona/referencia guardados.
       _seleccionFrecuente = r.frecuente ? r : null;
       // Si confirma cerca de aquí y el reverse falla, usamos este nombre.
       _ultimaDireccionBuscada = r.nombre;
     });
-    _mapController.move(LatLng(r.lat, r.lon), 17);
+    _centroActual = LatLng(r.lat, r.lon);
+    _gmap?.animateCamera(
+      gmaps.CameraUpdate.newLatLngZoom(gmaps.LatLng(r.lat, r.lon), 17),
+    );
   }
 
   String? _ultimaDireccionBuscada;
@@ -261,7 +325,7 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
   /// referencia guardados directamente (mejor que el reverse: es lo que un
   /// humano ya confirmó antes) — sin llamada externa.
   Future<void> _confirmar() async {
-    final punto = _mapController.camera.center;
+    final punto = _centroActual;
     final frecuente = _seleccionFrecuente;
     if (frecuente != null) {
       Navigator.pop(
@@ -356,19 +420,21 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
           ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _centro,
-                    initialZoom: 16,
+                // Google Maps SDK: el mapa móvil no factura (gratis
+                // ilimitado); la key vive en el AndroidManifest.
+                gmaps.GoogleMap(
+                  initialCameraPosition: gmaps.CameraPosition(
+                    target:
+                        gmaps.LatLng(_centro.latitude, _centro.longitude),
+                    zoom: 16,
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'pe.syncronize.app',
-                    ),
-                  ],
+                  onMapCreated: (c) => _gmap = c,
+                  onCameraMove: (pos) => _centroActual = LatLng(
+                      pos.target.latitude, pos.target.longitude),
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  compassEnabled: false,
                 ),
                 // Pin FIJO al centro: la punta apunta exactamente al centro
                 // del mapa (offset de media altura del ícono).
@@ -432,10 +498,10 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
                           ),
                         ),
                       ),
-                      if (_resultados.isNotEmpty)
+                      if (_resultados.isNotEmpty || _ultimaBusqueda != null)
                         Container(
                           margin: const EdgeInsets.only(top: 4),
-                          constraints: const BoxConstraints(maxHeight: 220),
+                          constraints: const BoxConstraints(maxHeight: 260),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
@@ -443,47 +509,78 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
                               BoxShadow(color: Colors.black26, blurRadius: 6),
                             ],
                           ),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            itemCount: _resultados.length,
-                            separatorBuilder: (_, _) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, i) {
-                              final r = _resultados[i];
-                              return ListTile(
-                                dense: true,
-                                leading: Icon(
-                                  r.frecuente
-                                      ? Icons.star
-                                      : Icons.place_outlined,
-                                  size: 18,
-                                  color: r.frecuente
-                                      ? Colors.amber.shade700
-                                      : AppColors.blue1,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: ListView.separated(
+                                  shrinkWrap: true,
+                                  padding: EdgeInsets.zero,
+                                  itemCount: _resultados.length,
+                                  separatorBuilder: (_, _) =>
+                                      const Divider(height: 1),
+                                  itemBuilder: (context, i) {
+                                    final r = _resultados[i];
+                                    return ListTile(
+                                      dense: true,
+                                      leading: Icon(
+                                        r.frecuente
+                                            ? Icons.star
+                                            : r.google
+                                                ? Icons.travel_explore
+                                                : Icons.place_outlined,
+                                        size: 18,
+                                        color: r.frecuente
+                                            ? Colors.amber.shade700
+                                            : r.google
+                                                ? Colors.blue.shade700
+                                                : AppColors.blue1,
+                                      ),
+                                      title: Text(
+                                        r.nombre,
+                                        style: const TextStyle(fontSize: 12),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      subtitle: r.frecuente
+                                          ? Text(
+                                              [
+                                                if (r.distrito != null &&
+                                                    r.distrito!.isNotEmpty)
+                                                  r.distrito!,
+                                                'usada antes',
+                                              ].join(' · '),
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors
+                                                      .amber.shade800),
+                                            )
+                                          : null,
+                                      onTap: () => _irAResultado(r),
+                                    );
+                                  },
                                 ),
-                                title: Text(
-                                  r.nombre,
-                                  style: const TextStyle(fontSize: 12),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                              ),
+                              // Fallback Google por BOTÓN: 1 llamada por
+                              // búsqueda, vía backend (key nunca en el APK).
+                              if (_ultimaBusqueda != null) ...[
+                                if (_resultados.isNotEmpty)
+                                  const Divider(height: 1),
+                                ListTile(
+                                  dense: true,
+                                  leading: Icon(Icons.travel_explore,
+                                      size: 18, color: Colors.blue.shade700),
+                                  title: Text(
+                                    'Buscar con Google Maps',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue.shade700),
+                                  ),
+                                  onTap: _buscando ? null : _buscarGoogle,
                                 ),
-                                subtitle: r.frecuente
-                                    ? Text(
-                                        [
-                                          if (r.distrito != null &&
-                                              r.distrito!.isNotEmpty)
-                                            r.distrito!,
-                                          'usada antes',
-                                        ].join(' · '),
-                                        style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.amber.shade800),
-                                      )
-                                    : null,
-                                onTap: () => _irAResultado(r),
-                              );
-                            },
+                              ],
+                            ],
                           ),
                         ),
                       // Direcciones recientes del CLIENTE (por su celular):

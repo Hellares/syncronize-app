@@ -103,6 +103,9 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   geolocator: ^14.0.2
   flutter_map: ^8.2.2
+  # Mapa del picker de delivery (SDK móvil de Google = gratis ilimitado;
+  # la key vive en el AndroidManifest restringida por package+SHA1).
+  google_maps_flutter: ^2.10.0
   latlong2: ^0.9.1
   collection: ^1.19.1
   android_intent_plus: ^6.0.0

@@ -71,6 +71,13 @@
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />
 
+        <!-- Google Maps SDK (picker de delivery). Key restringida por
+             package (com.syncronize.app y .dev) + SHA-1 — inservible fuera
+             de esta app. El SDK móvil no factura por mostrar el mapa. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyDoxNsDqwpsQgU1MRIh4doqje8X-wqG9tw" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
