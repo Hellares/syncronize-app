@@ -43,8 +43,12 @@ import '../../features/carrito/presentation/pages/carrito_page.dart';
 import '../../features/mis_pedidos/presentation/pages/mis_pedidos_page.dart';
 import '../../features/mis_pedidos/presentation/pages/pedido_detail_page.dart';
 import '../../features/mis_premios/presentation/pages/mis_premios_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../core/network/dio_client.dart';
+import '../../features/sorteo/presentation/bloc/sorteo_analytics_cubit.dart';
 import '../../features/sorteo/presentation/pages/sorteos_page.dart';
 import '../../features/sorteo/presentation/pages/jugadores_pendientes_page.dart';
+import '../../features/sorteo/presentation/pages/sorteo_analytics_page.dart';
 import '../../features/sorteo/presentation/pages/sorteo_detail_page.dart';
 import '../../features/pedido_marketplace_empresa/presentation/pages/pedidos_marketplace_empresa_page.dart';
 import '../../features/pedido_marketplace_empresa/presentation/pages/pedido_marketplace_detail_empresa_page.dart';
@@ -1250,6 +1254,15 @@ class AppRouter {
         path: '/empresa/sorteos',
         name: 'empresa-sorteos',
         builder: (context, state) => const SorteosPage(),
+      ),
+      // Analytics ANTES de :id para que ':id' no capture "analytics"
+      GoRoute(
+        path: '/empresa/sorteos/analytics',
+        name: 'empresa-sorteos-analytics',
+        builder: (context, state) => BlocProvider(
+          create: (_) => SorteoAnalyticsCubit(locator<DioClient>()),
+          child: const SorteoAnalyticsPage(),
+        ),
       ),
       GoRoute(
         path: '/empresa/sorteos/:id',

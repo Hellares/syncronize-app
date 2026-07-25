@@ -10,6 +10,8 @@ import '../../../../core/widgets/date/custom_date.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../domain/entities/sorteo.dart';
 import '../bloc/sorteos_cubit.dart';
@@ -38,6 +40,11 @@ class _SorteosView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Estadísticas de EMPRESA: solo admins/contador (canViewStatistics) —
+    // cajeros/vendedores no deben ver el acceso.
+    final empresaState = context.watch<EmpresaContextCubit>().state;
+    final puedeVerEstadisticas = empresaState is EmpresaContextLoaded &&
+        empresaState.context.permissions.canViewStatistics;
     return Scaffold(
       appBar: SmartAppBar(
         customHeight: 40,
@@ -45,6 +52,13 @@ class _SorteosView extends StatelessWidget {
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
         actions: [
+          if (puedeVerEstadisticas)
+            IconButton(
+              tooltip: 'Estadísticas de sorteos',
+              icon: const Icon(Icons.bar_chart_rounded,
+                  size: 21, color: Colors.white),
+              onPressed: () => context.push('/empresa/sorteos/analytics'),
+            ),
           // Cola global de jugadores del bot con pago por validar.
           IconButton(
             tooltip: 'Jugadores por validar',
