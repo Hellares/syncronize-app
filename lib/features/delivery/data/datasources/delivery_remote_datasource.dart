@@ -33,6 +33,19 @@ class DeliveryRemoteDataSource {
     return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Comparte la ubicación de entrega por WhatsApp (instancia de la
+  /// empresa) a cualquier celular — pin nativo + texto, sin salir del app.
+  Future<void> compartirUbicacion(
+    String deliveryId,
+    String empresaId,
+    String celular,
+  ) async {
+    await _dioClient.post(
+      '$_basePath/$deliveryId/compartir-ubicacion',
+      data: {'empresaId': empresaId, 'celular': celular},
+    );
+  }
+
   /// Delivery INTERNO: el empleado salió con el pedido (staff marca).
   Future<DeliveryLocalModel> enCaminoInterno(
     String deliveryId,

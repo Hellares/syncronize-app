@@ -49,6 +49,24 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   }
 
   @override
+  Future<Resource<void>> compartirUbicacion(
+    String deliveryId,
+    String empresaId,
+    String celular,
+  ) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.compartirUbicacion(
+          deliveryId, empresaId, celular);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
   Future<Resource<DeliveryLocal>> enCaminoInterno(
     String deliveryId,
     String empresaId,

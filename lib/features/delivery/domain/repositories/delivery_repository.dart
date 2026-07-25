@@ -11,6 +11,14 @@ abstract class DeliveryRepository {
     Map<String, dynamic> data,
   );
 
+  /// Comparte la ubicación de entrega por WhatsApp de la empresa a
+  /// cualquier celular (empleado, familiar…) — sin salir del app.
+  Future<Resource<void>> compartirUbicacion(
+    String deliveryId,
+    String empresaId,
+    String celular,
+  );
+
   /// Delivery INTERNO: transiciones del staff (sin pool, sin PIN).
   Future<Resource<DeliveryLocal>> enCaminoInterno(
     String deliveryId,

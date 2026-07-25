@@ -847,6 +847,29 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 Expanded(
                     child: _buildSectionHeader(
                         Icons.delivery_dining, 'DELIVERY')),
+                // Compartir la ubicación por WhatsApp (instancia de la
+                // empresa) a cualquier celular — sin salir del app.
+                if (d.id != null)
+                  GestureDetector(
+                    onTap: () => _compartirUbicacionDelivery(d),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.share_location,
+                              size: 15, color: Colors.teal.shade700),
+                          const SizedBox(width: 3),
+                          Text('Compartir',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.teal.shade700)),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 6),
                 // Corregir dirección (equivocada o el cliente pidió otra).
                 // El backend avisa al repartidor si ya tomó el pedido.
                 if (d.editable)
@@ -929,6 +952,91 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         ),
       ),
     );
+  }
+
+  /// Comparte la ubicación de entrega por WhatsApp a cualquier celular —
+  /// sale del WhatsApp de la empresa, sin salir del app. Pin nativo
+  /// (tocable) + texto con dirección/referencia/link de Maps.
+  Future<void> _compartirUbicacionDelivery(VentaDeliveryData d) async {
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final empresaId =
+        ctxState is EmpresaContextLoaded ? ctxState.context.empresa.id : '';
+    if (empresaId.isEmpty || d.id == null) return;
+
+    final celularCtrl = TextEditingController();
+    final enviar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StyledDialog(
+        accentColor: Colors.teal,
+        icon: Icons.share_location,
+        titulo: 'Compartir ubicación',
+        content: [
+          Text(
+            'Se envía por el WhatsApp de la empresa: pin de ubicación + '
+            'dirección y referencia. Ideal para el empleado que reparte o '
+            'un familiar del cliente.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 12),
+          CustomText(
+            controller: celularCtrl,
+            label: 'Celular destino',
+            hintText: 'Ej: 999888777',
+            borderColor: Colors.teal,
+            fieldType: FieldType.number,
+            maxLength: 9,
+          ),
+        ],
+        actions: [
+          Expanded(
+            child: CustomButton(
+              text: 'Cancelar',
+              isOutlined: true,
+              borderColor: Colors.grey.shade400,
+              textColor: Colors.grey.shade700,
+              onPressed: () => Navigator.pop(ctx, false),
+            ),
+          ),
+          Expanded(
+            child: CustomButton(
+              text: 'Enviar',
+              backgroundColor: Colors.teal,
+              onPressed: () => Navigator.pop(ctx, true),
+            ),
+          ),
+        ],
+      ),
+    );
+    // No dispose inmediato tras el dialog (gotcha TextController).
+    final celular = celularCtrl.text.trim();
+    if (enviar != true || !mounted) return;
+    if (celular.length < 9) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Ingresa un celular válido de 9 dígitos',
+            style: TextStyle(fontSize: 12)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    final res = await locator<DeliveryRepository>()
+        .compartirUbicacion(d.id!, empresaId, celular);
+    if (!mounted) return;
+    if (res is Success) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('📍 Ubicación enviada por WhatsApp al $celular',
+            style: const TextStyle(fontSize: 12)),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } else if (res is Error) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res.message, style: const TextStyle(fontSize: 12)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   /// Delivery interno: el staff avanza SOLICITADO → EN_CAMINO → ENTREGADO
