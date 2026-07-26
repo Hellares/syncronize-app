@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
+
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/storage_service.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/barcode_scanner_button.dart';
+import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
+import '../../../consultas_externas/domain/entities/consulta_dni.dart';
+import '../../../consultas_externas/domain/entities/consulta_ruc.dart';
+import '../../../consultas_externas/domain/repositories/consultas_repository.dart';
+import 'firma_sheet.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../widgets/patron_desbloqueo_sheet.dart';
@@ -35,6 +47,12 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   // OPCION_SIMPLES con permiteOtro: texto libre + qué campos están en modo "Otro".
   final Map<String, TextEditingController> _otroControllers = {};
   final Set<String> _otroActivo = {};
+  // DOCUMENTO_IDENTIDAD: nombre resuelto por RENIEC/SUNAT (solo visual) y
+  // qué campos están consultando ahora mismo.
+  final Map<String, String> _docNombres = {};
+  final Set<String> _docConsultando = {};
+  // FIRMA: campos con una subida al storage en curso.
+  final Set<String> _firmaSubiendo = {};
 
   @override
   void initState() {
@@ -60,7 +78,10 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           tipo == 'URL' ||
           tipo == 'NUMERO' ||
           tipo == 'TEXTO_AREA' ||
-          tipo == 'CODIGO_BARRAS') {
+          tipo == 'CODIGO_BARRAS' ||
+          tipo == 'PIN_CLAVE' ||
+          tipo == 'MONEDA' ||
+          tipo == 'DOCUMENTO_IDENTIDAD') {
         final value = widget.values[campo.nombre];
         _controllers[campo.nombre] = TextEditingController(
           text: value is String ? value : value?.toString() ?? '',
@@ -320,6 +341,54 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           );
         }
 
+      case 'PIN_CLAVE':
+        {
+          // Obscurecido con el ojo de CustomText: quien firma la recepción
+          // suele estar al lado, y la clave no debe quedar a la vista. NUNCA
+          // en mayúsculas ni recortado: un PIN puede empezar en 0.
+          final ctrl = _controllers[campo.nombre] ??= TextEditingController(
+            text: widget.values[campo.nombre]?.toString() ?? '',
+          );
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: CustomText(
+              controller: ctrl,
+              label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
+              hintText: 'PIN o contraseña del equipo',
+              obscureText: true,
+              textCase: TextCase.normal,
+              borderColor: AppColors.blue1,
+              prefixIcon: const Icon(Icons.lock_outline),
+              onChanged: (v) => _updateValue(campo.nombre, v),
+            ),
+          );
+        }
+
+      case 'MONEDA':
+        {
+          final ctrl = _controllers[campo.nombre] ??= TextEditingController(
+            text: widget.values[campo.nombre]?.toString() ?? '',
+          );
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: CurrencyTextField(
+              controller: ctrl,
+              label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
+              hintText: '0.00',
+              borderColor: AppColors.blue1,
+              // Se guarda el NÚMERO, no el texto formateado: el backend
+              // valida que sea numérico y los reportes lo suman.
+              onChanged: (v) => _updateValue(campo.nombre, v),
+            ),
+          );
+        }
+
+      case 'DOCUMENTO_IDENTIDAD':
+        return _buildDocumentoField(campo);
+
+      case 'FIRMA':
+        return _buildFirmaField(campo);
+
       case 'PATRON_DESBLOQUEO':
         return _buildPatronField(campo);
 
@@ -365,6 +434,222 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           ),
         );
     }
+  }
+
+  /// DNI (8) / CE (9) / RUC (11) con botón que resuelve el nombre contra
+  /// RENIEC o SUNAT. Se guarda SOLO el número: el nombre es ayuda visual
+  /// para confirmar que no hubo tipeo, no un dato que debamos congelar.
+  Widget _buildDocumentoField(ConfiguracionCampo campo) {
+    final ctrl = _controllers[campo.nombre] ??= TextEditingController(
+      text: widget.values[campo.nombre]?.toString() ?? '',
+    );
+    final consultando = _docConsultando.contains(campo.nombre);
+    final resuelto = _docNombres[campo.nombre];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CustomText(
+            controller: ctrl,
+            label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
+            hintText: 'DNI (8), CE (9) o RUC (11)',
+            textCase: TextCase.normal,
+            keyboardType: TextInputType.number,
+            borderColor: AppColors.blue1,
+            prefixIcon: const Icon(Icons.badge_outlined),
+            suffixIcon: consultando
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : GestureDetector(
+                    onTap: () => _consultarDocumento(campo.nombre, ctrl.text),
+                    child: const Icon(Icons.search, color: AppColors.blue1),
+                  ),
+            onChanged: (v) {
+              _updateValue(campo.nombre, v);
+              // El nombre resuelto deja de valer si cambia el número.
+              if (_docNombres.remove(campo.nombre) != null) setState(() {});
+            },
+          ),
+          if (resuelto != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle,
+                      size: 12, color: Colors.green),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      resuelto,
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.green),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _consultarDocumento(String nombreCampo, String doc) async {
+    final numero = doc.trim();
+    if (![8, 9, 11].contains(numero.length)) {
+      _snack('Ingresa un DNI (8), CE (9) o RUC (11 dígitos)');
+      return;
+    }
+    setState(() => _docConsultando.add(nombreCampo));
+    final repo = locator<ConsultasRepository>();
+    final result = numero.length == 11
+        ? await repo.consultarRuc(numero)
+        : numero.length == 9
+            ? await repo.consultarCee(numero)
+            : await repo.consultarDni(numero);
+    if (!mounted) return;
+    setState(() {
+      _docConsultando.remove(nombreCampo);
+      if (result is Success) {
+        final data = (result as Success).data;
+        // ConsultaDni y ConsultaRuc exponen nombres distintos.
+        _docNombres[nombreCampo] = data is ConsultaRuc
+            ? data.razonSocial
+            : (data as ConsultaDni).nombreCompleto;
+      }
+    });
+    if (result is Error) _snack((result as Error).message);
+  }
+
+  /// La firma se sube al storage y en la orden queda solo su URL: meter el
+  /// PNG en `datosPersonalizados` inflaría el JSON de cada orden.
+  Widget _buildFirmaField(ConfiguracionCampo campo) {
+    final url = widget.values[campo.nombre];
+    final tieneFirma = url is String && url.isNotEmpty;
+    final subiendo = _firmaSubiendo.contains(campo.nombre);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.draw_outlined, size: 16, color: AppColors.blue1),
+              const SizedBox(width: 6),
+              Text(
+                '${campo.nombre}${campo.esRequerido ? " *" : ""}',
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.blue1),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: subiendo ? null : () => _capturarFirma(campo),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              width: double.infinity,
+              height: tieneFirma ? 110 : 64,
+              decoration: BoxDecoration(
+                color: tieneFirma ? Colors.white : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: tieneFirma
+                      ? AppColors.blue1.withValues(alpha: 0.3)
+                      : Colors.grey.shade300,
+                ),
+              ),
+              child: subiendo
+                  ? const Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : tieneFirma
+                      ? Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Text('Firma guardada',
+                                  style: TextStyle(fontSize: 11)),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.gesture,
+                                  size: 16, color: Colors.grey.shade500),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Toca para firmar',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        ),
+            ),
+          ),
+          if (tieneFirma)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: subiendo ? null : () => _capturarFirma(campo),
+                icon: const Icon(Icons.refresh, size: 14),
+                label: const Text('Volver a firmar',
+                    style: TextStyle(fontSize: 11)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _capturarFirma(ConfiguracionCampo campo) async {
+    final bytes = await FirmaSheet.show(context, titulo: campo.nombre);
+    if (bytes == null || !mounted) return;
+
+    setState(() => _firmaSubiendo.add(campo.nombre));
+    try {
+      // Archivo temporal: uploadFile trabaja con File, no con bytes.
+      final dir = await getTemporaryDirectory();
+      final file = File(
+        '${dir.path}/firma_${campo.nombre.hashCode}_'
+        '${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(bytes);
+
+      final res = await locator<StorageService>().uploadFile(
+        file: file,
+        empresaId: widget.empresaId,
+        categoria: 'firma-servicio',
+      );
+      if (!mounted) return;
+      _updateValue(campo.nombre, res.url);
+    } catch (e) {
+      if (mounted) _snack('No se pudo guardar la firma: $e');
+    } finally {
+      if (mounted) setState(() => _firmaSubiendo.remove(campo.nombre));
+    }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Widget _buildPatronField(ConfiguracionCampo campo) {

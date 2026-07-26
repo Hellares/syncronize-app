@@ -35,6 +35,10 @@ const kTipoCampoLabels = <String, String>{
   'PATRON_DESBLOQUEO': 'Patrón desbloqueo',
   'INSPECCION_VISUAL': 'Inspección visual',
   'CODIGO_BARRAS': 'Código de barras (IMEI, serie)',
+  'PIN_CLAVE': 'PIN / clave de desbloqueo',
+  'MONEDA': 'Monto (S/)',
+  'FIRMA': 'Firma del cliente',
+  'DOCUMENTO_IDENTIDAD': 'DNI / RUC (con autocompletado)',
 };
 
 /// Etiqueta corta: chips del catálogo de plantillas, donde no entra la larga.
@@ -56,6 +60,10 @@ const kTipoCampoLabelsCortos = <String, String>{
   'PATRON_DESBLOQUEO': 'Patrón',
   'INSPECCION_VISUAL': 'Inspección',
   'CODIGO_BARRAS': 'Código de barras',
+  'PIN_CLAVE': 'PIN / clave',
+  'MONEDA': 'Monto',
+  'FIRMA': 'Firma',
+  'DOCUMENTO_IDENTIDAD': 'DNI / RUC',
 };
 
 const kTipoCampoIcons = <String, IconData>{
@@ -76,6 +84,10 @@ const kTipoCampoIcons = <String, IconData>{
   'PATRON_DESBLOQUEO': Icons.pattern,
   'INSPECCION_VISUAL': Icons.car_crash_outlined,
   'CODIGO_BARRAS': Icons.barcode_reader,
+  'PIN_CLAVE': Icons.lock_outline,
+  'MONEDA': Icons.payments_outlined,
+  'FIRMA': Icons.draw_outlined,
+  'DOCUMENTO_IDENTIDAD': Icons.badge_outlined,
 };
 
 /// Tipos admitidos DENTRO de un campo OBJETO. Es un subconjunto a propósito:
