@@ -1920,7 +1920,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         empresaDireccion: direccion,
         empresaTelefono: telefono,
         sedeNombre: venta.sedeNombre,
-        cajeroNombre: venta.cajeroNombre,
+        // Alias primero (igual que el ticket de venta): en el mostrador se
+        // usa el apodo del cajero, no su nombre completo.
+        cobradoPor: venta.cajeroAlias ?? venta.cajeroNombre,
         // El ancho importa: con 80 por defecto en una térmica de 58mm las
         // columnas se aplastan a la derecha.
         paperWidth: principal?.anchoPapel.mm ?? 80,

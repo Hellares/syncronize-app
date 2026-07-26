@@ -45,7 +45,9 @@ class ReciboCuotaEscPosGenerator {
     String? empresaDireccion,
     String? empresaTelefono,
     String? sedeNombre,
-    String? cajeroNombre,
+    /// Quién cobró: se espera el ALIAS del cajero (el nombre completo solo
+    /// como fallback), igual que el ticket de venta.
+    String? cobradoPor,
     Uint8List? logoEmpresa,
     int paperWidth = 80,
     DateTime? fecha,
@@ -128,9 +130,9 @@ class ReciboCuotaEscPosGenerator {
       bytes += generator.text(_kv('Doc:', venta.documentoCliente!, chars));
     }
     bytes += generator.text(_kv('Fecha:', DateFormatter.formatDateTime(f), chars));
-    if (cajeroNombre != null && cajeroNombre.trim().isNotEmpty) {
+    if (cobradoPor != null && cobradoPor.trim().isNotEmpty) {
       bytes += generator.text(
-        _kv('Cobro:', _ascii(_recorta(cajeroNombre, chars - 10)), chars),
+        _kv('Cobro:', _ascii(_recorta(cobradoPor.trim(), chars - 10)), chars),
       );
     }
 
