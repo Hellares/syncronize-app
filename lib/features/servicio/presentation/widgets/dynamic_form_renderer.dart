@@ -12,6 +12,8 @@ import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../consultas_externas/domain/entities/consulta_dni.dart';
+import '../../../consultas_externas/domain/entities/consulta_licencia.dart';
+import '../../../consultas_externas/domain/entities/consulta_placa.dart';
 import '../../../consultas_externas/domain/entities/consulta_ruc.dart';
 import '../../../consultas_externas/domain/repositories/consultas_repository.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
@@ -87,7 +89,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           tipo == 'CODIGO_BARRAS' ||
           tipo == 'PIN_CLAVE' ||
           tipo == 'MONEDA' ||
-          tipo == 'DOCUMENTO_IDENTIDAD') {
+          tipo == 'DOCUMENTO_IDENTIDAD' ||
+          tipo == 'PLACA_VEHICULO' ||
+          tipo == 'LICENCIA_CONDUCIR') {
         final value = widget.values[campo.nombre];
         _controllers[campo.nombre] = TextEditingController(
           text: value is String ? value : value?.toString() ?? '',
@@ -397,7 +401,51 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
         return _buildTablaField(campo);
 
       case 'DOCUMENTO_IDENTIDAD':
+      case 'PLACA_VEHICULO':
+      case 'LICENCIA_CONDUCIR':
         return _buildDocumentoField(campo);
+
+      case 'FOTO':
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.photo_camera_outlined,
+                      size: 16, color: AppColors.blue1),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${campo.nombre}${campo.esRequerido ? " *" : ""}',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.blue1),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Mismo widget que en las celdas: toca para tomar, mantén
+              // presionado para elegir de galería.
+              SizedBox(
+                height: 110,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: CeldaFoto(
+                    url: widget.values[campo.nombre] as String?,
+                    empresaId: widget.empresaId,
+                    onCambio: (url) => _updateValue(campo.nombre, url),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
 
       case 'FIRMA':
         return _buildFirmaField(campo);
@@ -780,25 +828,38 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
       text: fila[nombreCol]?.toString() ?? '',
     );
 
-    if (tipo == 'DOCUMENTO_IDENTIDAD') {
-      return CeldaDocumento(
+    if (tipoTieneConsulta(tipo)) {
+      return CeldaConsulta(
+        tipo: tipo,
         controller: ctrl,
         onChanged: (v) {
           fila[nombreCol] = v;
           onCambio();
         },
-        onNombreResuelto: (nombre) {
-          final destino = columnaDestinoNombre(columnas, nombreCol);
-          if (destino == null) {
-            _snack(nombre); // sin columna a la derecha: al menos se ve
-            return;
-          }
-          fila[destino] = nombre;
-          // El controller de esa celda ya existe: hay que refrescarlo o
-          // seguiría mostrando lo viejo.
-          _tablaControllers['${campo.nombre}##$indiceFila##$destino']?.text =
-              nombre;
+        onResuelto: (datos) {
+          volcarDatosDeConsulta(
+            datos: datos,
+            columnas: columnas,
+            origen: nombreCol,
+            escribir: (col, valor) {
+              fila[col] = valor;
+              _tablaControllers['${campo.nombre}##$indiceFila##$col']?.text =
+                  valor;
+            },
+            sinDestino: _snack,
+          );
           setState(() {});
+          onCambio();
+        },
+      );
+    }
+
+    if (tipo == 'FOTO') {
+      return CeldaFoto(
+        url: fila[nombreCol] as String?,
+        empresaId: widget.empresaId,
+        onCambio: (url) {
+          setState(() => fila[nombreCol] = url);
           onCambio();
         },
       );
@@ -866,6 +927,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   /// RENIEC o SUNAT. Se guarda SOLO el número: el nombre es ayuda visual
   /// para confirmar que no hubo tipeo, no un dato que debamos congelar.
   Widget _buildDocumentoField(ConfiguracionCampo campo) {
+    final tipo = campo.tipoCampo;
     final ctrl = _controllers[campo.nombre] ??= TextEditingController(
       text: widget.values[campo.nombre]?.toString() ?? '',
     );
@@ -880,11 +942,19 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           CustomText(
             controller: ctrl,
             label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
-            hintText: 'DNI (8), CE (9) o RUC (11)',
-            textCase: TextCase.normal,
-            keyboardType: TextInputType.number,
+            hintText: switch (tipo) {
+              'PLACA_VEHICULO' => 'Placa del vehículo',
+              'LICENCIA_CONDUCIR' => 'DNI del conductor (8 dígitos)',
+              _ => 'DNI (8), CE (9) o RUC (11)',
+            },
+            textCase: tipo == 'PLACA_VEHICULO'
+                ? TextCase.upper
+                : TextCase.normal,
+            keyboardType: tipo == 'PLACA_VEHICULO'
+                ? TextInputType.text
+                : TextInputType.number,
             borderColor: AppColors.blue1,
-            prefixIcon: const Icon(Icons.badge_outlined),
+            prefixIcon: Icon(tipoCampoIcon(tipo)),
             suffixIcon: consultando
                 ? const SizedBox(
                     width: 14,
@@ -892,7 +962,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : GestureDetector(
-                    onTap: () => _consultarDocumento(campo.nombre, ctrl.text),
+                    onTap: () => _consultarDocumento(campo.nombre, ctrl.text, tipo: tipo),
                     child: const Icon(Icons.search, color: AppColors.blue1),
                   ),
             onChanged: (v) {
@@ -924,31 +994,54 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
     );
   }
 
-  Future<void> _consultarDocumento(String nombreCampo, String doc) async {
-    final numero = doc.trim();
-    if (![8, 9, 11].contains(numero.length)) {
+  /// Consulta de un CAMPO suelto (no de una celda de tabla). Aquí no hay
+  /// columnas vecinas donde repartir los datos, así que se muestran resumidos
+  /// debajo del campo — sirven para confirmar que no hubo un tipeo malo.
+  Future<void> _consultarDocumento(
+    String nombreCampo,
+    String texto, {
+    String tipo = 'DOCUMENTO_IDENTIDAD',
+  }) async {
+    final valor = texto.trim();
+    if (tipo == 'PLACA_VEHICULO' && valor.isEmpty) return;
+    if (tipo == 'LICENCIA_CONDUCIR' && valor.length != 8) {
+      _snack('La licencia se busca por el DNI del conductor (8 dígitos)');
+      return;
+    }
+    if (tipo == 'DOCUMENTO_IDENTIDAD' &&
+        ![8, 9, 11].contains(valor.length)) {
       _snack('Ingresa un DNI (8), CE (9) o RUC (11 dígitos)');
       return;
     }
+
     setState(() => _docConsultando.add(nombreCampo));
     final repo = locator<ConsultasRepository>();
-    final result = numero.length == 11
-        ? await repo.consultarRuc(numero)
-        : numero.length == 9
-            ? await repo.consultarCee(numero)
-            : await repo.consultarDni(numero);
+    final dynamic result = switch (tipo) {
+      'PLACA_VEHICULO' => await repo.consultarPlaca(valor),
+      'LICENCIA_CONDUCIR' => await repo.consultarLicencia(valor),
+      _ => valor.length == 11
+          ? await repo.consultarRuc(valor)
+          : valor.length == 9
+              ? await repo.consultarCee(valor)
+              : await repo.consultarDni(valor),
+    };
     if (!mounted) return;
     setState(() {
       _docConsultando.remove(nombreCampo);
       if (result is Success) {
-        final data = (result as Success).data;
-        // ConsultaDni y ConsultaRuc exponen nombres distintos.
-        _docNombres[nombreCampo] = data is ConsultaRuc
-            ? data.razonSocial
-            : (data as ConsultaDni).nombreCompleto;
+        final d = result.data;
+        _docNombres[nombreCampo] = switch (d) {
+          ConsultaPlaca p =>
+            [p.marca, p.modelo, p.color].where((e) => e.trim().isNotEmpty).join(' · '),
+          ConsultaLicencia l =>
+            '${l.nombreCompleto} · cat. ${l.licenciaCategoria} · vence ${l.licenciaFechaVencimiento}',
+          ConsultaRuc r => r.razonSocial,
+          ConsultaDni dni => dni.nombreCompleto,
+          _ => '',
+        };
       }
     });
-    if (result is Error) _snack((result as Error).message);
+    if (result is Error) _snack(result.message);
   }
 
   /// La firma se sube al storage y en la orden queda solo su URL: meter el

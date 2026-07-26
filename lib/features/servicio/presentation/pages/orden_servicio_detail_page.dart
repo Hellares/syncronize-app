@@ -1460,23 +1460,33 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final ctrl = _celdaControllers['$key##$fila##$nombre'] ??=
         TextEditingController(text: valor?.toString() ?? '');
 
-    if (tipo == 'DOCUMENTO_IDENTIDAD') {
-      return CeldaDocumento(
+    if (tipoTieneConsulta(tipo)) {
+      return CeldaConsulta(
+        tipo: tipo,
         controller: ctrl,
         onChanged: (v) => _filasEditadas[fila][nombre] = v,
-        onNombreResuelto: (nombreResuelto) {
-          final destino = columnaDestinoNombre(columnas, nombre);
-          if (destino == null) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(nombreResuelto)));
-            return;
-          }
-          _filasEditadas[fila][destino] = nombreResuelto;
-          // El controller de esa celda ya existe: hay que refrescarlo o
-          // seguiría mostrando lo viejo.
-          _celdaControllers['$key##$fila##$destino']?.text = nombreResuelto;
+        onResuelto: (datos) {
+          volcarDatosDeConsulta(
+            datos: datos,
+            columnas: columnas,
+            origen: nombre,
+            escribir: (col, valor) {
+              _filasEditadas[fila][col] = valor;
+              _celdaControllers['$key##$fila##$col']?.text = valor;
+            },
+            sinDestino: (m) => ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(m))),
+          );
           setState(() {});
         },
+      );
+    }
+
+    if (tipo == 'FOTO') {
+      return CeldaFoto(
+        url: valor as String?,
+        empresaId: _empresaId,
+        onCambio: (url) => setState(() => _filasEditadas[fila][nombre] = url),
       );
     }
 

@@ -40,7 +40,88 @@ const kTipoCampoLabels = <String, String>{
   'FIRMA': 'Firma del cliente',
   'DOCUMENTO_IDENTIDAD': 'DNI / RUC (con autocompletado)',
   'TABLA': 'Tabla (columnas y filas)',
+  'PLACA_VEHICULO': 'Placa (con autocompletado)',
+  'LICENCIA_CONDUCIR': 'Licencia de conducir',
+  'FOTO': 'Foto',
+  'PRODUCTO_CATALOGO': 'Producto del catálogo',
 };
+
+/// Datos que trae cada tipo con consulta externa, y el nombre sugerido de la
+/// columna que los recibe. El ORDEN importa: así se crean las acompañantes.
+///
+/// Cada acompañante guarda `dato` (qué recibe) y `acompanaA` (quién la
+/// alimenta), así una placa puede llenar varias columnas de una sola
+/// consulta. Sin `dato` declarado se cae al criterio viejo: la siguiente
+/// columna de TEXTO recibe el nombre.
+const kDatosDeConsulta = <String, Map<String, String>>{
+  'DOCUMENTO_IDENTIDAD': {'nombre': 'NOMBRE'},
+  'PLACA_VEHICULO': {
+    'marca': 'MARCA',
+    'modelo': 'MODELO',
+    'color': 'COLOR',
+    'serie': 'SERIE',
+    'motor': 'MOTOR',
+    'vin': 'VIN',
+  },
+  'LICENCIA_CONDUCIR': {
+    'nombre': 'NOMBRE',
+    'categoria': 'CATEGORIA',
+    'vencimiento': 'VENCE',
+    'estado': 'ESTADO',
+  },
+};
+
+bool tipoTieneConsulta(String tipo) => kDatosDeConsulta.containsKey(tipo);
+
+/// Reparte los datos de una consulta en las columnas de la fila.
+///
+/// Prefiere las columnas que declaran `dato` (una placa puede llenar marca,
+/// modelo y color de una sola consulta). Si no hay ninguna declarada, cae al
+/// criterio viejo —la siguiente columna de TEXTO recibe el nombre— para no
+/// romper las columnas DNI creadas antes de que existiera `dato`.
+void volcarDatosDeConsulta({
+  required Map<String, String> datos,
+  required List<Map<String, dynamic>> columnas,
+  required String origen,
+  required void Function(String columna, String valor) escribir,
+  required void Function(String mensaje) sinDestino,
+}) {
+  final porDato = columnasPorDato(columnas, origen);
+  if (porDato.isNotEmpty) {
+    var algo = false;
+    porDato.forEach((dato, columna) {
+      final v = datos[dato];
+      if (v != null && v.trim().isNotEmpty) {
+        escribir(columna, v);
+        algo = true;
+      }
+    });
+    if (!algo) sinDestino('La consulta no devolvió datos para estas columnas');
+    return;
+  }
+
+  final nombre = datos['nombre'];
+  final destino = columnaDestinoNombre(columnas, origen);
+  if (nombre == null) {
+    sinDestino(datos.values.join(' · '));
+  } else if (destino == null) {
+    sinDestino(nombre); // sin columna donde ponerlo: al menos se ve
+  } else {
+    escribir(destino, nombre);
+  }
+}
+
+/// Columnas acompañantes declaradas de [origen], indexadas por el dato que
+/// reciben.
+Map<String, String> columnasPorDato(
+  List<Map<String, dynamic>> columnas,
+  String origen,
+) =>
+    {
+      for (final c in columnas)
+        if (c['acompanaA'] == origen && c['dato'] != null)
+          c['dato'] as String: c['nombre'] as String,
+    };
 
 /// Etiqueta corta: chips del catálogo de plantillas, donde no entra la larga.
 const kTipoCampoLabelsCortos = <String, String>{
@@ -66,6 +147,10 @@ const kTipoCampoLabelsCortos = <String, String>{
   'FIRMA': 'Firma',
   'DOCUMENTO_IDENTIDAD': 'DNI / RUC',
   'TABLA': 'Tabla',
+  'PLACA_VEHICULO': 'Placa',
+  'LICENCIA_CONDUCIR': 'Licencia',
+  'FOTO': 'Foto',
+  'PRODUCTO_CATALOGO': 'Producto',
 };
 
 const kTipoCampoIcons = <String, IconData>{
@@ -91,6 +176,10 @@ const kTipoCampoIcons = <String, IconData>{
   'FIRMA': Icons.draw_outlined,
   'DOCUMENTO_IDENTIDAD': Icons.badge_outlined,
   'TABLA': Icons.table_chart_outlined,
+  'PLACA_VEHICULO': Icons.directions_car_outlined,
+  'LICENCIA_CONDUCIR': Icons.card_membership_outlined,
+  'FOTO': Icons.photo_camera_outlined,
+  'PRODUCTO_CATALOGO': Icons.inventory_2_outlined,
 };
 
 /// Tipos admitidos DENTRO de un campo OBJETO. Es un subconjunto a propósito:
@@ -114,6 +203,9 @@ const kColumnaTiposTabla = <String, String>{
   'OPCION_SIMPLES': 'Selección',
   'CODIGO_BARRAS': 'Código de barras',
   'DOCUMENTO_IDENTIDAD': 'DNI / RUC',
+  'PLACA_VEHICULO': 'Placa',
+  'LICENCIA_CONDUCIR': 'Licencia',
+  'FOTO': 'Foto',
 };
 
 /// Dónde escribe el nombre una celda DNI/RUC al resolverlo: en la siguiente
