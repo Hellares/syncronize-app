@@ -417,10 +417,16 @@ class TicketEscPosGenerator {
   }) {
     var bytes = <int>[];
 
+    // Si la plantilla define columnas, MANDAN ELLAS: quitar una columna no
+    // borra sus valores del JSON, así que agregar las claves sueltas del
+    // dato reimprimía columnas ya eliminadas. El respaldo por claves solo
+    // aplica cuando no hay definición (orden vieja, plantilla borrada).
     final cols = <String>[...?columnas];
-    for (final f in filas) {
-      for (final k in f.keys) {
-        if (!cols.contains(k.toString())) cols.add(k.toString());
+    if (cols.isEmpty) {
+      for (final f in filas) {
+        for (final k in f.keys) {
+          if (!cols.contains(k.toString())) cols.add(k.toString());
+        }
       }
     }
     if (cols.isEmpty) return bytes;

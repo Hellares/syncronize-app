@@ -663,10 +663,16 @@ class PdfOrdenServicioGenerator {
     required double fs,
     required PdfColor color,
   }) {
+    // Si la plantilla define columnas, MANDAN ELLAS. Quitar una columna no
+    // borra sus valores del JSON de la orden, así que agregar las claves
+    // sueltas del dato reimprimía columnas ya eliminadas.
+    // El respaldo por claves solo aplica sin definición (orden vieja).
     final cols = <String>[...?columnas];
-    for (final f in filas) {
-      for (final k in f.keys) {
-        if (!cols.contains(k.toString())) cols.add(k.toString());
+    if (cols.isEmpty) {
+      for (final f in filas) {
+        for (final k in f.keys) {
+          if (!cols.contains(k.toString())) cols.add(k.toString());
+        }
       }
     }
     if (cols.isEmpty) return pw.SizedBox.shrink();
