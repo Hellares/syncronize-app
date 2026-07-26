@@ -760,6 +760,60 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     }
   }
 
+  Future<void> _abrirAjusteAnchosDetalle(
+    String key,
+    List<Map<String, dynamic>> columnas,
+  ) async {
+    final elegidos = await AjustarAnchoSheet.show(
+      context,
+      columnas: columnas,
+      anchosActuales: {
+        for (final c in columnas)
+          (c['nombre'] as String): _anchoColumnaDetalle(key, c),
+      },
+    );
+    if (elegidos == null || !mounted) return;
+    setState(() {
+      for (final e in elegidos.entries) {
+        _anchoTemporalTabla['$key##${e.key}'] = e.value;
+      }
+    });
+
+    final campo = _camposTabla[key];
+    if (campo == null) return; // columna sin plantilla: solo esta sesión
+    final base = campo.opciones is List
+        ? (campo.opciones as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : <Map<String, dynamic>>[];
+    // Un solo guardado con todas las columnas ya ajustadas.
+    final nuevas = base
+        .map((c) => elegidos.containsKey(c['nombre'])
+            ? {...c, 'ancho': elegidos[c['nombre']]!.roundToDouble()}
+            : c)
+        .toList();
+    final result = await locator<PlantillaServicioRepository>().updateCampo(
+      campoId: campo.id,
+      campoData: {'opciones': nuevas},
+    );
+    if (!mounted) return;
+    if (result is Success) {
+      await _loadDefinicionCampos();
+      if (mounted) {
+        setState(() =>
+            _anchoTemporalTabla.removeWhere((k, _) => k.startsWith('$key##')));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Ancho aplicado solo en esta sesión (no se pudo guardar)'),
+        ),
+      );
+    }
+  }
+
   double _anchoColumnaDetalle(String key, Map<String, dynamic> col) =>
       _anchoTemporalTabla['$key##${col['nombre']}'] ?? anchoColumna(col);
 
@@ -865,6 +919,33 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 '${visibles.length} ${visibles.length == 1 ? "fila" : "filas"}',
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
               ),
+              const SizedBox(width: 6),
+              // Botón ROTULADO: el tirador entre columnas y el toque en el
+              // encabezado son blancos chicos y pasan desapercibidos.
+              InkWell(
+                onTap: () => _abrirAjusteAnchosDetalle(key, columnas),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue1.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.swap_horiz, size: 13, color: AppColors.blue1),
+                      SizedBox(width: 3),
+                      Text('Ancho',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.blue1)),
+                    ],
+                  ),
+                ),
+              ),
               if (!editando)
                 IconButton(
                   padding: EdgeInsets.zero,
@@ -904,22 +985,10 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           SizedBox(
                             width: _anchoColumnaDetalle(key, col),
                             child: InkWell(
-                              // Tocar el encabezado abre el ajuste de ancho:
-                              // el tirador de al lado es un blanco muy chico
-                              // para el dedo.
-                              onTap: () async {
-                                final nuevo = await AjustarAnchoSheet.show(
-                                  context,
-                                  nombreColumna: col['nombre'] as String,
-                                  anchoActual: _anchoColumnaDetalle(key, col),
-                                );
-                                if (nuevo == null || !mounted) return;
-                                setState(() =>
-                                    _anchoTemporalTabla['$key##${col['nombre']}'] =
-                                        nuevo);
-                                _persistirAnchoDetalle(
-                                    key, col['nombre'] as String, nuevo);
-                              },
+                              // Atajo: tocar el encabezado abre el mismo
+                              // panel que el botón "Ancho".
+                              onTap: () => _abrirAjusteAnchosDetalle(
+                                  key, columnas),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 6),

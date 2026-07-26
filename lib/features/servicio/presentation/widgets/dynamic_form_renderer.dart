@@ -461,6 +461,41 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   /// de la tabla: si no, se desplaza al mismo tiempo que redimensionas.
   bool _redimensionando = false;
 
+  Future<void> _abrirAjusteAnchos(
+    ConfiguracionCampo campo,
+    List<Map<String, dynamic>> columnas,
+  ) async {
+    final elegidos = await AjustarAnchoSheet.show(
+      context,
+      columnas: columnas,
+      anchosActuales: {
+        for (final c in columnas)
+          (c['nombre'] as String): _anchoDeColumna(campo, c),
+      },
+    );
+    if (elegidos == null || !mounted) return;
+    setState(() {
+      for (final e in elegidos.entries) {
+        _anchoTemporal['${campo.nombre}##${e.key}'] = e.value;
+      }
+    });
+    // Un solo guardado con todas las columnas ya ajustadas.
+    final nuevas = columnas
+        .map((c) => {...c, 'ancho': elegidos[c['nombre']]?.roundToDouble()})
+        .toList();
+    final result = await locator<PlantillaServicioRepository>().updateCampo(
+      campoId: campo.id,
+      campoData: {'opciones': nuevas},
+    );
+    if (!mounted) return;
+    if (result is Success) {
+      setState(() => _anchoTemporal
+          .removeWhere((k, _) => k.startsWith('${campo.nombre}##')));
+    } else {
+      _snack('Ancho aplicado solo en esta sesión (no se pudo guardar)');
+    }
+  }
+
   double _anchoDeColumna(ConfiguracionCampo campo, Map<String, dynamic> col) =>
       _anchoTemporal['${campo.nombre}##${col['nombre']}'] ?? anchoColumna(col);
 
@@ -547,6 +582,33 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                 '${filas.length} ${filas.length == 1 ? "fila" : "filas"}',
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
               ),
+              const SizedBox(width: 6),
+              // Botón ROTULADO: el tirador entre columnas y el toque en el
+              // encabezado son blancos chicos y pasan desapercibidos.
+              InkWell(
+                onTap: () => _abrirAjusteAnchos(campo, columnas),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue1.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.swap_horiz, size: 13, color: AppColors.blue1),
+                      SizedBox(width: 3),
+                      Text('Ancho',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.blue1)),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -574,21 +636,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                           SizedBox(
                             width: _anchoDeColumna(campo, col),
                             child: InkWell(
-                              // Tocar el encabezado abre el ajuste de ancho:
-                              // el tirador de al lado es un blanco muy chico
-                              // para el dedo.
-                              onTap: () async {
-                                final nuevo = await AjustarAnchoSheet.show(
-                                  context,
-                                  nombreColumna: col['nombre'] as String,
-                                  anchoActual: _anchoDeColumna(campo, col),
-                                );
-                                if (nuevo == null || !mounted) return;
-                                setState(() => _anchoTemporal[
-                                    '${campo.nombre}##${col['nombre']}'] = nuevo);
-                                _persistirAncho(campo, columnas,
-                                    col['nombre'] as String, nuevo);
-                              },
+                              // Atajo: tocar el encabezado abre el mismo
+                              // panel que el botón "Ancho".
+                              onTap: () => _abrirAjusteAnchos(campo, columnas),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 7),
