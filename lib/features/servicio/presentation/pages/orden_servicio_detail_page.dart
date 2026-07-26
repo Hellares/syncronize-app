@@ -24,8 +24,10 @@ import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/configuracion_campo.dart';
 import '../../domain/entities/orden_servicio.dart';
 import '../../domain/repositories/orden_servicio_repository.dart';
+import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -70,6 +72,9 @@ class OrdenServicioDetailPage extends StatefulWidget {
 
 class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   OrdenServicio? _orden;
+  /// Orden declarado de las columnas por campo TABLA, tomado de la plantilla.
+  /// Vacío si la orden no tiene servicio o si la consulta falla.
+  Map<String, List<String>> _columnasPorCampo = const {};
   List<HistorialOrdenServicio> _historial = [];
   List<ArchivoResponse> _archivos = [];
   List<ArchivoResponse> _firmaArchivos = [];
@@ -124,8 +129,34 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     if (result is Success<OrdenServicio>) {
       _orden = result.data;
       _error = null;
+      await _loadDefinicionCampos();
     } else if (result is Error<OrdenServicio>) {
       _error = result.message;
+    }
+  }
+
+  /// `datosPersonalizados` es **jsonb**, y jsonb NO conserva el orden de las
+  /// claves: Postgres las reordena por longitud y luego alfabéticamente. Por
+  /// eso el orden de las columnas de una TABLA no puede deducirse del dato
+  /// guardado — la única fuente es la definición de la plantilla.
+  ///
+  /// Best-effort: si falla, la tabla se pinta igual con el orden que venga.
+  Future<void> _loadDefinicionCampos() async {
+    final servicioId = _orden?.servicioId;
+    if (servicioId == null) return;
+    final result = await locator<PlantillaServicioRepository>()
+        .getCamposByServicioId(servicioId);
+    if (!mounted) return;
+    if (result is Success<List<ConfiguracionCampo>>) {
+      _columnasPorCampo = {
+        for (final c in result.data)
+          if (c.tipoCampo == 'TABLA' && c.opciones is List)
+            c.nombre: (c.opciones as List)
+                .whereType<Map>()
+                .map((e) => e['nombre']?.toString() ?? '')
+                .where((e) => e.isNotEmpty)
+                .toList(),
+      };
     }
   }
 
@@ -660,7 +691,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   /// orden en que aparecen: la definicion de la plantilla no viaja con la
   /// orden, y una fila puede tener celdas vacias.
   Widget _buildTablaDato(String key, List<Map> filas) {
-    final columnas = <String>[];
+    // Orden REAL de las columnas: la definición de la plantilla. El dato
+    // guardado no sirve para esto (jsonb reordena las claves).
+    final columnas = <String>[...?_columnasPorCampo[key]];
+    // Cualquier clave presente en los datos que ya no esté en la plantilla
+    // (columna renombrada o eliminada después) se agrega al final en vez de
+    // desaparecer: el dato del cliente no se oculta.
     for (final f in filas) {
       for (final k in f.keys) {
         final nombre = k.toString();
