@@ -30,7 +30,6 @@ import '../../domain/repositories/orden_servicio_repository.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../constants/tipos_campo_servicio.dart';
 import '../widgets/ajustar_ancho_sheet.dart';
-import '../widgets/columna_resize_handle.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -702,9 +701,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   bool _guardandoTabla = false;
   final Map<String, TextEditingController> _celdaControllers = {};
   final Map<String, double> _anchoTemporalTabla = {};
-  /// Congela el scroll horizontal mientras se arrastra un tirador: si no, la
-  /// tabla se desplaza al mismo tiempo que redimensionas.
-  bool _redimensionandoTabla = false;
 
   void _entrarEdicionTabla(String key, List<Map> filas) {
     setState(() {
@@ -941,43 +937,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   double _anchoColumnaDetalle(String key, Map<String, dynamic> col) =>
       _anchoTemporalTabla['$key##${col['nombre']}'] ?? anchoColumna(col);
 
-  /// El ancho es propiedad de la COLUMNA en la plantilla: al soltar se
-  /// guarda ahí y lo ven todos, en todas las órdenes de esa plantilla.
-  Future<void> _persistirAnchoDetalle(
-    String key,
-    String nombreColumna,
-    double ancho,
-  ) async {
-    final campo = _camposTabla[key];
-    if (campo == null || campo.opciones is! List) return;
-    final columnas = (campo.opciones as List)
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-    final nuevas = columnas
-        .map((c) => c['nombre'] == nombreColumna
-            ? {...c, 'ancho': ancho.roundToDouble()}
-            : c)
-        .toList();
-    final result = await locator<PlantillaServicioRepository>().updateCampo(
-      campoId: campo.id,
-      campoData: {'opciones': nuevas},
-    );
-    if (!mounted) return;
-    if (result is Success) {
-      await _loadDefinicionCampos();
-      if (mounted) {
-        setState(() => _anchoTemporalTabla.remove('$key##$nombreColumna'));
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Ancho aplicado solo en esta sesión (no se pudo guardar)'),
-        ),
-      );
-    }
-  }
+  /// Borde derecho por celda: hace de línea de columna y garantiza que
+  /// encabezado y filas midan EXACTAMENTE lo mismo. Antes el encabezado
+  /// llevaba un tirador de 16px y las filas un espaciador de 14, así que
+  /// las columnas se desalineaban un poco más con cada una.
+  static final BoxDecoration _bordeCelda = BoxDecoration(
+    border: Border(right: BorderSide(color: Colors.grey.shade300)),
+  );
 
   Widget _buildTablaDato(String key, List<Map> filas) {
     final editando = _tablaEnEdicion == key;
@@ -1095,9 +1061,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             clipBehavior: Clip.antiAlias,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              physics: _redimensionandoTabla
-                  ? const NeverScrollableScrollPhysics()
-                  : null,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1105,54 +1068,30 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     color: AppColors.blue1.withValues(alpha: 0.06),
                     child: Row(
                       children: [
-                        for (final col in columnas) ...[
-                          SizedBox(
+                        for (final col in columnas)
+                          Container(
                             width: _anchoColumnaDetalle(key, col),
+                            decoration: _bordeCelda,
                             child: InkWell(
-                              // Atajo: tocar el encabezado abre el mismo
-                              // panel que el botón "Ancho".
-                              onTap: () => _abrirAjusteAnchosDetalle(
-                                  key, columnas),
+                              // Atajo al mismo panel que el botón "Ancho".
+                              onTap: () =>
+                                  _abrirAjusteAnchosDetalle(key, columnas),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 6),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        col['nombre'] as String,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.blue1,
-                                        ),
-                                      ),
-                                    ),
-                                    Icon(Icons.swap_horiz,
-                                        size: 11,
-                                        color: AppColors.blue1
-                                            .withValues(alpha: 0.5)),
-                                  ],
+                                child: Text(
+                                  col['nombre'] as String,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.blue1,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                          ColumnaResizeHandle(
-                            anchoActual: _anchoColumnaDetalle(key, col),
-                            onInicio: () =>
-                                setState(() => _redimensionandoTabla = true),
-                            onArrastre: (a) => setState(() =>
-                                _anchoTemporalTabla['$key##${col['nombre']}'] =
-                                    a),
-                            onFin: (a) {
-                              setState(() => _redimensionandoTabla = false);
-                              _persistirAnchoDetalle(
-                                  key, col['nombre'] as String, a);
-                            },
-                          ),
-                        ],
                         if (editando) const SizedBox(width: 34),
                       ],
                     ),
@@ -1165,9 +1104,10 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       ),
                       child: Row(
                         children: [
-                          for (final col in columnas) ...[
-                            SizedBox(
+                          for (final col in columnas)
+                            Container(
                               width: _anchoColumnaDetalle(key, col),
+                              decoration: _bordeCelda,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 4),
@@ -1181,8 +1121,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                       ),
                               ),
                             ),
-                            const SizedBox(width: 14),
-                          ],
                           if (editando)
                             SizedBox(
                               width: 34,
@@ -1211,9 +1149,10 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       ),
                       child: Row(
                         children: [
-                          for (final col in columnas) ...[
-                            SizedBox(
+                          for (final col in columnas)
+                            Container(
                               width: _anchoColumnaDetalle(key, col),
+                              decoration: _bordeCelda,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 6),
@@ -1233,8 +1172,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 14),
-                          ],
                         ],
                       ),
                     ),

@@ -17,7 +17,6 @@ import '../../../consultas_externas/domain/repositories/consultas_repository.dar
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../constants/tipos_campo_servicio.dart';
 import 'ajustar_ancho_sheet.dart';
-import 'columna_resize_handle.dart';
 import 'firma_sheet.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -454,12 +453,17 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   // el valor es una lista de filas {columna: valor}. La grilla scrollea en
   // horizontal: en un celular no entran 4 columnas de ancho útil.
 
-  /// Ancho en vivo mientras se arrastra, por "campo##columna". Al soltar se
-  /// persiste en la plantilla y esto se limpia.
+  /// Ancho elegido en el panel, por "campo##columna", hasta que la plantilla
+  /// confirma el guardado.
   final Map<String, double> _anchoTemporal = {};
-  /// Mientras se arrastra un tirador hay que congelar el scroll horizontal
-  /// de la tabla: si no, se desplaza al mismo tiempo que redimensionas.
-  bool _redimensionando = false;
+
+  /// Borde derecho por celda: hace de línea de columna y garantiza que
+  /// encabezado y filas midan EXACTAMENTE lo mismo. Antes el encabezado
+  /// llevaba un tirador de 16px y las filas un espaciador de 14, así que
+  /// las columnas se desalineaban un poco más con cada una.
+  static final BoxDecoration _bordeCelda = BoxDecoration(
+    border: Border(right: BorderSide(color: Colors.grey.shade300)),
+  );
 
   Future<void> _abrirAjusteAnchos(
     ConfiguracionCampo campo,
@@ -499,33 +503,6 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   double _anchoDeColumna(ConfiguracionCampo campo, Map<String, dynamic> col) =>
       _anchoTemporal['${campo.nombre}##${col['nombre']}'] ?? anchoColumna(col);
 
-  /// Guarda el ancho en la DEFINICIÓN de la columna: es propiedad de la
-  /// plantilla, así que lo ven todos y aplica a todas las órdenes. Si el
-  /// usuario no puede editar plantillas, el ajuste igual se ve en esta
-  /// sesión (queda en `_anchoTemporal`) pero no se persiste.
-  Future<void> _persistirAncho(
-    ConfiguracionCampo campo,
-    List<Map<String, dynamic>> columnas,
-    String nombreColumna,
-    double ancho,
-  ) async {
-    final nuevas = columnas
-        .map((c) => c['nombre'] == nombreColumna
-            ? {...c, 'ancho': ancho.roundToDouble()}
-            : c)
-        .toList();
-    final result = await locator<PlantillaServicioRepository>().updateCampo(
-      campoId: campo.id,
-      campoData: {'opciones': nuevas},
-    );
-    if (!mounted) return;
-    if (result is Success) {
-      // La plantilla ya lo tiene: el override temporal sobra.
-      setState(() => _anchoTemporal.remove('${campo.nombre}##$nombreColumna'));
-    } else {
-      _snack('Ancho aplicado solo en esta sesión (no se pudo guardar)');
-    }
-  }
 
   Widget _buildTablaField(ConfiguracionCampo campo) {
     final columnas = campo.opciones is List
@@ -621,9 +598,6 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             clipBehavior: Clip.antiAlias,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              physics: _redimensionando
-                  ? const NeverScrollableScrollPhysics()
-                  : null,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -632,52 +606,29 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                     color: AppColors.blue1.withValues(alpha: 0.06),
                     child: Row(
                       children: [
-                        for (final col in columnas) ...[
-                          SizedBox(
+                        for (final col in columnas)
+                          Container(
                             width: _anchoDeColumna(campo, col),
+                            decoration: _bordeCelda,
                             child: InkWell(
-                              // Atajo: tocar el encabezado abre el mismo
-                              // panel que el botón "Ancho".
+                              // Atajo al mismo panel que el botón "Ancho".
                               onTap: () => _abrirAjusteAnchos(campo, columnas),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 7),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        col['nombre'] as String,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.blue1,
-                                        ),
-                                      ),
-                                    ),
-                                    Icon(Icons.swap_horiz,
-                                        size: 11,
-                                        color: AppColors.blue1
-                                            .withValues(alpha: 0.5)),
-                                  ],
+                                child: Text(
+                                  col['nombre'] as String,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.blue1,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                          ColumnaResizeHandle(
-                            anchoActual: _anchoDeColumna(campo, col),
-                            onInicio: () =>
-                                setState(() => _redimensionando = true),
-                            onArrastre: (a) => setState(() =>
-                                _anchoTemporal['${campo.nombre}##${col['nombre']}'] = a),
-                            onFin: (a) {
-                              setState(() => _redimensionando = false);
-                              _persistirAncho(
-                                  campo, columnas, col['nombre'] as String, a);
-                            },
-                          ),
-                        ],
                         const SizedBox(width: 34),
                       ],
                     ),
@@ -704,9 +655,10 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          for (final col in columnas) ...[
-                            SizedBox(
+                          for (final col in columnas)
+                            Container(
                               width: _anchoDeColumna(campo, col),
+                              decoration: _bordeCelda,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 4, vertical: 4),
@@ -719,10 +671,6 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                                 ),
                               ),
                             ),
-                            // Mismo ancho que el tirador del encabezado para
-                            // que las columnas no se desalineen.
-                            const SizedBox(width: 14),
-                          ],
                           SizedBox(
                             width: 34,
                             child: IconButton(
