@@ -720,6 +720,26 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     });
   }
 
+  /// Descarta los controllers de esas celdas para que el próximo build los
+  /// recree leyendo `_filasEditadas`.
+  ///
+  /// 🔴 Mutar `controller.text` desde fuera NO bastaba: el valor resuelto de
+  /// una consulta aparecía recién a la segunda búsqueda. Reconstruir desde el
+  /// dato es la única vía que no depende de que esa mutación propague.
+  void _descartarCeldaControllers(Iterable<String> claves) {
+    final viejos = <TextEditingController>[];
+    for (final k in claves) {
+      final c = _celdaControllers.remove(k);
+      if (c != null) viejos.add(c);
+    }
+    // Después del frame: destruirlos con sus TextField montados revienta.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final c in viejos) {
+        c.dispose();
+      }
+    });
+  }
+
   void _limpiarCeldaControllers() {
     final viejos = _celdaControllers.values.toList();
     _celdaControllers.clear();
@@ -1534,17 +1554,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         controller: ctrl,
         onChanged: (v) => _filasEditadas[fila][nombre] = v,
         onResuelto: (datos) {
+          final tocadas = <String>[];
           volcarDatosDeConsulta(
             datos: datos,
             columnas: columnas,
             origen: nombre,
             escribir: (col, valor) {
               _filasEditadas[fila][col] = valor;
-              _celdaControllers['$key##$fila##$col']?.text = valor;
+              tocadas.add('$key##$fila##$col');
             },
             sinDestino: (m) => ScaffoldMessenger.of(context)
                 .showSnackBar(SnackBar(content: Text(m))),
           );
+          _descartarCeldaControllers(tocadas);
           setState(() {});
         },
       );

@@ -837,17 +837,28 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           onCambio();
         },
         onResuelto: (datos) {
+          final tocadas = <String>[];
           volcarDatosDeConsulta(
             datos: datos,
             columnas: columnas,
             origen: nombreCol,
             escribir: (col, valor) {
               fila[col] = valor;
-              _tablaControllers['${campo.nombre}##$indiceFila##$col']?.text =
-                  valor;
+              tocadas.add('${campo.nombre}##$indiceFila##$col');
             },
             sinDestino: _snack,
           );
+          // Se descartan los controllers en vez de mutar su `.text`: mutarlo
+          // no propagaba y el valor aparecía recién a la segunda consulta.
+          final viejos = tocadas
+              .map(_tablaControllers.remove)
+              .whereType<TextEditingController>()
+              .toList();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            for (final c in viejos) {
+              c.dispose();
+            }
+          });
           setState(() {});
           onCambio();
         },
