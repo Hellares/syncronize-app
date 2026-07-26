@@ -721,10 +721,15 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   }
 
   void _limpiarCeldaControllers() {
-    for (final c in _celdaControllers.values) {
-      c.dispose();
-    }
+    final viejos = _celdaControllers.values.toList();
     _celdaControllers.clear();
+    // Se descartan DESPUÉS del frame: destruirlos mientras sus TextField
+    // siguen montados revienta con "used after being disposed".
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final c in viejos) {
+        c.dispose();
+      }
+    });
   }
 
   Future<void> _guardarTabla(String key) async {
@@ -912,8 +917,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .toList();
-    nombreCtrl.dispose();
-    opcionesCtrl.dispose();
+    // 🔴 NO se llama dispose() aquí: el diálogo sigue animando su salida y
+    // vuelve a construir los CustomText: con el controller destruido eso
+    // revienta con "A TextEditingController was used after being disposed".
+    // Son de un solo uso; el recolector se encarga. Mismo criterio que el
+    // resto de diálogos de la app.
     if (confirmado != true || nombre.isEmpty || !mounted) return;
 
     if (tipo == 'OPCION_SIMPLES' && opciones.isEmpty) {

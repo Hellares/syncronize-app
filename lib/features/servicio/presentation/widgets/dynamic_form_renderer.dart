@@ -820,11 +820,20 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
 
   void _limpiarControllersTabla(String nombreCampo) {
     final prefijo = '$nombreCampo##';
+    final viejos = <TextEditingController>[];
     for (final k in _tablaControllers.keys.toList()) {
       if (k.startsWith(prefijo)) {
-        _tablaControllers.remove(k)?.dispose();
+        final c = _tablaControllers.remove(k);
+        if (c != null) viejos.add(c);
       }
     }
+    // Se descartan DESPUÉS del frame: destruirlos mientras sus TextField
+    // siguen montados revienta con "used after being disposed".
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final c in viejos) {
+        c.dispose();
+      }
+    });
   }
 
   /// DNI (8) / CE (9) / RUC (11) con botón que resuelve el nombre contra
