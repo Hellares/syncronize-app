@@ -118,6 +118,35 @@ class PlantillaServicioRepositoryImpl implements PlantillaServicioRepository {
   }
 
   @override
+  Future<Resource<ConfiguracionCampo>> updateCampo({
+    required String campoId,
+    required Map<String, dynamic> campoData,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.updateCampo(campoId, campoData);
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'PlantillaServicio');
+    }
+  }
+
+  @override
+  Future<Resource<void>> deleteCampo(String campoId) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.deleteCampo(campoId);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'PlantillaServicio');
+    }
+  }
+
+  @override
   Future<Resource<List<ConfiguracionCampo>>> getCamposByServicioId(String servicioId) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');

@@ -26,5 +26,12 @@ abstract class PlantillaServicioRepository {
     required Map<String, dynamic> campoData,
   });
 
+  Future<Resource<ConfiguracionCampo>> updateCampo({
+    required String campoId,
+    required Map<String, dynamic> campoData,
+  });
+
+  Future<Resource<void>> deleteCampo(String campoId);
+
   Future<Resource<List<ConfiguracionCampo>>> getCamposByServicioId(String servicioId);
 }

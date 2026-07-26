@@ -52,6 +52,26 @@ class PlantillaServicioRemoteDataSource {
     return ConfiguracionCampoModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Editar y eliminar van al controller de campos, no al de plantillas:
+  /// el campo se identifica por su id propio, no por la plantilla.
+  Future<ConfiguracionCampoModel> updateCampo(
+    String campoId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.put(
+      '${ApiConstants.configuracionCamposServicio}/$campoId',
+      data: data,
+    );
+    return ConfiguracionCampoModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Borrado LÓGICO en el backend (isActive=false).
+  Future<void> deleteCampo(String campoId) async {
+    await _dioClient.delete(
+      '${ApiConstants.configuracionCamposServicio}/$campoId',
+    );
+  }
+
   Future<List<ConfiguracionCampoModel>> getCampos(String plantillaId) async {
     final response = await _dioClient.get(
       '${ApiConstants.plantillasServicio}/$plantillaId/campos',

@@ -9,6 +9,7 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/animated_container.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
+import 'package:syncronize/core/widgets/confirm_dialog.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
@@ -16,6 +17,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../domain/entities/configuracion_campo.dart';
 import '../../domain/entities/plantilla_servicio.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../../domain/repositories/servicio_repository.dart';
@@ -436,7 +438,7 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                 ),
               ),
               InkWell(
-                onTap: () => _showAddCampoDialog(plantilla),
+                onTap: () => _showCampoDialog(plantilla),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   padding: const EdgeInsets.all(4),
@@ -463,35 +465,47 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
               spacing: 6,
               runSpacing: 4,
               children: plantilla.campos.map((c) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.bluechip,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _tipoCampoIcons[c.tipoCampo] ?? Icons.text_fields,
-                        size: 10,
-                        color: AppColors.blue1,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        c.nombre,
-                        style: TextStyle(
-                          fontSize: 9,
+                // Tocar el chip abre el mismo dialogo en modo edicion, que
+                // es donde tambien vive el boton de eliminar.
+                return InkWell(
+                  onTap: () => _showCampoDialog(plantilla, campo: c),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.bluechip,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _tipoCampoIcons[c.tipoCampo] ?? Icons.text_fields,
+                          size: 10,
                           color: AppColors.blue1,
-                          fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                         ),
-                      ),
-                      if (c.esRequerido) ...[
-                        const SizedBox(width: 2),
-                        const Text('*',
-                            style: TextStyle(fontSize: 9, color: Colors.red)),
+                        const SizedBox(width: 3),
+                        Text(
+                          c.nombre,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: AppColors.blue1,
+                            fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
+                          ),
+                        ),
+                        if (c.esRequerido) ...[
+                          const SizedBox(width: 2),
+                          const Text('*',
+                              style: TextStyle(fontSize: 9, color: Colors.red)),
+                        ],
+                        const SizedBox(width: 3),
+                        Icon(
+                          Icons.edit,
+                          size: 8,
+                          color: AppColors.blue1.withValues(alpha: 0.45),
+                        ),
                       ],
-                    ],
+                    ),
                   ),
                 );
               }).toList(),
@@ -560,14 +574,31 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
     'EQUIPO_CLIENTE': 'Equipo del Cliente',
   };
 
-  void _showAddCampoDialog(PlantillaServicio plantilla) {
-    final nombreCtrl = TextEditingController();
-    String tipoCampo = 'TEXTO';
-    String? categoria;
-    bool esRequerido = false;
-    final placeholderCtrl = TextEditingController();
-    final opcionesCtrl = TextEditingController();
-    final subCampos = <Map<String, dynamic>>[];
+  /// Agrega un campo o edita uno existente (`campo != null`). En edición
+  /// se prellena todo y aparece además la acción de eliminar.
+  void _showCampoDialog(PlantillaServicio plantilla, {ConfiguracionCampo? campo}) {
+    final esEdicion = campo != null;
+    final nombreCtrl = TextEditingController(text: campo?.nombre ?? '');
+    String tipoCampo = campo?.tipoCampo ?? 'TEXTO';
+    String? categoria = campo?.categoria;
+    bool esRequerido = campo?.esRequerido ?? false;
+    final placeholderCtrl =
+        TextEditingController(text: campo?.placeholder ?? '');
+    // `opciones` es lista de strings para selecciones y lista de mapas
+    // (sub-campos) cuando el tipo es OBJETO.
+    final opcionesCtrl = TextEditingController(
+      text: campo != null &&
+              campo.tipoCampo != 'OBJETO' &&
+              campo.opciones is List
+          ? (campo.opciones as List).map((e) => e.toString()).join(', ')
+          : '',
+    );
+    final subCampos = <Map<String, dynamic>>[
+      if (campo != null && campo.tipoCampo == 'OBJETO' && campo.opciones is List)
+        ...(campo.opciones as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e)),
+    ];
 
     showDialog(
       context: context,
@@ -604,8 +635,10 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                             color: AppColors.blue1.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
-                            Icons.add_circle_outline,
+                          child: Icon(
+                            esEdicion
+                                ? Icons.edit_outlined
+                                : Icons.add_circle_outline,
                             color: AppColors.blue1,
                             size: 20,
                           ),
@@ -615,8 +648,8 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const AppTitle(
-                                'Agregar campo',
+                              AppTitle(
+                                esEdicion ? 'Editar campo' : 'Agregar campo',
                                 fontSize: 14,
                                 color: AppColors.blue1,
                               ),
@@ -859,8 +892,51 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
 
                     // Botones
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisAlignment: esEdicion
+                          ? MainAxisAlignment.spaceBetween
+                          : MainAxisAlignment.end,
                       children: [
+                        if (esEdicion)
+                          CustomButton(
+                            text: 'Eliminar',
+                            onPressed: () async {
+                              final ok = await ConfirmDialog.show(
+                                context: dialogContext,
+                                type: ConfirmDialogType.destructive,
+                                title: 'Eliminar campo',
+                                message:
+                                    'Se quitara "${campo.nombre}" de la plantilla '
+                                    '"${plantilla.nombre}".\n\nLas ordenes ya creadas '
+                                    'conservan el dato que se haya registrado.',
+                                confirmText: 'Eliminar',
+                              );
+                              if (ok != true) return;
+                              if (dialogContext.mounted) {
+                                Navigator.pop(dialogContext);
+                              }
+                              final repo = locator<PlantillaServicioRepository>();
+                              final result = await repo.deleteCampo(campo.id);
+                              if (!mounted) return;
+                              if (result is Success) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Campo eliminado')),
+                                );
+                                await _loadPlantillas();
+                              } else if (result is Error) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(result.message)),
+                                );
+                              }
+                            },
+                            backgroundColor: Colors.transparent,
+                            borderColor: Colors.red.shade300,
+                            borderWidth: 0.6,
+                            textColor: Colors.red.shade400,
+                            enableShadows: false,
+                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                         CustomButton(
                           text: 'Cancelar',
                           onPressed: () => Navigator.pop(dialogContext),
@@ -872,7 +948,7 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                         ),
                         const SizedBox(width: 8),
                         CustomButton(
-                          text: 'Agregar',
+                          text: esEdicion ? 'Guardar' : 'Agregar',
                           onPressed: () async {
                             if (nombreCtrl.text.trim().isEmpty) return;
                             if (tipoCampo == 'OBJETO' && subCampos.isEmpty) return;
@@ -912,14 +988,23 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                             };
 
                             final repo = locator<PlantillaServicioRepository>();
-                            final result = await repo.addCampo(
-                              plantillaId: plantilla.id,
-                              campoData: campoData,
-                            );
+                            final result = esEdicion
+                                ? await repo.updateCampo(
+                                    campoId: campo.id,
+                                    campoData: campoData,
+                                  )
+                                : await repo.addCampo(
+                                    plantillaId: plantilla.id,
+                                    campoData: campoData,
+                                  );
                             if (!mounted) return;
                             if (result is Success) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Campo agregado')),
+                                SnackBar(
+                                  content: Text(
+                                    esEdicion ? 'Campo actualizado' : 'Campo agregado',
+                                  ),
+                                ),
                               );
                               await _loadPlantillas();
                             } else if (result is Error) {
@@ -933,6 +1018,8 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                           borderWidth: 0.6,
                           textColor: Colors.white,
                           enableShadows: false,
+                        ),
+                          ],
                         ),
                       ],
                     ),
