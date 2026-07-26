@@ -29,6 +29,7 @@ class ConfiguracionCamposPage extends StatelessWidget {
     'OBJETO': 'Objeto (sub-campos)',
     'PATRON_DESBLOQUEO': 'Patrón desbloqueo',
     'INSPECCION_VISUAL': 'Inspección visual',
+    'CODIGO_BARRAS': 'Código de barras (IMEI, serie)',
   };
 
   static const _tipoCampoIcons = {
@@ -48,6 +49,7 @@ class ConfiguracionCamposPage extends StatelessWidget {
     'OBJETO': Icons.account_tree_outlined,
     'PATRON_DESBLOQUEO': Icons.pattern,
     'INSPECCION_VISUAL': Icons.car_crash_outlined,
+    'CODIGO_BARRAS': Icons.barcode_reader,
   };
 
   static const _categoriaLabels = {

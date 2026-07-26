@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -58,7 +59,8 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           tipo == 'TELEFONO' ||
           tipo == 'URL' ||
           tipo == 'NUMERO' ||
-          tipo == 'TEXTO_AREA') {
+          tipo == 'TEXTO_AREA' ||
+          tipo == 'CODIGO_BARRAS') {
         final value = widget.values[campo.nombre];
         _controllers[campo.nombre] = TextEditingController(
           text: value is String ? value : value?.toString() ?? '',
@@ -289,6 +291,34 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             onChanged: (v) => _updateValue(campo.nombre, v),
           ),
         );
+
+      case 'CODIGO_BARRAS':
+        {
+          // Un lector físico (pistola/anillo) se comporta como teclado, así
+          // que el campo tiene que seguir siendo escribible: la cámara es
+          // solo una vía más, no la única. Sirve para IMEI, series, SKUs.
+          final ctrl = _controllers[campo.nombre] ??= TextEditingController(
+            text: widget.values[campo.nombre]?.toString() ?? '',
+          );
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: CustomText(
+              controller: ctrl,
+              label: '${campo.nombre}${campo.esRequerido ? " *" : ""}',
+              hintText: 'Escanea o escribe el código',
+              textCase: _textCase('CODIGO_BARRAS', campo.nombre),
+              borderColor: AppColors.blue1,
+              prefixIcon: const Icon(Icons.barcode_reader),
+              suffixIcon: BarcodeScannerButton(
+                onScanned: (code) {
+                  ctrl.text = code;
+                  _updateValue(campo.nombre, code);
+                },
+              ),
+              onChanged: (v) => _updateValue(campo.nombre, v),
+            ),
+          );
+        }
 
       case 'PATRON_DESBLOQUEO':
         return _buildPatronField(campo);
@@ -640,7 +670,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                 );
               }
 
-              // TEXTO or NUMERO
+              // TEXTO, NUMERO o CODIGO_BARRAS
               if (!_controllers.containsKey(subKey)) {
                 final subVal = currentObj[subNombre];
                 _controllers[subKey] = TextEditingController(
@@ -660,9 +690,21 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                   prefixIcon: Icon(
                     subTipo == 'NUMERO'
                         ? Icons.numbers_outlined
-                        : Icons.text_fields_outlined,
+                        : subTipo == 'CODIGO_BARRAS'
+                            ? Icons.barcode_reader
+                            : Icons.text_fields_outlined,
                     size: 18,
                   ),
+                  suffixIcon: subTipo == 'CODIGO_BARRAS'
+                      ? BarcodeScannerButton(
+                          onScanned: (code) {
+                            _controllers[subKey]?.text = code;
+                            currentObj[subNombre] = code;
+                            _updateValue(
+                                campo.nombre, Map<String, dynamic>.from(currentObj));
+                          },
+                        )
+                      : null,
                   onChanged: (v) {
                     currentObj[subNombre] =
                         subTipo == 'NUMERO' ? (num.tryParse(v) ?? v) : v;
@@ -677,10 +719,15 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
     );
   }
 
-  /// MAYÚSCULAS por defecto, salvo correos/URLs/números y campos sensibles
-  /// (contraseñas/clave/PIN) donde alterar mayúsculas rompería el valor.
+  /// MAYÚSCULAS por defecto, salvo correos/URLs/números, códigos escaneados
+  /// y campos sensibles (contraseñas/clave/PIN), donde alterar mayúsculas
+  /// rompería el valor. Un código de barras se guarda TAL CUAL lo entregó el
+  /// lector: Code 128 y QR distinguen mayúsculas de minúsculas.
   TextCase _textCase(String tipoCampo, String nombre) {
-    if (tipoCampo == 'EMAIL' || tipoCampo == 'URL' || tipoCampo == 'NUMERO') {
+    if (tipoCampo == 'EMAIL' ||
+        tipoCampo == 'URL' ||
+        tipoCampo == 'NUMERO' ||
+        tipoCampo == 'CODIGO_BARRAS') {
       return TextCase.normal;
     }
     final n = nombre.toLowerCase();
