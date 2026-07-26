@@ -25,12 +25,14 @@ class AjustarAnchoSheet extends StatefulWidget {
     required this.anchosActuales,
   });
 
-  static Future<Map<String, double>?> show(
+  /// Devuelve la lista COMPLETA de columnas resultante (con los anchos
+  /// aplicados y sin las eliminadas), lista para guardar en la plantilla.
+  static Future<List<Map<String, dynamic>>?> show(
     BuildContext context, {
     required List<Map<String, dynamic>> columnas,
     required Map<String, double> anchosActuales,
   }) {
-    return showModalBottomSheet<Map<String, double>>(
+    return showModalBottomSheet<List<Map<String, dynamic>>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -52,6 +54,10 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
               anchoColumna(c))
           .clamp(kAnchoColumnaMin, kAnchoColumnaMax),
   };
+
+  /// Se marcan y recién se aplican al confirmar: así se puede deshacer sin
+  /// consecuencias mientras el panel esté abierto.
+  final Set<String> _eliminadas = {};
 
   static const _presets = <String, double>{
     'Angosta': 78,
@@ -92,7 +98,7 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
                 Icon(Icons.swap_horiz, size: 18, color: AppColors.blue1),
                 SizedBox(width: 6),
                 Text(
-                  'Ancho de las columnas',
+                  'Columnas de la tabla',
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
@@ -102,7 +108,7 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
               ],
             ),
             Text(
-              'Se guarda en la plantilla: lo verán todos, en todas las órdenes.',
+              'Ancho y eliminación se guardan en la plantilla: aplican a todas las órdenes.',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 8),
@@ -114,6 +120,7 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
                   final col = widget.columnas[i];
                   final nombre = col['nombre'] as String;
                   final ancho = _anchos[nombre]!;
+                  final eliminada = _eliminadas.contains(nombre);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Column(
@@ -126,19 +133,53 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
                                 nombre,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
+                                  color: eliminada ? Colors.red.shade300 : null,
+                                  decoration: eliminada
+                                      ? TextDecoration.lineThrough
+                                      : null,
                                 ),
                               ),
                             ),
-                            Text(
-                              '${ancho.round()} px',
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade600),
+                            if (!eliminada)
+                              Text(
+                                '${ancho.round()} px',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey.shade600),
+                              ),
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => setState(() => eliminada
+                                  ? _eliminadas.remove(nombre)
+                                  : _eliminadas.add(nombre)),
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 10),
+                                child: Icon(
+                                  eliminada
+                                      ? Icons.undo
+                                      : Icons.delete_outline,
+                                  size: 16,
+                                  color: eliminada
+                                      ? AppColors.blue1
+                                      : Colors.red.shade300,
+                                ),
+                              ),
                             ),
                           ],
                         ),
+                        if (eliminada)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              'Se quitará de la plantilla. Los datos ya '
+                              'capturados no se borran.',
+                              style: TextStyle(
+                                  fontSize: 10, color: Colors.grey.shade500),
+                            ),
+                          ),
+                        if (!eliminada)
                         Row(
                           children: [
                             Expanded(
@@ -189,16 +230,18 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
                           ],
                         ),
                         // Vista previa del ancho real, para no elegir a ciegas.
-                        Container(
-                          height: 18,
-                          width: ancho,
-                          decoration: BoxDecoration(
-                            color: AppColors.blue1.withValues(alpha: 0.07),
-                            border: Border.all(
-                                color: AppColors.blue1.withValues(alpha: 0.35)),
-                            borderRadius: BorderRadius.circular(4),
+                        if (!eliminada)
+                          Container(
+                            height: 18,
+                            width: ancho,
+                            decoration: BoxDecoration(
+                              color: AppColors.blue1.withValues(alpha: 0.07),
+                              border: Border.all(
+                                  color:
+                                      AppColors.blue1.withValues(alpha: 0.35)),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   );
@@ -221,7 +264,18 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
                 const SizedBox(width: 8),
                 CustomButton(
                   text: 'Aplicar',
-                  onPressed: () => Navigator.pop(context, _anchos),
+                  // Se devuelve la lista COMPLETA ya resuelta: sin las
+                  // eliminadas y con el ancho de cada una.
+                  onPressed: () => Navigator.pop(
+                    context,
+                    widget.columnas
+                        .where((c) => !_eliminadas.contains(c['nombre']))
+                        .map((c) => {
+                              ...c,
+                              'ancho': _anchos[c['nombre']]!.roundToDouble(),
+                            })
+                        .toList(),
+                  ),
                   backgroundColor: AppColors.blue1,
                   borderColor: AppColors.blue1,
                   borderWidth: 0.6,

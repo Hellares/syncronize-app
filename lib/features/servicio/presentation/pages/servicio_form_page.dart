@@ -1125,6 +1125,10 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                                     final entry = <String, dynamic>{
                                       'nombre': s['nombre'],
                                       'tipo': s['tipo'],
+                                      // El ancho de columna lo fija el panel
+                                      // de la tabla; si no se copia aquí, se
+                                      // pierde al guardar la plantilla.
+                                      if (s['ancho'] != null) 'ancho': s['ancho'],
                                     };
                                     if (s['tipo'] == 'OPCION_SIMPLES' && s['opciones'] is List) {
                                       entry['opciones'] = s['opciones'];

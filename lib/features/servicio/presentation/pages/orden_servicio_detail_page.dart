@@ -762,7 +762,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     String key,
     List<Map<String, dynamic>> columnas,
   ) async {
-    final elegidos = await AjustarAnchoSheet.show(
+    final nuevas = await AjustarAnchoSheet.show(
       context,
       columnas: columnas,
       anchosActuales: {
@@ -770,27 +770,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           (c['nombre'] as String): _anchoColumnaDetalle(key, c),
       },
     );
-    if (elegidos == null || !mounted) return;
+    if (nuevas == null || !mounted) return;
     setState(() {
-      for (final e in elegidos.entries) {
-        _anchoTemporalTabla['$key##${e.key}'] = e.value;
+      for (final c in nuevas) {
+        _anchoTemporalTabla['$key##${c['nombre']}'] =
+            (c['ancho'] as num).toDouble();
       }
     });
 
     final campo = _camposTabla[key];
     if (campo == null) return; // columna sin plantilla: solo esta sesión
-    final base = campo.opciones is List
-        ? (campo.opciones as List)
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList()
-        : <Map<String, dynamic>>[];
-    // Un solo guardado con todas las columnas ya ajustadas.
-    final nuevas = base
-        .map((c) => elegidos.containsKey(c['nombre'])
-            ? {...c, 'ancho': elegidos[c['nombre']]!.roundToDouble()}
-            : c)
-        .toList();
+    // El panel ya devuelve la lista resuelta (anchos aplicados, eliminadas
+    // fuera): se guarda tal cual, en una sola petición.
     final result = await locator<PlantillaServicioRepository>().updateCampo(
       campoId: campo.id,
       campoData: {'opciones': nuevas},
@@ -1078,7 +1069,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     children: [
                       Icon(Icons.swap_horiz, size: 13, color: AppColors.blue1),
                       SizedBox(width: 3),
-                      Text('Ancho',
+                      Text('Columnas',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,

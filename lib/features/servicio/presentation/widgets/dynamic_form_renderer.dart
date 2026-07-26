@@ -470,7 +470,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
     ConfiguracionCampo campo,
     List<Map<String, dynamic>> columnas,
   ) async {
-    final elegidos = await AjustarAnchoSheet.show(
+    final nuevas = await AjustarAnchoSheet.show(
       context,
       columnas: columnas,
       anchosActuales: {
@@ -478,16 +478,14 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           (c['nombre'] as String): _anchoDeColumna(campo, c),
       },
     );
-    if (elegidos == null || !mounted) return;
+    if (nuevas == null || !mounted) return;
     setState(() {
-      for (final e in elegidos.entries) {
-        _anchoTemporal['${campo.nombre}##${e.key}'] = e.value;
+      for (final c in nuevas) {
+        _anchoTemporal['${campo.nombre}##${c['nombre']}'] =
+            (c['ancho'] as num).toDouble();
       }
     });
-    // Un solo guardado con todas las columnas ya ajustadas.
-    final nuevas = columnas
-        .map((c) => {...c, 'ancho': elegidos[c['nombre']]?.roundToDouble()})
-        .toList();
+    // El panel ya devuelve la lista resuelta: se guarda tal cual.
     final result = await locator<PlantillaServicioRepository>().updateCampo(
       campoId: campo.id,
       campoData: {'opciones': nuevas},
@@ -578,7 +576,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                     children: [
                       Icon(Icons.swap_horiz, size: 13, color: AppColors.blue1),
                       SizedBox(width: 3),
-                      Text('Ancho',
+                      Text('Columnas',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
