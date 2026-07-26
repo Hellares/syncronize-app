@@ -29,12 +29,15 @@ import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_e
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
+import '../../../cuentas_por_cobrar/domain/usecases/registrar_abono_cuenta_cobrar_usecase.dart';
+import '../../../cuentas_por_cobrar/presentation/widgets/abono_cliente_sheet.dart';
 import '../../../servicio/presentation/widgets/bluetooth_printer_sheet.dart';
 import '../services/recibo_cuota_esc_pos_generator.dart';
 import '../../../sorteo/presentation/services/rotulo_envio_pdf_generator.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../data/datasources/venta_remote_datasource.dart';
 import '../../domain/entities/cuota_venta.dart';
+import '../../domain/entities/pago_venta.dart';
 import '../../domain/entities/reversion_total.dart';
 import '../../domain/entities/venta.dart';
 import '../../domain/usecases/get_venta_usecase.dart';
@@ -1770,6 +1773,89 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     );
   }
 
+  /// Cobro de una venta a CRÉDITO por el circuito de CxC: el sheet de abono
+  /// permite elegir la fuente del ingreso (Tesorería / Caja / Banco), valida
+  /// contra el saldo CON mora y el backend imputa en cascada mora → interés
+  /// → principal. El pago directo (`procesarPago`) asienta siempre en la caja
+  /// del cajero, que es incorrecto para una transferencia o un cobro que
+  /// entra a bóveda.
+  Future<void> _abonarCredito() async {
+    final v = _venta;
+    if (v == null) return;
+
+    final cuotas = v.cuotas ?? const [];
+    // Sin cuotas el saldo sale de la venta (crédito sin cronograma).
+    final saldo = cuotas.isNotEmpty
+        ? cuotas.fold<double>(0, (s, c) => s + c.saldoPendiente)
+        : v.saldoPendiente;
+    final mora = cuotas.fold<double>(0, (s, c) => s + c.montoMora);
+
+    // Foto para saber después a qué cuotas se aplicó (el recibo lo necesita).
+    final antes = {for (final c in cuotas) c.id: c.montoPagado};
+
+    final ok = await AbonoClienteSheet.mostrar(
+      context,
+      codigoVenta: v.codigo,
+      nombreCliente: v.nombreCliente,
+      saldoPendiente: saldo,
+      totalMora: mora,
+      onRegistrar: ({
+        required metodoPago,
+        required monto,
+        referencia,
+        fuente,
+        bancoId,
+      }) async {
+        final res = await locator<RegistrarAbonoCuentaCobrarUseCase>()(
+          v.id,
+          metodoPago: metodoPago,
+          monto: monto,
+          referencia: referencia,
+          fuente: fuente,
+          bancoId: bancoId,
+        );
+        return res is Error<void> ? res.message : null;
+      },
+    );
+
+    if (ok != true || !mounted) return;
+
+    // El endpoint de abono no devuelve la venta: hay que releerla para
+    // saber cómo quedaron las cuotas y poder emitir el recibo.
+    await _loadVenta();
+    if (!mounted) return;
+
+    final actualizada = _venta;
+    if (actualizada == null) return;
+    final aplicaciones =
+        _cuotasAplicadas(antes, actualizada.cuotas ?? const []);
+    if (aplicaciones.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Abono registrado'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+    final aplicado =
+        aplicaciones.fold<double>(0, (s, a) => s + a.montoAplicado);
+    _ofrecerReciboCuota(actualizada, aplicaciones, {
+      'monto': aplicado,
+      'metodoPago': _metodoUltimoPago(actualizada),
+    });
+  }
+
+  /// Método del último pago registrado — el sheet de abono no lo devuelve y
+  /// el recibo necesita mostrarlo. Se toma el más reciente por fecha porque
+  /// el orden de `pagos` no está garantizado.
+  String _metodoUltimoPago(Venta v) {
+    final pagos = [...(v.pagos ?? const <PagoVenta>[])];
+    if (pagos.isEmpty) return 'EFECTIVO';
+    pagos.sort((a, b) => a.fechaPago.compareTo(b.fechaPago));
+    return pagos.last.metodoPago.label.toUpperCase();
+  }
+
   /// Diff de cuotas antes/después del pago: devuelve a cuáles se les aplicó
   /// plata y cuánto. Vacío si la venta no tenía cuotas (pago normal, sin
   /// crédito) — ahí no hay recibo de cobranza que emitir.
@@ -2173,9 +2259,14 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     } else if (v.puedePagar) {
       actions.add(Expanded(
         child: ElevatedButton.icon(
-          onPressed: () => _showPagoDialog(context),
+          // Las ventas a crédito cobran por el circuito de CxC: ahí se
+          // elige a dónde ENTRA la plata (Tesorería/Caja/Banco). El pago
+          // directo siempre asienta en la caja del cajero, que solo es
+          // correcto para el saldo de una venta al contado.
+          onPressed: () =>
+              v.esCredito ? _abonarCredito() : _showPagoDialog(context),
           icon: const Icon(Icons.payment, size: 18),
-          label: const Text('Registrar Pago'),
+          label: Text(v.esCredito ? 'Registrar Abono' : 'Registrar Pago'),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green.shade600,
             foregroundColor: Colors.white,

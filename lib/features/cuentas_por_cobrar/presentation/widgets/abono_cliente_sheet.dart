@@ -9,27 +9,60 @@ import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa_banco/domain/entities/empresa_banco.dart';
 import '../../../empresa_banco/domain/usecases/get_cuentas_bancarias_usecase.dart';
-import '../../domain/entities/cuenta_por_cobrar.dart';
-import '../bloc/cuentas_cobrar_cubit.dart';
+/// Firma del registro del abono: devuelve `null` si salió bien o el mensaje
+/// de error a mostrar. Cada pantalla decide cómo persistirlo (el cubit de
+/// CxC recarga su lista; el detalle de venta llama al usecase y recarga la
+/// venta).
+typedef RegistrarAbono = Future<String?> Function({
+  required String metodoPago,
+  required double monto,
+  String? referencia,
+  String? fuente,
+  String? bancoId,
+});
 
-/// Hoja para registrar un abono del cliente sobre una venta a crédito (CxC).
+/// Hoja para registrar un abono sobre una venta a crédito.
 /// Devuelve `true` (Navigator.pop) si el abono quedó registrado.
+///
+/// Vive en CxC pero la usan también las ventas a crédito desde su detalle:
+/// es el único camino que rutea el ingreso a Tesorería/Caja/Banco. Por eso
+/// recibe datos sueltos y un callback en vez de la entidad `CuentaPorCobrar`
+/// y su cubit — así no arrastra el módulo entero a quien la reuse.
 class AbonoClienteSheet extends StatefulWidget {
-  final CuentaPorCobrar cuenta;
-  final CuentasCobrarCubit cubit;
+  final String codigoVenta;
+  final String nombreCliente;
+  final double saldoPendiente;
+  final double totalMora;
+  final RegistrarAbono onRegistrar;
 
-  const AbonoClienteSheet({super.key, required this.cuenta, required this.cubit});
+  const AbonoClienteSheet({
+    super.key,
+    required this.codigoVenta,
+    required this.nombreCliente,
+    required this.saldoPendiente,
+    required this.onRegistrar,
+    this.totalMora = 0,
+  });
 
   static Future<bool?> mostrar(
     BuildContext context, {
-    required CuentaPorCobrar cuenta,
-    required CuentasCobrarCubit cubit,
+    required String codigoVenta,
+    required String nombreCliente,
+    required double saldoPendiente,
+    required RegistrarAbono onRegistrar,
+    double totalMora = 0,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => AbonoClienteSheet(cuenta: cuenta, cubit: cubit),
+      builder: (_) => AbonoClienteSheet(
+        codigoVenta: codigoVenta,
+        nombreCliente: nombreCliente,
+        saldoPendiente: saldoPendiente,
+        totalMora: totalMora,
+        onRegistrar: onRegistrar,
+      ),
     );
   }
 
@@ -50,7 +83,7 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
   bool _cargandoBancos = true;
 
   // Total a cobrar incluye la mora (el backend la aplica primero).
-  double get _maximo => widget.cuenta.totalConMora;
+  double get _maximo => widget.saldoPendiente + widget.totalMora;
 
   bool get _esBancario =>
       _metodo == 'TRANSFERENCIA' || _metodo == 'YAPE' || _metodo == 'PLIN' || _metodo == 'TARJETA';
@@ -131,8 +164,7 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
     final referencia = esDigital ? (ref.isEmpty ? '00000' : ref) : (ref.isEmpty ? null : ref);
 
     setState(() => _procesando = true);
-    final err = await widget.cubit.registrarAbono(
-      widget.cuenta.id,
+    final err = await widget.onRegistrar(
       metodoPago: _metodo,
       monto: monto,
       referencia: referencia,
@@ -219,7 +251,6 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final c = widget.cuenta;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
@@ -248,11 +279,12 @@ class _AbonoClienteSheetState extends State<AbonoClienteSheet> {
                 ),
                 AppTitle('Registrar abono', fontSize: 17, color: AppColors.blue1),
                 const SizedBox(height: 2),
-                AppSubtitle(c.nombreCliente, fontSize: 12, color: AppColors.blueGrey),
+                AppSubtitle(widget.nombreCliente,
+                    fontSize: 12, color: AppColors.blueGrey),
                 const SizedBox(height: 2),
                 AppSubtitle(
-                  '${c.codigo}  ·  Saldo: S/ ${c.saldoPendiente.toStringAsFixed(2)}'
-                  '${c.totalMora > 0 ? '  + mora S/ ${c.totalMora.toStringAsFixed(2)}' : ''}',
+                  '${widget.codigoVenta}  ·  Saldo: S/ ${widget.saldoPendiente.toStringAsFixed(2)}'
+                  '${widget.totalMora > 0 ? '  + mora S/ ${widget.totalMora.toStringAsFixed(2)}' : ''}',
                   fontSize: 11,
                   color: Colors.grey,
                 ),

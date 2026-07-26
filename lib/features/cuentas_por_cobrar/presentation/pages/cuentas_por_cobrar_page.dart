@@ -402,7 +402,29 @@ class _CuentaCard extends StatelessWidget {
 
   Future<void> _abonar(BuildContext context, CuentaPorCobrar cuenta) async {
     final cubit = context.read<CuentasCobrarCubit>();
-    final ok = await AbonoClienteSheet.mostrar(context, cuenta: cuenta, cubit: cubit);
+    final ok = await AbonoClienteSheet.mostrar(
+      context,
+      codigoVenta: cuenta.codigo,
+      nombreCliente: cuenta.nombreCliente,
+      saldoPendiente: cuenta.saldoPendiente,
+      totalMora: cuenta.totalMora,
+      // El cubit recarga la lista de CxC al registrar.
+      onRegistrar: ({
+        required metodoPago,
+        required monto,
+        referencia,
+        fuente,
+        bancoId,
+      }) =>
+          cubit.registrarAbono(
+        cuenta.id,
+        metodoPago: metodoPago,
+        monto: monto,
+        referencia: referencia,
+        fuente: fuente,
+        bancoId: bancoId,
+      ),
+    );
     if (ok == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Abono registrado'), backgroundColor: Colors.green),
