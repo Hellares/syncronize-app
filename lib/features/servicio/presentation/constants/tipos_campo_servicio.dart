@@ -73,6 +73,15 @@ const kDatosDeConsulta = <String, Map<String, String>>{
 
 bool tipoTieneConsulta(String tipo) => kDatosDeConsulta.containsKey(tipo);
 
+/// Datos que vienen MARCADOS al crear la columna. Los demás quedan a mano:
+/// una placa devuelve seis datos y crear seis columnas por defecto llenaría
+/// la tabla de cosas que casi nadie mira (serie, motor, VIN).
+const kDatosSugeridos = <String, List<String>>{
+  'DOCUMENTO_IDENTIDAD': ['nombre'],
+  'PLACA_VEHICULO': ['marca', 'modelo', 'color'],
+  'LICENCIA_CONDUCIR': ['nombre', 'categoria', 'vencimiento'],
+};
+
 /// Reparte los datos de una consulta en las columnas de la fila.
 ///
 /// Prefiere las columnas que declaran `dato` (una placa puede llenar marca,

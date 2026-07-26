@@ -825,11 +825,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
     final nombreCtrl = TextEditingController();
     final opcionesCtrl = TextEditingController();
-    // Acompañante de una columna DNI/RUC: la celda escribe ahí el nombre
-    // resuelto, y tiene que quedar INMEDIATAMENTE a la derecha.
-    final nombreAcompCtrl = TextEditingController(text: 'NOMBRE');
-    bool crearAcompanante = true;
     String tipo = 'TEXTO';
+
+    // Acompañantes de una columna con consulta: cada dato que devuelva puede
+    // tener su columna. Se crean a la derecha y en el orden de la lista.
+    // Los controllers se guardan por clave de dato para que el nombre
+    // editado sobreviva a cambiar de tipo y volver.
+    final ctrlsAcomp = <String, TextEditingController>{};
+    final seleccionados = <String>{...?kDatosSugeridos['TEXTO']};
+
+    void resetSeleccion(String nuevoTipo) {
+      seleccionados
+        ..clear()
+        ..addAll(kDatosSugeridos[nuevoTipo] ?? const []);
+    }
 
     final confirmado = await StyledDialog.show<bool>(
       context,
@@ -866,33 +875,78 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                               size: 16, color: AppColors.blue1),
                         ))
                     .toList(),
-                onChanged: (v) => setDialogState(() => tipo = v ?? 'TEXTO'),
+                onChanged: (v) => setDialogState(() {
+                  tipo = v ?? 'TEXTO';
+                  // Cada tipo sugiere sus propios datos; los del anterior
+                  // no aplican.
+                  resetSeleccion(tipo);
+                }),
               ),
               // La columna DNI/RUC no sirve sola: el nombre que resuelve va
               // a la siguiente columna de texto, así que se ofrece crearla
               // en el mismo paso.
-              if (tipo == 'DOCUMENTO_IDENTIDAD') ...[
-                const SizedBox(height: 6),
-                CustomSwitchTile(
-                  title: 'Crear también la columna del nombre',
-                  subtitle: crearAcompanante
-                      ? 'Se agrega a la derecha y se llena sola al buscar'
-                      : 'Sin ella, el nombre solo se mostrará en un aviso',
-                  value: crearAcompanante,
-                  activeColor: AppColors.blue1,
-                  onChanged: (v) => setDialogState(() => crearAcompanante = v),
-                ),
-                if (crearAcompanante) ...[
-                  const SizedBox(height: 10),
-                  CustomText(
-                    controller: nombreAcompCtrl,
-                    label: 'Nombre de esa columna',
-                    textCase: TextCase.upper,
-                    borderColor: AppColors.blue1,
-                    colorIcon: AppColors.blue1,
-                    prefixIcon: const Icon(Icons.person_outline, size: 18),
+              if (tipoTieneConsulta(tipo)) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Columnas que se llenarán solas al buscar',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue1,
                   ),
-                ],
+                ),
+                Text(
+                  'Se crean a la derecha, en este orden. Desmarca las que no uses.',
+                  style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 6),
+                ...kDatosDeConsulta[tipo]!.entries.map((e) {
+                  final marcado = seleccionados.contains(e.key);
+                  final ctrl =
+                      ctrlsAcomp[e.key] ??= TextEditingController(text: e.value);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 5),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => setDialogState(() => marcado
+                              ? seleccionados.remove(e.key)
+                              : seleccionados.add(e.key)),
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Icon(
+                              marcado
+                                  ? Icons.check_box
+                                  : Icons.check_box_outline_blank,
+                              size: 18,
+                              color: marcado
+                                  ? AppColors.blue1
+                                  : Colors.grey.shade400,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: ctrl,
+                            enabled: marcado,
+                            textCapitalization: TextCapitalization.characters,
+                            style: const TextStyle(fontSize: 12),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 7),
+                              border: const OutlineInputBorder(),
+                              hintText: e.value,
+                              filled: !marcado,
+                              fillColor: Colors.grey.shade100,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
               ],
               // Sin opciones, una columna de selección no ofrece nada que
               // elegir: se piden aquí mismo.
@@ -977,17 +1031,37 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       return;
     }
 
-    // Acompañante del DNI/RUC: va JUSTO a la derecha, que es donde la celda
-    // busca dónde escribir el nombre resuelto.
-    final acomp = (tipo == 'DOCUMENTO_IDENTIDAD' && crearAcompanante)
-        ? nombreAcompCtrl.text.trim()
-        : '';
-    if (acomp.isNotEmpty &&
-        (acomp == nombre || base.any((c) => c['nombre'] == acomp))) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ya existe una columna "$acomp"')),
-      );
-      return;
+    // Acompañantes: van JUSTO a la derecha y en el orden de kDatosDeConsulta,
+    // que es el orden en que se ofrecieron. Cada una declara qué `dato`
+    // recibe, así una placa llena marca/modelo/color de una sola consulta.
+    // `acompanaA` deja la relación EXPLÍCITA: sin ella, al borrar la columna
+    // de origen no habría forma de saber cuáles eran sus acompañantes.
+    final acompanantes = <Map<String, dynamic>>[];
+    if (tipoTieneConsulta(tipo)) {
+      for (final dato in kDatosDeConsulta[tipo]!.keys) {
+        if (!seleccionados.contains(dato)) continue;
+        final n = (ctrlsAcomp[dato]?.text ?? '').trim();
+        if (n.isEmpty) continue;
+        acompanantes.add({
+          'nombre': n,
+          'tipo': 'TEXTO',
+          'dato': dato,
+          'acompanaA': nombre,
+        });
+      }
+    }
+
+    // Choques: contra las existentes, contra la columna de origen y entre
+    // ellas mismas (dos acompañantes con el mismo nombre).
+    final vistos = <String>{nombre};
+    for (final a in acompanantes) {
+      final n = a['nombre'] as String;
+      if (!vistos.add(n) || base.any((c) => c['nombre'] == n)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('El nombre "$n" está repetido')),
+        );
+        return;
+      }
     }
 
     final result = await locator<PlantillaServicioRepository>().updateCampo(
@@ -1000,12 +1074,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             'tipo': tipo,
             if (opciones.isNotEmpty) 'opciones': opciones,
           },
-          // `acompanaA` deja la relación EXPLÍCITA: sin ella, al borrar la
-          // columna de documento no habría forma de saber cuál era su
-          // columna de nombre (la regla "la siguiente de texto" no sirve
-          // para borrar: esa columna podría ser de otra cosa).
-          if (acomp.isNotEmpty)
-            {'nombre': acomp, 'tipo': 'TEXTO', 'acompanaA': nombre},
+          ...acompanantes,
         ],
       },
     );
@@ -1013,17 +1082,16 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     if (result is Success) {
       await _loadDefinicionCampos();
       if (!mounted) return;
+      final creadas = [nombre, ...acompanantes.map((a) => a['nombre'] as String)];
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(acomp.isEmpty
+          content: Text(creadas.length == 1
               ? 'Columna "$nombre" agregada'
-              : 'Columnas "$nombre" y "$acomp" agregadas'),
+              : '${creadas.length} columnas agregadas: '
+                  '"${creadas.join('", "')}"'),
         ),
       );
-      await _ofrecerLimpiarValoresPrevios(
-        key,
-        [nombre, if (acomp.isNotEmpty) acomp],
-      );
+      await _ofrecerLimpiarValoresPrevios(key, creadas);
     } else if (result is Error<ConfiguracionCampo>) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message)),
