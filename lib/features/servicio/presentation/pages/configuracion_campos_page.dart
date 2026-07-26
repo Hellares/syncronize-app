@@ -8,59 +8,19 @@ import '../../../auth/presentation/widgets/custom_text.dart';
 import '../bloc/configuracion_campos/configuracion_campos_cubit.dart';
 import '../bloc/configuracion_campos/configuracion_campos_state.dart';
 import '../../../empresa/presentation/widgets/empresa_drawer.dart';
+import '../constants/tipos_campo_servicio.dart';
 
 class ConfiguracionCamposPage extends StatelessWidget {
   const ConfiguracionCamposPage({super.key});
 
-  static const _tipoCampoLabels = {
-    'TEXTO': 'Texto',
-    'NUMERO': 'Número',
-    'EMAIL': 'Email',
-    'FECHA': 'Fecha',
-    'HORA': 'Hora',
-    'TEXTO_AREA': 'Texto largo',
-    'OPCION_SIMPLES': 'Selección simple',
-    'OPCION_MULTIPLE': 'Selección múltiple',
-    'CHECKBOX': 'Checkbox',
-    'CHECKBOX_MULTIPLE': 'Checkbox múltiple',
-    'ARCHIVO': 'Archivo',
-    'TELEFONO': 'Teléfono',
-    'URL': 'URL',
-    'OBJETO': 'Objeto (sub-campos)',
-    'PATRON_DESBLOQUEO': 'Patrón desbloqueo',
-    'INSPECCION_VISUAL': 'Inspección visual',
-    'CODIGO_BARRAS': 'Código de barras (IMEI, serie)',
-  };
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  static const _tipoCampoLabels = kTipoCampoLabels;
 
-  static const _tipoCampoIcons = {
-    'TEXTO': Icons.text_fields,
-    'NUMERO': Icons.pin,
-    'EMAIL': Icons.email,
-    'FECHA': Icons.calendar_today,
-    'HORA': Icons.access_time,
-    'TEXTO_AREA': Icons.notes,
-    'OPCION_SIMPLES': Icons.radio_button_checked,
-    'OPCION_MULTIPLE': Icons.checklist,
-    'CHECKBOX': Icons.check_box,
-    'CHECKBOX_MULTIPLE': Icons.playlist_add_check,
-    'ARCHIVO': Icons.attach_file,
-    'TELEFONO': Icons.phone,
-    'URL': Icons.link,
-    'OBJETO': Icons.account_tree_outlined,
-    'PATRON_DESBLOQUEO': Icons.pattern,
-    'INSPECCION_VISUAL': Icons.car_crash_outlined,
-    'CODIGO_BARRAS': Icons.barcode_reader,
-  };
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  static const _tipoCampoIcons = kTipoCampoIcons;
 
-  static const _categoriaLabels = {
-    'DIAGNOSTICO': 'Diagnóstico',
-    'CLIENTE': 'Cliente',
-    'TECNICO': 'Técnico',
-    'COMPONENTE': 'Componente',
-    'COSTOS': 'Costos',
-    'TIEMPOS': 'Tiempos',
-    'EQUIPO_CLIENTE': 'Equipo del Cliente',
-  };
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  static const _categoriaLabels = kCategoriaLabels;
 
   @override
   Widget build(BuildContext context) {
@@ -178,12 +138,8 @@ class ConfiguracionCamposPage extends StatelessWidget {
     );
   }
 
-  static const _subCampoTipos = {
-    'TEXTO': 'Texto',
-    'NUMERO': 'Número',
-    'CHECKBOX': 'Sí/No',
-    'OPCION_SIMPLES': 'Selección',
-  };
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  static const _subCampoTipos = kSubCampoTipos;
 
   void _showCreateDialog(BuildContext context) {
     final cubit = context.read<ConfiguracionCamposCubit>();

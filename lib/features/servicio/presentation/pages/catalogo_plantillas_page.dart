@@ -12,6 +12,7 @@ import '../../../../core/utils/resource.dart';
 import '../../data/catalogo_plantillas_servicio.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
+import '../constants/tipos_campo_servicio.dart';
 
 class CatalogoPlantillasPage extends StatefulWidget {
   const CatalogoPlantillasPage({super.key});
@@ -335,63 +336,14 @@ class _CatalogoPlantillaCardState extends State<_CatalogoPlantillaCard> {
     );
   }
 
-  String _categoriaNombre(String categoria) {
-    const labels = {
-      'DIAGNOSTICO': 'Diagnóstico',
-      'CLIENTE': 'Cliente',
-      'TECNICO': 'Técnico',
-      'COMPONENTE': 'Componente',
-      'COSTOS': 'Costos',
-      'TIEMPOS': 'Tiempos',
-      'EQUIPO_CLIENTE': 'Equipo del Cliente',
-      'GENERAL': 'General',
-    };
-    return labels[categoria] ?? categoria;
-  }
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  String _categoriaNombre(String categoria) => categoriaLabel(categoria);
 
-  IconData _iconForTipo(String tipo) {
-    const icons = {
-      'TEXTO': Icons.text_fields,
-      'NUMERO': Icons.pin,
-      'EMAIL': Icons.email,
-      'TELEFONO': Icons.phone,
-      'URL': Icons.link,
-      'TEXTO_AREA': Icons.notes,
-      'OPCION_SIMPLES': Icons.radio_button_checked,
-      'OPCION_MULTIPLE': Icons.checklist,
-      'CHECKBOX': Icons.check_box,
-      'CHECKBOX_MULTIPLE': Icons.playlist_add_check,
-      'FECHA': Icons.calendar_today,
-      'HORA': Icons.access_time,
-      'ARCHIVO': Icons.attach_file,
-      'OBJETO': Icons.account_tree_outlined,
-      'PATRON_DESBLOQUEO': Icons.pattern,
-      'INSPECCION_VISUAL': Icons.car_crash_outlined,
-      'CODIGO_BARRAS': Icons.barcode_reader,
-    };
-    return icons[tipo] ?? Icons.help_outline;
-  }
+  /// Fallback propio: en el catálogo un tipo desconocido debe cantar, no
+  /// disfrazarse de texto.
+  IconData _iconForTipo(String tipo) =>
+      kTipoCampoIcons[tipo] ?? Icons.help_outline;
 
-  String _tipoLabel(String tipo) {
-    const labels = {
-      'TEXTO': 'Texto',
-      'NUMERO': 'Número',
-      'EMAIL': 'Email',
-      'TELEFONO': 'Teléfono',
-      'URL': 'URL',
-      'TEXTO_AREA': 'Texto largo',
-      'OPCION_SIMPLES': 'Selección',
-      'OPCION_MULTIPLE': 'Multi-selección',
-      'CHECKBOX': 'Si/No',
-      'CHECKBOX_MULTIPLE': 'Checks múltiple',
-      'FECHA': 'Fecha',
-      'HORA': 'Hora',
-      'ARCHIVO': 'Archivo',
-      'OBJETO': 'Objeto',
-      'PATRON_DESBLOQUEO': 'Patrón',
-      'INSPECCION_VISUAL': 'Inspección',
-      'CODIGO_BARRAS': 'Código de barras',
-    };
-    return labels[tipo] ?? tipo;
-  }
+  /// Etiqueta CORTA: estos van en chips angostos.
+  String _tipoLabel(String tipo) => tipoCampoLabelCorto(tipo);
 }

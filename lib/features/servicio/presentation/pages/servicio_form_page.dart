@@ -21,6 +21,7 @@ import '../../domain/entities/configuracion_campo.dart';
 import '../../domain/entities/plantilla_servicio.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../../domain/repositories/servicio_repository.dart';
+import '../constants/tipos_campo_servicio.dart';
 
 class ServicioFormPage extends StatefulWidget {
   final String? servicioId;
@@ -532,63 +533,17 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
     );
   }
 
-  static const _tipoCampoIcons = {
-    'TEXTO': Icons.text_fields,
-    'NUMERO': Icons.pin,
-    'EMAIL': Icons.email,
-    'FECHA': Icons.calendar_today,
-    'HORA': Icons.access_time,
-    'TEXTO_AREA': Icons.notes,
-    'OPCION_SIMPLES': Icons.radio_button_checked,
-    'OPCION_MULTIPLE': Icons.checklist,
-    'CHECKBOX': Icons.check_box,
-    'CHECKBOX_MULTIPLE': Icons.playlist_add_check,
-    'ARCHIVO': Icons.attach_file,
-    'TELEFONO': Icons.phone,
-    'URL': Icons.link,
-    'OBJETO': Icons.account_tree_outlined,
-    'PATRON_DESBLOQUEO': Icons.pattern,
-    'INSPECCION_VISUAL': Icons.car_crash_outlined,
-    'CODIGO_BARRAS': Icons.barcode_reader,
-  };
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  static const _tipoCampoIcons = kTipoCampoIcons;
 
-  static const _tipoCampoLabels = {
-    'TEXTO': 'Texto',
-    'NUMERO': 'Numero',
-    'EMAIL': 'Email',
-    'FECHA': 'Fecha',
-    'HORA': 'Hora',
-    'TEXTO_AREA': 'Texto largo',
-    'OPCION_SIMPLES': 'Seleccion simple',
-    'OPCION_MULTIPLE': 'Seleccion multiple',
-    'CHECKBOX': 'Checkbox',
-    'CHECKBOX_MULTIPLE': 'Checkbox multiple',
-    'ARCHIVO': 'Archivo',
-    'TELEFONO': 'Telefono',
-    'URL': 'URL',
-    'OBJETO': 'Objeto (sub-campos)',
-    'PATRON_DESBLOQUEO': 'Patron desbloqueo',
-    'INSPECCION_VISUAL': 'Inspeccion visual',
-    'CODIGO_BARRAS': 'Codigo de barras (IMEI, serie)',
-  };
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  static const _tipoCampoLabels = kTipoCampoLabels;
 
-  static const _subCampoTipos = {
-    'TEXTO': 'Texto',
-    'CODIGO_BARRAS': 'Codigo de barras',
-    'NUMERO': 'Numero',
-    'CHECKBOX': 'Si/No',
-    'OPCION_SIMPLES': 'Seleccion',
-  };
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  static const _subCampoTipos = kSubCampoTipos;
 
-  static const _categoriaLabels = {
-    'DIAGNOSTICO': 'Diagnostico',
-    'CLIENTE': 'Cliente',
-    'TECNICO': 'Tecnico',
-    'COMPONENTE': 'Componente',
-    'COSTOS': 'Costos',
-    'TIEMPOS': 'Tiempos',
-    'EQUIPO_CLIENTE': 'Equipo del Cliente',
-  };
+  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
+  static const _categoriaLabels = kCategoriaLabels;
 
   /// Reordena los campos arrastrando. El orden define en qué secuencia
   /// aparecen al llenar una orden de servicio.
