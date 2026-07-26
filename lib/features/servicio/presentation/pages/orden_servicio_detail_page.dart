@@ -1107,19 +1107,24 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           for (final col in columnas)
                             Container(
                               width: _anchoColumnaDetalle(key, col),
+                              // Alto FIJO: la fila no cambia al entrar en
+                              // edición, como una hoja de cálculo.
+                              height: kAltoFilaTabla,
                               decoration: _bordeCelda,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 4),
-                                child: editando
-                                    ? _buildCeldaEditable(key, i, col)
-                                    : Text(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 6),
+                              child: editando
+                                  ? Center(
+                                      child: _buildCeldaEditable(key, i, col))
+                                  : Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
                                         _celdaTexto(visibles[i][col['nombre']]),
-                                        maxLines: 2,
+                                        maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(fontSize: 11),
                                       ),
-                              ),
+                                    ),
                             ),
                           if (editando)
                             SizedBox(
@@ -1281,14 +1286,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       textAlign: (tipo == 'NUMERO' || tipo == 'MONEDA')
           ? TextAlign.right
           : TextAlign.start,
+      textAlignVertical: TextAlignVertical.center,
       keyboardType: (tipo == 'NUMERO' || tipo == 'MONEDA')
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,
-      decoration: const InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        border: InputBorder.none,
-      ),
+      // Sin decoración propia: se escribe sobre la celda.
+      decoration: kDecoracionCelda,
       onChanged: (v) {
         // Numéricos como número para que el total los sume.
         _filasEditadas[fila][nombre] =

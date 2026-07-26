@@ -124,6 +124,25 @@ const kColumnaTiposTabla = <String, String>{
 const double kAnchoColumnaMin = 56;
 const double kAnchoColumnaMax = 320;
 
+/// Alto FIJO de fila, igual en lectura y en edición. Sin esto la tabla
+/// "saltaba" al entrar en edición, porque un TextField mide más que un Text.
+const double kAltoFilaTabla = 34;
+
+/// Un campo dentro de una celda no debe traer NINGUNA decoración propia: se
+/// escribe sobre la celda, como en Excel. Poner solo `border` no alcanza —
+/// si el tema define enabledBorder/focusedBorder, esos se siguen pintando.
+const InputDecoration kDecoracionCelda = InputDecoration(
+  isDense: true,
+  filled: false,
+  contentPadding: EdgeInsets.zero,
+  border: InputBorder.none,
+  enabledBorder: InputBorder.none,
+  focusedBorder: InputBorder.none,
+  disabledBorder: InputBorder.none,
+  errorBorder: InputBorder.none,
+  focusedErrorBorder: InputBorder.none,
+);
+
 /// Numéricos y booleanos arrancan angostos: no necesitan más.
 double anchoPorDefectoColumna(String tipo) =>
     (tipo == 'NUMERO' || tipo == 'MONEDA' || tipo == 'CHECKBOX') ? 78 : 132;

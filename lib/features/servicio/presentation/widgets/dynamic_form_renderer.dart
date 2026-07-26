@@ -658,10 +658,12 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                           for (final col in columnas)
                             Container(
                               width: _anchoDeColumna(campo, col),
+                              // Alto FIJO: la fila mide lo mismo siempre.
+                              height: kAltoFilaTabla,
                               decoration: _bordeCelda,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4, vertical: 4),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              child: Center(
                                 child: _buildCelda(
                                   campo: campo,
                                   columna: col,
@@ -798,11 +800,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
       keyboardType: (tipo == 'NUMERO' || tipo == 'MONEDA')
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        border: InputBorder.none,
+      textAlignVertical: TextAlignVertical.center,
+      // Sin decoración propia: se escribe sobre la celda, como en Excel.
+      decoration: kDecoracionCelda.copyWith(
         hintText: tipo == 'MONEDA' ? '0.00' : null,
         hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
         // El escáner vive DENTRO de la celda: es lo que hace útil una
@@ -818,7 +818,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
               )
             : null,
         suffixIconConstraints:
-            const BoxConstraints(minWidth: 22, minHeight: 22),
+            const BoxConstraints(minWidth: 20, minHeight: 20),
       ),
       onChanged: (v) {
         // NUMERO y MONEDA se guardan como número para poder sumarlos.
