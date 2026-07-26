@@ -1122,8 +1122,8 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                               opcionesData = subCampos
                                   .where((s) => (s['nombre'] as String?)?.isNotEmpty == true)
                                   .map((s) {
-                                    // Se copia TODO y solo se limpia lo que
-                                    // deja de aplicar. Reconstruir la entrada
+                                    // Se copia la definicion entera y solo se
+                                    // limpia lo que deja de aplicar. Armar la
                                     // campo por campo ya hizo perder `ancho`
                                     // una vez, y `acompanaA` la siguiente:
                                     // cualquier propiedad nueva se caeria
