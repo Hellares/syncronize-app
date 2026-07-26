@@ -367,6 +367,7 @@ class _CatalogoPlantillaCardState extends State<_CatalogoPlantillaCard> {
       'OBJETO': Icons.account_tree_outlined,
       'PATRON_DESBLOQUEO': Icons.pattern,
       'INSPECCION_VISUAL': Icons.car_crash_outlined,
+      'CODIGO_BARRAS': Icons.barcode_reader,
     };
     return icons[tipo] ?? Icons.help_outline;
   }
@@ -389,6 +390,7 @@ class _CatalogoPlantillaCardState extends State<_CatalogoPlantillaCard> {
       'OBJETO': 'Objeto',
       'PATRON_DESBLOQUEO': 'Patrón',
       'INSPECCION_VISUAL': 'Inspección',
+      'CODIGO_BARRAS': 'Código de barras',
     };
     return labels[tipo] ?? tipo;
   }

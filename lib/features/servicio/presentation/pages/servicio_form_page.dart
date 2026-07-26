@@ -519,6 +519,7 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
     'OBJETO': Icons.account_tree_outlined,
     'PATRON_DESBLOQUEO': Icons.pattern,
     'INSPECCION_VISUAL': Icons.car_crash_outlined,
+    'CODIGO_BARRAS': Icons.barcode_reader,
   };
 
   static const _tipoCampoLabels = {
@@ -538,10 +539,12 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
     'OBJETO': 'Objeto (sub-campos)',
     'PATRON_DESBLOQUEO': 'Patron desbloqueo',
     'INSPECCION_VISUAL': 'Inspeccion visual',
+    'CODIGO_BARRAS': 'Codigo de barras (IMEI, serie)',
   };
 
   static const _subCampoTipos = {
     'TEXTO': 'Texto',
+    'CODIGO_BARRAS': 'Codigo de barras',
     'NUMERO': 'Numero',
     'CHECKBOX': 'Si/No',
     'OPCION_SIMPLES': 'Seleccion',
