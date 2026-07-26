@@ -2253,6 +2253,8 @@ class _CobroViewState extends State<_CobroView> {
                     borderColor: Colors.orange.shade700,
                     height: 36,
                     items: const [
+                      DropdownItem(value: 7, label: '7 dias'),
+                      DropdownItem(value: 15, label: '15 dias'),
                       DropdownItem(value: 30, label: '30 dias'),
                       DropdownItem(value: 60, label: '60 dias'),
                       DropdownItem(value: 90, label: '90 dias'),
