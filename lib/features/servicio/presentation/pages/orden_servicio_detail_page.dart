@@ -80,7 +80,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   /// Da el ORDEN declarado de columnas, su tipo y su ancho — nada de eso se
   /// puede deducir del dato guardado. Vacío si la orden no tiene servicio o
   /// si la consulta falla.
-  Map<String, ConfiguracionCampo> _camposTabla = const {};
+  Map<String, ConfiguracionCampo> _camposPorNombre = const {};
+
+  /// Solo las tablas, que es lo que usa la grilla.
+  Map<String, ConfiguracionCampo> get _camposTabla => {
+        for (final e in _camposPorNombre.entries)
+          if (e.value.tipoCampo == 'TABLA') e.key: e.value,
+      };
   List<HistorialOrdenServicio> _historial = [];
   List<ArchivoResponse> _archivos = [];
   List<ArchivoResponse> _firmaArchivos = [];
@@ -154,11 +160,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         .getCamposByServicioId(servicioId);
     if (!mounted) return;
     if (result is Success<List<ConfiguracionCampo>>) {
+      // Se guardan TODOS, no solo las tablas: el detalle también necesita
+      // el tipo para saber que un valor es una foto y no un texto con una
+      // URL adentro.
       setState(() {
-        _camposTabla = {
-          for (final c in result.data)
-            if (c.tipoCampo == 'TABLA') c.nombre: c,
-        };
+        _camposPorNombre = {for (final c in result.data) c.nombre: c};
       });
     }
   }
@@ -1395,15 +1401,27 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                   ? Center(
                                       child: _buildCeldaEditable(
                                           key, i, col, columnas))
-                                  : Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        _celdaTexto(visibles[i][col['nombre']]),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                    ),
+                                  // En lectura una columna FOTO muestra la
+                                  // miniatura, no su URL en texto.
+                                  : (col['tipo'] == 'FOTO')
+                                      ? CeldaFoto(
+                                          url: visibles[i][col['nombre']]
+                                              as String?,
+                                          empresaId: _empresaId,
+                                          soloLectura: true,
+                                          onCambio: (_) {},
+                                        )
+                                      : Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            _celdaTexto(
+                                                visibles[i][col['nombre']]),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style:
+                                                const TextStyle(fontSize: 11),
+                                          ),
+                                        ),
                             ),
                           if (editando)
                             // GestureDetector y no IconButton: el tap target
@@ -1608,6 +1626,50 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   }
 
   Widget _buildDatoPersonalizado(String key, dynamic value) {
+    // FOTO y FIRMA guardan una URL: se muestran como imagen, no como texto.
+    // Sin esto el detalle enseñaba la URL cruda al cliente.
+    final tipoDeclarado = _camposPorNombre[key]?.tipoCampo;
+    if ((tipoDeclarado == 'FOTO' || tipoDeclarado == 'FIRMA') &&
+        value is String &&
+        value.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(tipoCampoIcon(tipoDeclarado!),
+                    size: 14, color: Colors.grey.shade500),
+                const SizedBox(width: 8),
+                Text(key,
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.grey.shade600)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 110,
+              width: double.infinity,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: CeldaFoto(
+                  url: value,
+                  empresaId: _empresaId,
+                  soloLectura: true,
+                  onCambio: (_) {},
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     // Boolean → Sí / No
     if (value is bool) {
       return _buildDetailRow(

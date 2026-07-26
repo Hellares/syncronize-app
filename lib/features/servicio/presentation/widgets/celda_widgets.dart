@@ -199,11 +199,16 @@ class CeldaFoto extends StatefulWidget {
   final String empresaId;
   final ValueChanged<String?> onCambio;
 
+  /// Solo muestra: la miniatura se puede ampliar pero no reemplazar. Es el
+  /// modo del detalle cuando no se está editando la tabla.
+  final bool soloLectura;
+
   const CeldaFoto({
     super.key,
     required this.url,
     required this.empresaId,
     required this.onCambio,
+    this.soloLectura = false,
   });
 
   @override
@@ -279,7 +284,30 @@ class _CeldaFotoState extends State<CeldaFoto> {
       );
     }
 
-    if (widget.url == null || widget.url!.isEmpty) {
+    final vacia = widget.url == null || widget.url!.isEmpty;
+
+    if (widget.soloLectura) {
+      if (vacia) return const SizedBox.shrink();
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _verGrande,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: Image.network(
+              widget.url!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              errorBuilder: (_, __, ___) => Icon(Icons.broken_image_outlined,
+                  size: 14, color: Colors.grey.shade400),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (vacia) {
       // Menú explícito en vez de "toque = cámara, mantener = galería": ese
       // atajo no lo descubre nadie y dejaba la galería inalcanzable.
       return PopupMenuButton<String>(
