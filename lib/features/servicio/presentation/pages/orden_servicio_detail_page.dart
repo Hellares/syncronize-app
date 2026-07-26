@@ -655,6 +655,172 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     }
   }
 
+  /// Tabla de solo lectura, con el mismo scroll horizontal que el formulario.
+  /// Las columnas salen de la UNION de claves de todas las filas y en el
+  /// orden en que aparecen: la definicion de la plantilla no viaja con la
+  /// orden, y una fila puede tener celdas vacias.
+  Widget _buildTablaDato(String key, List<Map> filas) {
+    final columnas = <String>[];
+    for (final f in filas) {
+      for (final k in f.keys) {
+        final nombre = k.toString();
+        if (!columnas.contains(nombre)) columnas.add(nombre);
+      }
+    }
+    if (columnas.isEmpty) return const SizedBox.shrink();
+
+    // Total por columna totalmente numerica (montos, cantidades).
+    final totales = <String, double>{};
+    for (final col in columnas) {
+      final valores = filas
+          .map((f) => f[col])
+          .where((v) => v != null && v.toString().trim().isNotEmpty)
+          .toList();
+      if (valores.isEmpty) continue;
+      final nums = valores.map((v) => double.tryParse(v.toString())).toList();
+      if (nums.every((n) => n != null)) {
+        totales[col] = nums.fold<double>(0, (a, n) => a + n!);
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.table_chart_outlined,
+                  size: 14, color: Colors.grey.shade500),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  key,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ),
+              Text(
+                '${filas.length} ${filas.length == 1 ? "fila" : "filas"}',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.blue1.withValues(alpha: 0.18)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    color: AppColors.blue1.withValues(alpha: 0.06),
+                    child: Row(
+                      children: [
+                        for (final col in columnas)
+                          SizedBox(
+                            width: totales.containsKey(col) ? 80 : 130,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 6),
+                              child: Text(
+                                col,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: totales.containsKey(col)
+                                    ? TextAlign.right
+                                    : TextAlign.start,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.blue1,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  for (final f in filas)
+                    Container(
+                      decoration: BoxDecoration(
+                        border:
+                            Border(top: BorderSide(color: Colors.grey.shade200)),
+                      ),
+                      child: Row(
+                        children: [
+                          for (final col in columnas)
+                            SizedBox(
+                              width: totales.containsKey(col) ? 80 : 130,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 6),
+                                child: Text(
+                                  _celdaTexto(f[col]),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: totales.containsKey(col)
+                                      ? TextAlign.right
+                                      : TextAlign.start,
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (totales.isNotEmpty)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.blue1.withValues(alpha: 0.04),
+                        border:
+                            Border(top: BorderSide(color: Colors.grey.shade300)),
+                      ),
+                      child: Row(
+                        children: [
+                          for (final col in columnas)
+                            SizedBox(
+                              width: totales.containsKey(col) ? 80 : 130,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 6),
+                                child: Text(
+                                  totales.containsKey(col)
+                                      ? totales[col]!.toStringAsFixed(2)
+                                      : (col == columnas.first ? 'Total' : ''),
+                                  textAlign: totales.containsKey(col)
+                                      ? TextAlign.right
+                                      : TextAlign.start,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.blue1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _celdaTexto(dynamic v) {
+    if (v == null) return '';
+    if (v is bool) return v ? 'Sí' : 'No';
+    return v.toString();
+  }
+
   Widget _buildDatoPersonalizado(String key, dynamic value) {
     // Boolean → Sí / No
     if (value is bool) {
@@ -663,6 +829,16 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         key,
         value ? 'Sí' : 'No',
       );
+    }
+
+    // TABLA → lista de filas {columna: valor}. Va ANTES de la rama de
+    // chips: si no, cada fila se imprimiria con toString() y se veria como
+    // un objeto crudo. Aqui no tenemos el tipoCampo declarado, asi que se
+    // detecta por forma; OPCION_MULTIPLE guarda List<String>, no de mapas.
+    if (value is List &&
+        value.isNotEmpty &&
+        value.every((e) => e is Map)) {
+      return _buildTablaDato(key, value.cast<Map>());
     }
 
     // List → chips
@@ -3699,6 +3875,17 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   String _formatDynamicField(dynamic value) {
     if (value == null) return '-';
+    // Tabla: una linea por fila, "col: valor" separado por comas. Volcar el
+    // Map crudo dejaba llaves y corchetes a la vista.
+    if (value is List && value.isNotEmpty && value.every((e) => e is Map)) {
+      return value
+          .map((f) => (f as Map)
+              .entries
+              .where((e) => e.value != null && '${e.value}'.trim().isNotEmpty)
+              .map((e) => '${e.key}: ${e.value}')
+              .join(', '))
+          .join(' | ');
+    }
     if (value is List) return value.join(', ');
     if (value is Map) {
       return value.entries
@@ -3947,6 +4134,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final Set<String> camposIncluidos = {...camposDisponibles}; // por defecto todos
     String resumenValor(dynamic v) {
       if (v == null) return '';
+      // Tabla: se resume por cantidad de filas — el detalle completo iria a
+      // la tercerizacion, pero en el chip de seleccion no entra.
+      if (v is List && v.isNotEmpty && v.every((e) => e is Map)) {
+        return '${v.length} ${v.length == 1 ? "fila" : "filas"}';
+      }
       if (v is List) return v.join(', ');
       if (v is Map) {
         return v.entries.map((e) => '${e.key}: ${e.value}').join(' · ');
