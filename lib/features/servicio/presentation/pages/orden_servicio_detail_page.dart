@@ -21,6 +21,7 @@ import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../../core/utils/resource.dart';
@@ -829,40 +830,44 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final nombreCtrl = TextEditingController();
     String tipo = 'TEXTO';
 
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (_, setDialogState) => AlertDialog(
-          title: const Text('Nueva columna', style: TextStyle(fontSize: 15)),
-          content: Column(
+    final confirmado = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.blue1,
+      backgroundColor: Colors.white,
+      icon: Icons.view_column_outlined,
+      titulo: 'Nueva columna',
+      content: [
+        StatefulBuilder(
+          builder: (_, setDialogState) => Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
+              CustomText(
                 controller: nombreCtrl,
-                autofocus: true,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre de la columna',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
+                label: 'Nombre de la columna',
+                hintText: 'Ej: Repuesto',
+                textCase: TextCase.upper,
+                borderColor: AppColors.blue1,
+                colorIcon: AppColors.blue1,
+                prefixIcon: const Icon(Icons.label_outline, size: 18),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: tipo,
-                decoration: const InputDecoration(
-                  labelText: 'Tipo',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
+              const SizedBox(height: 14),
+              CustomDropdown<String>(
+                label: 'Tipo de columna',
+                hintText: 'Selecciona un tipo',
+                value: tipo,
+                borderColor: AppColors.blue1,
                 items: kColumnaTiposTabla.entries
-                    .map((e) =>
-                        DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .map((e) => DropdownItem(
+                          value: e.key,
+                          label: e.value,
+                          leading: Icon(tipoCampoIcon(e.key),
+                              size: 16, color: AppColors.blue1),
+                        ))
                     .toList(),
                 onChanged: (v) => setDialogState(() => tipo = v ?? 'TEXTO'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
                 'La columna es de la plantilla "${campo.nombre}": aparecerá en '
                 'todas las órdenes que la usen, vacía en las anteriores.',
@@ -870,18 +875,29 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Agregar'),
-            ),
-          ],
         ),
-      ),
+      ],
+      actions: [
+        CustomButton(
+          text: 'Cancelar',
+          onPressed: () => Navigator.pop(context, false),
+          backgroundColor: Colors.transparent,
+          borderColor: AppColors.blue3,
+          borderWidth: 0.6,
+          textColor: AppColors.blue3,
+          enableShadows: false,
+        ),
+        const SizedBox(width: 8),
+        CustomButton(
+          text: 'Agregar',
+          onPressed: () => Navigator.pop(context, true),
+          backgroundColor: AppColors.blue1,
+          borderColor: AppColors.blue1,
+          borderWidth: 0.6,
+          textColor: Colors.white,
+          enableShadows: false,
+        ),
+      ],
     );
 
     final nombre = nombreCtrl.text.trim();
