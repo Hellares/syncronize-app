@@ -94,16 +94,25 @@ class _BuscarProductoSheetState extends State<BuscarProductoSheet> {
   }
 
   /// Precio de venta vigente en la sede: la oferta manda sobre el normal.
+  ///
+  /// 🔴 Nada de `firstWhere(orElse:)` aquí: la lista llega como
+  /// `List<StockPorSedeInfoModel>` aunque esté declarada de la entidad base,
+  /// y Dart exige que `orElse` devuelva el tipo del RUNTIME. Devolver la
+  /// entidad base explota con un TypeError en pleno build.
   double? _precioDe(ProductoListItem p) {
     final stocks = p.stocksPorSede;
     if (stocks == null || stocks.isEmpty) return null;
-    final s = widget.sedeId == null
-        ? stocks.first
-        : stocks.firstWhere(
-            (e) => e.sedeId == widget.sedeId,
-            orElse: () => stocks.first,
-          );
-    return s.precioOferta ?? s.precio;
+
+    var elegido = stocks.first;
+    if (widget.sedeId != null) {
+      for (final s in stocks) {
+        if (s.sedeId == widget.sedeId) {
+          elegido = s;
+          break;
+        }
+      }
+    }
+    return elegido.precioOferta ?? elegido.precio;
   }
 
   @override
