@@ -28,9 +28,13 @@ import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_e
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
+import '../../../servicio/presentation/widgets/bluetooth_printer_sheet.dart';
+import '../services/recibo_cuota_esc_pos_generator.dart';
 import '../../../sorteo/presentation/services/rotulo_envio_pdf_generator.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../data/datasources/venta_remote_datasource.dart';
+import '../../domain/entities/cuota_venta.dart';
 import '../../domain/entities/reversion_total.dart';
 import '../../domain/entities/venta.dart';
 import '../../domain/usecases/get_venta_usecase.dart';
@@ -68,6 +72,12 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   /// sobre el umbral de bancarización), se reintenta con el flag de
   /// confirmación tras avisar al cajero.
   Map<String, dynamic>? _ultimoPagoData;
+
+  /// Foto de `cuotaId -> montoPagado` tomada JUSTO ANTES de enviar un pago.
+  /// El backend reparte el monto entre las cuotas pendientes en orden (un
+  /// pago puede cerrar varias), así que la única forma exacta de saber a
+  /// qué cuotas se aplicó es diffear contra la venta que devuelve.
+  Map<String, double>? _cuotasAntesPago;
 
   @override
   void initState() {
@@ -326,11 +336,23 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             _loadVenta();
           }
           if (state is VentaPagoRegistrado) {
+            // Datos del pago ANTES de limpiarlos: el recibo los necesita.
+            final pagoImpreso = _ultimoPagoData;
+            final antes = _cuotasAntesPago;
             _ultimoPagoData = null;
+            _cuotasAntesPago = null;
             setState(() => _venta = state.venta);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Pago registrado')),
-            );
+
+            final aplicaciones =
+                _cuotasAplicadas(antes, state.venta.cuotas ?? const []);
+            if (aplicaciones.isNotEmpty && pagoImpreso != null) {
+              // Cobranza de crédito: el cliente se lleva su constancia.
+              _ofrecerReciboCuota(state.venta, aplicaciones, pagoImpreso);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Pago registrado')),
+              );
+            }
             _loadVenta();
           }
           if (state is VentaAnulada) {
@@ -1746,6 +1768,181 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         ),
       ),
     );
+  }
+
+  /// Diff de cuotas antes/después del pago: devuelve a cuáles se les aplicó
+  /// plata y cuánto. Vacío si la venta no tenía cuotas (pago normal, sin
+  /// crédito) — ahí no hay recibo de cobranza que emitir.
+  List<CuotaAplicada> _cuotasAplicadas(
+    Map<String, double>? antes,
+    List<CuotaVenta> despues,
+  ) {
+    if (antes == null || antes.isEmpty || despues.isEmpty) return const [];
+    final out = <CuotaAplicada>[];
+    for (final c in despues) {
+      final pagadoAntes = antes[c.id];
+      if (pagadoAntes == null) continue; // cuota nueva: no debería pasar
+      final aplicado = c.montoPagado - pagadoAntes;
+      if (aplicado <= 0.005) continue;
+      out.add(CuotaAplicada(
+        numero: c.numero,
+        montoAplicado: aplicado,
+        saldoRestante: c.saldoPendiente,
+        fechaVencimiento: c.fechaVencimiento,
+      ));
+    }
+    out.sort((a, b) => a.numero.compareTo(b.numero));
+    return out;
+  }
+
+  /// Tras cobrar una cuota: si la impresora principal tiene la
+  /// auto-impresión activada el recibo sale solo (cobranza diaria = cero
+  /// fricción); si no, se ofrece el botón. El pago YA está registrado, así
+  /// que nada de esto puede romperlo.
+  Future<void> _ofrecerReciboCuota(
+    Venta venta,
+    List<CuotaAplicada> aplicaciones,
+    Map<String, dynamic> pago,
+  ) async {
+    final monto = (pago['monto'] as num?)?.toDouble() ?? 0;
+    final metodo = pago['metodoPago']?.toString() ?? 'EFECTIVO';
+    final referencia = pago['referencia']?.toString();
+
+    final impreso = await _imprimirReciboCuota(
+      venta: venta,
+      aplicaciones: aplicaciones,
+      montoPagado: monto,
+      metodoPago: metodo,
+      referencia: referencia,
+      soloSiAutoImprimir: true,
+    );
+    if (!mounted) return;
+
+    if (impreso) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pago registrado - recibo impreso'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Pago registrado'),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: 'IMPRIMIR RECIBO',
+          onPressed: () => _imprimirReciboCuota(
+            venta: venta,
+            aplicaciones: aplicaciones,
+            montoPagado: monto,
+            metodoPago: metodo,
+            referencia: referencia,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Imprime el recibo de cobranza: intenta la impresora principal y, si no
+  /// hay o falla, abre el selector Bluetooth. Con [soloSiAutoImprimir] es un
+  /// intento silencioso (sin sheet ni mensajes) para la vía automática.
+  /// Devuelve si llegó a imprimirse.
+  Future<bool> _imprimirReciboCuota({
+    required Venta venta,
+    required List<CuotaAplicada> aplicaciones,
+    required double montoPagado,
+    required String metodoPago,
+    String? referencia,
+    bool soloSiAutoImprimir = false,
+  }) async {
+    try {
+      // Identidad de la empresa ANTES del primer await (evita usar el
+      // context tras un gap async).
+      final empresaState = context.read<EmpresaContextCubit>().state;
+      String empresaNombre = '';
+      String? razonSocial;
+      String? ruc;
+      String? direccion;
+      String? telefono;
+      if (empresaState is EmpresaContextLoaded) {
+        final e = empresaState.context.empresa;
+        empresaNombre = e.nombre;
+        razonSocial = e.razonSocial;
+        ruc = e.ruc;
+        direccion = e.direccionFiscal;
+        telefono = e.telefono;
+      }
+
+      final manager = locator<ImpresorasManager>();
+      final principal = await manager.getPrincipal();
+      // Vía automática: solo si hay principal y el usuario activó el
+      // auto-print en su configuración. Si no, se sale sin hacer ruido y el
+      // caller ofrece el botón.
+      if (soloSiAutoImprimir &&
+          (principal == null || !principal.autoImprimirVentaRapida)) {
+        return false;
+      }
+
+      final bytes = await ReciboCuotaEscPosGenerator.generate(
+        venta: venta,
+        aplicaciones: aplicaciones,
+        montoPagado: montoPagado,
+        metodoPago: metodoPago,
+        referencia: referencia,
+        empresaNombre: empresaNombre,
+        empresaRazonSocial: razonSocial,
+        empresaRuc: ruc,
+        empresaDireccion: direccion,
+        empresaTelefono: telefono,
+        sedeNombre: venta.sedeNombre,
+        cajeroNombre: venta.cajeroNombre,
+        // El ancho importa: con 80 por defecto en una térmica de 58mm las
+        // columnas se aplastan a la derecha.
+        paperWidth: principal?.anchoPapel.mm ?? 80,
+      );
+
+      if (principal != null) {
+        final ok = await manager.imprimirEnPrincipal(bytes);
+        if (ok) {
+          // En modo automático el caller ya avisa; no duplicar el mensaje.
+          if (mounted && !soloSiAutoImprimir) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Recibo impreso en ${principal.nombre}'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+          return true;
+        }
+      }
+      // El intento automático no insiste con el selector: devuelve false y
+      // el caller ofrece el botón.
+      if (soloSiAutoImprimir) return false;
+
+      // Sin impresora principal configurada (o falló): que elija una.
+      if (!mounted) return false;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => BluetoothPrinterSheet(ticketBytes: bytes),
+      );
+      return true;
+    } catch (e) {
+      if (!mounted || soloSiAutoImprimir) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo generar el recibo: $e'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return false;
+    }
   }
 
   Widget _buildCuotasSection() {
@@ -3398,6 +3595,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                                 if (refCtrl.text.isNotEmpty) 'referencia': refCtrl.text,
                               };
                               _ultimoPagoData = data;
+                              _cuotasAntesPago = {
+                                for (final c in (_venta!.cuotas ?? []))
+                                  c.id: c.montoPagado,
+                              };
                               context.read<VentaFormCubit>().procesarPago(
                                 _venta!.id,
                                 data,
