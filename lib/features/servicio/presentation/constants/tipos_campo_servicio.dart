@@ -126,7 +126,9 @@ const double kAnchoColumnaMax = 320;
 
 /// Alto FIJO de fila, igual en lectura y en edición. Sin esto la tabla
 /// "saltaba" al entrar en edición, porque un TextField mide más que un Text.
-const double kAltoFilaTabla = 34;
+/// Con texto de 11px el mínimo cómodo ronda los 26; por debajo empieza a
+/// recortarse el descendente de las letras.
+const double kAltoFilaTabla = 29;
 
 /// Un campo dentro de una celda no debe traer NINGUNA decoración propia: se
 /// escribe sobre la celda, como en Excel. Poner solo `border` no alcanza —
