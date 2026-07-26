@@ -828,6 +828,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     }
 
     final nombreCtrl = TextEditingController();
+    final opcionesCtrl = TextEditingController();
     String tipo = 'TEXTO';
 
     final confirmado = await StyledDialog.show<bool>(
@@ -867,6 +868,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     .toList(),
                 onChanged: (v) => setDialogState(() => tipo = v ?? 'TEXTO'),
               ),
+              // Sin opciones, una columna de selección no ofrece nada que
+              // elegir: se piden aquí mismo.
+              if (tipo == 'OPCION_SIMPLES') ...[
+                const SizedBox(height: 14),
+                CustomText(
+                  controller: opcionesCtrl,
+                  label: 'Opciones (separadas por coma)',
+                  hintText: 'Bueno, Regular, Malo',
+                  textCase: TextCase.upper,
+                  borderColor: AppColors.blue1,
+                  colorIcon: AppColors.blue1,
+                  prefixIcon: const Icon(Icons.list, size: 18),
+                ),
+              ],
               const SizedBox(height: 12),
               Text(
                 'La columna es de la plantilla "${campo.nombre}": aparecerá en '
@@ -901,8 +916,23 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     );
 
     final nombre = nombreCtrl.text.trim();
+    final opciones = opcionesCtrl.text
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
     nombreCtrl.dispose();
+    opcionesCtrl.dispose();
     if (confirmado != true || nombre.isEmpty || !mounted) return;
+
+    if (tipo == 'OPCION_SIMPLES' && opciones.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Una columna de selección necesita al menos una opción'),
+        ),
+      );
+      return;
+    }
 
     final base = campo.opciones is List
         ? (campo.opciones as List)
@@ -923,7 +953,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       campoData: {
         'opciones': [
           ...base,
-          {'nombre': nombre, 'tipo': tipo},
+          {
+            'nombre': nombre,
+            'tipo': tipo,
+            if (opciones.isNotEmpty) 'opciones': opciones,
+          },
         ],
       },
     );
