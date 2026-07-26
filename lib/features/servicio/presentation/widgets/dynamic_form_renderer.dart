@@ -16,6 +16,7 @@ import '../../../consultas_externas/domain/entities/consulta_ruc.dart';
 import '../../../consultas_externas/domain/repositories/consultas_repository.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../constants/tipos_campo_servicio.dart';
+import 'ajustar_ancho_sheet.dart';
 import 'columna_resize_handle.dart';
 import 'firma_sheet.dart';
 import '../../../../core/widgets/date/custom_date.dart';
@@ -572,17 +573,44 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                         for (final col in columnas) ...[
                           SizedBox(
                             width: _anchoDeColumna(campo, col),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 7),
-                              child: Text(
-                                col['nombre'] as String,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.blue1,
+                            child: InkWell(
+                              // Tocar el encabezado abre el ajuste de ancho:
+                              // el tirador de al lado es un blanco muy chico
+                              // para el dedo.
+                              onTap: () async {
+                                final nuevo = await AjustarAnchoSheet.show(
+                                  context,
+                                  nombreColumna: col['nombre'] as String,
+                                  anchoActual: _anchoDeColumna(campo, col),
+                                );
+                                if (nuevo == null || !mounted) return;
+                                setState(() => _anchoTemporal[
+                                    '${campo.nombre}##${col['nombre']}'] = nuevo);
+                                _persistirAncho(campo, columnas,
+                                    col['nombre'] as String, nuevo);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 7),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        col['nombre'] as String,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.blue1,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(Icons.swap_horiz,
+                                        size: 11,
+                                        color: AppColors.blue1
+                                            .withValues(alpha: 0.5)),
+                                  ],
                                 ),
                               ),
                             ),

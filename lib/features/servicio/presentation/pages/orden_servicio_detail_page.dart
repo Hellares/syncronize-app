@@ -29,6 +29,7 @@ import '../../domain/entities/orden_servicio.dart';
 import '../../domain/repositories/orden_servicio_repository.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../constants/tipos_campo_servicio.dart';
+import '../widgets/ajustar_ancho_sheet.dart';
 import '../widgets/columna_resize_handle.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -902,17 +903,45 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         for (final col in columnas) ...[
                           SizedBox(
                             width: _anchoColumnaDetalle(key, col),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 6),
-                              child: Text(
-                                col['nombre'] as String,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.blue1,
+                            child: InkWell(
+                              // Tocar el encabezado abre el ajuste de ancho:
+                              // el tirador de al lado es un blanco muy chico
+                              // para el dedo.
+                              onTap: () async {
+                                final nuevo = await AjustarAnchoSheet.show(
+                                  context,
+                                  nombreColumna: col['nombre'] as String,
+                                  anchoActual: _anchoColumnaDetalle(key, col),
+                                );
+                                if (nuevo == null || !mounted) return;
+                                setState(() =>
+                                    _anchoTemporalTabla['$key##${col['nombre']}'] =
+                                        nuevo);
+                                _persistirAnchoDetalle(
+                                    key, col['nombre'] as String, nuevo);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 6),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        col['nombre'] as String,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.blue1,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(Icons.swap_horiz,
+                                        size: 11,
+                                        color: AppColors.blue1
+                                            .withValues(alpha: 0.5)),
+                                  ],
                                 ),
                               ),
                             ),
