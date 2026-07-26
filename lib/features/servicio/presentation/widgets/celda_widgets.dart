@@ -228,7 +228,11 @@ class _CeldaFotoState extends State<CeldaFoto> {
       final res = await locator<StorageService>().uploadFile(
         file: File(picked.path),
         empresaId: widget.empresaId,
-        categoria: 'foto-servicio',
+        // `categoria` es un enum CERRADO del backend, no texto libre:
+        // PRINCIPAL, GALERIA, THUMBNAIL, DOCUMENTO, FACTURA, COTIZACION,
+        // LOGO, BANNER, SPLASH, CERTIFICADO, CONTRATO, EVIDENCIA, FIRMA,
+        // QR_COBRO. Una foto de orden de servicio ES evidencia.
+        categoria: 'EVIDENCIA',
       );
       if (!mounted) return;
       widget.onCambio(res.url);
@@ -276,10 +280,35 @@ class _CeldaFotoState extends State<CeldaFoto> {
     }
 
     if (widget.url == null || widget.url!.isEmpty) {
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _capturar(ImageSource.camera),
-        onLongPress: () => _capturar(ImageSource.gallery),
+      // Menú explícito en vez de "toque = cámara, mantener = galería": ese
+      // atajo no lo descubre nadie y dejaba la galería inalcanzable.
+      return PopupMenuButton<String>(
+        padding: EdgeInsets.zero,
+        tooltip: '',
+        position: PopupMenuPosition.under,
+        onSelected: (v) => _capturar(
+          v == 'camara' ? ImageSource.camera : ImageSource.gallery,
+        ),
+        itemBuilder: (_) => const [
+          PopupMenuItem(
+            value: 'camara',
+            height: 38,
+            child: Row(children: [
+              Icon(Icons.photo_camera_outlined, size: 16),
+              SizedBox(width: 8),
+              Text('Tomar foto', style: TextStyle(fontSize: 12)),
+            ]),
+          ),
+          PopupMenuItem(
+            value: 'galeria',
+            height: 38,
+            child: Row(children: [
+              Icon(Icons.photo_library_outlined, size: 16),
+              SizedBox(width: 8),
+              Text('Elegir de galería', style: TextStyle(fontSize: 12)),
+            ]),
+          ),
+        ],
         child: Center(
           child: Icon(Icons.add_a_photo_outlined,
               size: 15, color: Colors.grey.shade400),

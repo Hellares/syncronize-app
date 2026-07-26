@@ -1165,7 +1165,8 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
       final res = await locator<StorageService>().uploadFile(
         file: file,
         empresaId: widget.empresaId,
-        categoria: 'firma-servicio',
+        // Enum cerrado del backend, no texto libre (ver CeldaFoto).
+        categoria: 'FIRMA',
       );
       if (!mounted) return;
       _updateValue(campo.nombre, res.url);
