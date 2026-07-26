@@ -1012,15 +1012,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     if (!mounted) return;
     if (result is Success) {
       await _loadDefinicionCampos();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(acomp.isEmpty
-                ? 'Columna "$nombre" agregada'
-                : 'Columnas "$nombre" y "$acomp" agregadas'),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(acomp.isEmpty
+              ? 'Columna "$nombre" agregada'
+              : 'Columnas "$nombre" y "$acomp" agregadas'),
+        ),
+      );
+      await _ofrecerLimpiarValoresPrevios(
+        key,
+        [nombre, if (acomp.isNotEmpty) acomp],
+      );
     } else if (result is Error<ConfiguracionCampo>) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message)),
@@ -1036,6 +1039,65 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     visualDensity: VisualDensity.compact,
   );
+
+  /// Al quitar una columna sus valores NO se borran de la orden: quedan en el
+  /// JSON. Si luego se crea otra con el mismo nombre, esos valores reaparecen
+  /// — cómodo si fue un borrado por error, confuso si se esperaba empezar de
+  /// cero. Se pregunta en vez de decidir por el usuario, y solo cuando de
+  /// verdad hay algo viejo que mostrar.
+  Future<void> _ofrecerLimpiarValoresPrevios(
+    String key,
+    List<String> columnas,
+  ) async {
+    final filas = _orden?.datosPersonalizados?[key];
+    if (filas is! List) return;
+
+    bool tieneValor(Map f, String c) =>
+        f[c] != null && f[c].toString().trim().isNotEmpty;
+
+    final conValores = filas
+        .whereType<Map>()
+        .any((f) => columnas.any((c) => tieneValor(f, c)));
+    if (!conValores || !mounted) return;
+
+    final limpiar = await AnimatedConfirmDialog.show(
+      context: context,
+      title: 'Valores anteriores',
+      message: columnas.length == 1
+          ? 'Esta orden ya tenía datos guardados en "${columnas.first}" de '
+              'antes de quitarla.\n\n¿Empezar en blanco o conservarlos?'
+          : 'Esta orden ya tenía datos guardados en '
+              '"${columnas.join('" y "')}" de antes de quitarlas.\n\n'
+              '¿Empezar en blanco o conservarlos?',
+      cancelText: 'Conservarlos',
+      confirmText: 'Empezar en blanco',
+      confirmButtonColor: AppColors.red,
+    );
+    if (limpiar != true || !mounted) return;
+
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded || _orden == null) return;
+
+    final datos = Map<String, dynamic>.from(_orden!.datosPersonalizados ?? {});
+    datos[key] = filas
+        .whereType<Map>()
+        .map((f) => Map<String, dynamic>.from(f)
+          ..removeWhere((k, _) => columnas.contains(k)))
+        .toList();
+
+    final result = await locator<OrdenServicioRepository>().actualizar(
+      id: widget.ordenId,
+      empresaId: empresaState.context.empresa.id,
+      datosPersonalizados: datos,
+    );
+    if (!mounted) return;
+    if (result is Success<OrdenServicio>) {
+      setState(() => _orden = result.data);
+    } else if (result is Error<OrdenServicio>) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result.message)));
+    }
+  }
 
   double _anchoColumnaDetalle(String key, Map<String, dynamic> col) =>
       _anchoTemporalTabla['$key##${col['nombre']}'] ?? anchoColumna(col);
