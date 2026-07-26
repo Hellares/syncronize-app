@@ -1092,7 +1092,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     );
     if (!mounted) return;
     if (result is Success<OrdenServicio>) {
-      setState(() => _orden = result.data);
+      setState(() {
+        _orden = result.data;
+        // 🔴 En modo edición la tabla NO pinta _orden sino esta copia de
+        // trabajo, y "+ Columna" se usa justo en modo edición. Sin limpiarla
+        // aquí se seguían viendo los valores viejos, y al Guardar la copia
+        // los habría reescrito sobre lo que acabamos de borrar.
+        if (_tablaEnEdicion == key) {
+          for (final f in _filasEditadas) {
+            f.removeWhere((k, _) => columnas.contains(k));
+          }
+        }
+      });
+      // Los controllers de esas celdas conservan el texto anterior.
+      _limpiarCeldaControllers();
     } else if (result is Error<OrdenServicio>) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(result.message)));
