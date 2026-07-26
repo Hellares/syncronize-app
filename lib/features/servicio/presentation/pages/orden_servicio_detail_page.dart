@@ -1000,7 +1000,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             'tipo': tipo,
             if (opciones.isNotEmpty) 'opciones': opciones,
           },
-          if (acomp.isNotEmpty) {'nombre': acomp, 'tipo': 'TEXTO'},
+          // `acompanaA` deja la relación EXPLÍCITA: sin ella, al borrar la
+          // columna de documento no habría forma de saber cuál era su
+          // columna de nombre (la regla "la siguiente de texto" no sirve
+          // para borrar: esa columna podría ser de otra cosa).
+          if (acomp.isNotEmpty)
+            {'nombre': acomp, 'tipo': 'TEXTO', 'acompanaA': nombre},
         ],
       },
     );

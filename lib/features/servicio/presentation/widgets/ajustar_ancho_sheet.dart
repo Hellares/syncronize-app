@@ -59,6 +59,23 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
   /// consecuencias mientras el panel esté abierto.
   final Set<String> _eliminadas = {};
 
+  /// Columnas que acompañan a [nombre] (el campo de nombre de un DNI/RUC).
+  /// Se van con ella: sueltas no tienen sentido, nadie las llenaría.
+  Iterable<String> _acompanantesDe(String nombre) => widget.columnas
+      .where((c) => c['acompanaA'] == nombre)
+      .map((c) => c['nombre'] as String);
+
+  void _alternarEliminar(String nombre) {
+    final afectadas = {nombre, ..._acompanantesDe(nombre)};
+    setState(() {
+      if (_eliminadas.contains(nombre)) {
+        _eliminadas.removeAll(afectadas);
+      } else {
+        _eliminadas.addAll(afectadas);
+      }
+    });
+  }
+
   static const _presets = <String, double>{
     'Angosta': 78,
     'Media': 132,
@@ -151,9 +168,7 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
                               ),
                             GestureDetector(
                               behavior: HitTestBehavior.opaque,
-                              onTap: () => setState(() => eliminada
-                                  ? _eliminadas.remove(nombre)
-                                  : _eliminadas.add(nombre)),
+                              onTap: () => _alternarEliminar(nombre),
                               child: Padding(
                                 padding: const EdgeInsets.only(left: 10),
                                 child: Icon(
@@ -173,8 +188,12 @@ class _AjustarAnchoSheetState extends State<AjustarAnchoSheet> {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: Text(
-                              'Se quitará de la plantilla. Los datos ya '
-                              'capturados no se borran.',
+                              _acompanantesDe(nombre).isEmpty
+                                  ? 'Se quitará de la plantilla. Los datos ya '
+                                      'capturados no se borran.'
+                                  : 'Se quita junto con '
+                                      '"${_acompanantesDe(nombre).join('", "')}". '
+                                      'Los datos ya capturados no se borran.',
                               style: TextStyle(
                                   fontSize: 10, color: Colors.grey.shade500),
                             ),

@@ -1122,16 +1122,15 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                               opcionesData = subCampos
                                   .where((s) => (s['nombre'] as String?)?.isNotEmpty == true)
                                   .map((s) {
-                                    final entry = <String, dynamic>{
-                                      'nombre': s['nombre'],
-                                      'tipo': s['tipo'],
-                                      // El ancho de columna lo fija el panel
-                                      // de la tabla; si no se copia aquí, se
-                                      // pierde al guardar la plantilla.
-                                      if (s['ancho'] != null) 'ancho': s['ancho'],
-                                    };
-                                    if (s['tipo'] == 'OPCION_SIMPLES' && s['opciones'] is List) {
-                                      entry['opciones'] = s['opciones'];
+                                    // Se copia TODO y solo se limpia lo que
+                                    // deja de aplicar. Reconstruir la entrada
+                                    // campo por campo ya hizo perder `ancho`
+                                    // una vez, y `acompanaA` la siguiente:
+                                    // cualquier propiedad nueva se caeria
+                                    // igual sin que nadie lo note.
+                                    final entry = Map<String, dynamic>.from(s);
+                                    if (s['tipo'] != 'OPCION_SIMPLES') {
+                                      entry.remove('opciones');
                                     }
                                     return entry;
                                   })
