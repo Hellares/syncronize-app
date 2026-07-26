@@ -437,6 +437,22 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                   font: AppFont.oxygenBold,
                 ),
               ),
+              if (plantilla.campos.length > 1) ...[
+                InkWell(
+                  onTap: () => _showReordenarCamposSheet(plantilla),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.blue1.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.swap_vert,
+                        size: 16, color: AppColors.blue1),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
               InkWell(
                 onTap: () => _showCampoDialog(plantilla),
                 borderRadius: BorderRadius.circular(20),
@@ -573,6 +589,173 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
     'TIEMPOS': 'Tiempos',
     'EQUIPO_CLIENTE': 'Equipo del Cliente',
   };
+
+  /// Reordena los campos arrastrando. El orden define en qué secuencia
+  /// aparecen al llenar una orden de servicio.
+  void _showReordenarCamposSheet(PlantillaServicio plantilla) {
+    // Copia local: se manipula libremente y solo se persiste al guardar.
+    final orden = List<ConfiguracionCampo>.from(plantilla.campos);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (_, setSheetState) => Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.75,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const AppTitle(
+                  'Ordenar campos',
+                  fontSize: 14,
+                  color: AppColors.blue1,
+                ),
+                AppLabelText(
+                  'Arrastra para definir en que orden se piden al llenar la orden',
+                  fontSize: 10,
+                  color: Colors.grey.shade500,
+                ),
+                const SizedBox(height: 10),
+                Flexible(
+                  child: ReorderableListView.builder(
+                    shrinkWrap: true,
+                    buildDefaultDragHandles: false,
+                    itemCount: orden.length,
+                    onReorder: (oldIndex, newIndex) => setSheetState(() {
+                      // ReorderableListView entrega el índice destino ANTES
+                      // de quitar el elemento arrastrado.
+                      if (newIndex > oldIndex) newIndex -= 1;
+                      orden.insert(newIndex, orden.removeAt(oldIndex));
+                    }),
+                    itemBuilder: (_, i) {
+                      final c = orden[i];
+                      return ReorderableDragStartListener(
+                        key: ValueKey(c.id),
+                        index: i,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.blue1.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.blue1.withValues(alpha: 0.15),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                '${i + 1}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                _tipoCampoIcons[c.tipoCampo] ??
+                                    Icons.text_fields,
+                                size: 13,
+                                color: AppColors.blue1,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  c.nombre,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppColors.blue1,
+                                  ),
+                                ),
+                              ),
+                              if (c.esRequerido)
+                                const Text('*',
+                                    style: TextStyle(
+                                        fontSize: 11, color: Colors.red)),
+                              const SizedBox(width: 8),
+                              Icon(Icons.drag_handle,
+                                  size: 16, color: Colors.grey.shade400),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    CustomButton(
+                      text: 'Cancelar',
+                      onPressed: () => Navigator.pop(sheetContext),
+                      backgroundColor: Colors.transparent,
+                      borderColor: AppColors.blue3,
+                      borderWidth: 0.6,
+                      textColor: AppColors.blue3,
+                      enableShadows: false,
+                    ),
+                    const SizedBox(width: 8),
+                    CustomButton(
+                      text: 'Guardar orden',
+                      onPressed: () async {
+                        Navigator.pop(sheetContext);
+                        final repo = locator<PlantillaServicioRepository>();
+                        final result = await repo.reorderCampos(
+                          orden.map((c) => c.id).toList(),
+                        );
+                        if (!mounted) return;
+                        if (result is Success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Orden guardado')),
+                          );
+                          await _loadPlantillas();
+                        } else if (result is Error) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(result.message)),
+                          );
+                        }
+                      },
+                      backgroundColor: AppColors.blue1,
+                      borderColor: AppColors.blue1,
+                      borderWidth: 0.6,
+                      textColor: Colors.white,
+                      enableShadows: false,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   /// Agrega un campo o edita uno existente (`campo != null`). En edición
   /// se prellena todo y aparece además la acción de eliminar.

@@ -72,6 +72,16 @@ class PlantillaServicioRemoteDataSource {
     );
   }
 
+  /// El backend asigna `orden` = posición en la lista (1-based), en una
+  /// transacción. Hay que mandar TODOS los ids del grupo, no solo los que
+  /// se movieron.
+  Future<void> reorderCampos(List<String> orderedIds) async {
+    await _dioClient.patch(
+      '${ApiConstants.configuracionCamposServicio}/reorder',
+      data: {'orderedIds': orderedIds},
+    );
+  }
+
   Future<List<ConfiguracionCampoModel>> getCampos(String plantillaId) async {
     final response = await _dioClient.get(
       '${ApiConstants.plantillasServicio}/$plantillaId/campos',

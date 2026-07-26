@@ -33,5 +33,7 @@ abstract class PlantillaServicioRepository {
 
   Future<Resource<void>> deleteCampo(String campoId);
 
+  Future<Resource<void>> reorderCampos(List<String> orderedIds);
+
   Future<Resource<List<ConfiguracionCampo>>> getCamposByServicioId(String servicioId);
 }

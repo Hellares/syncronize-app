@@ -147,6 +147,19 @@ class PlantillaServicioRepositoryImpl implements PlantillaServicioRepository {
   }
 
   @override
+  Future<Resource<void>> reorderCampos(List<String> orderedIds) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.reorderCampos(orderedIds);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'PlantillaServicio');
+    }
+  }
+
+  @override
   Future<Resource<List<ConfiguracionCampo>>> getCamposByServicioId(String servicioId) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
