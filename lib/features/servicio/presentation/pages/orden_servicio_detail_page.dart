@@ -50,7 +50,6 @@ import '../widgets/inspeccion_visual_dialog.dart';
 import '../widgets/mensajes_orden_widget.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
-import '../services/whatsapp_notification_service.dart';
 import 'documento_orden_servicio_preview_page.dart';
 import 'package:go_router/go_router.dart';
 import '../../../tercerizacion/domain/entities/directorio_empresa.dart';
@@ -4270,7 +4269,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     ),
                     child: CustomSwitchTile(
                       title: 'Comunicar al cliente',
-                      subtitle: 'Registrar que este cambio fue notificado',
+                      subtitle:
+                          'Le llega un WhatsApp con el nuevo estado, desde el número de la empresa',
                       value: comunicarCliente,
                       activeTrackColor: AppColors.blue1,
                       onChanged: (v) =>
@@ -4463,8 +4463,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               content:
                   Text('Estado cambiado a ${_estadoTimelineLabel(nuevoEstado)}')),
         );
-        // Offer WhatsApp notification
-        _ofrecerNotificacionWhatsApp(nuevoEstado);
+        // El WhatsApp al cliente lo manda el BACKEND por Evolution cuando
+        // se marcó "comunicar al cliente": no hay que abrir wa.me ni pedir
+        // que alguien le dé enviar a mano.
       }
     } else if (result is Error) {
       setState(() => _isLoading = false);
@@ -4472,102 +4473,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         SnackBar(content: Text((result as Error).message)),
       );
     }
-  }
-
-  void _ofrecerNotificacionWhatsApp(String nuevoEstado) {
-    if (_orden?.cliente?.telefono == null) return;
-
-    final empresaState = context.read<EmpresaContextCubit>().state;
-    if (empresaState is! EmpresaContextLoaded) return;
-
-    showDialog(
-      context: context,
-      barrierColor: const Color(0x1A000000),
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: AnimatedNeonBorder(
-          borderRadius: 16,
-          borderWidth: 1.5,
-          padding: const EdgeInsets.all(1.5),
-          enableHighlight: true,
-          highlightWidth: 0.12,
-          highlightOpacity: 0.85,
-          duration: const Duration(seconds: 5),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 420),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF25D366).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.chat,
-                          color: Color(0xFF25D366), size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text('Notificar al cliente',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Enviar notificacion por WhatsApp al cliente sobre el cambio de estado?',
-                  style: TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    CustomButton(
-                      text: 'No',
-                      onPressed: () => Navigator.pop(ctx),
-                      backgroundColor: Colors.transparent,
-                      borderColor: AppColors.blue3,
-                      borderWidth: 0.6,
-                      textColor: AppColors.blue3,
-                      enableShadows: false,
-                    ),
-                    const SizedBox(width: 8),
-                    CustomButton(
-                      text: 'Enviar',
-                      icon: const Icon(Icons.chat, size: 16, color: Colors.white),
-                      iconColor: Colors.white,
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        WhatsAppNotificationService.notificarCambioEstado(
-                          orden: _orden!,
-                          nuevoEstado: nuevoEstado,
-                          empresaNombre: (empresaState).context.empresa.nombre,
-                        );
-                      },
-                      backgroundColor: const Color(0xFF25D366),
-                      borderColor: const Color(0xFF25D366),
-                      borderWidth: 0.6,
-                      textColor: Colors.white,
-                      enableShadows: false,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   // ─── Component Actions ───
