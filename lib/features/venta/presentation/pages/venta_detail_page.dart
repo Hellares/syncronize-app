@@ -1859,7 +1859,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     bool soloSiAutoImprimir = false,
   }) async {
     try {
-      // Identidad de la empresa ANTES del primer await (evita usar el
+      // Fallbacks de empresa leídos ANTES del primer await (evita usar el
       // context tras un gap async).
       final empresaState = context.read<EmpresaContextCubit>().state;
       String empresaNombre = '';
@@ -1874,6 +1874,28 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         ruc = e.ruc;
         direccion = e.direccionFiscal;
         telefono = e.telefono;
+      }
+
+      // Identidad EFECTIVA (sede > empresa), igual que el ticket de venta:
+      // la sede puede tener su propio nombre comercial, RUC, razón social y
+      // dirección fiscal, y esos deben ganar en la cabecera. Sin esto el
+      // recibo salía con la dirección de la empresa aunque el cobro fuera
+      // en otra sede.
+      try {
+        final config = await locator<VentaRemoteDataSource>()
+            .getConfiguracionSunat(
+                sedeId: venta.comprobanteSedeId ?? venta.sedeId);
+        empresaNombre =
+            (config['nombreComercial'] as String?)?.trim().isNotEmpty == true
+                ? config['nombreComercial'] as String
+                : empresaNombre;
+        razonSocial = (config['razonSocial'] as String?) ?? razonSocial;
+        ruc = (config['ruc'] as String?) ?? ruc;
+        direccion = (config['direccionFiscal'] as String?) ?? direccion;
+        telefono = (config['telefono'] as String?) ?? telefono;
+      } catch (_) {
+        // Sin config de facturación (o sin red): el recibo igual sale con
+        // los datos de la empresa — es un documento interno.
       }
 
       final manager = locator<ImpresorasManager>();
