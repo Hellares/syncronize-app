@@ -51,6 +51,13 @@ class ReciboCuotaEscPosGenerator {
     Uint8List? logoEmpresa,
     int paperWidth = 80,
     DateTime? fecha,
+    /// Copia de un cobro anterior: se rotula REIMPRESION y el estado de la
+    /// deuda se aclara que es "al dia de hoy" (no el del momento del pago,
+    /// que no se guarda).
+    bool esReimpresion = false,
+    /// Desglose de la imputacion cuando el credito tiene interes/mora.
+    double montoInteres = 0,
+    double montoMora = 0,
   }) async {
     final profile = await CapabilityProfile.load();
     final paperSize = paperWidth == 58 ? PaperSize.mm58 : PaperSize.mm80;
@@ -115,6 +122,7 @@ class ReciboCuotaEscPosGenerator {
     );
     bytes += generator.setStyles(const PosStyles(fontType: PosFontType.fontB));
     bytes += _centro(generator, _tituloCuotas(aplicaciones, venta.numeroCuotas));
+    if (esReimpresion) bytes += _centro(generator, '** REIMPRESION **');
     bytes += generator.text('=' * chars);
 
     // ── Datos de la venta ──
@@ -155,6 +163,20 @@ class ReciboCuotaEscPosGenerator {
     if (referencia != null && referencia.trim().isNotEmpty) {
       bytes += generator.text(_kv('Operacion:', referencia.trim(), chars));
     }
+    // Desglose: qué parte del abono fue a mora/interés y qué parte bajó la
+    // deuda. Sin esto el cliente no entiende por qué su saldo bajó menos.
+    if (montoInteres > 0.005 || montoMora > 0.005) {
+      final principal = montoPagado - montoInteres - montoMora;
+      if (principal > 0.005) {
+        bytes += generator.text(_kv('  A capital:', _money(principal), chars));
+      }
+      if (montoInteres > 0.005) {
+        bytes += generator.text(_kv('  A interes:', _money(montoInteres), chars));
+      }
+      if (montoMora > 0.005) {
+        bytes += generator.text(_kv('  A mora:', _money(montoMora), chars));
+      }
+    }
 
     // ── Detalle por cuota ──
     if (aplicaciones.isNotEmpty) {
@@ -182,6 +204,11 @@ class ReciboCuotaEscPosGenerator {
     final pagadas = cuotas.where((c) => c.estado == 'PAGADA').length;
 
     bytes += generator.text('=' * chars);
+    if (esReimpresion) {
+      // El estado histórico del momento del pago no se persiste; lo honesto
+      // es aclarar que estos números son de hoy.
+      bytes += generator.text('ESTADO DE LA DEUDA (al dia de hoy):');
+    }
     bytes += generator.text(_kv('Total venta:', _money(venta.total), chars));
     if (cuotas.isNotEmpty) {
       bytes += generator.text(_kv('Pagado a la fecha:', _money(pagadoTotal), chars));

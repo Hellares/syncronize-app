@@ -14,6 +14,12 @@ class PagoVentaModel extends PagoVenta {
     super.monedaOriginal,
     super.montoOriginal,
     super.tipoCambio,
+    super.cuotaVentaId,
+    super.montoPrincipal,
+    super.montoInteres,
+    super.montoMora,
+    super.anulado,
+    super.fuente,
   });
 
   factory PagoVentaModel.fromJson(Map<String, dynamic> json) {
@@ -28,6 +34,12 @@ class PagoVentaModel extends PagoVenta {
       monedaOriginal: json['monedaOriginal'] as String?,
       montoOriginal: json['montoOriginal'] != null ? _toDouble(json['montoOriginal']) : null,
       tipoCambio: json['tipoCambio'] != null ? _toDouble(json['tipoCambio']) : null,
+      cuotaVentaId: json['cuotaVentaId'] as String?,
+      montoPrincipal: _toDouble(json['montoPrincipal']),
+      montoInteres: _toDouble(json['montoInteres']),
+      montoMora: _toDouble(json['montoMora']),
+      anulado: json['anulado'] as bool? ?? false,
+      fuente: json['fuente'] as String?,
     );
   }
 

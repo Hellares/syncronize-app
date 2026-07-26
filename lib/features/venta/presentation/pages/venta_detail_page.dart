@@ -1749,6 +1749,19 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600, fontSize: 13),
                           ),
+                          // Reimprimir el recibo de este cobro: la impresión
+                          // automática pudo no salir (sin impresora
+                          // configurada) o el cliente pedir otra copia.
+                          if (v.esCredito && !pago.anulado)
+                            GestureDetector(
+                              onTap: () => _reimprimirReciboPago(v, pago),
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Icon(Icons.print_outlined,
+                                    size: 18, color: AppColors.blue1),
+                              ),
+                            ),
                         ],
                       ),
                       if (tieneVuelto)
@@ -1770,6 +1783,44 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Reimprime el recibo de un cobro ya registrado (la impresión automática
+  /// no salió por falta de impresora, o el cliente pide otra copia).
+  ///
+  /// La imputación exacta a cuotas NO se persiste cuando un abono cubre
+  /// varias (el backend solo guarda la PRIMERA en `cuotaVentaId` más el
+  /// desglose principal/interés/mora), así que el recibo se arma con lo que
+  /// sí está guardado y se rotula REIMPRESION: el monto y el método son
+  /// exactos, el estado de la deuda es el de hoy.
+  Future<void> _reimprimirReciboPago(Venta v, PagoVenta pago) async {
+    final cuotas = v.cuotas ?? const [];
+    final cuota = pago.cuotaVentaId == null
+        ? null
+        : cuotas.where((c) => c.id == pago.cuotaVentaId).firstOrNull;
+
+    final aplicaciones = cuota == null
+        ? const <CuotaAplicada>[]
+        : [
+            CuotaAplicada(
+              numero: cuota.numero,
+              montoAplicado: pago.monto,
+              saldoRestante: cuota.saldoPendiente,
+              fechaVencimiento: cuota.fechaVencimiento,
+            ),
+          ];
+
+    await _imprimirReciboCuota(
+      venta: v,
+      aplicaciones: aplicaciones,
+      montoPagado: pago.monto,
+      metodoPago: pago.metodoPago.label.toUpperCase(),
+      referencia: pago.referencia,
+      fecha: pago.fechaPago,
+      esReimpresion: true,
+      montoInteres: pago.montoInteres,
+      montoMora: pago.montoMora,
     );
   }
 
@@ -1943,6 +1994,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     required String metodoPago,
     String? referencia,
     bool soloSiAutoImprimir = false,
+    DateTime? fecha,
+    bool esReimpresion = false,
+    double montoInteres = 0,
+    double montoMora = 0,
   }) async {
     try {
       // Fallbacks de empresa leídos ANTES del primer await (evita usar el
@@ -2012,6 +2067,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         // El ancho importa: con 80 por defecto en una térmica de 58mm las
         // columnas se aplastan a la derecha.
         paperWidth: principal?.anchoPapel.mm ?? 80,
+        fecha: fecha,
+        esReimpresion: esReimpresion,
+        montoInteres: montoInteres,
+        montoMora: montoMora,
       );
 
       if (principal != null) {
