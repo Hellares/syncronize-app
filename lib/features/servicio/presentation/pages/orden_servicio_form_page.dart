@@ -1070,6 +1070,8 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
       campos: _camposPersonalizados,
       values: _datosPersonalizados,
       empresaId: _empresaId,
+      // Define de qué sede sale el precio en las celdas de producto.
+      sedeId: _sedeId,
       onChanged: (newValues) {
         _emit(() => _datosPersonalizados = newValues);
       },

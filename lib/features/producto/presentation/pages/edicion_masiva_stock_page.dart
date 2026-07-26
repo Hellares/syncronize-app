@@ -3,8 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/custom_sede_selector.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/bulk_editar_stock_precios.dart';
@@ -154,23 +157,37 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     if (nuevaSedeId == null || nuevaSedeId == _sedeId) return;
 
     if (_totalCambios > 0) {
-      final confirmar = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Cambiar de sede'),
-          content: const Text(
-              'Tienes cambios sin guardar. Al cambiar de sede se descartarán. ¿Continuar?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
+      final confirmar = await StyledDialog.show<bool>(
+        context,
+        accentColor: Colors.orange,
+        backgroundColor: Colors.white,
+        icon: Icons.store_outlined,
+        titulo: 'Cambiar de sede',
+        content: [
+          const Text(
+            'Tienes cambios sin guardar. Al cambiar de sede se descartarán. ¿Continuar?',
+            style: TextStyle(fontSize: 13),
+          ),
+        ],
+        actions: [
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Descartar y cambiar'),
+          ),
+          Expanded(
+            child: CustomButton(
+              text: 'Descartar',
+              backgroundColor: Colors.orange,
+              textColor: Colors.white,
+              onPressed: () => Navigator.pop(context, true),
             ),
-          ],
-        ),
+          ),
+        ],
       );
       if (confirmar != true) return;
       _limpiarEdiciones();
@@ -184,62 +201,64 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     final precioCtrl = TextEditingController();
     final costoCtrl = TextEditingController();
 
-    final aplicar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Aplicar a ${visibles.length} variante(s)'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Los campos vacíos no se aplican. Afecta solo a las variantes visibles (según el filtro).',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: stockCtrl,
-              keyboardType: const TextInputType.numberWithOptions(signed: true),
-              inputFormatters: [_soloEnteroConSigno],
-              decoration: const InputDecoration(
-                labelText: 'Agregar stock (+/-)',
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: precioCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [_soloDecimal],
-              decoration: const InputDecoration(
-                labelText: 'Precio (S/)',
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: costoCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [_soloDecimal],
-              decoration: const InputDecoration(
-                labelText: 'Costo (S/)',
-                isDense: true,
-              ),
-            ),
-          ],
+    final aplicar = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.blue1,
+      backgroundColor: Colors.white,
+      icon: Icons.copy_all,
+      titulo: 'Aplicar a ${visibles.length} variante(s)',
+      content: [
+        const Text(
+          'Los campos vacíos no se aplican. Afecta solo a las variantes visibles (según el filtro).',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+        const SizedBox(height: 14),
+        CustomText(
+          controller: stockCtrl,
+          label: 'Agregar stock (+/-)',
+          hintText: '0',
+          keyboardType: const TextInputType.numberWithOptions(signed: true),
+          inputFormatters: [_soloEnteroConSigno],
+          borderColor: AppColors.blue1.withValues(alpha: 0.4),
+        ),
+        const SizedBox(height: 10),
+        CustomText(
+          controller: precioCtrl,
+          label: 'Precio (S/)',
+          hintText: '0.00',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [_soloDecimal],
+          borderColor: AppColors.blue1.withValues(alpha: 0.4),
+        ),
+        const SizedBox(height: 10),
+        CustomText(
+          controller: costoCtrl,
+          label: 'Costo (S/)',
+          hintText: '0.00',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [_soloDecimal],
+          borderColor: AppColors.blue1.withValues(alpha: 0.4),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Aplicar'),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Aplicar',
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context, true),
           ),
-        ],
-      ),
+        ),
+      ],
     );
 
     if (aplicar == true) {
@@ -284,25 +303,40 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
         _sedes.firstWhere((s) => s.id == _sedeId, orElse: () => null)?.nombre ??
             '';
 
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar cambios'),
-        content: Text(
-            'Se aplicarán cambios a ${items.length} variante(s) en la sede "$sedeNombre".\n\n'
-            'Los ajustes de stock quedarán registrados en el kardex y los '
-            'cambios de precio en el historial.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+    final confirmar = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.blue1,
+      backgroundColor: Colors.white,
+      icon: Icons.save_outlined,
+      titulo: 'Confirmar cambios',
+      content: [
+        Text(
+          'Se aplicarán cambios a ${items.length} variante(s) en la sede "$sedeNombre".\n\n'
+          'Los ajustes de stock quedarán registrados en el kardex y los '
+          'cambios de precio en el historial.',
+          style: const TextStyle(fontSize: 13),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Guardar'),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Guardar',
+            icon: const Icon(Icons.save_outlined, size: 14, color: Colors.white),
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context, true),
           ),
-        ],
-      ),
+        ),
+      ],
     );
 
     if (confirmar != true || !mounted) return;
@@ -609,22 +643,19 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: TextField(
+      child: CustomText(
         controller: controller,
+        hintText: hint,
         onChanged: (_) => setState(() {}),
         keyboardType: TextInputType.numberWithOptions(
             signed: signed, decimal: !signed),
         inputFormatters: [formatter],
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 11),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(fontSize: 10, color: Colors.grey[400]),
-          isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          border: const OutlineInputBorder(),
-        ),
+        height: 34,
+        borderColor: AppColors.blue1.withValues(alpha: 0.3),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        textStyle: const TextStyle(fontSize: 11),
+        hintStyle: TextStyle(fontSize: 10, color: Colors.grey[400]),
+        showValidationIndicator: false,
       ),
     );
   }

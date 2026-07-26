@@ -1566,6 +1566,35 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final ctrl = _celdaControllers['$key##$fila##$nombre'] ??=
         TextEditingController(text: valor?.toString() ?? '');
 
+    // PRODUCTO va ANTES: también declara datos acompañantes, pero su celda
+    // es un buscador, no un campo con lupa.
+    if (tipo == 'PRODUCTO_CATALOGO') {
+      return CeldaProducto(
+        valor: valor as String?,
+        empresaId: _empresaId,
+        sedeId: _orden?.sedeId,
+        onResuelto: (datos) {
+          final tocadas = <String>[];
+          _filasEditadas[fila][nombre] = datos['nombre'] ?? '';
+          tocadas.add('$key##$fila##$nombre');
+          volcarDatosDeConsulta(
+            datos: datos,
+            columnas: columnas,
+            origen: nombre,
+            escribir: (col, v) {
+              _filasEditadas[fila][col] = v;
+              tocadas.add('$key##$fila##$col');
+            },
+            // El nombre ya se guardó en esta celda; si no hay columnas para
+            // precio/código no hay nada que avisar.
+            sinDestino: (_) {},
+          );
+          _descartarCeldaControllers(tocadas);
+          setState(() {});
+        },
+      );
+    }
+
     if (tipoTieneConsulta(tipo)) {
       return CeldaConsulta(
         tipo: tipo,

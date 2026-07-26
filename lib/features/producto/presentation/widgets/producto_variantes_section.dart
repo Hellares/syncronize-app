@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -175,7 +176,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
           backgroundColor: AppColors.white,
           borderColor: AppColors.blue2,
           borderRadius: 4,
-          fontSize: 10,
+          fontSize: 8,
         );
         
 
@@ -217,7 +218,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? Colors.blue.shade400 : Colors.grey.shade300,
-            width: isSelected ? 1 : 0.5,
+            width: isSelected ? 0.7 : 0.5,
           ),
         ),
         child: Column(
@@ -260,15 +261,13 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
+                            child: AppSubtitle(
                               variante.nombre,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? Colors.blue.shade900
-                                    : Colors.black87,
-                              ),
+                              font: AppFont.amazonEmberMedium,
+                              fontSize: 10,
+                              color: isSelected
+                                  ? Colors.blue.shade900
+                                  : Colors.black87,
                             ),
                           ),
                           // Botón para gestionar atributos
@@ -294,13 +293,10 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                             ),
                         ],
                       ),
-                      // const SizedBox(height: 4),
-                      Text(
+                       AppSubtitle(
                         'SKU: ${variante.sku}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        fontSize: 10,
+                        color: Colors.grey[600],
                       ),
                     ],
                   ),
@@ -318,7 +314,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                 Text(
                   'S/${precioEfectivoDisplay.toStringAsFixed(2)}',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: isSelected ? Colors.blue.shade800 : Colors.black87,
                   ),
@@ -327,11 +323,11 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                 // Stock
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: _getStockColor(variante).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _getStockColor(variante)),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: _getStockColor(variante), width: 0.5),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -345,7 +341,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                       Text(
                         'Stock: ${variante.stockTotal}',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: _getStockColor(variante),
                         ),

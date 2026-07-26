@@ -69,6 +69,8 @@ const kDatosDeConsulta = <String, Map<String, String>>{
     'vencimiento': 'VENCE',
     'estado': 'ESTADO',
   },
+  // La celda de producto guarda el nombre; estos son los datos extra.
+  'PRODUCTO_CATALOGO': {'precio': 'PRECIO', 'codigo': 'CODIGO'},
 };
 
 bool tipoTieneConsulta(String tipo) => kDatosDeConsulta.containsKey(tipo);
@@ -80,6 +82,7 @@ const kDatosSugeridos = <String, List<String>>{
   'DOCUMENTO_IDENTIDAD': ['nombre'],
   'PLACA_VEHICULO': ['marca', 'modelo', 'color'],
   'LICENCIA_CONDUCIR': ['nombre', 'categoria', 'vencimiento'],
+  'PRODUCTO_CATALOGO': ['precio'],
 };
 
 /// Reparte los datos de una consulta en las columnas de la fila.
@@ -233,6 +236,7 @@ const kColumnaTiposTabla = <String, String>{
   'PLACA_VEHICULO': 'Placa',
   'LICENCIA_CONDUCIR': 'Licencia',
   'FOTO': 'Foto',
+  'PRODUCTO_CATALOGO': 'Producto del catálogo',
 };
 
 // ── Anchos de columna de una TABLA ──────────────────────────────────────

@@ -863,7 +863,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -952,10 +952,12 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 (d.estado == 'SOLICITADO' || d.estado == 'EN_CAMINO')) ...[
               const SizedBox(height: 8),
               CustomButton(
+                height: 30,
+                borderWidth: 0.6,
+                enableShadows: false,
                 text: d.estado == 'SOLICITADO'
                     ? 'Marcar EN CAMINO (salió el empleado)'
                     : 'Marcar ENTREGADO',
-                isOutlined: true,
                 borderColor: d.estado == 'SOLICITADO'
                     ? Colors.teal
                     : Colors.green.shade700,
@@ -966,7 +968,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                     d.estado == 'SOLICITADO'
                         ? Icons.two_wheeler_outlined
                         : Icons.check_circle_outline,
-                    size: 16,
+                    size: 14,
                     color: d.estado == 'SOLICITADO'
                         ? Colors.teal.shade700
                         : Colors.green.shade700),
@@ -1016,7 +1018,6 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           Expanded(
             child: CustomButton(
               text: 'Cancelar',
-              isOutlined: true,
               borderColor: Colors.grey.shade400,
               textColor: Colors.grey.shade700,
               onPressed: () => Navigator.pop(ctx, false),
@@ -1747,7 +1748,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                           Text(
                             '${v.moneda} ${montoNeto.toStringAsFixed(2)}',
                             style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 13),
+                                fontWeight: FontWeight.w600, fontSize: 11, color: AppColors.greendark),
                           ),
                           // Reimprimir el recibo de este cobro: la impresión
                           // automática pudo no salir (sin impresora
@@ -2121,7 +2122,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     return GradientContainer(
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2129,7 +2130,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               children: [
                 Icon(Icons.calendar_month, size: 16, color: AppColors.blue1),
                 const SizedBox(width: 6),
-                AppSubtitle('Cuotas ($cuotasPagadas/${cuotas.length} pagadas)', fontSize: 14),
+                AppSubtitle('Cuotas ($cuotasPagadas/${cuotas.length} pagadas)', fontSize: 12),
               ],
             ),
             const Divider(height: 16),
@@ -2213,7 +2214,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('S/ ${cuota.monto.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           Text(
                             'Vence: ${DateFormatter.formatDate(cuota.fechaVencimiento)}'
                             '${cuota.montoPagado > 0 ? ' | Pagado: S/ ${cuota.montoPagado.toStringAsFixed(2)}' : ''}',

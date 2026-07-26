@@ -13,6 +13,7 @@ import '../../../consultas_externas/domain/entities/consulta_placa.dart';
 import '../../../consultas_externas/domain/entities/consulta_ruc.dart';
 import '../../../consultas_externas/domain/repositories/consultas_repository.dart';
 import '../constants/tipos_campo_servicio.dart';
+import 'buscar_producto_sheet.dart';
 
 /// Widgets para celdas de TABLA.
 ///
@@ -376,6 +377,55 @@ class _CeldaFotoState extends State<CeldaFoto> {
                 Icon(Icons.broken_image_outlined, size: 14, color: Colors.grey.shade400),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Celda que elige un producto del catálogo. Guarda el NOMBRE; el precio y
+/// el código viajan por [onResuelto] a las columnas que los declaren.
+class CeldaProducto extends StatelessWidget {
+  final String? valor;
+  final String empresaId;
+  final String? sedeId;
+  final ValueChanged<Map<String, String>> onResuelto;
+
+  const CeldaProducto({
+    super.key,
+    required this.valor,
+    required this.empresaId,
+    required this.sedeId,
+    required this.onResuelto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final vacia = valor == null || valor!.trim().isEmpty;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        final elegido = await BuscarProductoSheet.show(
+          context,
+          empresaId: empresaId,
+          sedeId: sedeId,
+        );
+        if (elegido != null) onResuelto(elegido);
+      },
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              vacia ? 'Buscar…' : valor!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: vacia ? Colors.grey.shade400 : Colors.black87,
+              ),
+            ),
+          ),
+          Icon(Icons.search, size: 13, color: AppColors.blue1),
+        ],
       ),
     );
   }

@@ -237,7 +237,7 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                           ? 'Editar dirección — ${widget.ventaCodigo}'
                           : 'Delivery local — ${widget.ventaCodigo}',
                       style: const TextStyle(
-                          fontSize: 13.5, fontWeight: FontWeight.w700),
+                          fontSize: 13, fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -258,12 +258,14 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
               // punto exacto → NAVEGAR va al punto y el cliente ve el 📍.
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
                   foregroundColor:
                       _destino == null ? AppColors.blue1 : Colors.green[700],
                   side: BorderSide(
                     color: _destino == null
                         ? AppColors.blue1
                         : Colors.green[700]!,
+                        width: 0.6,
                   ),
                   minimumSize: const Size(double.infinity, 38),
                   textStyle: const TextStyle(
@@ -343,6 +345,7 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                     color: _esInterno
                         ? Colors.teal
                         : Colors.grey.shade600,
+                        fontSize: 10,
                   ),
                   value: _esInterno,
                   onChanged: (v) => setState(() => _esInterno = v),
@@ -360,30 +363,39 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                 ],
               ],
               const SizedBox(height: 14),
-              CustomButton(
-                text: widget.esEdicion
-                    ? 'Actualizar dirección'
-                    : _esInterno
-                        ? 'Crear delivery interno'
-                        : 'Publicar para repartidores',
-                backgroundColor: AppColors.blue1,
-                textColor: Colors.white,
-                icon: Icon(
-                    widget.esEdicion
-                        ? Icons.edit_location_alt_outlined
-                        : Icons.delivery_dining,
-                    size: 16,
-                    color: Colors.white),
-                onPressed: _confirmar,
-              ),
-              const SizedBox(height: 8),
-              CustomButton(
-                text: 'Cancelar',
-                isOutlined: true,
-                borderColor: Colors.grey.shade400,
-                textColor: Colors.grey.shade700,
-                enableShadows: false,
-                onPressed: () => Navigator.of(context).pop(),
+              Row(
+                children: [
+                  CustomButton(
+                    width: 120,
+                    borderWidth: 0.6,
+                    icon: const Icon(Icons.close_outlined, size: 16, color: AppColors.red),
+                    text: 'Cancelar',
+                    isOutlined: true,
+                    borderColor: AppColors.red,
+                    textColor: AppColors.red,
+                    enableShadows: false,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CustomButton(
+                      text: widget.esEdicion
+                          ? 'Actualizar dirección'
+                          : _esInterno
+                              ? 'Crear delivery interno'
+                              : 'Publicar para repartidores',
+                      backgroundColor: AppColors.blue1,
+                      textColor: Colors.white,
+                      icon: Icon(
+                          widget.esEdicion
+                              ? Icons.edit_location_alt_outlined
+                              : Icons.delivery_dining,
+                          size: 16,
+                          color: Colors.white),
+                      onPressed: _confirmar,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

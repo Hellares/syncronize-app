@@ -482,6 +482,7 @@ class _StockPorSedePageState extends State<StockPorSedePage> {
                                   CircularProgressIndicator(strokeWidth: 2),
                             ),
                           ),
+                          
                         );
                       }
                       return _buildItemRow(stocks[i]);

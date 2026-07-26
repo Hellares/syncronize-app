@@ -35,12 +35,16 @@ class DynamicFormRenderer extends StatefulWidget {
   final ValueChanged<Map<String, dynamic>> onChanged;
   final String empresaId;
 
+  /// Sede de la orden: define QUE PRECIO trae el buscador de productos.
+  final String? sedeId;
+
   const DynamicFormRenderer({
     super.key,
     required this.campos,
     required this.values,
     required this.onChanged,
     required this.empresaId,
+    this.sedeId,
   });
 
   @override
@@ -827,6 +831,41 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
     final ctrl = _tablaControllers[key] ??= TextEditingController(
       text: fila[nombreCol]?.toString() ?? '',
     );
+
+    // PRODUCTO va ANTES: también declara datos acompañantes, pero su celda
+    // es un buscador, no un campo con lupa.
+    if (tipo == 'PRODUCTO_CATALOGO') {
+      return CeldaProducto(
+        valor: fila[nombreCol] as String?,
+        empresaId: widget.empresaId,
+        sedeId: widget.sedeId,
+        onResuelto: (datos) {
+          final tocadas = <String>['${campo.nombre}##$indiceFila##$nombreCol'];
+          fila[nombreCol] = datos['nombre'] ?? '';
+          volcarDatosDeConsulta(
+            datos: datos,
+            columnas: columnas,
+            origen: nombreCol,
+            escribir: (col, v) {
+              fila[col] = v;
+              tocadas.add('${campo.nombre}##$indiceFila##$col');
+            },
+            sinDestino: (_) {},
+          );
+          final viejos = tocadas
+              .map(_tablaControllers.remove)
+              .whereType<TextEditingController>()
+              .toList();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            for (final c in viejos) {
+              c.dispose();
+            }
+          });
+          setState(() {});
+          onCambio();
+        },
+      );
+    }
 
     if (tipoTieneConsulta(tipo)) {
       return CeldaConsulta(

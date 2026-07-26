@@ -136,7 +136,8 @@ class BannerMarketplaceCard extends StatelessWidget {
                 children: [
                   if (banner.logo != null)
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(4
+                      ),
                       child: CachedNetworkImage(
                         imageUrl: banner.logo!,
                         width: 32,
