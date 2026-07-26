@@ -825,6 +825,10 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
     final nombreCtrl = TextEditingController();
     final opcionesCtrl = TextEditingController();
+    // Acompañante de una columna DNI/RUC: la celda escribe ahí el nombre
+    // resuelto, y tiene que quedar INMEDIATAMENTE a la derecha.
+    final nombreAcompCtrl = TextEditingController(text: 'NOMBRE');
+    bool crearAcompanante = true;
     String tipo = 'TEXTO';
 
     final confirmado = await StyledDialog.show<bool>(
@@ -864,6 +868,32 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     .toList(),
                 onChanged: (v) => setDialogState(() => tipo = v ?? 'TEXTO'),
               ),
+              // La columna DNI/RUC no sirve sola: el nombre que resuelve va
+              // a la siguiente columna de texto, así que se ofrece crearla
+              // en el mismo paso.
+              if (tipo == 'DOCUMENTO_IDENTIDAD') ...[
+                const SizedBox(height: 6),
+                CustomSwitchTile(
+                  title: 'Crear también la columna del nombre',
+                  subtitle: crearAcompanante
+                      ? 'Se agrega a la derecha y se llena sola al buscar'
+                      : 'Sin ella, el nombre solo se mostrará en un aviso',
+                  value: crearAcompanante,
+                  activeColor: AppColors.blue1,
+                  onChanged: (v) => setDialogState(() => crearAcompanante = v),
+                ),
+                if (crearAcompanante) ...[
+                  const SizedBox(height: 10),
+                  CustomText(
+                    controller: nombreAcompCtrl,
+                    label: 'Nombre de esa columna',
+                    textCase: TextCase.upper,
+                    borderColor: AppColors.blue1,
+                    colorIcon: AppColors.blue1,
+                    prefixIcon: const Icon(Icons.person_outline, size: 18),
+                  ),
+                ],
+              ],
               // Sin opciones, una columna de selección no ofrece nada que
               // elegir: se piden aquí mismo.
               if (tipo == 'OPCION_SIMPLES') ...[
@@ -947,6 +977,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       return;
     }
 
+    // Acompañante del DNI/RUC: va JUSTO a la derecha, que es donde la celda
+    // busca dónde escribir el nombre resuelto.
+    final acomp = (tipo == 'DOCUMENTO_IDENTIDAD' && crearAcompanante)
+        ? nombreAcompCtrl.text.trim()
+        : '';
+    if (acomp.isNotEmpty &&
+        (acomp == nombre || base.any((c) => c['nombre'] == acomp))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ya existe una columna "$acomp"')),
+      );
+      return;
+    }
+
     final result = await locator<PlantillaServicioRepository>().updateCampo(
       campoId: campo.id,
       campoData: {
@@ -957,6 +1000,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             'tipo': tipo,
             if (opciones.isNotEmpty) 'opciones': opciones,
           },
+          if (acomp.isNotEmpty) {'nombre': acomp, 'tipo': 'TEXTO'},
         ],
       },
     );
@@ -965,7 +1009,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       await _loadDefinicionCampos();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Columna "$nombre" agregada')),
+          SnackBar(
+            content: Text(acomp.isEmpty
+                ? 'Columna "$nombre" agregada'
+                : 'Columnas "$nombre" y "$acomp" agregadas'),
+          ),
         );
       }
     } else if (result is Error<ConfiguracionCampo>) {
