@@ -25,6 +25,10 @@ class PdfOrdenServicioGenerator {
     Uint8List? logoEmpresa,
     String? colorPrimario,
     Uint8List? firmaCliente,
+    /// Orden declarado de columnas por cada campo TABLA, tomado de la
+    /// plantilla. Sin esto el orden saldría arbitrario: `datosPersonalizados`
+    /// es jsonb y Postgres reordena las claves de un objeto.
+    Map<String, List<String>>? columnasTabla,
     // Términos de servicio (bloque izquierdo, opcional).
     String? textoPie,
     // Línea final centrada (textoPiePagina); null = default.
@@ -233,6 +237,19 @@ class PdfOrdenServicioGenerator {
               ...orden.datosPersonalizados!.entries
                   .where((entry) => _isRelevantField(entry.value))
                   .map((entry) {
+                // Una TABLA se imprime como tabla, no como texto aplanado.
+                if (_esTabla(entry.value)) {
+                  return _tablaPdf(
+                    titulo: entry.key,
+                    filas: (entry.value as List)
+                        .whereType<Map>()
+                        .map((e) => Map<String, dynamic>.from(e))
+                        .toList(),
+                    columnas: columnasTabla?[entry.key],
+                    fs: fsSmall,
+                    color: primaryColor,
+                  );
+                }
                 final value = _formatFieldValue(entry.value);
                 if (value.isEmpty) return pw.SizedBox.shrink();
                 return _infoRow(entry.key, value, fs: fsSmall);
@@ -629,6 +646,110 @@ class PdfOrdenServicioGenerator {
   }
 
   /// Filtra campos no relevantes para el ticket (imágenes, booleanos)
+  /// Una TABLA es una lista NO vacía de mapas (una fila por mapa).
+  static bool _esTabla(dynamic v) =>
+      v is List && v.isNotEmpty && v.every((e) => e is Map);
+
+  /// Tabla real en el PDF, con encabezados y fila de totales.
+  ///
+  /// El ORDEN de las columnas viene de la plantilla: `datosPersonalizados` es
+  /// jsonb y Postgres reordena sus claves, así que deducirlo del dato daría
+  /// un orden arbitrario. Sin plantilla se usa la unión de claves, que es lo
+  /// mejor disponible.
+  static pw.Widget _tablaPdf({
+    required String titulo,
+    required List<Map<String, dynamic>> filas,
+    required List<String>? columnas,
+    required double fs,
+    required PdfColor color,
+  }) {
+    final cols = <String>[...?columnas];
+    for (final f in filas) {
+      for (final k in f.keys) {
+        if (!cols.contains(k.toString())) cols.add(k.toString());
+      }
+    }
+    if (cols.isEmpty) return pw.SizedBox.shrink();
+
+    // Total por columna totalmente numérica (montos, cantidades).
+    final totales = <String, double>{};
+    for (final c in cols) {
+      final vals = filas
+          .map((f) => f[c])
+          .where((v) => v != null && v.toString().trim().isNotEmpty)
+          .toList();
+      if (vals.isEmpty) continue;
+      final nums = vals.map((v) => double.tryParse(v.toString())).toList();
+      if (nums.every((n) => n != null)) {
+        totales[c] = nums.fold<double>(0, (a, n) => a + n!);
+      }
+    }
+
+    pw.Widget celda(String texto, {bool negrita = false, bool derecha = false}) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+        child: pw.Text(
+          texto,
+          textAlign: derecha ? pw.TextAlign.right : pw.TextAlign.left,
+          style: pw.TextStyle(
+            fontSize: fs - 0.5,
+            fontWeight: negrita ? pw.FontWeight.bold : pw.FontWeight.normal,
+          ),
+        ),
+      );
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.SizedBox(height: 3),
+        pw.Text(titulo,
+            style: pw.TextStyle(fontSize: fs, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 2),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.4),
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+              children: [
+                for (final c in cols)
+                  celda(c, negrita: true, derecha: totales.containsKey(c)),
+              ],
+            ),
+            for (final f in filas)
+              pw.TableRow(
+                children: [
+                  for (final c in cols)
+                    celda(_celdaTexto(f[c]), derecha: totales.containsKey(c)),
+                ],
+              ),
+            if (totales.isNotEmpty)
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                children: [
+                  for (var i = 0; i < cols.length; i++)
+                    celda(
+                      totales.containsKey(cols[i])
+                          ? totales[cols[i]]!.toStringAsFixed(2)
+                          : (i == 0 ? 'TOTAL' : ''),
+                      negrita: true,
+                      derecha: totales.containsKey(cols[i]),
+                    ),
+                ],
+              ),
+          ],
+        ),
+        pw.SizedBox(height: 3),
+      ],
+    );
+  }
+
+  static String _celdaTexto(dynamic v) {
+    if (v == null) return '';
+    if (v is bool) return v ? 'Si' : 'No';
+    return v.toString();
+  }
+
   static bool _isRelevantField(dynamic value) {
     if (value == null) return false;
     if (value is bool) return false;

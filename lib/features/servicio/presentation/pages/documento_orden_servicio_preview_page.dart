@@ -14,6 +14,8 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../impresoras/domain/services/impresoras_manager.dart';
 import '../../domain/entities/orden_servicio.dart';
+import '../../domain/entities/configuracion_campo.dart';
+import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../services/pdf_orden_servicio_generator.dart';
 import '../services/ticket_esc_pos_generator.dart';
 import '../widgets/bluetooth_printer_sheet.dart';
@@ -55,6 +57,29 @@ class _DocumentoOrdenServicioPreviewPageState
   // Términos de servicio (bloque izquierdo) + línea final centrada (general).
   String? _textoPieServicio;
   String? _textoGracias;
+
+  /// Orden declarado de columnas por cada campo TABLA. Sale de la plantilla
+  /// porque `datosPersonalizados` es jsonb y no conserva el orden de claves.
+  Map<String, List<String>> _columnasTabla = const {};
+
+  /// Best-effort: si falla, la tabla se imprime igual con el orden que venga.
+  Future<void> _cargarColumnasDeTablas() async {
+    final servicioId = widget.orden.servicioId;
+    if (servicioId == null) return;
+    final result = await locator<PlantillaServicioRepository>()
+        .getCamposByServicioId(servicioId);
+    if (result is Success<List<ConfiguracionCampo>>) {
+      _columnasTabla = {
+        for (final c in result.data)
+          if (c.tipoCampo == 'TABLA' && c.opciones is List)
+            c.nombre: (c.opciones as List)
+                .whereType<Map>()
+                .map((e) => e['nombre']?.toString() ?? '')
+                .where((e) => e.isNotEmpty)
+                .toList(),
+      };
+    }
+  }
 
   @override
   void initState() {
@@ -99,6 +124,10 @@ class _DocumentoOrdenServicioPreviewPageState
         }
       } catch (_) {}
 
+      try {
+        await _cargarColumnasDeTablas();
+      } catch (_) {}
+
       final pdfBytes = await PdfOrdenServicioGenerator.generarTicket(
         orden: widget.orden,
         empresaNombre: widget.empresaNombre,
@@ -110,6 +139,7 @@ class _DocumentoOrdenServicioPreviewPageState
         logoEmpresa: widget.logoEmpresa,
         colorPrimario: widget.colorPrimario,
         firmaCliente: firmaBytes,
+        columnasTabla: _columnasTabla,
         textoPie: _textoPieServicio,
         textoGracias: _textoGracias,
       );
@@ -370,6 +400,7 @@ class _DocumentoOrdenServicioPreviewPageState
         sedeNombre: widget.sedeNombre,
         logoEmpresa: widget.logoEmpresa,
         paperWidth: paperSize,
+        columnasTabla: _columnasTabla,
         textoPie: _textoPieServicio,
         textoGracias: _textoGracias,
       );

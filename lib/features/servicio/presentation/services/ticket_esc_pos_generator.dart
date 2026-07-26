@@ -16,6 +16,10 @@ class TicketEscPosGenerator {
     String? sedeNombre,
     Uint8List? logoEmpresa,
     int paperWidth = 80,
+    /// Orden declarado de columnas por cada campo TABLA, tomado de la
+    /// plantilla: `datosPersonalizados` es jsonb y no conserva el orden de
+    /// las claves.
+    Map<String, List<String>>? columnasTabla,
     // Términos de servicio configurables (textoPieServicio) — bloque
     // multilínea a la izquierda; null = no imprime.
     String? textoPie,
@@ -179,6 +183,20 @@ class TicketEscPosGenerator {
       bytes += generator.text('DATOS ADICIONALES');
       for (final entry in orden.datosPersonalizados!.entries) {
         if (!_isRelevantField(entry.value)) continue;
+        // Una TABLA no cabe como columnas en papel angosto: se imprime una
+        // fila por bloque. Ver _tablaTermica.
+        if (_esTabla(entry.value)) {
+          bytes += _tablaTermica(
+            generator: generator,
+            titulo: entry.key,
+            filas: (entry.value as List)
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList(),
+            columnas: columnasTabla?[entry.key],
+          );
+          continue;
+        }
         final value = _formatFieldValue(entry.value);
         if (value.isEmpty) continue;
         bytes += generator.text('${_ascii(entry.key)}: ${_ascii(value)}');
@@ -379,6 +397,75 @@ class TicketEscPosGenerator {
       .replaceAll('’', "'")
       .replaceAll('‘', "'")
       .replaceAll('…', '...');
+
+  /// Una TABLA es una lista NO vacía de mapas (una fila por mapa).
+  static bool _esTabla(dynamic v) =>
+      v is List && v.isNotEmpty && v.every((e) => e is Map);
+
+  /// Tabla en papel térmico.
+  ///
+  /// 🔴 NO se imprime como grilla: en 58/80mm no entran 3+ columnas, y las
+  /// filas multi-columna de ESC-POS fallan en impresoras baratas (gotcha
+  /// vigente del proyecto). Cada fila sale como un bloque: la primera
+  /// columna como título y el resto en pares `clave: valor` en la línea
+  /// siguiente. Al final, el total de las columnas numéricas.
+  static List<int> _tablaTermica({
+    required Generator generator,
+    required String titulo,
+    required List<Map<String, dynamic>> filas,
+    required List<String>? columnas,
+  }) {
+    var bytes = <int>[];
+
+    final cols = <String>[...?columnas];
+    for (final f in filas) {
+      for (final k in f.keys) {
+        if (!cols.contains(k.toString())) cols.add(k.toString());
+      }
+    }
+    if (cols.isEmpty) return bytes;
+
+    bytes += generator.text(_ascii(titulo.toUpperCase()));
+
+    for (final f in filas) {
+      final principal = _celdaTexto(f[cols.first]);
+      if (principal.isNotEmpty) {
+        bytes += generator.text('- ${_ascii(principal)}');
+      }
+      final resto = <String>[];
+      for (final c in cols.skip(1)) {
+        final v = _celdaTexto(f[c]);
+        if (v.isNotEmpty) resto.add('${_ascii(c)}: ${_ascii(v)}');
+      }
+      if (resto.isNotEmpty) {
+        bytes += generator.text('  ${resto.join(' | ')}');
+      }
+    }
+
+    for (final c in cols) {
+      final vals = filas
+          .map((f) => f[c])
+          .where((v) => v != null && v.toString().trim().isNotEmpty)
+          .toList();
+      if (vals.isEmpty) continue;
+      final nums = vals.map((v) => double.tryParse(v.toString())).toList();
+      if (nums.every((n) => n != null)) {
+        final total = nums.fold<double>(0, (a, n) => a + n!);
+        bytes += generator.text(
+          '  TOTAL ${_ascii(c)}: ${total.toStringAsFixed(2)}',
+          styles: const PosStyles(align: PosAlign.right),
+        );
+      }
+    }
+
+    return bytes;
+  }
+
+  static String _celdaTexto(dynamic v) {
+    if (v == null) return '';
+    if (v is bool) return v ? 'Si' : 'No';
+    return v.toString();
+  }
 
   static bool _isRelevantField(dynamic value) {
     if (value == null) return false;
