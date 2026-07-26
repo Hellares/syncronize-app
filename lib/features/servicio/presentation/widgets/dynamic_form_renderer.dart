@@ -53,6 +53,8 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   final Set<String> _docConsultando = {};
   // FIRMA: campos con una subida al storage en curso.
   final Set<String> _firmaSubiendo = {};
+  // TABLA: un controller por celda, con clave "campo##fila##columna".
+  final Map<String, TextEditingController> _tablaControllers = {};
 
   @override
   void initState() {
@@ -116,6 +118,10 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
     }
     _otroControllers.clear();
     _otroActivo.clear();
+    for (final c in _tablaControllers.values) {
+      c.dispose();
+    }
+    _tablaControllers.clear();
   }
 
   @override
@@ -383,6 +389,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
           );
         }
 
+      case 'TABLA':
+        return _buildTablaField(campo);
+
       case 'DOCUMENTO_IDENTIDAD':
         return _buildDocumentoField(campo);
 
@@ -433,6 +442,323 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             onChanged: (v) => _updateValue(campo.nombre, v),
           ),
         );
+    }
+  }
+
+  // ── TABLA ──────────────────────────────────────────────────────────────
+  // Columnas en `campo.opciones` (misma forma que los sub-campos de OBJETO);
+  // el valor es una lista de filas {columna: valor}. La grilla scrollea en
+  // horizontal: en un celular no entran 4 columnas de ancho útil.
+
+  static const double _anchoCelda = 128;
+  static const double _anchoCeldaChica = 74; // NUMERO, MONEDA, CHECKBOX
+
+  double _anchoDeColumna(String tipo) =>
+      (tipo == 'NUMERO' || tipo == 'MONEDA' || tipo == 'CHECKBOX')
+          ? _anchoCeldaChica
+          : _anchoCelda;
+
+  Widget _buildTablaField(ConfiguracionCampo campo) {
+    final columnas = campo.opciones is List
+        ? (campo.opciones as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .where((e) => (e['nombre'] as String?)?.isNotEmpty == true)
+            .toList()
+        : <Map<String, dynamic>>[];
+
+    if (columnas.isEmpty) return const SizedBox.shrink();
+
+    final filas = widget.values[campo.nombre] is List
+        ? (widget.values[campo.nombre] as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : <Map<String, dynamic>>[];
+
+    void guardar() =>
+        _updateValue(campo.nombre, filas.map(Map<String, dynamic>.from).toList());
+
+    // Totales por columna de monto: es la razón principal para tener tabla
+    // en vez de un texto libre.
+    final totales = <String, double>{};
+    for (final col in columnas.where((c) => c['tipo'] == 'MONEDA')) {
+      final nombre = col['nombre'] as String;
+      totales[nombre] = filas.fold<double>(
+        0,
+        (acc, f) => acc + (double.tryParse('${f[nombre] ?? ''}') ?? 0),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.table_chart_outlined,
+                  size: 16, color: AppColors.blue1),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${campo.nombre}${campo.esRequerido ? " *" : ""}',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue1),
+                ),
+              ),
+              Text(
+                '${filas.length} ${filas.length == 1 ? "fila" : "filas"}',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border:
+                  Border.all(color: AppColors.blue1.withValues(alpha: 0.2)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Encabezados
+                  Container(
+                    color: AppColors.blue1.withValues(alpha: 0.06),
+                    child: Row(
+                      children: [
+                        for (final col in columnas)
+                          SizedBox(
+                            width: _anchoDeColumna(col['tipo'] as String? ?? 'TEXTO'),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 7),
+                              child: Text(
+                                col['nombre'] as String,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.blue1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 34),
+                      ],
+                    ),
+                  ),
+                  if (filas.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 12),
+                      child: Text(
+                        'Sin filas todavía',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade500),
+                      ),
+                    ),
+                  ...filas.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final fila = entry.value;
+                    return Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          for (final col in columnas)
+                            SizedBox(
+                              width: _anchoDeColumna(
+                                  col['tipo'] as String? ?? 'TEXTO'),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 4),
+                                child: _buildCelda(
+                                  campo: campo,
+                                  columna: col,
+                                  fila: fila,
+                                  indiceFila: i,
+                                  onCambio: guardar,
+                                ),
+                              ),
+                            ),
+                          SizedBox(
+                            width: 34,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 34, minHeight: 34),
+                              tooltip: 'Quitar fila',
+                              icon: Icon(Icons.close,
+                                  size: 15, color: Colors.red.shade300),
+                              onPressed: () {
+                                // Los controllers se indexan por fila; al
+                                // borrar una, los de abajo se corren.
+                                _limpiarControllersTabla(campo.nombre);
+                                setState(() => filas.removeAt(i));
+                                guardar();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  setState(() => filas.add(<String, dynamic>{}));
+                  guardar();
+                },
+                icon: const Icon(Icons.add, size: 15),
+                label: const Text('Agregar fila',
+                    style: TextStyle(fontSize: 11.5)),
+              ),
+              const Spacer(),
+              if (totales.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: totales.entries
+                        .map((t) => Text(
+                              'Total ${t.key}: S/ ${t.value.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.blue1,
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Una celda. Los tipos altos (firma, patrón, archivo) no llegan aquí:
+  /// el editor de columnas solo ofrece los seis que caben en una fila.
+  Widget _buildCelda({
+    required ConfiguracionCampo campo,
+    required Map<String, dynamic> columna,
+    required Map<String, dynamic> fila,
+    required int indiceFila,
+    required VoidCallback onCambio,
+  }) {
+    final nombreCol = columna['nombre'] as String;
+    final tipo = columna['tipo'] as String? ?? 'TEXTO';
+    final key = '${campo.nombre}##$indiceFila##$nombreCol';
+
+    if (tipo == 'CHECKBOX') {
+      return Checkbox(
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        value: fila[nombreCol] == true,
+        onChanged: (v) {
+          setState(() => fila[nombreCol] = v ?? false);
+          onCambio();
+        },
+      );
+    }
+
+    if (tipo == 'OPCION_SIMPLES') {
+      final opciones = columna['opciones'] is List
+          ? (columna['opciones'] as List).map((e) => e.toString()).toList()
+          : <String>[];
+      final valor = fila[nombreCol];
+      return DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isDense: true,
+          isExpanded: true,
+          value: valor is String && opciones.contains(valor) ? valor : null,
+          hint: const Text('—', style: TextStyle(fontSize: 11)),
+          style: const TextStyle(fontSize: 11, color: Colors.black87),
+          items: opciones
+              .map((o) => DropdownMenuItem(
+                    value: o,
+                    child: Text(o,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: (v) {
+            setState(() => fila[nombreCol] = v);
+            onCambio();
+          },
+        ),
+      );
+    }
+
+    final ctrl = _tablaControllers[key] ??= TextEditingController(
+      text: fila[nombreCol]?.toString() ?? '',
+    );
+
+    return TextField(
+      controller: ctrl,
+      style: const TextStyle(fontSize: 11.5),
+      textAlign: (tipo == 'NUMERO' || tipo == 'MONEDA')
+          ? TextAlign.right
+          : TextAlign.start,
+      keyboardType: (tipo == 'NUMERO' || tipo == 'MONEDA')
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        border: InputBorder.none,
+        hintText: tipo == 'MONEDA' ? '0.00' : null,
+        hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+        // El escáner vive DENTRO de la celda: es lo que hace útil una
+        // columna de IMEI o serie.
+        suffixIcon: tipo == 'CODIGO_BARRAS'
+            ? BarcodeScannerButton(
+                iconSize: 14,
+                onScanned: (code) {
+                  ctrl.text = code;
+                  setState(() => fila[nombreCol] = code);
+                  onCambio();
+                },
+              )
+            : null,
+        suffixIconConstraints:
+            const BoxConstraints(minWidth: 22, minHeight: 22),
+      ),
+      onChanged: (v) {
+        // NUMERO y MONEDA se guardan como número para poder sumarlos.
+        fila[nombreCol] = (tipo == 'NUMERO' || tipo == 'MONEDA')
+            ? (num.tryParse(v) ?? v)
+            : v;
+        onCambio();
+        if (tipo == 'MONEDA') setState(() {}); // refresca el total
+      },
+    );
+  }
+
+  void _limpiarControllersTabla(String nombreCampo) {
+    final prefijo = '$nombreCampo##';
+    for (final k in _tablaControllers.keys.toList()) {
+      if (k.startsWith(prefijo)) {
+        _tablaControllers.remove(k)?.dispose();
+      }
     }
   }
 

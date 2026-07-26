@@ -723,16 +723,19 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
     final placeholderCtrl =
         TextEditingController(text: campo?.placeholder ?? '');
     // `opciones` es lista de strings para selecciones y lista de mapas
-    // (sub-campos) cuando el tipo es OBJETO.
+    // cuando el tipo es OBJETO (sub-campos) o TABLA (columnas).
     final opcionesCtrl = TextEditingController(
       text: campo != null &&
               campo.tipoCampo != 'OBJETO' &&
+              campo.tipoCampo != 'TABLA' &&
               campo.opciones is List
           ? (campo.opciones as List).map((e) => e.toString()).join(', ')
           : '',
     );
     final subCampos = <Map<String, dynamic>>[
-      if (campo != null && campo.tipoCampo == 'OBJETO' && campo.opciones is List)
+      if (campo != null &&
+          (campo.tipoCampo == 'OBJETO' || campo.tipoCampo == 'TABLA') &&
+          campo.opciones is List)
         ...(campo.opciones as List)
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e)),
@@ -844,7 +847,7 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                           .toList(),
                       onChanged: (v) => setDialogState(() {
                         tipoCampo = v ?? 'TEXTO';
-                        if (v != 'OBJETO') subCampos.clear();
+                        if (v != 'OBJETO' && v != 'TABLA') subCampos.clear();
                       }),
                       borderColor: AppColors.blue1,
                     ),
@@ -894,7 +897,7 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                     ),
 
                     // Sub-campos para tipo OBJETO
-                    if (tipoCampo == 'OBJETO') ...[
+                    if (tipoCampo == 'OBJETO' || tipoCampo == 'TABLA') ...[
                       const SizedBox(height: 14),
                       Container(
                         padding: const EdgeInsets.all(10),
@@ -910,10 +913,22 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.account_tree_outlined, size: 16, color: AppColors.blue1),
+                                Icon(
+                                  tipoCampo == 'TABLA'
+                                      ? Icons.table_chart_outlined
+                                      : Icons.account_tree_outlined,
+                                  size: 16,
+                                  color: AppColors.blue1,
+                                ),
                                 const SizedBox(width: 8),
-                                const Expanded(
-                                  child: AppSubtitle('Sub-campos', fontSize: 11, color: AppColors.blue1),
+                                Expanded(
+                                  child: AppSubtitle(
+                                    tipoCampo == 'TABLA'
+                                        ? 'Columnas de la tabla'
+                                        : 'Sub-campos',
+                                    fontSize: 11,
+                                    color: AppColors.blue1,
+                                  ),
                                 ),
                                 InkWell(
                                   onTap: () => setDialogState(() {
@@ -958,7 +973,13 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                                           child: CustomDropdown<String>(
                                             value: sub['tipo'] as String? ?? 'TEXTO',
                                             hintText: 'Tipo',
-                                            items: _subCampoTipos.entries
+                                            // Una celda sabe pintar monto y
+                                            // escáner; un sub-campo de OBJETO
+                                            // todavía no.
+                                            items: (tipoCampo == 'TABLA'
+                                                    ? kColumnaTiposTabla
+                                                    : _subCampoTipos)
+                                                .entries
                                                 .map((e) => DropdownItem(value: e.key, label: e.value))
                                                 .toList(),
                                             onChanged: (v) => setDialogState(() {
@@ -1089,11 +1110,15 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                           text: esEdicion ? 'Guardar' : 'Agregar',
                           onPressed: () async {
                             if (nombreCtrl.text.trim().isEmpty) return;
-                            if (tipoCampo == 'OBJETO' && subCampos.isEmpty) return;
+                            if ((tipoCampo == 'OBJETO' ||
+                                    tipoCampo == 'TABLA') &&
+                                subCampos.isEmpty) {
+                              return;
+                            }
                             Navigator.pop(dialogContext);
 
                             List<dynamic>? opcionesData;
-                            if (tipoCampo == 'OBJETO') {
+                            if (tipoCampo == 'OBJETO' || tipoCampo == 'TABLA') {
                               opcionesData = subCampos
                                   .where((s) => (s['nombre'] as String?)?.isNotEmpty == true)
                                   .map((s) {

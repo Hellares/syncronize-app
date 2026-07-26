@@ -39,6 +39,7 @@ const kTipoCampoLabels = <String, String>{
   'MONEDA': 'Monto (S/)',
   'FIRMA': 'Firma del cliente',
   'DOCUMENTO_IDENTIDAD': 'DNI / RUC (con autocompletado)',
+  'TABLA': 'Tabla (columnas y filas)',
 };
 
 /// Etiqueta corta: chips del catálogo de plantillas, donde no entra la larga.
@@ -64,6 +65,7 @@ const kTipoCampoLabelsCortos = <String, String>{
   'MONEDA': 'Monto',
   'FIRMA': 'Firma',
   'DOCUMENTO_IDENTIDAD': 'DNI / RUC',
+  'TABLA': 'Tabla',
 };
 
 const kTipoCampoIcons = <String, IconData>{
@@ -88,6 +90,7 @@ const kTipoCampoIcons = <String, IconData>{
   'MONEDA': Icons.payments_outlined,
   'FIRMA': Icons.draw_outlined,
   'DOCUMENTO_IDENTIDAD': Icons.badge_outlined,
+  'TABLA': Icons.table_chart_outlined,
 };
 
 /// Tipos admitidos DENTRO de un campo OBJETO. Es un subconjunto a propósito:
@@ -98,6 +101,18 @@ const kSubCampoTipos = <String, String>{
   'NUMERO': 'Número',
   'CHECKBOX': 'Sí/No',
   'OPCION_SIMPLES': 'Selección',
+};
+
+/// Tipos admitidos como COLUMNA de una TABLA. Más amplio que los sub-campos
+/// de OBJETO porque la celda sí sabe pintar monto y escáner, pero deja fuera
+/// los widgets altos (firma, patrón, archivo): no entran en una fila.
+const kColumnaTiposTabla = <String, String>{
+  'TEXTO': 'Texto',
+  'NUMERO': 'Número',
+  'MONEDA': 'Monto',
+  'CHECKBOX': 'Sí/No',
+  'OPCION_SIMPLES': 'Selección',
+  'CODIGO_BARRAS': 'Código de barras',
 };
 
 /// `GENERAL` solo lo usan las plantillas del catálogo precargado.
