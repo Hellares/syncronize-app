@@ -30,6 +30,7 @@ import '../../domain/repositories/orden_servicio_repository.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../constants/tipos_campo_servicio.dart';
 import '../widgets/ajustar_ancho_sheet.dart';
+import '../widgets/celda_widgets.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -1245,35 +1246,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final valor = _filasEditadas[fila][nombre];
 
     if (tipo == 'CHECKBOX') {
-      return Checkbox(
-        visualDensity: VisualDensity.compact,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        value: valor == true,
-        onChanged: (v) =>
-            setState(() => _filasEditadas[fila][nombre] = v ?? false),
+      return CeldaBooleana(
+        valor: valor == true,
+        onChanged: (v) => setState(() => _filasEditadas[fila][nombre] = v),
       );
     }
 
     if (tipo == 'OPCION_SIMPLES') {
-      final opciones = col['opciones'] is List
-          ? (col['opciones'] as List).map((e) => e.toString()).toList()
-          : <String>[];
-      return DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isDense: true,
-          isExpanded: true,
-          value: valor is String && opciones.contains(valor) ? valor : null,
-          hint: const Text('—', style: TextStyle(fontSize: 11)),
-          style: const TextStyle(fontSize: 11, color: Colors.black87),
-          items: opciones
-              .map((o) => DropdownMenuItem(
-                    value: o,
-                    child:
-                        Text(o, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ))
-              .toList(),
-          onChanged: (v) => setState(() => _filasEditadas[fila][nombre] = v),
-        ),
+      return CeldaSeleccion(
+        valor: valor is String ? valor : null,
+        opciones: col['opciones'] is List
+            ? (col['opciones'] as List).map((e) => e.toString()).toList()
+            : const <String>[],
+        onChanged: (v) => setState(() => _filasEditadas[fila][nombre] = v),
       );
     }
 

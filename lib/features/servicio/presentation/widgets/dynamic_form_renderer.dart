@@ -17,6 +17,7 @@ import '../../../consultas_externas/domain/repositories/consultas_repository.dar
 import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../constants/tipos_campo_servicio.dart';
 import 'ajustar_ancho_sheet.dart';
+import 'celda_widgets.dart';
 import 'firma_sheet.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -749,41 +750,26 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
     final key = '${campo.nombre}##$indiceFila##$nombreCol';
 
     if (tipo == 'CHECKBOX') {
-      return Checkbox(
-        visualDensity: VisualDensity.compact,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        value: fila[nombreCol] == true,
+      return CeldaBooleana(
+        valor: fila[nombreCol] == true,
         onChanged: (v) {
-          setState(() => fila[nombreCol] = v ?? false);
+          setState(() => fila[nombreCol] = v);
           onCambio();
         },
       );
     }
 
     if (tipo == 'OPCION_SIMPLES') {
-      final opciones = columna['opciones'] is List
-          ? (columna['opciones'] as List).map((e) => e.toString()).toList()
-          : <String>[];
       final valor = fila[nombreCol];
-      return DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isDense: true,
-          isExpanded: true,
-          value: valor is String && opciones.contains(valor) ? valor : null,
-          hint: const Text('—', style: TextStyle(fontSize: 11)),
-          style: const TextStyle(fontSize: 11, color: Colors.black87),
-          items: opciones
-              .map((o) => DropdownMenuItem(
-                    value: o,
-                    child: Text(o,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ))
-              .toList(),
-          onChanged: (v) {
-            setState(() => fila[nombreCol] = v);
-            onCambio();
-          },
-        ),
+      return CeldaSeleccion(
+        valor: valor is String ? valor : null,
+        opciones: columna['opciones'] is List
+            ? (columna['opciones'] as List).map((e) => e.toString()).toList()
+            : const <String>[],
+        onChanged: (v) {
+          setState(() => fila[nombreCol] = v);
+          onCambio();
+        },
       );
     }
 
