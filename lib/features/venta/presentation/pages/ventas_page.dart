@@ -1085,7 +1085,10 @@ class _VentaListTile extends StatelessWidget {
                 children: [
                   AppSubtitle(venta.codigo),
                   const SizedBox(width: 8),
-                  VentaEstadoChip(estado: venta.estado),
+                  VentaEstadoChip(
+                    estado: venta.estado,
+                    esCredito: venta.esCredito,
+                  ),
                   // Badge de canal: distinguir a simple vista lo que llegó
                   // por el marketplace o el agente IA de lo vendido en
                   // mostrador.

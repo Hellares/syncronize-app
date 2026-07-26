@@ -4,11 +4,26 @@ import '../../domain/entities/venta.dart';
 class VentaEstadoChip extends StatelessWidget {
   final EstadoVenta estado;
 
-  const VentaEstadoChip({super.key, required this.estado});
+  /// Marca la venta como financiada dentro del mismo chip
+  /// ("Confirmada · CRÉDITO"). En el listado el estado solo no alcanza: una
+  /// CONFIRMADA al contado y una a crédito se ven igual. El detalle ya tiene
+  /// su propia sección de cuotas, así que ahí no hace falta.
+  final bool esCredito;
+
+  const VentaEstadoChip({
+    super.key,
+    required this.estado,
+    this.esCredito = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final (color, bgColor) = _getColors();
+    final base = TextStyle(
+      color: color,
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -16,12 +31,22 @@ class VentaEstadoChip extends StatelessWidget {
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        estado.label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: estado.label, style: base),
+            if (esCredito)
+              // Más chico que el estado: informa sin robarle protagonismo
+              // ni ensanchar de más la fila de la card.
+              TextSpan(
+                text: ' · CREDITO',
+                style: base.copyWith(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+              ),
+          ],
         ),
       ),
     );
