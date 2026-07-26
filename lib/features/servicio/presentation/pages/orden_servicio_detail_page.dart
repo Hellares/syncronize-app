@@ -814,6 +814,121 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     }
   }
 
+  /// Agrega una columna a la TABLA. La columna pertenece a la plantilla, no
+  /// a esta orden: aparecerá en todas las órdenes que usen esa plantilla,
+  /// vacía en las anteriores. Se avisa antes de guardar.
+  Future<void> _agregarColumna(String key) async {
+    final campo = _camposTabla[key];
+    if (campo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Esta tabla no está ligada a una plantilla; no se pueden agregar columnas'),
+        ),
+      );
+      return;
+    }
+
+    final nombreCtrl = TextEditingController();
+    String tipo = 'TEXTO';
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (_, setDialogState) => AlertDialog(
+          title: const Text('Nueva columna', style: TextStyle(fontSize: 15)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: nombreCtrl,
+                autofocus: true,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre de la columna',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: tipo,
+                decoration: const InputDecoration(
+                  labelText: 'Tipo',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: kColumnaTiposTabla.entries
+                    .map((e) =>
+                        DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => tipo = v ?? 'TEXTO'),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'La columna es de la plantilla "${campo.nombre}": aparecerá en '
+                'todas las órdenes que la usen, vacía en las anteriores.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Agregar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final nombre = nombreCtrl.text.trim();
+    nombreCtrl.dispose();
+    if (confirmado != true || nombre.isEmpty || !mounted) return;
+
+    final base = campo.opciones is List
+        ? (campo.opciones as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : <Map<String, dynamic>>[];
+
+    if (base.any((c) => c['nombre'] == nombre)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ya existe una columna "$nombre"')),
+      );
+      return;
+    }
+
+    final result = await locator<PlantillaServicioRepository>().updateCampo(
+      campoId: campo.id,
+      campoData: {
+        'opciones': [
+          ...base,
+          {'nombre': nombre, 'tipo': tipo},
+        ],
+      },
+    );
+    if (!mounted) return;
+    if (result is Success) {
+      await _loadDefinicionCampos();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Columna "$nombre" agregada')),
+        );
+      }
+    } else if (result is Error<ConfiguracionCampo>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message)),
+      );
+    }
+  }
+
   double _anchoColumnaDetalle(String key, Map<String, dynamic> col) =>
       _anchoTemporalTabla['$key##${col['nombre']}'] ?? anchoColumna(col);
 
@@ -1125,8 +1240,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   onPressed: () =>
                       setState(() => _filasEditadas.add(<String, dynamic>{})),
                   icon: const Icon(Icons.add, size: 15),
-                  label: const Text('Agregar fila',
-                      style: TextStyle(fontSize: 11.5)),
+                  label: const Text('Fila', style: TextStyle(fontSize: 11.5)),
+                ),
+                TextButton.icon(
+                  onPressed: () => _agregarColumna(key),
+                  icon: const Icon(Icons.view_column_outlined, size: 15),
+                  label:
+                      const Text('Columna', style: TextStyle(fontSize: 11.5)),
                 ),
                 const Spacer(),
                 TextButton(
