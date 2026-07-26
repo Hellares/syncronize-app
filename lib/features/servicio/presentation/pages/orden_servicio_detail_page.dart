@@ -929,6 +929,15 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     }
   }
 
+  /// Botones de la barra de edición de la tabla: padding recortado para que
+  /// los cuatro entren, pero 32px de alto para que sigan siendo tocables.
+  static final ButtonStyle _accionTablaStyle = TextButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 8),
+    minimumSize: const Size(0, 32),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    visualDensity: VisualDensity.compact,
+  );
+
   double _anchoColumnaDetalle(String key, Map<String, dynamic> col) =>
       _anchoTemporalTabla['$key##${col['nombre']}'] ?? anchoColumna(col);
 
@@ -1233,16 +1242,21 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               ),
             ),
           ),
+          // Cuatro botones con el padding por defecto de Material no entran
+          // en un celular angosto (desbordaba 8.9px en 343). Padding
+          // recortado en los cuatro, conservando 32px de alto tocable.
           if (editando)
             Row(
               children: [
                 TextButton.icon(
+                  style: _accionTablaStyle,
                   onPressed: () =>
                       setState(() => _filasEditadas.add(<String, dynamic>{})),
                   icon: const Icon(Icons.add, size: 15),
                   label: const Text('Fila', style: TextStyle(fontSize: 11.5)),
                 ),
                 TextButton.icon(
+                  style: _accionTablaStyle,
                   onPressed: () => _agregarColumna(key),
                   icon: const Icon(Icons.view_column_outlined, size: 15),
                   label:
@@ -1250,6 +1264,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ),
                 const Spacer(),
                 TextButton(
+                  style: _accionTablaStyle,
                   onPressed: _guardandoTabla ? null : _salirEdicionTabla,
                   child:
                       const Text('Descartar', style: TextStyle(fontSize: 11.5)),
@@ -1259,6 +1274,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.blue1,
                     visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   onPressed: _guardandoTabla ? null : () => _guardarTabla(key),
                   child: _guardandoTabla
