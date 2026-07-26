@@ -701,6 +701,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   bool _guardandoTabla = false;
   final Map<String, TextEditingController> _celdaControllers = {};
   final Map<String, double> _anchoTemporalTabla = {};
+  /// Congela el scroll horizontal mientras se arrastra un tirador: si no, la
+  /// tabla se desplaza al mismo tiempo que redimensionas.
+  bool _redimensionandoTabla = false;
 
   void _entrarEdicionTabla(String key, List<Map> filas) {
     setState(() {
@@ -886,6 +889,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             clipBehavior: Clip.antiAlias,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
+              physics: _redimensionandoTabla
+                  ? const NeverScrollableScrollPhysics()
+                  : null,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -913,11 +919,16 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           ),
                           ColumnaResizeHandle(
                             anchoActual: _anchoColumnaDetalle(key, col),
+                            onInicio: () =>
+                                setState(() => _redimensionandoTabla = true),
                             onArrastre: (a) => setState(() =>
                                 _anchoTemporalTabla['$key##${col['nombre']}'] =
                                     a),
-                            onFin: (a) => _persistirAnchoDetalle(
-                                key, col['nombre'] as String, a),
+                            onFin: (a) {
+                              setState(() => _redimensionandoTabla = false);
+                              _persistirAnchoDetalle(
+                                  key, col['nombre'] as String, a);
+                            },
                           ),
                         ],
                         if (editando) const SizedBox(width: 34),

@@ -456,6 +456,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   /// Ancho en vivo mientras se arrastra, por "campo##columna". Al soltar se
   /// persiste en la plantilla y esto se limpia.
   final Map<String, double> _anchoTemporal = {};
+  /// Mientras se arrastra un tirador hay que congelar el scroll horizontal
+  /// de la tabla: si no, se desplaza al mismo tiempo que redimensionas.
+  bool _redimensionando = false;
 
   double _anchoDeColumna(ConfiguracionCampo campo, Map<String, dynamic> col) =>
       _anchoTemporal['${campo.nombre}##${col['nombre']}'] ?? anchoColumna(col);
@@ -555,6 +558,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             clipBehavior: Clip.antiAlias,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
+              physics: _redimensionando
+                  ? const NeverScrollableScrollPhysics()
+                  : null,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -583,10 +589,15 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                           ),
                           ColumnaResizeHandle(
                             anchoActual: _anchoDeColumna(campo, col),
+                            onInicio: () =>
+                                setState(() => _redimensionando = true),
                             onArrastre: (a) => setState(() =>
                                 _anchoTemporal['${campo.nombre}##${col['nombre']}'] = a),
-                            onFin: (a) => _persistirAncho(
-                                campo, columnas, col['nombre'] as String, a),
+                            onFin: (a) {
+                              setState(() => _redimensionando = false);
+                              _persistirAncho(
+                                  campo, columnas, col['nombre'] as String, a);
+                            },
                           ),
                         ],
                         const SizedBox(width: 34),
