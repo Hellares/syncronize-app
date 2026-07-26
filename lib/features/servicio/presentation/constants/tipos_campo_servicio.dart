@@ -113,7 +113,26 @@ const kColumnaTiposTabla = <String, String>{
   'CHECKBOX': 'Sí/No',
   'OPCION_SIMPLES': 'Selección',
   'CODIGO_BARRAS': 'Código de barras',
+  'DOCUMENTO_IDENTIDAD': 'DNI / RUC',
 };
+
+/// Dónde escribe el nombre una celda DNI/RUC al resolverlo: en la siguiente
+/// columna de TEXTO a la derecha. Es una regla fija y predecible — se ordena
+/// `DNI | Nombre` y funciona, sin configuración por columna.
+/// Devuelve null si no hay ninguna después.
+String? columnaDestinoNombre(
+  List<Map<String, dynamic>> columnas,
+  String desde,
+) {
+  final i = columnas.indexWhere((c) => c['nombre'] == desde);
+  if (i < 0) return null;
+  for (final c in columnas.skip(i + 1)) {
+    if ((c['tipo'] as String? ?? 'TEXTO') == 'TEXTO') {
+      return c['nombre'] as String;
+    }
+  }
+  return null;
+}
 
 // ── Anchos de columna de una TABLA ──────────────────────────────────────
 // El ancho vive en la definición de la columna (`ancho`, en píxeles), así

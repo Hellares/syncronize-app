@@ -1168,7 +1168,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                   const EdgeInsets.symmetric(horizontal: 6),
                               child: editando
                                   ? Center(
-                                      child: _buildCeldaEditable(key, i, col))
+                                      child: _buildCeldaEditable(
+                                          key, i, col, columnas))
                                   : Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
@@ -1292,7 +1293,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   /// Celda en modo edición. Las columnas de la plantilla traen su tipo; las
   /// que aparecieron solo en los datos se tratan como texto.
-  Widget _buildCeldaEditable(String key, int fila, Map<String, dynamic> col) {
+  Widget _buildCeldaEditable(
+    String key,
+    int fila,
+    Map<String, dynamic> col,
+    List<Map<String, dynamic>> columnas,
+  ) {
     final nombre = col['nombre'] as String;
     final tipo = col['tipo'] as String? ?? 'TEXTO';
     final valor = _filasEditadas[fila][nombre];
@@ -1316,6 +1322,26 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
     final ctrl = _celdaControllers['$key##$fila##$nombre'] ??=
         TextEditingController(text: valor?.toString() ?? '');
+
+    if (tipo == 'DOCUMENTO_IDENTIDAD') {
+      return CeldaDocumento(
+        controller: ctrl,
+        onChanged: (v) => _filasEditadas[fila][nombre] = v,
+        onNombreResuelto: (nombreResuelto) {
+          final destino = columnaDestinoNombre(columnas, nombre);
+          if (destino == null) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(nombreResuelto)));
+            return;
+          }
+          _filasEditadas[fila][destino] = nombreResuelto;
+          // El controller de esa celda ya existe: hay que refrescarlo o
+          // seguiría mostrando lo viejo.
+          _celdaControllers['$key##$fila##$destino']?.text = nombreResuelto;
+          setState(() {});
+        },
+      );
+    }
 
     return TextField(
       controller: ctrl,

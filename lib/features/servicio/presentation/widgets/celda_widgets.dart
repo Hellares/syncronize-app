@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/resource.dart';
+import '../../../consultas_externas/domain/entities/consulta_dni.dart';
+import '../../../consultas_externas/domain/entities/consulta_ruc.dart';
+import '../../../consultas_externas/domain/repositories/consultas_repository.dart';
+import '../constants/tipos_campo_servicio.dart';
 
 /// Widgets para celdas de TABLA.
 ///
@@ -34,6 +40,92 @@ class CeldaBooleana extends StatelessWidget {
           color: valor ? AppColors.blue1 : Colors.grey.shade400,
         ),
       ),
+    );
+  }
+}
+
+/// Celda de DNI / CE / RUC con lupa que resuelve el nombre en RENIEC o SUNAT.
+///
+/// La celda guarda SOLO el número. El nombre se entrega por
+/// [onNombreResuelto] y la tabla decide dónde ponerlo — así este widget no
+/// necesita saber nada de columnas.
+class CeldaDocumento extends StatefulWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<String> onNombreResuelto;
+
+  const CeldaDocumento({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+    required this.onNombreResuelto,
+  });
+
+  @override
+  State<CeldaDocumento> createState() => _CeldaDocumentoState();
+}
+
+class _CeldaDocumentoState extends State<CeldaDocumento> {
+  bool _consultando = false;
+
+  Future<void> _consultar() async {
+    final numero = widget.controller.text.trim();
+    // 8 = DNI (RENIEC), 9 = carné de extranjería, 11 = RUC (SUNAT).
+    if (![8, 9, 11].contains(numero.length)) {
+      _aviso('Ingresa un DNI (8), CE (9) o RUC (11 dígitos)');
+      return;
+    }
+    setState(() => _consultando = true);
+    final repo = locator<ConsultasRepository>();
+    final result = numero.length == 11
+        ? await repo.consultarRuc(numero)
+        : numero.length == 9
+            ? await repo.consultarCee(numero)
+            : await repo.consultarDni(numero);
+    if (!mounted) return;
+    setState(() => _consultando = false);
+
+    if (result is Success) {
+      final data = (result as Success).data;
+      widget.onNombreResuelto(
+        data is ConsultaRuc ? data.razonSocial : (data as ConsultaDni).nombreCompleto,
+      );
+    } else if (result is Error) {
+      _aviso((result as Error).message);
+    }
+  }
+
+  void _aviso(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: widget.controller,
+      style: const TextStyle(fontSize: 11),
+      textAlignVertical: TextAlignVertical.center,
+      keyboardType: TextInputType.number,
+      decoration: kDecoracionCelda.copyWith(
+        suffixIcon: _consultando
+            ? const Padding(
+                padding: EdgeInsets.all(4),
+                child: SizedBox(
+                  width: 11,
+                  height: 11,
+                  child: CircularProgressIndicator(strokeWidth: 1.6),
+                ),
+              )
+            : GestureDetector(
+                onTap: _consultar,
+                child: const Icon(Icons.search, size: 14, color: AppColors.blue1),
+              ),
+        suffixIconConstraints:
+            const BoxConstraints(minWidth: 20, minHeight: 20),
+      ),
+      onChanged: widget.onChanged,
     );
   }
 }

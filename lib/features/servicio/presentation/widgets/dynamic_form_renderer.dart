@@ -669,6 +669,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                                 child: _buildCelda(
                                   campo: campo,
                                   columna: col,
+                                  columnas: columnas,
                                   fila: fila,
                                   indiceFila: i,
                                   onCambio: guardar,
@@ -742,6 +743,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   Widget _buildCelda({
     required ConfiguracionCampo campo,
     required Map<String, dynamic> columna,
+    required List<Map<String, dynamic>> columnas,
     required Map<String, dynamic> fila,
     required int indiceFila,
     required VoidCallback onCambio,
@@ -777,6 +779,30 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
     final ctrl = _tablaControllers[key] ??= TextEditingController(
       text: fila[nombreCol]?.toString() ?? '',
     );
+
+    if (tipo == 'DOCUMENTO_IDENTIDAD') {
+      return CeldaDocumento(
+        controller: ctrl,
+        onChanged: (v) {
+          fila[nombreCol] = v;
+          onCambio();
+        },
+        onNombreResuelto: (nombre) {
+          final destino = columnaDestinoNombre(columnas, nombreCol);
+          if (destino == null) {
+            _snack(nombre); // sin columna a la derecha: al menos se ve
+            return;
+          }
+          fila[destino] = nombre;
+          // El controller de esa celda ya existe: hay que refrescarlo o
+          // seguiría mostrando lo viejo.
+          _tablaControllers['${campo.nombre}##$indiceFila##$destino']?.text =
+              nombre;
+          setState(() {});
+          onCambio();
+        },
+      );
+    }
 
     return TextField(
       controller: ctrl,
