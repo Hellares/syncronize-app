@@ -648,6 +648,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                     final i = entry.key;
                     final fila = entry.value;
                     return Container(
+                      // Alto FIJO de la fila entera: ningún hijo puede
+                      // estirarla, ni un IconButton con su tap target.
+                      height: kAltoFilaTabla,
                       decoration: BoxDecoration(
                         border: Border(
                           top: BorderSide(color: Colors.grey.shade200),
@@ -674,22 +677,22 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                                 ),
                               ),
                             ),
-                          SizedBox(
-                            width: 34,
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                  minWidth: 34, minHeight: 34),
-                              tooltip: 'Quitar fila',
-                              icon: Icon(Icons.close,
+                          // GestureDetector y no IconButton: el tap target
+                          // de 48px de Material estiraba la fila.
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              // Los controllers se indexan por fila; al
+                              // borrar una, los de abajo se corren.
+                              _limpiarControllersTabla(campo.nombre);
+                              setState(() => filas.removeAt(i));
+                              guardar();
+                            },
+                            child: SizedBox(
+                              width: 34,
+                              height: kAltoFilaTabla,
+                              child: Icon(Icons.close,
                                   size: 15, color: Colors.red.shade300),
-                              onPressed: () {
-                                // Los controllers se indexan por fila; al
-                                // borrar una, los de abajo se corren.
-                                _limpiarControllersTabla(campo.nombre);
-                                setState(() => filas.removeAt(i));
-                                guardar();
-                              },
                             ),
                           ),
                         ],

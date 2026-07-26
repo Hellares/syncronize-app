@@ -1099,6 +1099,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   ),
                   for (var i = 0; i < visibles.length; i++)
                     Container(
+                      // Alto FIJO de la fila entera: ningún hijo puede
+                      // estirarla, ni un IconButton con su tap target.
+                      height: kAltoFilaTabla,
                       decoration: BoxDecoration(
                         border: Border(
                             top: BorderSide(color: Colors.grey.shade200)),
@@ -1128,19 +1131,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                     ),
                             ),
                           if (editando)
-                            SizedBox(
-                              width: 34,
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                    minWidth: 34, minHeight: 34),
-                                tooltip: 'Quitar fila',
-                                icon: Icon(Icons.close,
+                            // GestureDetector y no IconButton: el tap target
+                            // de 48px de Material estiraba la fila.
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                _limpiarCeldaControllers();
+                                setState(() => _filasEditadas.removeAt(i));
+                              },
+                              child: SizedBox(
+                                width: 34,
+                                height: kAltoFilaTabla,
+                                child: Icon(Icons.close,
                                     size: 15, color: Colors.red.shade300),
-                                onPressed: () {
-                                  _limpiarCeldaControllers();
-                                  setState(() => _filasEditadas.removeAt(i));
-                                },
                               ),
                             ),
                         ],
