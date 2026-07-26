@@ -1064,14 +1064,23 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final declaradas = columnas.map((c) => c['nombre']).toSet();
 
     final visibles = editando ? _filasEditadas : filas;
-    // Claves presentes en los datos que ya no estén en la plantilla (columna
-    // renombrada o borrada después) se agregan al final: el dato no se oculta.
-    for (final f in visibles) {
-      for (final k in f.keys) {
-        final nombre = k.toString();
-        if (!declaradas.contains(nombre)) {
-          declaradas.add(nombre);
-          columnas.add({'nombre': nombre, 'tipo': 'TEXTO'});
+
+    // Claves de los datos que no están declaradas: SOLO se muestran cuando la
+    // tabla no tiene definición de plantilla (orden vieja, plantilla borrada).
+    //
+    // Con plantilla, manda la plantilla. Si no, quitar una columna no serviría
+    // de nada: sus valores siguen en las filas y la volvían a dibujar al
+    // final — y al abrir el panel se re-guardaba en la plantilla, resucitándola.
+    // Los datos NO se pierden: siguen en la orden y vuelven a verse si se crea
+    // otra vez una columna con ese nombre.
+    if (campo == null) {
+      for (final f in visibles) {
+        for (final k in f.keys) {
+          final nombre = k.toString();
+          if (!declaradas.contains(nombre)) {
+            declaradas.add(nombre);
+            columnas.add({'nombre': nombre, 'tipo': 'TEXTO'});
+          }
         }
       }
     }
