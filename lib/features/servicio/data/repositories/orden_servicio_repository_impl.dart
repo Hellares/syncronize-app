@@ -169,6 +169,7 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
     double? adelanto,
     double? descuento,
     String? metodoPagoAdelanto,
+    Map<String, dynamic>? datosPersonalizados,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -188,6 +189,7 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
         if (adelanto != null) 'adelanto': adelanto,
         if (descuento != null) 'descuento': descuento,
         if (metodoPagoAdelanto != null) 'metodoPagoAdelanto': metodoPagoAdelanto,
+        if (datosPersonalizados != null) 'datosPersonalizados': datosPersonalizados,
       };
       final result = await _remoteDataSource.actualizar(id, data);
       return Success(result);

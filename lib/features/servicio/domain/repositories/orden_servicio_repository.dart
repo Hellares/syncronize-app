@@ -57,6 +57,8 @@ abstract class OrdenServicioRepository {
     double? adelanto,
     double? descuento,
     String? metodoPagoAdelanto,
+    // Objeto COMPLETO de campos personalizados: reemplaza al anterior.
+    Map<String, dynamic>? datosPersonalizados,
   });
 
   Future<Resource<OrdenServicio>> transitionEstado({

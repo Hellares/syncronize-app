@@ -115,6 +115,27 @@ const kColumnaTiposTabla = <String, String>{
   'CODIGO_BARRAS': 'Código de barras',
 };
 
+// ── Anchos de columna de una TABLA ──────────────────────────────────────
+// El ancho vive en la definición de la columna (`ancho`, en píxeles), así
+// que es el MISMO para todos y en todas las órdenes de esa plantilla. Al
+// arrastrar se guarda ahí; si la columna no lo trae, se usa el default de
+// su tipo.
+
+const double kAnchoColumnaMin = 56;
+const double kAnchoColumnaMax = 320;
+
+/// Numéricos y booleanos arrancan angostos: no necesitan más.
+double anchoPorDefectoColumna(String tipo) =>
+    (tipo == 'NUMERO' || tipo == 'MONEDA' || tipo == 'CHECKBOX') ? 78 : 132;
+
+/// Ancho efectivo de una columna, ya recortado a los límites.
+double anchoColumna(Map<String, dynamic> columna) {
+  final guardado = (columna['ancho'] as num?)?.toDouble();
+  final tipo = columna['tipo'] as String? ?? 'TEXTO';
+  final ancho = guardado ?? anchoPorDefectoColumna(tipo);
+  return ancho.clamp(kAnchoColumnaMin, kAnchoColumnaMax);
+}
+
 /// `GENERAL` solo lo usan las plantillas del catálogo precargado.
 const kCategoriaLabels = <String, String>{
   'DIAGNOSTICO': 'Diagnóstico',

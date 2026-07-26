@@ -14,6 +14,9 @@ import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../consultas_externas/domain/entities/consulta_dni.dart';
 import '../../../consultas_externas/domain/entities/consulta_ruc.dart';
 import '../../../consultas_externas/domain/repositories/consultas_repository.dart';
+import '../../domain/repositories/plantilla_servicio_repository.dart';
+import '../constants/tipos_campo_servicio.dart';
+import 'columna_resize_handle.dart';
 import 'firma_sheet.dart';
 import '../../../../core/widgets/date/custom_date.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -450,13 +453,40 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
   // el valor es una lista de filas {columna: valor}. La grilla scrollea en
   // horizontal: en un celular no entran 4 columnas de ancho útil.
 
-  static const double _anchoCelda = 128;
-  static const double _anchoCeldaChica = 74; // NUMERO, MONEDA, CHECKBOX
+  /// Ancho en vivo mientras se arrastra, por "campo##columna". Al soltar se
+  /// persiste en la plantilla y esto se limpia.
+  final Map<String, double> _anchoTemporal = {};
 
-  double _anchoDeColumna(String tipo) =>
-      (tipo == 'NUMERO' || tipo == 'MONEDA' || tipo == 'CHECKBOX')
-          ? _anchoCeldaChica
-          : _anchoCelda;
+  double _anchoDeColumna(ConfiguracionCampo campo, Map<String, dynamic> col) =>
+      _anchoTemporal['${campo.nombre}##${col['nombre']}'] ?? anchoColumna(col);
+
+  /// Guarda el ancho en la DEFINICIÓN de la columna: es propiedad de la
+  /// plantilla, así que lo ven todos y aplica a todas las órdenes. Si el
+  /// usuario no puede editar plantillas, el ajuste igual se ve en esta
+  /// sesión (queda en `_anchoTemporal`) pero no se persiste.
+  Future<void> _persistirAncho(
+    ConfiguracionCampo campo,
+    List<Map<String, dynamic>> columnas,
+    String nombreColumna,
+    double ancho,
+  ) async {
+    final nuevas = columnas
+        .map((c) => c['nombre'] == nombreColumna
+            ? {...c, 'ancho': ancho.roundToDouble()}
+            : c)
+        .toList();
+    final result = await locator<PlantillaServicioRepository>().updateCampo(
+      campoId: campo.id,
+      campoData: {'opciones': nuevas},
+    );
+    if (!mounted) return;
+    if (result is Success) {
+      // La plantilla ya lo tiene: el override temporal sobra.
+      setState(() => _anchoTemporal.remove('${campo.nombre}##$nombreColumna'));
+    } else {
+      _snack('Ancho aplicado solo en esta sesión (no se pudo guardar)');
+    }
+  }
 
   Widget _buildTablaField(ConfiguracionCampo campo) {
     final columnas = campo.opciones is List
@@ -533,9 +563,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                     color: AppColors.blue1.withValues(alpha: 0.06),
                     child: Row(
                       children: [
-                        for (final col in columnas)
+                        for (final col in columnas) ...[
                           SizedBox(
-                            width: _anchoDeColumna(col['tipo'] as String? ?? 'TEXTO'),
+                            width: _anchoDeColumna(campo, col),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 7),
@@ -551,6 +581,14 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                               ),
                             ),
                           ),
+                          ColumnaResizeHandle(
+                            anchoActual: _anchoDeColumna(campo, col),
+                            onArrastre: (a) => setState(() =>
+                                _anchoTemporal['${campo.nombre}##${col['nombre']}'] = a),
+                            onFin: (a) => _persistirAncho(
+                                campo, columnas, col['nombre'] as String, a),
+                          ),
+                        ],
                         const SizedBox(width: 34),
                       ],
                     ),
@@ -577,10 +615,9 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          for (final col in columnas)
+                          for (final col in columnas) ...[
                             SizedBox(
-                              width: _anchoDeColumna(
-                                  col['tipo'] as String? ?? 'TEXTO'),
+                              width: _anchoDeColumna(campo, col),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 4, vertical: 4),
@@ -593,6 +630,10 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
                                 ),
                               ),
                             ),
+                            // Mismo ancho que el tirador del encabezado para
+                            // que las columnas no se desalineen.
+                            const SizedBox(width: 14),
+                          ],
                           SizedBox(
                             width: 34,
                             child: IconButton(

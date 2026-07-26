@@ -28,6 +28,8 @@ import '../../domain/entities/configuracion_campo.dart';
 import '../../domain/entities/orden_servicio.dart';
 import '../../domain/repositories/orden_servicio_repository.dart';
 import '../../domain/repositories/plantilla_servicio_repository.dart';
+import '../constants/tipos_campo_servicio.dart';
+import '../widgets/columna_resize_handle.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -72,9 +74,11 @@ class OrdenServicioDetailPage extends StatefulWidget {
 
 class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   OrdenServicio? _orden;
-  /// Orden declarado de las columnas por campo TABLA, tomado de la plantilla.
-  /// Vacío si la orden no tiene servicio o si la consulta falla.
-  Map<String, List<String>> _columnasPorCampo = const {};
+  /// Definición de los campos TABLA de la plantilla, por nombre de campo.
+  /// Da el ORDEN declarado de columnas, su tipo y su ancho — nada de eso se
+  /// puede deducir del dato guardado. Vacío si la orden no tiene servicio o
+  /// si la consulta falla.
+  Map<String, ConfiguracionCampo> _camposTabla = const {};
   List<HistorialOrdenServicio> _historial = [];
   List<ArchivoResponse> _archivos = [];
   List<ArchivoResponse> _firmaArchivos = [];
@@ -148,15 +152,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         .getCamposByServicioId(servicioId);
     if (!mounted) return;
     if (result is Success<List<ConfiguracionCampo>>) {
-      _columnasPorCampo = {
-        for (final c in result.data)
-          if (c.tipoCampo == 'TABLA' && c.opciones is List)
-            c.nombre: (c.opciones as List)
-                .whereType<Map>()
-                .map((e) => e['nombre']?.toString() ?? '')
-                .where((e) => e.isNotEmpty)
-                .toList(),
-      };
+      setState(() {
+        _camposTabla = {
+          for (final c in result.data)
+            if (c.tipoCampo == 'TABLA') c.nombre: c,
+        };
+      });
     }
   }
 
@@ -690,32 +691,153 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   /// Las columnas salen de la UNION de claves de todas las filas y en el
   /// orden en que aparecen: la definicion de la plantilla no viaja con la
   /// orden, y una fila puede tener celdas vacias.
+  // ── TABLA en el detalle ────────────────────────────────────────────────
+  // Se muestra siempre; con el lápiz entra en edición: celdas editables,
+  // agregar/quitar filas y una barra para guardar o descartar. El guardado
+  // manda el objeto COMPLETO de datosPersonalizados, no solo la tabla.
+
+  String? _tablaEnEdicion;
+  List<Map<String, dynamic>> _filasEditadas = [];
+  bool _guardandoTabla = false;
+  final Map<String, TextEditingController> _celdaControllers = {};
+  final Map<String, double> _anchoTemporalTabla = {};
+
+  void _entrarEdicionTabla(String key, List<Map> filas) {
+    setState(() {
+      _tablaEnEdicion = key;
+      _filasEditadas = filas.map((f) => Map<String, dynamic>.from(f)).toList();
+      _limpiarCeldaControllers();
+    });
+  }
+
+  void _salirEdicionTabla() {
+    setState(() {
+      _tablaEnEdicion = null;
+      _filasEditadas = [];
+      _limpiarCeldaControllers();
+    });
+  }
+
+  void _limpiarCeldaControllers() {
+    for (final c in _celdaControllers.values) {
+      c.dispose();
+    }
+    _celdaControllers.clear();
+  }
+
+  Future<void> _guardarTabla(String key) async {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded || _orden == null) return;
+
+    setState(() => _guardandoTabla = true);
+    // Se envía el objeto entero: el backend REEMPLAZA datosPersonalizados,
+    // no hace merge, así que mandar solo la tabla borraría el resto.
+    final datos = Map<String, dynamic>.from(_orden!.datosPersonalizados ?? {});
+    datos[key] = _filasEditadas;
+
+    final result = await locator<OrdenServicioRepository>().actualizar(
+      id: widget.ordenId,
+      empresaId: empresaState.context.empresa.id,
+      datosPersonalizados: datos,
+    );
+    if (!mounted) return;
+    setState(() => _guardandoTabla = false);
+
+    if (result is Success<OrdenServicio>) {
+      _salirEdicionTabla();
+      setState(() => _orden = result.data);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tabla actualizada')),
+      );
+    } else if (result is Error<OrdenServicio>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message)),
+      );
+    }
+  }
+
+  double _anchoColumnaDetalle(String key, Map<String, dynamic> col) =>
+      _anchoTemporalTabla['$key##${col['nombre']}'] ?? anchoColumna(col);
+
+  /// El ancho es propiedad de la COLUMNA en la plantilla: al soltar se
+  /// guarda ahí y lo ven todos, en todas las órdenes de esa plantilla.
+  Future<void> _persistirAnchoDetalle(
+    String key,
+    String nombreColumna,
+    double ancho,
+  ) async {
+    final campo = _camposTabla[key];
+    if (campo == null || campo.opciones is! List) return;
+    final columnas = (campo.opciones as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final nuevas = columnas
+        .map((c) => c['nombre'] == nombreColumna
+            ? {...c, 'ancho': ancho.roundToDouble()}
+            : c)
+        .toList();
+    final result = await locator<PlantillaServicioRepository>().updateCampo(
+      campoId: campo.id,
+      campoData: {'opciones': nuevas},
+    );
+    if (!mounted) return;
+    if (result is Success) {
+      await _loadDefinicionCampos();
+      if (mounted) {
+        setState(() => _anchoTemporalTabla.remove('$key##$nombreColumna'));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Ancho aplicado solo en esta sesión (no se pudo guardar)'),
+        ),
+      );
+    }
+  }
+
   Widget _buildTablaDato(String key, List<Map> filas) {
+    final editando = _tablaEnEdicion == key;
+    final campo = _camposTabla[key];
+
     // Orden REAL de las columnas: la definición de la plantilla. El dato
     // guardado no sirve para esto (jsonb reordena las claves).
-    final columnas = <String>[...?_columnasPorCampo[key]];
-    // Cualquier clave presente en los datos que ya no esté en la plantilla
-    // (columna renombrada o eliminada después) se agrega al final en vez de
-    // desaparecer: el dato del cliente no se oculta.
-    for (final f in filas) {
+    final columnas = <Map<String, dynamic>>[
+      if (campo?.opciones is List)
+        ...(campo!.opciones as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .where((e) => (e['nombre'] as String?)?.isNotEmpty == true),
+    ];
+    final declaradas = columnas.map((c) => c['nombre']).toSet();
+
+    final visibles = editando ? _filasEditadas : filas;
+    // Claves presentes en los datos que ya no estén en la plantilla (columna
+    // renombrada o borrada después) se agregan al final: el dato no se oculta.
+    for (final f in visibles) {
       for (final k in f.keys) {
         final nombre = k.toString();
-        if (!columnas.contains(nombre)) columnas.add(nombre);
+        if (!declaradas.contains(nombre)) {
+          declaradas.add(nombre);
+          columnas.add({'nombre': nombre, 'tipo': 'TEXTO'});
+        }
       }
     }
     if (columnas.isEmpty) return const SizedBox.shrink();
 
-    // Total por columna totalmente numerica (montos, cantidades).
+    // Total por columna totalmente numérica (montos, cantidades).
     final totales = <String, double>{};
     for (final col in columnas) {
-      final valores = filas
-          .map((f) => f[col])
+      final nombre = col['nombre'] as String;
+      final valores = visibles
+          .map((f) => f[nombre])
           .where((v) => v != null && v.toString().trim().isNotEmpty)
           .toList();
       if (valores.isEmpty) continue;
       final nums = valores.map((v) => double.tryParse(v.toString())).toList();
       if (nums.every((n) => n != null)) {
-        totales[col] = nums.fold<double>(0, (a, n) => a + n!);
+        totales[nombre] = nums.fold<double>(0, (a, n) => a + n!);
       }
     }
 
@@ -736,16 +858,30 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ),
               ),
               Text(
-                '${filas.length} ${filas.length == 1 ? "fila" : "filas"}',
+                '${visibles.length} ${visibles.length == 1 ? "fila" : "filas"}',
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
               ),
+              if (!editando)
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                  tooltip: 'Editar tabla',
+                  icon: Icon(Icons.edit_outlined,
+                      size: 14, color: AppColors.blue1.withValues(alpha: 0.7)),
+                  onPressed: () => _entrarEdicionTabla(key, filas),
+                ),
             ],
           ),
           const SizedBox(height: 4),
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.blue1.withValues(alpha: 0.18)),
+              border: Border.all(
+                color: editando
+                    ? AppColors.blue1.withValues(alpha: 0.5)
+                    : AppColors.blue1.withValues(alpha: 0.18),
+                width: editando ? 1.2 : 1,
+              ),
             ),
             clipBehavior: Clip.antiAlias,
             child: SingleChildScrollView(
@@ -757,19 +893,16 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     color: AppColors.blue1.withValues(alpha: 0.06),
                     child: Row(
                       children: [
-                        for (final col in columnas)
+                        for (final col in columnas) ...[
                           SizedBox(
-                            width: totales.containsKey(col) ? 80 : 130,
+                            width: _anchoColumnaDetalle(key, col),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 6),
                               child: Text(
-                                col,
+                                col['nombre'] as String,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                textAlign: totales.containsKey(col)
-                                    ? TextAlign.right
-                                    : TextAlign.start,
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
@@ -778,32 +911,59 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                               ),
                             ),
                           ),
+                          ColumnaResizeHandle(
+                            anchoActual: _anchoColumnaDetalle(key, col),
+                            onArrastre: (a) => setState(() =>
+                                _anchoTemporalTabla['$key##${col['nombre']}'] =
+                                    a),
+                            onFin: (a) => _persistirAnchoDetalle(
+                                key, col['nombre'] as String, a),
+                          ),
+                        ],
+                        if (editando) const SizedBox(width: 34),
                       ],
                     ),
                   ),
-                  for (final f in filas)
+                  for (var i = 0; i < visibles.length; i++)
                     Container(
                       decoration: BoxDecoration(
-                        border:
-                            Border(top: BorderSide(color: Colors.grey.shade200)),
+                        border: Border(
+                            top: BorderSide(color: Colors.grey.shade200)),
                       ),
                       child: Row(
                         children: [
-                          for (final col in columnas)
+                          for (final col in columnas) ...[
                             SizedBox(
-                              width: totales.containsKey(col) ? 80 : 130,
+                              width: _anchoColumnaDetalle(key, col),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 6),
-                                child: Text(
-                                  _celdaTexto(f[col]),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: totales.containsKey(col)
-                                      ? TextAlign.right
-                                      : TextAlign.start,
-                                  style: const TextStyle(fontSize: 11),
-                                ),
+                                    horizontal: 6, vertical: 4),
+                                child: editando
+                                    ? _buildCeldaEditable(key, i, col)
+                                    : Text(
+                                        _celdaTexto(visibles[i][col['nombre']]),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                          ],
+                          if (editando)
+                            SizedBox(
+                              width: 34,
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 34, minHeight: 34),
+                                tooltip: 'Quitar fila',
+                                icon: Icon(Icons.close,
+                                    size: 15, color: Colors.red.shade300),
+                                onPressed: () {
+                                  _limpiarCeldaControllers();
+                                  setState(() => _filasEditadas.removeAt(i));
+                                },
                               ),
                             ),
                         ],
@@ -813,22 +973,23 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.blue1.withValues(alpha: 0.04),
-                        border:
-                            Border(top: BorderSide(color: Colors.grey.shade300)),
+                        border: Border(
+                            top: BorderSide(color: Colors.grey.shade300)),
                       ),
                       child: Row(
                         children: [
-                          for (final col in columnas)
+                          for (final col in columnas) ...[
                             SizedBox(
-                              width: totales.containsKey(col) ? 80 : 130,
+                              width: _anchoColumnaDetalle(key, col),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 6),
                                 child: Text(
-                                  totales.containsKey(col)
-                                      ? totales[col]!.toStringAsFixed(2)
+                                  totales.containsKey(col['nombre'])
+                                      ? totales[col['nombre']]!
+                                          .toStringAsFixed(2)
                                       : (col == columnas.first ? 'Total' : ''),
-                                  textAlign: totales.containsKey(col)
+                                  textAlign: totales.containsKey(col['nombre'])
                                       ? TextAlign.right
                                       : TextAlign.start,
                                   style: const TextStyle(
@@ -839,6 +1000,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 14),
+                          ],
                         ],
                       ),
                     ),
@@ -846,8 +1009,108 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               ),
             ),
           ),
+          if (editando)
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () =>
+                      setState(() => _filasEditadas.add(<String, dynamic>{})),
+                  icon: const Icon(Icons.add, size: 15),
+                  label: const Text('Agregar fila',
+                      style: TextStyle(fontSize: 11.5)),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: _guardandoTabla ? null : _salirEdicionTabla,
+                  child:
+                      const Text('Descartar', style: TextStyle(fontSize: 11.5)),
+                ),
+                const SizedBox(width: 4),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.blue1,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: _guardandoTabla ? null : () => _guardarTabla(key),
+                  child: _guardandoTabla
+                      ? const SizedBox(
+                          width: 13,
+                          height: 13,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Guardar', style: TextStyle(fontSize: 11.5)),
+                ),
+              ],
+            ),
         ],
       ),
+    );
+  }
+
+  /// Celda en modo edición. Las columnas de la plantilla traen su tipo; las
+  /// que aparecieron solo en los datos se tratan como texto.
+  Widget _buildCeldaEditable(String key, int fila, Map<String, dynamic> col) {
+    final nombre = col['nombre'] as String;
+    final tipo = col['tipo'] as String? ?? 'TEXTO';
+    final valor = _filasEditadas[fila][nombre];
+
+    if (tipo == 'CHECKBOX') {
+      return Checkbox(
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        value: valor == true,
+        onChanged: (v) =>
+            setState(() => _filasEditadas[fila][nombre] = v ?? false),
+      );
+    }
+
+    if (tipo == 'OPCION_SIMPLES') {
+      final opciones = col['opciones'] is List
+          ? (col['opciones'] as List).map((e) => e.toString()).toList()
+          : <String>[];
+      return DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isDense: true,
+          isExpanded: true,
+          value: valor is String && opciones.contains(valor) ? valor : null,
+          hint: const Text('—', style: TextStyle(fontSize: 11)),
+          style: const TextStyle(fontSize: 11, color: Colors.black87),
+          items: opciones
+              .map((o) => DropdownMenuItem(
+                    value: o,
+                    child:
+                        Text(o, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: (v) => setState(() => _filasEditadas[fila][nombre] = v),
+        ),
+      );
+    }
+
+    final ctrl = _celdaControllers['$key##$fila##$nombre'] ??=
+        TextEditingController(text: valor?.toString() ?? '');
+
+    return TextField(
+      controller: ctrl,
+      style: const TextStyle(fontSize: 11),
+      textAlign: (tipo == 'NUMERO' || tipo == 'MONEDA')
+          ? TextAlign.right
+          : TextAlign.start,
+      keyboardType: (tipo == 'NUMERO' || tipo == 'MONEDA')
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        border: InputBorder.none,
+      ),
+      onChanged: (v) {
+        // Numéricos como número para que el total los sume.
+        _filasEditadas[fila][nombre] =
+            (tipo == 'NUMERO' || tipo == 'MONEDA') ? (num.tryParse(v) ?? v) : v;
+        if (tipo == 'NUMERO' || tipo == 'MONEDA') setState(() {});
+      },
     );
   }
 
