@@ -95,29 +95,47 @@ void volcarDatosDeConsulta({
   required void Function(String columna, String valor) escribir,
   required void Function(String mensaje) sinDestino,
 }) {
-  final porDato = columnasPorDato(columnas, origen);
-  if (porDato.isNotEmpty) {
-    var algo = false;
-    porDato.forEach((dato, columna) {
-      final v = datos[dato];
-      if (v != null && v.trim().isNotEmpty) {
-        escribir(columna, v);
-        algo = true;
-      }
-    });
-    if (!algo) sinDestino('La consulta no devolvió datos para estas columnas');
-    return;
+  var escritos = 0;
+
+  // Camino normal: cada columna declara qué dato recibe.
+  columnasPorDato(columnas, origen).forEach((dato, columna) {
+    final v = datos[dato];
+    if (v != null && v.trim().isNotEmpty) {
+      escribir(columna, v);
+      escritos++;
+    }
+  });
+  if (escritos > 0) return;
+
+  // Respaldo: sin columnas marcadas (creadas a mano, o definición aún no
+  // refrescada) se reparte EN ORDEN sobre las columnas de texto que siguen.
+  //
+  // 🔴 Antes este respaldo solo sabía colocar `datos['nombre']`, así que con
+  // una placa —que devuelve marca/modelo/color y ningún `nombre`— no escribía
+  // nada y solo mostraba un aviso: "trae los datos pero no los llena".
+  final valores =
+      datos.values.where((v) => v.trim().isNotEmpty).toList(growable: false);
+  final destinos = columnasTextoDespuesDe(columnas, origen);
+  for (var i = 0; i < destinos.length && i < valores.length; i++) {
+    escribir(destinos[i], valores[i]);
+    escritos++;
   }
 
-  final nombre = datos['nombre'];
-  final destino = columnaDestinoNombre(columnas, origen);
-  if (nombre == null) {
-    sinDestino(datos.values.join(' · '));
-  } else if (destino == null) {
-    sinDestino(nombre); // sin columna donde ponerlo: al menos se ve
-  } else {
-    escribir(destino, nombre);
-  }
+  if (escritos == 0) sinDestino(valores.join(' · '));
+}
+
+/// Columnas de TEXTO que siguen a [desde], en orden. Son los destinos de
+/// respaldo cuando ninguna declara `dato`.
+List<String> columnasTextoDespuesDe(
+  List<Map<String, dynamic>> columnas,
+  String desde,
+) {
+  final i = columnas.indexWhere((c) => c['nombre'] == desde);
+  if (i < 0) return const [];
+  return [
+    for (final c in columnas.skip(i + 1))
+      if ((c['tipo'] as String? ?? 'TEXTO') == 'TEXTO') c['nombre'] as String,
+  ];
 }
 
 /// Columnas acompañantes declaradas de [origen], indexadas por el dato que
@@ -216,24 +234,6 @@ const kColumnaTiposTabla = <String, String>{
   'LICENCIA_CONDUCIR': 'Licencia',
   'FOTO': 'Foto',
 };
-
-/// Dónde escribe el nombre una celda DNI/RUC al resolverlo: en la siguiente
-/// columna de TEXTO a la derecha. Es una regla fija y predecible — se ordena
-/// `DNI | Nombre` y funciona, sin configuración por columna.
-/// Devuelve null si no hay ninguna después.
-String? columnaDestinoNombre(
-  List<Map<String, dynamic>> columnas,
-  String desde,
-) {
-  final i = columnas.indexWhere((c) => c['nombre'] == desde);
-  if (i < 0) return null;
-  for (final c in columnas.skip(i + 1)) {
-    if ((c['tipo'] as String? ?? 'TEXTO') == 'TEXTO') {
-      return c['nombre'] as String;
-    }
-  }
-  return null;
-}
 
 // ── Anchos de columna de una TABLA ──────────────────────────────────────
 // El ancho vive en la definición de la columna (`ancho`, en píxeles), así
