@@ -30,7 +30,9 @@ class CuotaCalculator {
     final montoInteresTotal = _round2(montoCredito * (porcentajeInteres / 100));
     final totalConInteres = montoCredito + montoInteresTotal;
 
-    final intervaloDias = plazo ~/ numeroCuotas;
+    // Espejo del backend: mínimo 1 día para que un plazo menor que el número
+    // de cuotas no haga vencer todas el mismo día.
+    final intervaloDias = (plazo ~/ numeroCuotas).clamp(1, 100000);
     final montoCuota = (totalConInteres / numeroCuotas * 100).floor() / 100;
     final resto = _round2(totalConInteres - montoCuota * numeroCuotas);
 

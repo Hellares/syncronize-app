@@ -1012,6 +1012,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       pagos: [],
       condicionPago: 'CONTADO',
       numeroCuotas: 1,
+      frecuenciaDias: 30,
       plazoDias: 30,
       tipoComprobante: 'TICKET',
       clienteGenerico: false,
@@ -1092,17 +1093,25 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(conEnvio: valor));
   }
 
+  /// El plazo TOTAL siempre se deriva de la frecuencia elegida: el backend hace
+  /// `plazo ÷ cuotas` para sacar el intervalo entre vencimientos, así que
+  /// mantenerlo como múltiplo exacto garantiza que el intervalo sea la
+  /// frecuencia (y nunca 0, que haría vencer todas las cuotas el mismo día).
   void setNumeroCuotas(int cuotas) {
     if (cuotas < 1) return;
     emit(state.copyWith(
       numeroCuotas: cuotas,
-      plazoDias: cuotas * 30,
+      plazoDias: state.frecuenciaDias * cuotas,
     ));
   }
 
-  void setPlazoDias(int dias) {
+  /// Cada cuánto paga el cliente: 1 diario, 3, 7 semanal, 15 quincenal, 30 mensual.
+  void setFrecuenciaDias(int dias) {
     if (dias < 1) return;
-    emit(state.copyWith(plazoDias: dias));
+    emit(state.copyWith(
+      frecuenciaDias: dias,
+      plazoDias: dias * state.numeroCuotas,
+    ));
   }
 
   void setClienteGenerico() {
@@ -2299,6 +2308,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       pagos: [],
       condicionPago: 'CONTADO',
       numeroCuotas: 1,
+      frecuenciaDias: 30,
       plazoDias: 30,
       tipoComprobante: 'TICKET',
       clienteGenerico: false,

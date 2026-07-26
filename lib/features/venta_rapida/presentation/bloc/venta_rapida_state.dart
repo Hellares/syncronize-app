@@ -42,6 +42,14 @@ class VentaRapidaState extends Equatable {
   // Crédito
   final String condicionPago; // CONTADO | CREDITO
   final int numeroCuotas;
+
+  /// Cada cuántos días paga el cliente: 1 diario, 3, 7 semanal, 15 quincenal,
+  /// 30 mensual. Es lo que se elige en pantalla; `plazoDias` se deriva.
+  final int frecuenciaDias;
+
+  /// Plazo TOTAL que espera el backend (`plazoCredito`). Siempre
+  /// `frecuenciaDias * numeroCuotas`, para que su `plazo ÷ cuotas` devuelva
+  /// exactamente la frecuencia elegida (y nunca 0).
   final int plazoDias;
 
   /// Venta CON ENVÍO (pedido por teléfono/WhatsApp que se despachará por
@@ -97,6 +105,7 @@ class VentaRapidaState extends Equatable {
     this.docSinResultado,
     this.condicionPago = 'CONTADO',
     this.numeroCuotas = 1,
+    this.frecuenciaDias = 30,
     this.plazoDias = 30,
     this.conEnvio = false,
     this.pagos = const [],
@@ -172,6 +181,7 @@ class VentaRapidaState extends Equatable {
     bool clearDocSinResultado = false,
     String? condicionPago,
     int? numeroCuotas,
+    int? frecuenciaDias,
     int? plazoDias,
     bool? conEnvio,
     List<Map<String, dynamic>>? pagos,
@@ -213,6 +223,7 @@ class VentaRapidaState extends Equatable {
           : (docSinResultado ?? this.docSinResultado),
       condicionPago: condicionPago ?? this.condicionPago,
       numeroCuotas: numeroCuotas ?? this.numeroCuotas,
+      frecuenciaDias: frecuenciaDias ?? this.frecuenciaDias,
       plazoDias: plazoDias ?? this.plazoDias,
       conEnvio: conEnvio ?? this.conEnvio,
       pagos: pagos ?? this.pagos,
@@ -240,7 +251,7 @@ class VentaRapidaState extends Equatable {
         clienteGenerico, clienteId, clienteEmpresaId,
         tipoDocCliente, numeroDocCliente, nombreClienteResuelto, buscandoCliente,
         docSinResultado,
-        condicionPago, numeroCuotas, plazoDias, conEnvio,
+        condicionPago, numeroCuotas, frecuenciaDias, plazoDias, conEnvio,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
         preciosDesactualizados, stockInsuficiente,
       ];

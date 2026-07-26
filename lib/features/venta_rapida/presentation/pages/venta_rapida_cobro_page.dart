@@ -2195,6 +2195,24 @@ class _CobroViewState extends State<_CobroView> {
     }
   }
 
+  /// "semanales" / "diarios" / "cada 3 dias" — para leer el crédito como lo
+  /// dice el cliente. Con un solo pago la frecuencia no aporta nada.
+  static String _labelFrecuencia(int frecuenciaDias, int cuotas) {
+    if (cuotas <= 1) return '';
+    switch (frecuenciaDias) {
+      case 1:
+        return 'diarios';
+      case 7:
+        return 'semanales';
+      case 15:
+        return 'quincenales';
+      case 30:
+        return 'mensuales';
+      default:
+        return 'cada $frecuenciaDias dias';
+    }
+  }
+
   Widget _buildCreditoSection(BuildContext context, VentaRapidaState state) {
     // Las cuotas del comprobante a crédito se calculan sobre el TOTAL (SUNAT
     // exige que sumen el total). Si el cliente deja un adelanto en efectivo, NO
@@ -2224,44 +2242,54 @@ class _CobroViewState extends State<_CobroView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cuotas + Plazo en una sola row
+            // Frecuencia + N° de pagos. Se pregunta "cada cuánto paga" y
+            // "cuántas veces" (como lo dice el cliente); el plazo total que
+            // espera el backend se deriva de ambos.
             Row(
               children: [
                 Expanded(
                   child: CustomDropdown<int>(
-                    label: 'Cuotas',
-                    value: state.numeroCuotas,
+                    label: 'Paga cada',
+                    value: state.frecuenciaDias,
                     borderColor: Colors.orange.shade700,
                     height: 36,
                     items: const [
-                      DropdownItem(value: 1, label: '1 cuota'),
-                      DropdownItem(value: 2, label: '2 cuotas'),
-                      DropdownItem(value: 3, label: '3 cuotas'),
-                      DropdownItem(value: 6, label: '6 cuotas'),
-                      DropdownItem(value: 12, label: '12 cuotas'),
+                      DropdownItem(value: 1, label: 'Diario'),
+                      DropdownItem(value: 3, label: 'Cada 3 dias'),
+                      DropdownItem(value: 7, label: 'Semanal'),
+                      DropdownItem(value: 15, label: 'Quincenal'),
+                      DropdownItem(value: 30, label: 'Mensual'),
                     ],
                     onChanged: (v) {
-                      if (v != null) context.read<VentaRapidaCubit>().setNumeroCuotas(v);
+                      if (v != null) {
+                        context.read<VentaRapidaCubit>().setFrecuenciaDias(v);
+                      }
                     },
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: CustomDropdown<int>(
-                    label: 'Plazo',
-                    value: state.plazoDias,
+                    label: 'N. de pagos',
+                    value: state.numeroCuotas,
                     borderColor: Colors.orange.shade700,
                     height: 36,
                     items: const [
-                      DropdownItem(value: 7, label: '7 dias'),
-                      DropdownItem(value: 15, label: '15 dias'),
-                      DropdownItem(value: 30, label: '30 dias'),
-                      DropdownItem(value: 60, label: '60 dias'),
-                      DropdownItem(value: 90, label: '90 dias'),
-                      DropdownItem(value: 120, label: '120 dias'),
+                      DropdownItem(value: 1, label: '1 pago'),
+                      DropdownItem(value: 2, label: '2 pagos'),
+                      DropdownItem(value: 3, label: '3 pagos'),
+                      DropdownItem(value: 4, label: '4 pagos'),
+                      DropdownItem(value: 6, label: '6 pagos'),
+                      DropdownItem(value: 8, label: '8 pagos'),
+                      DropdownItem(value: 10, label: '10 pagos'),
+                      DropdownItem(value: 12, label: '12 pagos'),
+                      DropdownItem(value: 15, label: '15 pagos'),
+                      DropdownItem(value: 20, label: '20 pagos'),
+                      DropdownItem(value: 24, label: '24 pagos'),
+                      DropdownItem(value: 30, label: '30 pagos'),
                     ],
                     onChanged: (v) {
-                      if (v != null) context.read<VentaRapidaCubit>().setPlazoDias(v);
+                      if (v != null) context.read<VentaRapidaCubit>().setNumeroCuotas(v);
                     },
                   ),
                 ),
@@ -2284,7 +2312,9 @@ class _CobroViewState extends State<_CobroView> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${cuotas.length} cuota${cuotas.length > 1 ? 's' : ''} de S/ ${cuotas.first.monto.toStringAsFixed(2)}',
+                          '${cuotas.length} pago${cuotas.length > 1 ? 's' : ''} '
+                          '${_labelFrecuencia(state.frecuenciaDias, cuotas.length)} '
+                          'de S/ ${cuotas.first.monto.toStringAsFixed(2)}',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
                               color: Colors.blue.shade700),
                         ),
