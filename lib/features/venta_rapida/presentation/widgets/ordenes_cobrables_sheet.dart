@@ -17,7 +17,14 @@ import '../../domain/usecases/get_ordenes_cobrables_usecase.dart';
 ///
 /// Devuelve la [OrdenCobrable] elegida (o null si se cerró sin elegir).
 /// El caller la agrega al carrito vía `VentaRapidaCubit.agregarOrdenServicio`.
-Future<OrdenCobrable?> showOrdenesCobrablesSheet(BuildContext context) {
+///
+/// [sedeId] es la sede de la VENTA en curso: solo se ofrecen órdenes de esa
+/// sede, porque el comprobante sale con la serie de la sede de la caja y el
+/// adelanto ya se asentó en la caja de la sede de la orden.
+Future<OrdenCobrable?> showOrdenesCobrablesSheet(
+  BuildContext context, {
+  String? sedeId,
+}) {
   return showModalBottomSheet<OrdenCobrable>(
     context: context,
     isScrollControlled: true,
@@ -26,12 +33,14 @@ Future<OrdenCobrable?> showOrdenesCobrablesSheet(BuildContext context) {
       minHeight: MediaQuery.of(context).size.height * 0.70,
       maxHeight: MediaQuery.of(context).size.height * 0.70,
     ),
-    builder: (_) => const _OrdenesCobrablesSheet(),
+    builder: (_) => _OrdenesCobrablesSheet(sedeId: sedeId),
   );
 }
 
 class _OrdenesCobrablesSheet extends StatefulWidget {
-  const _OrdenesCobrablesSheet();
+  final String? sedeId;
+
+  const _OrdenesCobrablesSheet({this.sedeId});
 
   @override
   State<_OrdenesCobrablesSheet> createState() => _OrdenesCobrablesSheetState();
@@ -64,7 +73,7 @@ class _OrdenesCobrablesSheetState extends State<_OrdenesCobrablesSheet> {
       _loading = true;
       _error = null;
     });
-    final result = await _usecase(search: search);
+    final result = await _usecase(search: search, sedeId: widget.sedeId);
     if (!mounted) return;
     if (result is Success<List<OrdenCobrable>>) {
       setState(() {

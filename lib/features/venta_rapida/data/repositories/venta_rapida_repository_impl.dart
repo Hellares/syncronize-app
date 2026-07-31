@@ -232,12 +232,18 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
   }
 
   @override
-  Future<Resource<List<OrdenCobrable>>> getOrdenesCobrables({String? search}) async {
+  Future<Resource<List<OrdenCobrable>>> getOrdenesCobrables({
+    String? search,
+    String? sedeId,
+  }) async {
     if (!await _network.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
-      final list = await _remote.getOrdenesCobrables(search: search);
+      final list = await _remote.getOrdenesCobrables(
+        search: search,
+        sedeId: sedeId,
+      );
       return Success(list.map(OrdenCobrable.fromJson).toList());
     } catch (e) {
       return _errorHandler.handleException(e, context: 'VentaRapida');

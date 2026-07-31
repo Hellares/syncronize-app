@@ -59,7 +59,12 @@ abstract class VentaRapidaRepository {
 
   /// Órdenes de servicio cobrables (REPARADO/LISTO_ENTREGA con saldo > 0 y
   /// sin venta vinculada) para el selector "Cobrar servicio" de VR.
-  Future<Resource<List<OrdenCobrable>>> getOrdenesCobrables({String? search});
+  /// `sedeId` = sede de la VENTA: cobrar una orden de otra sede cruzaría la
+  /// serie del comprobante con la caja donde se registró el adelanto.
+  Future<Resource<List<OrdenCobrable>>> getOrdenesCobrables({
+    String? search,
+    String? sedeId,
+  });
 }
 
 /// Resultado de resolver un cliente por DNI.

@@ -375,7 +375,11 @@ class _CarritoView extends StatelessWidget {
   /// El cubit pre-carga el cliente de la orden en la venta.
   Future<void> _cobrarServicio(BuildContext context) async {
     final cubit = context.read<VentaRapidaCubit>();
-    final orden = await showOrdenesCobrablesSheet(context);
+    // La sede de la venta en curso: no se cobran órdenes de otra sede.
+    final orden = await showOrdenesCobrablesSheet(
+      context,
+      sedeId: cubit.state.sedeId,
+    );
     if (orden == null || !context.mounted) return;
     final ok = cubit.agregarOrdenServicio(orden);
     ScaffoldMessenger.of(context).showSnackBar(
