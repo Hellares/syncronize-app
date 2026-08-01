@@ -12,6 +12,11 @@ import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/widgets/floating_button_icon.dart';
+import '../../../../core/widgets/custom_filter_chip.dart';
+// `hide DateFormatter`: custom_date.dart exporta el suyo y chocaría con el de
+// core/utils que este archivo ya usa para formatear fechas.
+import 'package:syncronize/core/widgets/date/custom_date.dart'
+    hide DateFormatter;
 import '../../../../core/utils/date_formatter.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -222,40 +227,57 @@ class _OrdenesContentState extends State<_OrdenesContent> {
                 ),
                 const SizedBox(height: 15),
 
-                // ─── Barra de búsqueda ───
+                // ─── Búsqueda + rango de fechas ───
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: CustomSearchField(
-                    controller: _searchController,
-                    hintText: 'Buscar por código o descripción...',
-                    borderColor: AppColors.blue1,
-                    // F5 FIX: Preservar filtros actuales al buscar
-                    onSubmitted: (value) {
-                      final cubit = context.read<OrdenServicioListCubit>();
-                      final currentState = cubit.state;
-                      final currentFiltros = currentState is OrdenServicioListLoaded
-                          ? currentState.filtros
-                          : const OrdenServicioFiltros();
-                      cubit.applyFiltros(
-                        currentFiltros.copyWith(
-                          search: value.trim().isEmpty ? null : value.trim(),
-                          clearSearch: value.trim().isEmpty,
-                          clearCursor: true,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: CustomSearchField(
+                          height: 32,
+                          controller: _searchController,
+                          hintText: 'Buscar por código o descripción...',
+                          borderColor: AppColors.blue1,
+                          // F5 FIX: Preservar filtros actuales al buscar
+                          onSubmitted: (value) {
+                            final cubit = context.read<OrdenServicioListCubit>();
+                            final currentState = cubit.state;
+                            final currentFiltros =
+                                currentState is OrdenServicioListLoaded
+                                    ? currentState.filtros
+                                    : const OrdenServicioFiltros();
+                            cubit.applyFiltros(
+                              currentFiltros.copyWith(
+                                search:
+                                    value.trim().isEmpty ? null : value.trim(),
+                                clearSearch: value.trim().isEmpty,
+                                clearCursor: true,
+                              ),
+                            );
+                          },
+                          onClear: () {
+                            final cubit = context.read<OrdenServicioListCubit>();
+                            final currentState = cubit.state;
+                            final currentFiltros =
+                                currentState is OrdenServicioListLoaded
+                                    ? currentState.filtros
+                                    : const OrdenServicioFiltros();
+                            cubit.applyFiltros(
+                              currentFiltros.copyWith(
+                                  clearSearch: true, clearCursor: true),
+                            );
+                          },
                         ),
-                      );
-                    },
-                    onClear: () {
-                      final cubit = context.read<OrdenServicioListCubit>();
-                      final currentState = cubit.state;
-                      final currentFiltros = currentState is OrdenServicioListLoaded
-                          ? currentState.filtros
-                          : const OrdenServicioFiltros();
-                      cubit.applyFiltros(
-                        currentFiltros.copyWith(clearSearch: true, clearCursor: true),
-                      );
-                    },
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(width: 130, child: _buildRangoFecha()),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 8),
+
+                // ─── Atajos de fecha ───
+                _buildAtajosFecha(),
                 const SizedBox(height: 8),
 
                 // ─── Lista de órdenes ───
@@ -436,6 +458,158 @@ class _OrdenesContentState extends State<_OrdenesContent> {
           ),
         );
       },
+    );
+  }
+
+  /// Selector de rango de fechas al lado del buscador (igual que ventas), para
+  /// elegir días puntuales que los atajos no cubren.
+  ///
+  /// Los filtros viajan como ISO UTC; acá se reconvierten a local para
+  /// precargar el rango, si no el picker abriría en el día equivocado.
+  Widget _buildRangoFecha() {
+    return BlocBuilder<OrdenServicioListCubit, OrdenServicioListState>(
+      buildWhen: (a, b) =>
+          a.runtimeType != b.runtimeType ||
+          (a is OrdenServicioListLoaded &&
+              b is OrdenServicioListLoaded &&
+              (a.filtros.fechaDesde != b.filtros.fechaDesde ||
+                  a.filtros.fechaHasta != b.filtros.fechaHasta)),
+      builder: (context, state) {
+        DateRange? initial;
+        if (state is OrdenServicioListLoaded &&
+            (state.filtros.fechaDesde != null ||
+                state.filtros.fechaHasta != null)) {
+          initial = DateRange(
+            startDate: _parseLocal(state.filtros.fechaDesde),
+            endDate: _parseLocal(state.filtros.fechaHasta),
+          );
+        }
+        return CustomDate(
+          key: ValueKey('${initial?.startDate}_${initial?.endDate}'),
+          dateType: DateFieldType.dateRange,
+          initialDateRange: initial,
+          borderColor: AppColors.blue1,
+          hintText: 'Fecha',
+          height: 32,
+          // El "X días seleccionados" rompía la altura del Row al aparecer
+          // debajo del input.
+          showDaysSelectedLabel: false,
+          onDateRangeSelected: (range) => context
+              .read<OrdenServicioListCubit>()
+              .filterByFechas(range?.startDate, range?.endDate),
+        );
+      },
+    );
+  }
+
+  static DateTime? _parseLocal(String? iso) =>
+      iso == null ? null : DateTime.parse(iso).toLocal();
+
+  /// Fila scrolleable con atajos rápidos de fecha, igual que en ventas. El
+  /// cubit convierte a UTC respetando el día LOCAL; acá solo se precalculan
+  /// los rangos típicos para ahorrar taps en el picker del sheet de filtros.
+  Widget _buildAtajosFecha() {
+    return BlocBuilder<OrdenServicioListCubit, OrdenServicioListState>(
+      buildWhen: (a, b) =>
+          a.runtimeType != b.runtimeType ||
+          (a is OrdenServicioListLoaded &&
+              b is OrdenServicioListLoaded &&
+              (a.filtros.fechaDesde != b.filtros.fechaDesde ||
+                  a.filtros.fechaHasta != b.filtros.fechaHasta)),
+      builder: (context, state) {
+        final desde =
+            state is OrdenServicioListLoaded ? state.filtros.fechaDesde : null;
+        final hasta =
+            state is OrdenServicioListLoaded ? state.filtros.fechaHasta : null;
+        final hayFiltro = desde != null || hasta != null;
+
+        return SizedBox(
+          height: 23,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            children: [
+              _atajoChip('Hoy', _rangoHoy, desde, hasta),
+              const SizedBox(width: 6),
+              _atajoChip('Ayer', _rangoAyer, desde, hasta),
+              const SizedBox(width: 6),
+              _atajoChip('Esta semana', _rangoEstaSemana, desde, hasta),
+              const SizedBox(width: 6),
+              _atajoChip('Este mes', _rangoEsteMes, desde, hasta),
+              if (hayFiltro) ...[
+                const SizedBox(width: 10),
+                CustomFilterChip(
+                  height: 20,
+                  label: 'Limpiar fechas',
+                  icon: Icons.close,
+                  iconSize: 12,
+                  backgroundColor: Colors.red.shade50,
+                  textColor: Colors.red.shade700,
+                  borderColor: Colors.red.shade300,
+                  fontWeight: FontWeight.w500,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                  onSelected: () => context
+                      .read<OrdenServicioListCubit>()
+                      .filterByFechas(null, null),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Se pinta seleccionado cuando el filtro vigente coincide con su rango.
+  /// La comparación es contra el ISO que ya viaja al backend, así que hay que
+  /// calcularlo igual que el cubit.
+  Widget _atajoChip(
+    String label,
+    ({DateTime desde, DateTime hasta}) Function() compute,
+    String? filtroDesde,
+    String? filtroHasta,
+  ) {
+    final r = compute();
+    final selected =
+        filtroDesde == DateFormatter.toUtcIso(DateFormatter.startOfDay(r.desde)) &&
+            filtroHasta == DateFormatter.toUtcIso(DateFormatter.endOfDay(r.hasta));
+    return CustomFilterChip(
+      label: label,
+      selected: selected,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      onSelected: () => context
+          .read<OrdenServicioListCubit>()
+          .filterByFechas(r.desde, r.hasta),
+    );
+  }
+
+  ({DateTime desde, DateTime hasta}) _rangoHoy() {
+    final hoy = DateTime.now();
+    final d = DateTime(hoy.year, hoy.month, hoy.day);
+    return (desde: d, hasta: d);
+  }
+
+  ({DateTime desde, DateTime hasta}) _rangoAyer() {
+    final ayer = DateTime.now().subtract(const Duration(days: 1));
+    final d = DateTime(ayer.year, ayer.month, ayer.day);
+    return (desde: d, hasta: d);
+  }
+
+  /// Lunes a domingo de la semana actual (ISO: lunes = 1).
+  ({DateTime desde, DateTime hasta}) _rangoEstaSemana() {
+    final hoy = DateTime.now();
+    final base = DateTime(hoy.year, hoy.month, hoy.day);
+    final lunes = base.subtract(Duration(days: base.weekday - 1));
+    return (desde: lunes, hasta: lunes.add(const Duration(days: 6)));
+  }
+
+  ({DateTime desde, DateTime hasta}) _rangoEsteMes() {
+    final hoy = DateTime.now();
+    // Día 0 del mes siguiente = último día del mes actual.
+    return (
+      desde: DateTime(hoy.year, hoy.month, 1),
+      hasta: DateTime(hoy.year, hoy.month + 1, 0),
     );
   }
 
@@ -811,7 +985,7 @@ class _OrdenServicioCard extends StatelessWidget {
   Widget _buildPrometidaChip({required bool atrasada}) {
     return _chipFecha(
       texto:
-          '${atrasada ? 'Atrasado' : 'Pactado'} ${DateFormatter.formatDate(orden.fechaPrometida!)}',
+          '${atrasada ? 'Atrasado' : 'F. Solución'} ${DateFormatter.formatDate(orden.fechaPrometida!)}',
       icono: atrasada ? Icons.event_busy : Icons.event_outlined,
       color: atrasada ? Colors.red : Colors.grey.shade600,
       destacado: atrasada,

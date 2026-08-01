@@ -164,6 +164,7 @@ class _OrdenServicioFilterSheetState extends State<OrdenServicioFilterSheet> {
                   child: _DatePickerField(
                     label: 'Hasta',
                     value: _fechaHasta,
+                    esHasta: true,
                     onChanged: (v) => setState(() => _fechaHasta = v),
                   ),
                 ),
@@ -222,10 +223,15 @@ class _DatePickerField extends StatelessWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
 
+  /// "Hasta" toma el FIN del día: si no, el rango termina a las 00:00 y se
+  /// pierden las órdenes del propio día seleccionado.
+  final bool esHasta;
+
   const _DatePickerField({
     required this.label,
     required this.value,
     required this.onChanged,
+    this.esHasta = false,
   });
 
   @override
@@ -257,12 +263,18 @@ class _DatePickerField extends StatelessWidget {
         final now = DateTime.now();
         final picked = await showDatePicker(
           context: context,
-          initialDate: value != null ? DateTime.parse(value!) : now,
+          initialDate:
+              value != null ? DateTime.parse(value!).toLocal() : now,
           firstDate: DateTime(2020),
           lastDate: now.add(const Duration(days: 365)),
         );
         if (picked != null) {
-          onChanged(picked.toIso8601String().substring(0, 10));
+          // Día LOCAL completo serializado en UTC, igual que los atajos de la
+          // lista. Mandar `yyyy-MM-dd` pelado hacía que el backend lo leyera
+          // como medianoche UTC y en Perú el rango se corría 5 horas.
+          onChanged(DateFormatter.toUtcIso(
+            esHasta ? DateFormatter.endOfDay(picked) : DateFormatter.startOfDay(picked),
+          ));
         }
       },
     );

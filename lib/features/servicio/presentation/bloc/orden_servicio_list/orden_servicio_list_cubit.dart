@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import '../../../../../core/utils/date_formatter.dart';
 import '../../../../../core/utils/resource.dart';
 import '../../../domain/entities/orden_servicio.dart';
 import '../../../domain/entities/servicio_filtros.dart';
@@ -122,6 +123,34 @@ class OrdenServicioListCubit extends Cubit<OrdenServicioListState> {
       asCliente: _isClienteMode,
     );
   }
+
+  /// Filtra por rango de fechas (atajos Hoy / Ayer / Esta semana / Este mes).
+  /// Pasar ambos en null limpia el filtro.
+  Future<void> filterByFechas(DateTime? desde, DateTime? hasta) async {
+    if (_currentEmpresaId == null) return;
+    final filtros = _currentFiltros.copyWith(
+      fechaDesde: _toUtcIsoDayStart(desde),
+      fechaHasta: _toUtcIsoDayEnd(hasta),
+      clearFechaDesde: desde == null,
+      clearFechaHasta: hasta == null,
+      clearCursor: true,
+    );
+    await loadOrdenes(
+      empresaId: _currentEmpresaId!,
+      filtros: filtros,
+      asCliente: _isClienteMode,
+    );
+  }
+
+  /// Inicio del día en hora LOCAL, serializado en UTC. Mandar `yyyy-MM-dd`
+  /// pelado hace que el backend lo lea como medianoche UTC y en Perú el rango
+  /// arranque a las 19:00 del día anterior. Mismo criterio que ventas.
+  static String? _toUtcIsoDayStart(DateTime? date) =>
+      date == null ? null : DateFormatter.toUtcIso(DateFormatter.startOfDay(date));
+
+  /// Fin del día en hora LOCAL (23:59:59), serializado en UTC.
+  static String? _toUtcIsoDayEnd(DateTime? date) =>
+      date == null ? null : DateFormatter.toUtcIso(DateFormatter.endOfDay(date));
 
   Future<void> refresh() async {
     if (_currentEmpresaId == null) return;
