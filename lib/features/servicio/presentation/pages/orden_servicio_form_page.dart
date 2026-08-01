@@ -642,7 +642,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
           // El compromiso con el cliente se pacta en el mostrador, junto al
           // problema: por eso va acá y no enterrado en "Notas y aviso".
           CustomDate(
-            label: 'Fecha pactada de entrega (opcional)',
+            label: 'F. Solución (opcional)',
             controller: _fechaPrometidaController,
             borderColor: AppColors.blue1,
             firstDate: DateTime.now(),

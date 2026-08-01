@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart'
     show CustomText, FieldType;
 import '../../domain/entities/orden_servicio.dart';
@@ -50,57 +51,66 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Agregar adelanto',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'El monto se SUMA a los adelantos anteriores.',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 12),
-              CustomText(
-                controller: montoCtrl,
-                label: 'Monto (S/)',
-                hintText: '0.00',
-                borderColor: AppColors.blue1,
-                fieldType: FieldType.number,
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final m in _metodos)
-                    ChoiceChip(
-                      label: Text(m, style: const TextStyle(fontSize: 10)),
-                      selected: metodo == m,
-                      selectedColor: AppColors.blue1.withValues(alpha: 0.15),
-                      onSelected: (_) => setDialogState(() => metodo = m),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              CustomText(
-                controller: notaCtrl,
-                label: 'Nota (opcional)',
-                hintText: 'Ej: abono al aprobar repuesto',
-                borderColor: AppColors.blue1,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
+        builder: (ctx, setDialogState) => StyledDialog(
+          accentColor: AppColors.green,
+          icon: Icons.savings_outlined,
+          titulo: 'Agregar adelanto',
+          content: [
+            Text(
+              'El monto se SUMA a los adelantos anteriores.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.blue1),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Registrar'),
+            const SizedBox(height: 12),
+            CustomText(
+              controller: montoCtrl,
+              label: 'Monto (S/)',
+              hintText: '0.00',
+              borderColor: AppColors.green,
+              fieldType: FieldType.number,
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final m in _metodos)
+                  ChoiceChip(
+                    label: Text(m, style: const TextStyle(fontSize: 10)),
+                    selected: metodo == m,
+                    selectedColor: AppColors.green.withValues(alpha: 0.15),
+                    onSelected: (_) => setDialogState(() => metodo = m),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: notaCtrl,
+              label: 'Nota (opcional)',
+              hintText: 'Ej: abono al aprobar repuesto',
+              borderColor: AppColors.green,
+            ),
+          ],
+          // StyledDialog ya intercala 8px entre acciones; van en Expanded
+          // para repartir el ancho, como el resto de los diálogos del proyecto.
+          actions: [
+            Expanded(
+              child: CustomButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                text: 'Cancelar',
+                fontSize: 11,
+                isOutlined: true,
+                borderColor: Colors.grey.shade400,
+                textColor: Colors.grey.shade700,
+              ),
+            ),
+            Expanded(
+              child: CustomButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                text: 'Registrar',
+                fontSize: 11,
+                backgroundColor: AppColors.green,
+                textColor: AppColors.white,
+              ),
             ),
           ],
         ),

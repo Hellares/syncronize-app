@@ -8,6 +8,10 @@ import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/animated_container.dart';
 import 'package:syncronize/core/widgets/animated_confirm_dialog.dart';
+import 'package:syncronize/core/widgets/confirm_dialog.dart';
+// `show CustomDate`: custom_date.dart exporta su propio DateFormatter, que
+// chocaría con el de core/utils que este archivo ya usa.
+import 'package:syncronize/core/widgets/date/custom_date.dart' show CustomDate;
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
@@ -330,10 +334,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           _buildCronometroSection(),
           const SizedBox(height: 10),
           // ─── Card: Aviso de mantenimiento ───
-          _buildAvisoMantenimientoSection(),
+          // _buildAvisoMantenimientoSection(),
+          _buildHistorialSection(),
           const SizedBox(height: 10),
           // ─── Card: Historial ───
-          _buildHistorialSection(),
+          // _buildHistorialSection(),
+          _buildAvisoMantenimientoSection(),
           const SizedBox(height: 10),
           // ─── Card interactiva: Firma ───
           _buildFirmaSection(),
@@ -462,11 +468,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     _prometidaVencida
                         ? Icons.event_busy
                         : Icons.event_outlined,
-                    'Pactado ${DateFormatter.formatDate(_orden!.fechaPrometida!)}',
+                    'F. Solución ${DateFormatter.formatDate(_orden!.fechaPrometida!)}',
                     color: _prometidaVencida ? AppColors.red : null,
                     onTap: _puedeEditarPrometida ? _editarFechaPrometida : null)
               else if (_puedeEditarPrometida)
-                _infoChip(Icons.event_outlined, 'Pactar entrega',
+                _infoChip(Icons.event_outlined, 'Definir F. Solución',
                     color: Colors.grey.shade600,
                     onTap: _editarFechaPrometida),
               if (_orden!.fechaEntrega != null)
@@ -2374,30 +2380,37 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       'COMPONENTES (${componentes.length})',
                       fontSize: 10),
                 ),
-                InkWell(
-                  onTap: _showAddComponenteSheet,
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.bluechip,
-                      borderRadius: BorderRadius.circular(4),
+                // El backend rechaza agregar/editar/quitar componentes en
+                // estos estados; ofrecer el botón solo servía para que el
+                // request volviera con 400.
+                if (_puedeModificarComponentes)
+                  InkWell(
+                    onTap: _showAddComponenteSheet,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.bluechip,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: 14, color: AppColors.blue1),
+                          SizedBox(width: 4),
+                          Text('Agregar',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.blue1,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add, size: 14, color: AppColors.blue1),
-                        SizedBox(width: 4),
-                        Text('Agregar',
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: AppColors.blue1,
-                                fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                ),
+                  )
+                else
+                  Icon(Icons.lock_outline,
+                      size: 13, color: Colors.grey.shade400),
               ],
             ),
             const SizedBox(height: 8),
@@ -2468,7 +2481,10 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final costoFinal = _orden!.costoFinal;
     final saldoPendiente = _orden!.saldoPendiente;
 
-    final isTerminal = _orden!.estado == 'CANCELADO' || _orden!.estado == 'FINALIZADO';
+    // Espeja ESTADOS_TERMINALES del backend, que rechaza el PUT de la orden.
+    // Faltaba TERCERIZADO: ahí el botón "Editar" aparecía y devolvía 400.
+    const terminales = {'CANCELADO', 'FINALIZADO', 'TERCERIZADO'};
+    final isTerminal = terminales.contains(_orden!.estado);
     final hasCosts = subtotalComponentes > 0 || costoTotal != null;
 
     return GradientContainer(
@@ -3045,16 +3061,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 4),
-                InkWell(
-                  onTap: () => _removeComponente(comp),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(2),
-                    child: Icon(Icons.close,
-                        size: 15, color: Colors.grey.shade400),
+                if (_puedeModificarComponentes) ...[
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: () => _removeComponente(comp),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(Icons.close,
+                          size: 15, color: Colors.grey.shade400),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
             if (comp.descripcionAccion != null &&
@@ -3282,46 +3300,62 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
               const SizedBox(height: 16),
 
-              // Edit button
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _showEditComponenteSheet(comp);
-                  },
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Editar acción / costos'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.blue1,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+              // Editar / eliminar: solo mientras la orden siga abierta. El
+              // backend los rechaza con 400 en estados cerrados, así que acá
+              // el sheet queda de pura consulta.
+              if (_puedeModificarComponentes) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showEditComponenteSheet(comp);
+                    },
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Editar acción / costos'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.blue1,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-
-              // Delete button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _removeComponente(comp);
-                  },
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Eliminar componente'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _removeComponente(comp);
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Eliminar componente'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
                 ),
-              ),
+              ] else
+                Row(
+                  children: [
+                    Icon(Icons.lock_outline,
+                        size: 14, color: Colors.grey.shade400),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Orden cerrada: el componente queda solo de consulta.',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade500),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -3544,7 +3578,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           const SizedBox(width: 10),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.only(bottom: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -3973,6 +4007,24 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     );
   }
 
+  /// Espeja `ESTADOS_NO_MODIFICABLES` de `servicio-componente.service.ts`: el
+  /// backend rechaza agregar, editar y quitar componentes en estos estados.
+  /// Si la UI no lo respeta, el botón existe y el request vuelve con 400.
+  ///
+  /// Incluye ENTREGADO además de los terminales: con el equipo ya en manos del
+  /// cliente no se le agregan repuestos a la orden.
+  bool get _puedeModificarComponentes {
+    final o = _orden;
+    if (o == null) return false;
+    const bloqueados = {
+      'CANCELADO',
+      'FINALIZADO',
+      'TERCERIZADO',
+      'ENTREGADO',
+    };
+    return !bloqueados.contains(o.estado);
+  }
+
   /// El backend rechaza editar órdenes en estado terminal, y una vez entregada
   /// la fecha pactada ya no significa nada.
   bool get _puedeEditarPrometida {
@@ -3991,20 +4043,49 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     if (empresaState is! EmpresaContextLoaded) return;
 
     final hoy = DateTime.now();
-    final elegida = await showDatePicker(
-      context: context,
-      initialDate: orden.fechaPrometida ?? hoy,
-      firstDate: DateTime(hoy.year - 1),
-      lastDate: DateTime(hoy.year + 2),
-      helpText: 'Fecha pactada de entrega',
-      cancelText: 'Cancelar',
-      confirmText: 'Guardar',
+    final ctrl = TextEditingController(
+      text: orden.fechaPrometida == null
+          ? ''
+          : DateFormatter.formatDate(orden.fechaPrometida!),
     );
-    if (elegida == null || !mounted) return;
+    DateTime? elegida = orden.fechaPrometida;
+
+    final ok = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.info,
+      icon: Icons.event_outlined,
+      title: 'F. Solución',
+      confirmText: 'Guardar',
+      customContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Para cuándo se le prometió el equipo al cliente. Si se pasa y '
+            'todavía no se entregó, la orden aparece como atrasada.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 10),
+          CustomDate(
+            label: 'F. Solución',
+            controller: ctrl,
+            borderColor: AppColors.blue1,
+            firstDate: DateTime(hoy.year - 1),
+            lastDate: DateTime(hoy.year + 2),
+            onDateSelected: (d) => elegida = d,
+          ),
+        ],
+      ),
+    );
+
+    // El controller se descarta acá (después del await del diálogo), no antes:
+    // hacerlo apenas cierra rompe el widget que todavía está desmontándose.
+    ctrl.dispose();
+    if (ok != true || elegida == null || !mounted) return;
 
     // Fin del día: prometer "para el viernes" no vence a las 00:00 de ese día.
     final finDelDia =
-        DateTime(elegida.year, elegida.month, elegida.day, 23, 59, 59);
+        DateTime(elegida!.year, elegida!.month, elegida!.day, 23, 59, 59);
 
     setState(() => _isLoading = true);
     final result = await locator<OrdenServicioRepository>().actualizar(
@@ -4022,7 +4103,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Entrega pactada para el ${DateFormatter.formatDate(finDelDia)}'),
+              'F. Solución: ${DateFormatter.formatDate(finDelDia)}'),
           backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
         ),
