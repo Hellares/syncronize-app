@@ -28,6 +28,7 @@ class OrdenServicioModel extends OrdenServicio {
     super.comprobanteId,
     super.cobradaPorVenta,
     super.tiempoEstimado,
+    super.fechaPrometida,
     super.fechaEntrega,
     required super.estado,
     super.estadoDiagnostico,
@@ -81,6 +82,9 @@ class OrdenServicioModel extends OrdenServicio {
       comprobanteId: json['comprobanteId'] as String?,
       cobradaPorVenta: json['ventaDetalle'] != null,
       tiempoEstimado: json['tiempoEstimado'] as int?,
+      fechaPrometida: json['fechaPrometida'] != null
+          ? DateTime.parse(json['fechaPrometida'] as String)
+          : null,
       fechaEntrega: json['fechaEntrega'] != null ? DateTime.parse(json['fechaEntrega'] as String) : null,
       estado: json['estado'] as String,
       estadoDiagnostico: json['estadoDiagnostico'] as String? ?? 'PENDIENTE',

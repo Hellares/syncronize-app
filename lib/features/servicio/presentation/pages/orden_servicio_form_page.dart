@@ -88,6 +88,27 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   final _fechaAvisoController = TextEditingController();
   DateTime? _fechaAvisoPersonalizado;
 
+  /// Fecha PACTADA con el cliente (distinta de la entrega real).
+  final _fechaPrometidaController = TextEditingController();
+  DateTime? _fechaPrometida;
+
+  /// Parsea el "dd/MM/yyyy" que emite CustomDate. Devuelve null si viene vacío
+  /// o mal formado, en vez de caer a una fecha inventada.
+  ///
+  /// [finDelDia] deja la hora en 23:59:59: una fecha pactada "para el viernes"
+  /// no vence a las 00:00 de ese día, sino cuando el viernes termina.
+  DateTime? _parseFechaDdMmYyyy(String value, {bool finDelDia = false}) {
+    final partes = value.split('/');
+    if (partes.length != 3) return null;
+    final dia = int.tryParse(partes[0]);
+    final mes = int.tryParse(partes[1]);
+    final anio = int.tryParse(partes[2]);
+    if (dia == null || mes == null || anio == null) return null;
+    return finDelDia
+        ? DateTime(anio, mes, dia, 23, 59, 59)
+        : DateTime(anio, mes, dia);
+  }
+
   bool _isLoading = false;
 
   /// Helper que hace setState del parent y, si hay sheet abierta, también
@@ -132,6 +153,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
     _descripcionProblemaController.dispose();
     _notasController.dispose();
     _fechaAvisoController.dispose();
+    _fechaPrometidaController.dispose();
     super.dispose();
   }
 
@@ -1099,6 +1121,32 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
         const SizedBox(height: 8),
         Row(
           children: [
+            Icon(Icons.event_outlined, size: 16, color: AppColors.blue1),
+            const SizedBox(width: 8),
+            AppSubtitle('COMPROMISO CON EL CLIENTE', fontSize: 12),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Para cuándo se le prometió el equipo. Si se pasa esta fecha y todavía '
+          'no se entregó, la orden se marca como atrasada en el listado.',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+        ),
+        const SizedBox(height: 4),
+        CustomDate(
+          label: 'Fecha pactada de entrega (opcional)',
+          controller: _fechaPrometidaController,
+          borderColor: AppColors.blue1,
+          firstDate: DateTime.now(),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+          onChanged: (value) =>
+              _fechaPrometida = _parseFechaDdMmYyyy(value, finDelDia: true),
+        ),
+        const SizedBox(height: 16),
+        const Divider(),
+        const SizedBox(height: 8),
+        Row(
+          children: [
             Icon(Icons.notifications_outlined, size: 16, color: AppColors.blue1),
             const SizedBox(width: 8),
             AppSubtitle('AVISO DE MANTENIMIENTO', fontSize: 12),
@@ -1245,6 +1293,7 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
       datosPersonalizados: datosFinales.isNotEmpty ? datosFinales : null,
       incluirAvisoMantenimiento: _incluirAviso ? null : false,
       fechaAvisoPersonalizado: _fechaAvisoPersonalizado,
+      fechaPrometida: _fechaPrometida,
     );
 
     if (!mounted) return;

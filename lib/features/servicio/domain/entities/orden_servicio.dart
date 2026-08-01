@@ -30,6 +30,10 @@ class OrdenServicio extends Equatable {
   /// finalizada-sin-cobro.
   final bool cobradaPorVenta;
   final int? tiempoEstimado;
+
+  /// Fecha PACTADA con el cliente ("se lo tengo para el viernes"). Es el
+  /// compromiso; la entrega real es [fechaEntrega].
+  final DateTime? fechaPrometida;
   final DateTime? fechaEntrega;
   final String estado;
   final String estadoDiagnostico;
@@ -88,6 +92,7 @@ class OrdenServicio extends Equatable {
     this.comprobanteId,
     this.cobradaPorVenta = false,
     this.tiempoEstimado,
+    this.fechaPrometida,
     this.fechaEntrega,
     required this.estado,
     this.estadoDiagnostico = 'PENDIENTE',

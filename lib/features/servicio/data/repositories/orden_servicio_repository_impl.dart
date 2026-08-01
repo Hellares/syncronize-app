@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/orden_servicio.dart';
 import '../../domain/entities/servicio_filtros.dart';
@@ -43,6 +44,7 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
     Map<String, dynamic>? datosPersonalizados,
     bool? incluirAvisoMantenimiento,
     DateTime? fechaAvisoPersonalizado,
+    DateTime? fechaPrometida,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -69,7 +71,13 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
         if (servicioId != null) 'servicioId': servicioId,
         if (datosPersonalizados != null) 'datosPersonalizados': datosPersonalizados,
         if (incluirAvisoMantenimiento != null) 'incluirAvisoMantenimiento': incluirAvisoMantenimiento,
-        if (fechaAvisoPersonalizado != null) 'fechaAvisoPersonalizado': fechaAvisoPersonalizado.toIso8601String(),
+        // toUtcIso, NO toIso8601String: un DateTime local serializado sin zona
+        // lo lee el backend como UTC y la fecha se corre 5 horas atrás (= día
+        // anterior en Perú). Ver DateFormatter.toUtcIso.
+        if (fechaAvisoPersonalizado != null)
+          'fechaAvisoPersonalizado': DateFormatter.toUtcIso(fechaAvisoPersonalizado),
+        if (fechaPrometida != null)
+          'fechaPrometida': DateFormatter.toUtcIso(fechaPrometida),
       };
       final result = await _remoteDataSource.crear(data);
       return Success(result);

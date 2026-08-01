@@ -25,6 +25,8 @@ abstract class OrdenServicioRepository {
     Map<String, dynamic>? datosPersonalizados,
     bool? incluirAvisoMantenimiento,
     DateTime? fechaAvisoPersonalizado,
+    /// Fecha PACTADA con el cliente. Es el compromiso, no la entrega real.
+    DateTime? fechaPrometida,
   });
 
   Future<Resource<OrdenesServicioPaginadas>> getOrdenes({

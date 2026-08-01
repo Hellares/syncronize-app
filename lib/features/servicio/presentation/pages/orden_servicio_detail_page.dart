@@ -454,6 +454,15 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 _infoChip(Icons.monetization_on_outlined,
                     'S/ ${_orden!.costoFinal!.toStringAsFixed(2)}',
                     color: AppColors.blue1),
+              // Fecha PACTADA con el cliente. En rojo si ya pasó y el equipo
+              // sigue acá: es el compromiso incumplido, no la entrega real.
+              if (_orden!.fechaPrometida != null)
+                _infoChip(
+                    _prometidaVencida
+                        ? Icons.event_busy
+                        : Icons.event_outlined,
+                    'Pactado ${DateFormatter.formatDate(_orden!.fechaPrometida!)}',
+                    color: _prometidaVencida ? AppColors.red : null),
               if (_orden!.fechaEntrega != null)
                 _infoChip(Icons.event_available,
                     'Entregado ${DateFormatter.formatDateTime(_orden!.fechaEntrega!)}',
@@ -3941,6 +3950,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         ],
       ),
     );
+  }
+
+  /// Se pasó la fecha pactada con el cliente y el equipo sigue sin entregarse.
+  /// Lo que cierra el atraso es la ENTREGA, no el pago: una orden cobrada pero
+  /// sin retirar sigue estando atrasada.
+  bool get _prometidaVencida {
+    final fp = _orden?.fechaPrometida;
+    if (fp == null) return false;
+    if (_orden!.fechaEntrega != null || _orden!.estado == 'CANCELADO') {
+      return false;
+    }
+    return fp.isBefore(DateTime.now());
   }
 
   /// Registra la ENTREGA FÍSICA del equipo. La orden ya está cobrada (y por

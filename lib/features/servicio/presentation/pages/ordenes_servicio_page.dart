@@ -587,13 +587,20 @@ class _OrdenServicioCard extends StatelessWidget {
           _buildMensajesBell(),
           const SizedBox(width: 6),
         ],
-        // Entrega física, al lado del estado: califica al estado (una orden
-        // FINALIZADA puede tener el equipo entregado o todavía en el taller).
+        // Entrega, al lado del estado: lo califica (una orden FINALIZADA puede
+        // tener el equipo entregado o todavía en el taller). Un solo chip, en
+        // orden de urgencia: ya salió → atrasada → pagada sin retirar → pactada.
         if (orden.fechaEntrega != null) ...[
           _buildEntregaChip(),
           const SizedBox(width: 6),
+        ] else if (_prometidaVencida) ...[
+          _buildPrometidaChip(atrasada: true),
+          const SizedBox(width: 6),
         ] else if (orden.cobradaSinEntregar) ...[
           _buildSinRetirarChip(),
+          const SizedBox(width: 6),
+        ] else if (orden.fechaPrometida != null) ...[
+          _buildPrometidaChip(atrasada: false),
           const SizedBox(width: 6),
         ],
         EstadoBadgeWidget(estado: orden.estado),
@@ -692,12 +699,16 @@ class _OrdenServicioCard extends StatelessWidget {
     );
   }
 
-  bool get _entregaVencida {
-    final fe = orden.fechaEntrega;
-    if (fe == null) return false;
-    const cerrados = {'ENTREGADO', 'FINALIZADO', 'CANCELADO'};
-    if (cerrados.contains(orden.estado)) return false;
-    return fe.isBefore(DateTime.now());
+  /// Se pasó la fecha PACTADA con el cliente y el equipo sigue sin entregarse.
+  /// Se mide contra `fechaPrometida` (el compromiso), no contra `fechaEntrega`
+  /// —que es la entrega real y solo existe cuando ya se entregó, así que nunca
+  /// podía estar "vencida"—. Una orden cobrada pero sin retirar SÍ puede estar
+  /// atrasada: lo que cierra el atraso es la entrega, no el pago.
+  bool get _prometidaVencida {
+    final fp = orden.fechaPrometida;
+    if (fp == null) return false;
+    if (orden.fechaEntrega != null || orden.estado == 'CANCELADO') return false;
+    return fp.isBefore(DateTime.now());
   }
 
   Widget _buildReingresoBadge() {
@@ -786,31 +797,54 @@ class _OrdenServicioCard extends StatelessWidget {
     );
   }
 
+  /// Entrega ya realizada. Sin variante "vencida": una orden entregada no
+  /// puede estar atrasada — el atraso lo marca [_buildPrometidaChip].
   Widget _buildEntregaChip() {
-    final vencida = _entregaVencida;
-    final color = vencida ? Colors.red : AppColors.blue1;
+    return _chipFecha(
+      texto: 'Entregado ${DateFormatter.formatDateTime(orden.fechaEntrega!)}',
+      icono: Icons.event_available,
+      color: AppColors.blue1,
+    );
+  }
+
+  /// Fecha PACTADA con el cliente. En rojo si ya pasó y el equipo sigue acá.
+  Widget _buildPrometidaChip({required bool atrasada}) {
+    return _chipFecha(
+      texto:
+          '${atrasada ? 'Atrasado' : 'Pactado'} ${DateFormatter.formatDate(orden.fechaPrometida!)}',
+      icono: atrasada ? Icons.event_busy : Icons.event_outlined,
+      color: atrasada ? Colors.red : Colors.grey.shade600,
+      destacado: atrasada,
+    );
+  }
+
+  Widget _chipFecha({
+    required String texto,
+    required IconData icono,
+    required Color color,
+    bool destacado = false,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: vencida ? 0.1 : 0.06),
+        color: color.withValues(alpha: destacado ? 0.1 : 0.06),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: color.withValues(alpha: vencida ? 0.4 : 0.15),
+          color: color.withValues(alpha: destacado ? 0.4 : 0.15),
           width: 0.6,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(vencida ? Icons.event_busy : Icons.event_available,
-              size: 10, color: color),
+          Icon(icono, size: 10, color: color),
           const SizedBox(width: 3),
           Text(
-            'Entregado ${DateFormatter.formatDateTime(orden.fechaEntrega!)}',
+            texto,
             style: TextStyle(
               fontSize: 9,
               color: color,
-              fontWeight: vencida ? FontWeight.bold : FontWeight.w500,
+              fontWeight: destacado ? FontWeight.bold : FontWeight.w500,
             ),
           ),
         ],
