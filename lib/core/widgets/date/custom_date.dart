@@ -1059,6 +1059,249 @@ class _CustomDateState extends State<CustomDate>
 }
 
 // 🎨 DIALOG MODERNO PARA FECHA SIMPLE (CON HORA OPCIONAL)
+const List<String> _mesesCortos = [
+  'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+];
+
+/// Panel para saltar directo a un mes/año, sin avanzar de a uno con las
+/// flechas. Se abre tocando el título del calendario y lo comparten los dos
+/// diálogos (fecha simple y rango).
+///
+/// Dos pasos: primero meses del año mostrado; tocando el año se pasa a la
+/// grilla de años. Los meses fuera de [firstDate]-[lastDate] van deshabilitados.
+class _PanelMesAnio extends StatefulWidget {
+  final DateTime displayed;
+  final DateTime firstDate;
+  final DateTime lastDate;
+  final Color primaryColor;
+  final ValueChanged<DateTime> onSeleccion;
+
+  const _PanelMesAnio({
+    required this.displayed,
+    required this.firstDate,
+    required this.lastDate,
+    required this.primaryColor,
+    required this.onSeleccion,
+  });
+
+  @override
+  State<_PanelMesAnio> createState() => _PanelMesAnioState();
+}
+
+class _PanelMesAnioState extends State<_PanelMesAnio> {
+  late int _anio = widget.displayed.year;
+  bool _eligiendoAnio = false;
+
+  bool _mesHabilitado(int mes) {
+    // El mes sirve si se solapa con el rango permitido, aunque sea parcial.
+    final finMes = DateTime(_anio, mes + 1, 0);
+    final inicioMes = DateTime(_anio, mes, 1);
+    final desde = DateTime(
+        widget.firstDate.year, widget.firstDate.month, widget.firstDate.day);
+    final hasta = DateTime(
+        widget.lastDate.year, widget.lastDate.month, widget.lastDate.day);
+    return !finMes.isBefore(desde) && !inicioMes.isAfter(hasta);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 232,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
+        child: _eligiendoAnio ? _buildAnios() : _buildMeses(),
+      ),
+    );
+  }
+
+  Widget _buildMeses() {
+    return Column(
+      children: [
+        // Cabecera: año con flechas propias + tap para ir a la grilla de años.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _flechaAnio(Icons.chevron_left, () => setState(() => _anio--),
+                _anio > widget.firstDate.year),
+            InkWell(
+              onTap: () => setState(() => _eligiendoAnio = true),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('$_anio',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: widget.primaryColor,
+                        )),
+                    Icon(Icons.arrow_drop_down,
+                        size: 18, color: widget.primaryColor),
+                  ],
+                ),
+              ),
+            ),
+            _flechaAnio(Icons.chevron_right, () => setState(() => _anio++),
+                _anio < widget.lastDate.year),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Expanded(
+          // `mainAxisExtent` en vez de `childAspectRatio`: fija el alto en
+          // píxeles, así no depende del ancho del diálogo ni queda a merced
+          // de la regla de tres.
+          child: GridView(
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisExtent: 40,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
+            ),
+            physics: const NeverScrollableScrollPhysics(),
+            children: List.generate(12, (i) {
+              final mes = i + 1;
+              final habilitado = _mesHabilitado(mes);
+              final actual = mes == widget.displayed.month &&
+                  _anio == widget.displayed.year;
+              return _celda(
+                texto: _mesesCortos[i],
+                seleccionada: actual,
+                habilitada: habilitado,
+                onTap: () => widget.onSeleccion(DateTime(_anio, mes)),
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnios() {
+    final desde = widget.firstDate.year;
+    final hasta = widget.lastDate.year;
+    final anios = [for (var a = desde; a <= hasta; a++) a];
+    return GridView.count(
+      crossAxisCount: 4,
+      childAspectRatio: 1.9,
+      crossAxisSpacing: 6,
+      mainAxisSpacing: 6,
+      children: anios
+          .map((a) => _celda(
+                texto: '$a',
+                seleccionada: a == _anio,
+                habilitada: true,
+                onTap: () => setState(() {
+                  _anio = a;
+                  _eligiendoAnio = false;
+                }),
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _flechaAnio(IconData icon, VoidCallback onTap, bool habilitada) {
+    return IconButton(
+      onPressed: habilitada ? onTap : null,
+      icon: Icon(icon,
+          size: 18,
+          color: habilitada ? widget.primaryColor : Colors.grey.shade300),
+      iconSize: 18,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+      style: IconButton.styleFrom(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  Widget _celda({
+    required String texto,
+    required bool seleccionada,
+    required bool habilitada,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: habilitada ? onTap : null,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: seleccionada ? widget.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: seleccionada
+              ? null
+              : Border.all(color: Colors.grey.shade200, width: 0.8),
+        ),
+        child: Text(
+          texto,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: seleccionada ? FontWeight.w700 : FontWeight.w500,
+            color: !habilitada
+                ? Colors.grey.shade400
+                : seleccionada
+                    ? Colors.white
+                    : Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Título del calendario: abre el panel de mes/año. El chevron avisa que se
+/// puede tocar — sin él nadie descubre el atajo.
+Widget _tituloMesAnio(String texto, bool abierto, VoidCallback onTap) {
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            texto,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 2),
+          Icon(abierto ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+              size: 20, color: Colors.white),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Flecha de navegación de mes, compacta y compartida por los dos calendarios.
+///
+/// `IconButton` con constraints vacíos NO encoge: hay que darle `constraints`
+/// tight + `padding: zero` + `shrinkWrap`, si no M3 le impone 48px de tap
+/// target y eso era lo que inflaba la cabecera azul.
+Widget _navMes(IconData icon, VoidCallback onTap) {
+  return IconButton(
+    onPressed: onTap,
+    icon: Icon(icon, color: Colors.white, size: 18),
+    iconSize: 18,
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+    style: IconButton.styleFrom(
+      backgroundColor: Colors.white.withValues(alpha: 0.2),
+      shape: const CircleBorder(),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
+  );
+}
+
 class _ModernDatePickerDialog extends StatefulWidget {
   final DateTime initialDate;
   final DateTime firstDate;
@@ -1084,6 +1327,9 @@ class _ModernDatePickerDialogState extends State<_ModernDatePickerDialog>
   late DateTime _displayedMonth;
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
+
+  /// Panel de mes/año abierto (atajo del título).
+  bool _mostrandoSelector = false;
 
   @override
   void initState() {
@@ -1170,7 +1416,7 @@ class _ModernDatePickerDialogState extends State<_ModernDatePickerDialog>
           width: 320,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.25),
@@ -1182,9 +1428,12 @@ class _ModernDatePickerDialogState extends State<_ModernDatePickerDialog>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header con gradiente
+              // Header con gradiente. Compacto: los IconButton de M3 traen 48px
+              // de tap target y eran los que inflaban la franja azul, así que
+              // van con constraints explícitos (no alcanza con el padding).
               Container(
-                padding: const EdgeInsets.all(10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -1194,50 +1443,43 @@ class _ModernDatePickerDialogState extends State<_ModernDatePickerDialog>
                       widget.primaryColor.withValues(alpha: 0.8),
                     ],
                   ),
+                  // Mismo radio que la tarjeta: con 16 el gradiente se
+                  // desalineaba de la esquina superior izquierda.
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(24),
+                    topLeft: Radius.circular(10),
+                    topRight: Radius.circular(10),
                   ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    IconButton(
-                      onPressed: _previousMonth,
-                      icon: const Icon(
-                        Icons.chevron_left,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        shape: const CircleBorder(),
-                      ),
-                    ),
-                    Text(
+                    _navMes(Icons.chevron_left, _previousMonth),
+                    _tituloMesAnio(
                       '${_monthNames[_displayedMonth.month - 1]} ${_displayedMonth.year}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      _mostrandoSelector,
+                      () => setState(
+                          () => _mostrandoSelector = !_mostrandoSelector),
                     ),
-                    IconButton(
-                      onPressed: _nextMonth,
-                      icon: const Icon(
-                        Icons.chevron_right,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha:0.2),
-                        shape: const CircleBorder(),
-                      ),
-                    ),
+                    _navMes(Icons.chevron_right, _nextMonth),
                   ],
                 ),
               ),
 
+              // Panel de mes/año: reemplaza la grilla de días mientras está
+              // abierto, así el diálogo no cambia de alto.
+              if (_mostrandoSelector)
+                _PanelMesAnio(
+                  displayed: _displayedMonth,
+                  firstDate: widget.firstDate,
+                  lastDate: widget.lastDate,
+                  primaryColor: widget.primaryColor,
+                  onSeleccion: (mes) => setState(() {
+                    _displayedMonth = mes;
+                    _mostrandoSelector = false;
+                  }),
+                )
+              else
               // Calendario
               Padding(
                 padding: const EdgeInsets.all(15),
@@ -1305,7 +1547,7 @@ class _ModernDatePickerDialogState extends State<_ModernDatePickerDialog>
                           vertical: 12,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: const Text(
@@ -1367,7 +1609,7 @@ class _ModernDatePickerDialogState extends State<_ModernDatePickerDialog>
                         : isToday
                             ? widget.primaryColor.withValues(alpha:0.1)
                             : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 border: isToday && !isSelected && !isDisabled
                     ? Border.all(
                         color: widget.primaryColor.withValues(alpha:0.5),
@@ -1447,6 +1689,9 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
   bool _selectingStartDate = true;
+
+  /// Panel de mes/año abierto (atajo del título).
+  bool _mostrandoSelector = false;
 
   @override
   void initState() {
@@ -1564,10 +1809,10 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
       child: SlideTransition(
         position: _slideAnimation,
         child: Container(
-          width: 360,
+          width: 320,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha:0.25),
@@ -1579,9 +1824,12 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header con gradiente
+              // Header con gradiente. Compacto por el mismo motivo que el
+              // dialog de fecha simple: los IconButton de M3 imponen 48px de
+              // tap target y eran los que inflaban la franja azul.
               Container(
-                padding: const EdgeInsets.all(20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -1592,8 +1840,8 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
                     ],
                   ),
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
+                    topLeft: Radius.circular(10),
+                    topRight: Radius.circular(10),
                   ),
                 ),
                 child: Column(
@@ -1601,86 +1849,56 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
                     // Navegación de mes
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        IconButton(
-                          onPressed: _previousMonth,
-                          icon: const Icon(
-                            Icons.chevron_left,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(alpha:0.2),
-                            shape: const CircleBorder(),
-                          ),
-                        ),
-                        Text(
+                        _navMes(Icons.chevron_left, _previousMonth),
+                        _tituloMesAnio(
                           '${_monthNames[_displayedMonth.month - 1]} ${_displayedMonth.year}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          _mostrandoSelector,
+                          () => setState(
+                              () => _mostrandoSelector = !_mostrandoSelector),
                         ),
-                        IconButton(
-                          onPressed: _nextMonth,
-                          icon: const Icon(
-                            Icons.chevron_right,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(alpha:0.2),
-                            shape: const CircleBorder(),
-                          ),
-                        ),
+                        _navMes(Icons.chevron_right, _nextMonth),
                       ],
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 6),
 
-                    // Información del rango seleccionado
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha:0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            _selectingStartDate
-                                ? 'Selecciona fecha de inicio'
-                                : _selectedRange.endDate == null
-                                    ? 'Selecciona fecha de fin'
-                                    : '¡Rango seleccionado!',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (_selectedRange.isComplete) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              '${_selectedRange.daysDifference!} días',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ],
+                    // Estado del rango: una sola línea, sin caja aparte — el
+                    // recuadro traslúcido sumaba ~45px de alto para dos textos.
+                    Text(
+                      _selectingStartDate
+                          ? 'Elegí la fecha de inicio'
+                          : _selectedRange.endDate == null
+                              ? 'Elegí la fecha de fin'
+                              : '${_selectedRange.daysDifference!} días seleccionados',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
 
+              // Panel de mes/año: reemplaza la grilla de días mientras está
+              // abierto, así el diálogo no cambia de alto.
+              if (_mostrandoSelector)
+                _PanelMesAnio(
+                  displayed: _displayedMonth,
+                  firstDate: widget.firstDate,
+                  lastDate: widget.lastDate,
+                  primaryColor: widget.primaryColor,
+                  onSeleccion: (mes) => setState(() {
+                    _displayedMonth = mes;
+                    _mostrandoSelector = false;
+                  }),
+                )
+              else
               // Calendario
               Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   children: [
                     // Nombres de días
@@ -1752,7 +1970,7 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: const Text(
@@ -1825,15 +2043,15 @@ class _ModernDateRangePickerDialogState extends State<_ModernDateRangePickerDial
           child: GestureDetector(
             onTap: () => _selectDate(date),
             child: Container(
-              height: 40,
+              height: 35,
               margin: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 color: backgroundColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 border: isToday && !isStartDate && !isEndDate && !isInRange
                     ? Border.all(
                         color: widget.primaryColor.withValues(alpha:0.5),
-                        width: 2,
+                        width: 1,
                       )
                     : null,
               ),
