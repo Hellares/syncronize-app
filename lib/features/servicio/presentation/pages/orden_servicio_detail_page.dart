@@ -306,7 +306,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       onRefresh: _loadAll,
       color: AppColors.blue1,
       child: ListView(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(5),
         children: [
           // ─── Card principal: Info general ───
           _buildInfoCard(),
@@ -349,11 +349,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final prioridadColor = _prioridadColorHelper(_orden!.prioridad);
 
     return GradientContainer(
-      gradient: AppGradients.blueWhiteBlue(),
+      gradient: AppGradients.sinfondo,
       shadowStyle: ShadowStyle.glow,
       borderColor: AppColors.blueborder,
       borderWidth: 0.6,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -456,7 +456,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     color: AppColors.blue1),
               if (_orden!.fechaEntrega != null)
                 _infoChip(Icons.event_available,
-                    DateFormatter.formatDate(_orden!.fechaEntrega!),
+                    'Entregado ${DateFormatter.formatDateTime(_orden!.fechaEntrega!)}',
                     color: AppColors.green),
             ],
           ),
@@ -557,20 +557,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             }(),
           ],
 
-          // ── Problema / Diagnóstico ──
-          if (_orden!.descripcionProblema != null ||
-              _orden!.sintomas != null ||
-              _orden!.diagnostico != null) ...[
-            _sectionDivider(),
-            _inlineSection(Icons.report_problem_outlined, 'PROBLEMA', [
-              if (_orden!.descripcionProblema != null)
-                _buildDetailRow(Icons.description_outlined, 'Descripcion', _orden!.descripcionProblema!),
-              if (_orden!.sintomas != null)
-                _buildDetailRow(Icons.healing_outlined, 'Sintomas', _formatDynamicField(_orden!.sintomas)),
-              if (_orden!.diagnostico != null)
-                _buildDetailRow(Icons.biotech_outlined, 'Diagnostico', _formatDynamicField(_orden!.diagnostico)),
-            ]),
-          ],
+          // // ── Problema / Diagnóstico ──
+          // if (_orden!.descripcionProblema != null ||
+          //     _orden!.sintomas != null ||
+          //     _orden!.diagnostico != null) ...[
+          //   _sectionDivider(),
+          //   _inlineSection(Icons.report_problem_outlined, 'PROBLEMA', [
+          //     if (_orden!.descripcionProblema != null)
+          //       _buildDetailRow(Icons.description_outlined, 'Descripcion', _orden!.descripcionProblema!),
+          //     if (_orden!.sintomas != null)
+          //       _buildDetailRow(Icons.healing_outlined, 'Sintomas', _formatDynamicField(_orden!.sintomas)),
+          //     if (_orden!.diagnostico != null)
+          //       _buildDetailRow(Icons.biotech_outlined, 'Diagnostico', _formatDynamicField(_orden!.diagnostico)),
+          //   ]),
+          // ],
 
           // ── Accesorios ──
           if (_orden!.accesorios != null) ...[
@@ -626,6 +626,23 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 ],
               );
             }(),
+          ],
+
+          // ── Problema / Diagnóstico ──
+          if (_orden!.descripcionProblema != null ||
+              _orden!.sintomas != null ||
+              _orden!.diagnostico != null) ...[
+            _sectionDivider(),
+            _inlineSection(Icons.report_problem_outlined, 'PROBLEMA', [
+              if (_orden!.descripcionProblema != null)
+                _buildDetailRow(Icons.description_outlined, 'Descripcion', _orden!.descripcionProblema!),
+              if (_orden!.sintomas != null)
+                _buildDetailRow(Icons.healing_outlined, 'Sintomas', _formatDynamicField(_orden!.sintomas)),
+              if (_orden!.diagnostico != null)
+                _buildDetailRow(Icons.biotech_outlined, 'Diagnostico', _formatDynamicField(_orden!.diagnostico)),
+              
+            ]),
+            SizedBox(height: 4)
           ],
         ],
       ),
@@ -1984,6 +2001,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   Widget _buildImagenesSection() {
     return GradientContainer(
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -2310,6 +2328,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final componentes = _orden!.componentes ?? [];
 
     return GradientContainer(
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -2424,8 +2443,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
     return GradientContainer(
       borderColor: AppColors.blueborder,
+      gradient: AppGradients.sinfondo,
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2589,9 +2609,12 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                         ),
                     ],
                     if (saldoPendiente != null)
+                      // Con saldo 0 la fila pasa a "PAGADO", y ahí el monto que
+                      // corresponde es lo COBRADO (el total), no el saldo — que
+                      // por definición vale 0 y se leía como "se cobró S/ 0.00".
                       _buildCostoRow(
                         saldoPendiente <= 0 ? 'PAGADO' : 'SALDO PENDIENTE',
-                        saldoPendiente <= 0 ? 0 : saldoPendiente,
+                        saldoPendiente <= 0 ? costoFinal : saldoPendiente,
                         bold: true,
                         fontSize: 11,
                         color: saldoPendiente <= 0
@@ -2631,6 +2654,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               orden: _orden!,
               onOrdenActualizada: (o) => setState(() => _orden = o),
             ),
+            const SizedBox(height: 6),
           ],
         ),
       ),
@@ -3333,6 +3357,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
     return GradientContainer(
       borderColor: AppColors.blueborder,
+      gradient: AppGradients.sinfondo,
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -3398,6 +3423,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   Widget _buildHistorialSection() {
     return GradientContainer(
       borderColor: AppColors.blueborder,
+      gradient: AppGradients.sinfondo,
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -3535,6 +3561,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   Widget _buildCronometroSection() {
     return GradientContainer(
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -3552,6 +3579,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final hasFirma = _firmaArchivos.isNotEmpty;
 
     return GradientContainer(
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -3729,7 +3757,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 
   // ─── Bottom Actions ───
 
-  /// Botón ⋮ con menú de acciones secundarias (Cancelar orden, Tercerizar B2B).
+  /// Botón ⋮ con menú de acciones secundarias: las que NO son el camino feliz
+  /// (Cancelar orden, Tercerizar B2B, Volver a reparación).
   Widget _buildMasAccionesMenu(List<_AccionDial> acciones) {
     return PopupMenuButton<_AccionDial>(
       tooltip: 'Más acciones',
@@ -3778,15 +3807,39 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     if (_orden == null) return null;
     final validTransitions = _getValidTransitions(_orden!.estado);
 
+    // La barra de abajo es el camino feliz; el ⋮ son las excepciones. Desde
+    // LISTO_ENTREGA volver a reparación es un RETROCESO (el cliente probó el
+    // equipo al retirarlo y falla), así que no compite con Cobrar, que es LA
+    // acción de esa pantalla. Se mantiene la transición porque cancelar y
+    // recrear la orden perdería historial y adelantos.
+    final puedeVolverAReparacion = _orden!.estado == 'LISTO_ENTREGA' &&
+        validTransitions.contains('EN_REPARACION');
+
     final mains = validTransitions
         .where((e) =>
-            e != 'CANCELADO' && e != 'TERCERIZADO' && e != 'ENTREGADO')
+            e != 'CANCELADO' &&
+            e != 'TERCERIZADO' &&
+            e != 'ENTREGADO' &&
+            !(puedeVolverAReparacion && e == 'EN_REPARACION'))
         .toList();
     final showCobrar =
         _orden!.estado == 'REPARADO' || _orden!.estado == 'LISTO_ENTREGA';
+    // Cobrada pero el equipo sigue acá: el cliente pagó y no se lo llevó (o se
+    // lo lleva después). Falta el acto físico de la entrega.
+    final showEntregar = _orden!.cobradaSinEntregar;
 
     // Acciones secundarias para el menú ⋮.
     final secundarias = <_AccionDial>[];
+    if (puedeVolverAReparacion) {
+      secundarias.add(_AccionDial(
+        // Rotulada distinto del avance normal ("En Reparacion") para que se
+        // lea como lo que es: volver atrás.
+        label: 'Volver a reparación',
+        icon: Icons.replay,
+        color: Colors.orange,
+        onTap: () => _showTransitionDialog('EN_REPARACION'),
+      ));
+    }
     if (validTransitions.contains('CANCELADO')) {
       secundarias.add(_AccionDial(
         label: 'Cancelar orden',
@@ -3804,7 +3857,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       ));
     }
 
-    if (mains.isEmpty && !showCobrar && secundarias.isEmpty) return null;
+    if (mains.isEmpty && !showCobrar && !showEntregar && secundarias.isEmpty) {
+      return null;
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -3830,6 +3885,20 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 height: 35,
                 borderRadius: 8,
                 onPressed: _cobrarEnVentaRapida,
+              ),
+            ),
+            if (mains.isNotEmpty) const SizedBox(width: 8),
+          ],
+          if (showEntregar) ...[
+            Expanded(
+              child: CustomButton(
+                text: 'Entregar',
+                icon: const Icon(Icons.inventory_2_outlined,
+                    size: 14, color: Colors.white),
+                backgroundColor: AppColors.blue1,
+                height: 35,
+                borderRadius: 8,
+                onPressed: _registrarEntrega,
               ),
             ),
             if (mains.isNotEmpty) const SizedBox(width: 8),
@@ -3864,7 +3933,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               ),
             );
           }),
-          // Menú ⋮ con acciones secundarias (Cancelar, B2B)
+          // Menú ⋮ con acciones secundarias (Cancelar, B2B, volver atrás)
           if (secundarias.isNotEmpty) ...[
             if (mains.isNotEmpty || showCobrar) const SizedBox(width: 6),
             _buildMasAccionesMenu(secundarias),
@@ -3874,9 +3943,57 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     );
   }
 
+  /// Registra la ENTREGA FÍSICA del equipo. La orden ya está cobrada (y por
+  /// eso FINALIZADA): esto marca que el cliente se llevó el equipo, que es un
+  /// momento distinto del pago. No cambia el estado, estampa `fechaEntrega`.
+  Future<void> _registrarEntrega() async {
+    final orden = _orden;
+    if (orden == null) return;
+
+    final confirmar = await AnimatedConfirmDialog.show(
+      context: context,
+      title: 'Confirmar entrega',
+      message:
+          '¿El cliente ya se llevó el equipo de la orden ${orden.codigo}?\n\n'
+          'Queda registrado con la fecha y hora de ahora.',
+      cancelText: 'Todavía no',
+      confirmText: 'Sí, entregado',
+      confirmButtonColor: AppColors.blue1,
+    );
+    if (confirmar != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    final result = await locator<OrdenServicioRepository>().registrarEntrega(
+      id: widget.ordenId,
+    );
+    if (!mounted) return;
+
+    if (result is Success<OrdenServicio>) {
+      _orden = result.data;
+      await _loadHistorial();
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Equipo entregado — orden ${orden.codigo}'),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else if (result is Error<OrdenServicio>) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message)),
+      );
+    }
+  }
+
   /// Cobra la orden vía Venta Rápida: el pipeline de venta registra caja,
   /// emite el comprobante a SUNAT, soporta MIXTO/crédito y al confirmar
-  /// marca la orden ENTREGADO (el flujo de cobro dedicado quedó deprecado).
+  /// marca la orden FINALIZADA (el flujo de cobro dedicado quedó deprecado).
+  ///
+  /// NO marca la entrega: el equipo puede quedarse en el taller aunque esté
+  /// pagado. Eso se registra después con [_registrarEntrega].
   ///
   /// Pasos: guard de caja abierta → setContexto del cubit VR → agregar la
   /// orden al carrito (pre-carga el cliente) → navegar al carrito.

@@ -482,15 +482,15 @@ class _OrdenServicioCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GradientContainer(
-        gradient: AppGradients.blueWhiteBlue(),
-        shadowStyle: ShadowStyle.glow,
+        gradient: AppGradients.sinfondo,
+        shadowStyle: ShadowStyle.colorful,
         borderColor: AppColors.blueborder,
         borderWidth: 0.6,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -506,7 +506,7 @@ class _OrdenServicioCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   _buildEquipoRow(),
                 ],
-                // ─── Técnico asignado + fecha de entrega ───
+                // ─── Técnico asignado ───
                 const SizedBox(height: 3),
                 _buildMetaRow(),
                 const SizedBox(height: 4),
@@ -531,10 +531,10 @@ class _OrdenServicioCard extends StatelessWidget {
       children: [
         // Barra de prioridad + icono
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: prioridadColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(
             _tipoServicioIcon(orden.tipoServicio),
@@ -550,17 +550,12 @@ class _OrdenServicioCard extends StatelessWidget {
               Row(
                 children: [
                   Flexible(
-                    child: Text(
+                    child: AppSubtitle(
                       orden.codigo,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontFamily:
-                            AppFonts.getFontFamily(AppFont.oxygenRegular),
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
+                      fontSize: 11,
                       overflow: TextOverflow.ellipsis,
-                    ),
+                      maxLines: 1,
+                    )
                   ),
                   if (orden.cantidadReingresos > 0) ...[
                     const SizedBox(width: 6),
@@ -590,6 +585,15 @@ class _OrdenServicioCard extends StatelessWidget {
         ),
         if (orden.mensajesNoLeidos > 0) ...[
           _buildMensajesBell(),
+          const SizedBox(width: 6),
+        ],
+        // Entrega física, al lado del estado: califica al estado (una orden
+        // FINALIZADA puede tener el equipo entregado o todavía en el taller).
+        if (orden.fechaEntrega != null) ...[
+          _buildEntregaChip(),
+          const SizedBox(width: 6),
+        ] else if (orden.cobradaSinEntregar) ...[
+          _buildSinRetirarChip(),
           const SizedBox(width: 6),
         ],
         EstadoBadgeWidget(estado: orden.estado),
@@ -623,26 +627,14 @@ class _OrdenServicioCard extends StatelessWidget {
   Widget _buildClienteRow(String clienteNombre) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: AppColors.blue1.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Icon(Icons.person_outline,
-              size: 12, color: AppColors.blue1),
-        ),
+        const Icon(Icons.person_outline,
+            size: 14, color: AppColors.blue1),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(
+          child: AppSubtitle(
             clienteNombre,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppColors.blue2,
-              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-            ),
-            maxLines: 1,
+            fontSize: 10,
+            color: AppColors.blue2,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -672,26 +664,16 @@ class _OrdenServicioCard extends StatelessWidget {
   Widget _buildEquipoRow() {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: AppColors.blue1.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Icon(Icons.devices_outlined,
-              size: 12, color: AppColors.blue1),
-        ),
+        const Icon(Icons.devices_outlined,
+            size: 12, color: AppColors.blue1),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
+          child: AppSubtitle(
             _equipoLabel,
-            style: TextStyle(
-              fontSize: 9,
-              color: Colors.grey.shade700,
-              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-            ),
-            maxLines: 1,
+            fontSize: 10,
+            color: Colors.grey.shade700,
             overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
         ),
         if (orden.numeroSerie != null && orden.numeroSerie!.isNotEmpty) ...[
@@ -768,13 +750,6 @@ class _OrdenServicioCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (orden.fechaEntrega != null) ...[
-          const SizedBox(width: 8),
-          _buildEntregaChip(),
-        ] else if (orden.cobradaSinEntregar) ...[
-          const SizedBox(width: 8),
-          _buildSinRetirarChip(),
-        ],
       ],
     );
   }
@@ -831,7 +806,7 @@ class _OrdenServicioCard extends StatelessWidget {
               size: 10, color: color),
           const SizedBox(width: 3),
           Text(
-            'Entrega ${DateFormatter.formatDate(orden.fechaEntrega!)}',
+            'Entregado ${DateFormatter.formatDateTime(orden.fechaEntrega!)}',
             style: TextStyle(
               fontSize: 9,
               color: color,
