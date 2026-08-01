@@ -456,13 +456,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     color: AppColors.blue1),
               // Fecha PACTADA con el cliente. En rojo si ya pasó y el equipo
               // sigue acá: es el compromiso incumplido, no la entrega real.
+              // Editable: en un taller la fecha se renegocia todo el tiempo.
               if (_orden!.fechaPrometida != null)
                 _infoChip(
                     _prometidaVencida
                         ? Icons.event_busy
                         : Icons.event_outlined,
                     'Pactado ${DateFormatter.formatDate(_orden!.fechaPrometida!)}',
-                    color: _prometidaVencida ? AppColors.red : null),
+                    color: _prometidaVencida ? AppColors.red : null,
+                    onTap: _puedeEditarPrometida ? _editarFechaPrometida : null)
+              else if (_puedeEditarPrometida)
+                _infoChip(Icons.event_outlined, 'Pactar entrega',
+                    color: Colors.grey.shade600,
+                    onTap: _editarFechaPrometida),
               if (_orden!.fechaEntrega != null)
                 _infoChip(Icons.event_available,
                     'Entregado ${DateFormatter.formatDateTime(_orden!.fechaEntrega!)}',
@@ -658,13 +664,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     );
   }
 
-  Widget _infoChip(IconData icon, String text, {Color? color}) {
+  Widget _infoChip(IconData icon, String text,
+      {Color? color, VoidCallback? onTap}) {
     final chipColor = color ?? AppColors.blue1;
-    return Container(
+    final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: chipColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(4),
+        // Borde punteado no: el lápiz ya señala que se puede tocar.
+        border: onTap == null
+            ? null
+            : Border.all(color: chipColor.withValues(alpha: 0.3), width: 0.6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -675,8 +686,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             text,
             style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: chipColor),
           ),
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.edit_outlined, size: 9, color: chipColor),
+          ],
         ],
       ),
+    );
+    if (onTap == null) return chip;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: chip,
     );
   }
 
@@ -3532,7 +3553,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                     children: [
                       Text(titulo,
                           style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600)),
+                              fontSize: 11, fontWeight: FontWeight.w500)),
                       Text(fecha,
                           style: TextStyle(
                               fontSize: 10, color: Colors.grey.shade500)),
@@ -3950,6 +3971,68 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         ],
       ),
     );
+  }
+
+  /// El backend rechaza editar órdenes en estado terminal, y una vez entregada
+  /// la fecha pactada ya no significa nada.
+  bool get _puedeEditarPrometida {
+    final o = _orden;
+    if (o == null) return false;
+    const terminales = {'CANCELADO', 'FINALIZADO', 'TERCERIZADO'};
+    return !terminales.contains(o.estado) && o.fechaEntrega == null;
+  }
+
+  /// Repactar la entrega con el cliente. En un taller la fecha se renegocia
+  /// todo el tiempo, así que tiene que poder cambiarse después del alta.
+  Future<void> _editarFechaPrometida() async {
+    final orden = _orden;
+    if (orden == null) return;
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) return;
+
+    final hoy = DateTime.now();
+    final elegida = await showDatePicker(
+      context: context,
+      initialDate: orden.fechaPrometida ?? hoy,
+      firstDate: DateTime(hoy.year - 1),
+      lastDate: DateTime(hoy.year + 2),
+      helpText: 'Fecha pactada de entrega',
+      cancelText: 'Cancelar',
+      confirmText: 'Guardar',
+    );
+    if (elegida == null || !mounted) return;
+
+    // Fin del día: prometer "para el viernes" no vence a las 00:00 de ese día.
+    final finDelDia =
+        DateTime(elegida.year, elegida.month, elegida.day, 23, 59, 59);
+
+    setState(() => _isLoading = true);
+    final result = await locator<OrdenServicioRepository>().actualizar(
+      id: orden.id,
+      empresaId: empresaState.context.empresa.id,
+      fechaPrometida: finDelDia,
+    );
+    if (!mounted) return;
+
+    if (result is Success<OrdenServicio>) {
+      setState(() {
+        _orden = result.data;
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Entrega pactada para el ${DateFormatter.formatDate(finDelDia)}'),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else if (result is Error<OrdenServicio>) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message)),
+      );
+    }
   }
 
   /// Se pasó la fecha pactada con el cliente y el equipo sigue sin entregarse.

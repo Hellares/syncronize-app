@@ -178,12 +178,15 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
     double? descuento,
     String? metodoPagoAdelanto,
     Map<String, dynamic>? datosPersonalizados,
+    DateTime? fechaPrometida,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
     }
     try {
       final data = <String, dynamic>{
+        if (fechaPrometida != null)
+          'fechaPrometida': DateFormatter.toUtcIso(fechaPrometida),
         if (tipoServicio != null) 'tipoServicio': tipoServicio,
         if (prioridad != null) 'prioridad': prioridad,
         if (descripcionProblema != null) 'descripcionProblema': descripcionProblema,

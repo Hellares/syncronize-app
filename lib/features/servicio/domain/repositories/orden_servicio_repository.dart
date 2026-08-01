@@ -61,6 +61,8 @@ abstract class OrdenServicioRepository {
     String? metodoPagoAdelanto,
     // Objeto COMPLETO de campos personalizados: reemplaza al anterior.
     Map<String, dynamic>? datosPersonalizados,
+    /// Fecha PACTADA con el cliente. Se renegocia, por eso es editable.
+    DateTime? fechaPrometida,
   });
 
   Future<Resource<OrdenServicio>> transitionEstado({

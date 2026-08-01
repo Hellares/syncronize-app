@@ -638,6 +638,25 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
             maxLines: null,
             minLines: 3,
           ),
+          const SizedBox(height: 8),
+          // El compromiso con el cliente se pacta en el mostrador, junto al
+          // problema: por eso va acá y no enterrado en "Notas y aviso".
+          CustomDate(
+            label: 'Fecha pactada de entrega (opcional)',
+            controller: _fechaPrometidaController,
+            borderColor: AppColors.blue1,
+            firstDate: DateTime.now(),
+            lastDate: DateTime.now().add(const Duration(days: 365)),
+            onChanged: (value) => _emit(() {
+              _fechaPrometida = _parseFechaDdMmYyyy(value, finDelDia: true);
+            }),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Para cuándo se le prometió el equipo. Si se pasa y todavía no se '
+            'entregó, la orden aparece como atrasada.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
         ],
       ),
     );
@@ -1115,32 +1134,6 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
           enableVoiceInput: true,
           maxLines: null,
           minLines: 3,
-        ),
-        const SizedBox(height: 16),
-        const Divider(),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Icon(Icons.event_outlined, size: 16, color: AppColors.blue1),
-            const SizedBox(width: 8),
-            AppSubtitle('COMPROMISO CON EL CLIENTE', fontSize: 12),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Para cuándo se le prometió el equipo. Si se pasa esta fecha y todavía '
-          'no se entregó, la orden se marca como atrasada en el listado.',
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-        ),
-        const SizedBox(height: 4),
-        CustomDate(
-          label: 'Fecha pactada de entrega (opcional)',
-          controller: _fechaPrometidaController,
-          borderColor: AppColors.blue1,
-          firstDate: DateTime.now(),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-          onChanged: (value) =>
-              _fechaPrometida = _parseFechaDdMmYyyy(value, finDelDia: true),
         ),
         const SizedBox(height: 16),
         const Divider(),
