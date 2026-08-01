@@ -145,6 +145,14 @@ class OrdenServicio extends Equatable {
   /// cubre el TICKET (sin comprobante fiscal); comprobanteId es complemento.
   bool get estaCobrada => cobradaPorVenta || comprobanteId != null;
 
+  /// El equipo ya se le entregó FÍSICAMENTE al cliente. Es independiente del
+  /// cobro: se puede pagar hoy y retirar el equipo otro día.
+  bool get estaEntregada => fechaEntrega != null;
+
+  /// Cobrada pero el equipo sigue en el taller — el caso que hay que ver de un
+  /// vistazo para saber qué equipos quedan por retirar.
+  bool get cobradaSinEntregar => estaCobrada && !estaEntregada;
+
   /// Saldo pendiente = costoFinal - adelanto. Si ya se cobró → 0 (pagada).
   double? get saldoPendiente {
     if (estaCobrada) return 0;

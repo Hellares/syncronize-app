@@ -63,6 +63,19 @@ class OrdenServicioRemoteDataSource {
     return OrdenServicioModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Registra la ENTREGA FÍSICA del equipo. No cambia el estado (la orden ya
+  /// está FINALIZADA por el cobro): estampa `fechaEntrega`.
+  Future<OrdenServicioModel> registrarEntrega(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dioClient.patch(
+      '${ApiConstants.ordenesServicio}/$id/entregar',
+      data: data,
+    );
+    return OrdenServicioModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   /// Registra un NUEVO abono de adelanto (ACUMULATIVO: se SUMA al total).
   Future<OrdenServicioModel> agregarAdelanto(
     String ordenId,

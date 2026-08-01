@@ -235,6 +235,24 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
   }
 
   @override
+  Future<Resource<OrdenServicio>> registrarEntrega({
+    required String id,
+    String? notas,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.registrarEntrega(id, {
+        if (notas != null && notas.trim().isNotEmpty) 'notas': notas.trim(),
+      });
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'OrdenServicio');
+    }
+  }
+
+  @override
   Future<Resource<OrdenServicio>> agregarAdelanto({
     required String id,
     required String empresaId,

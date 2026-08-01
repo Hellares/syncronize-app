@@ -771,8 +771,43 @@ class _OrdenServicioCard extends StatelessWidget {
         if (orden.fechaEntrega != null) ...[
           const SizedBox(width: 8),
           _buildEntregaChip(),
+        ] else if (orden.cobradaSinEntregar) ...[
+          const SizedBox(width: 8),
+          _buildSinRetirarChip(),
         ],
       ],
+    );
+  }
+
+  /// Pagada pero el equipo sigue en el taller. Sin esto no había forma de
+  /// saber, desde el listado, qué equipos faltan entregar.
+  Widget _buildSinRetirarChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: Colors.orange.withValues(alpha: 0.4),
+          width: 0.6,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.inventory_2_outlined,
+              size: 10, color: Colors.orange),
+          const SizedBox(width: 3),
+          Text(
+            'Sin retirar',
+            style: TextStyle(
+              fontSize: 9,
+              color: Colors.orange.shade800,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

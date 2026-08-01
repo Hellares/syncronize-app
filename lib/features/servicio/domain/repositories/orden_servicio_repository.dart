@@ -75,6 +75,16 @@ abstract class OrdenServicioRepository {
     String? metodoPagoAdelanto,
   });
 
+  /// Registra la ENTREGA FÍSICA del equipo al cliente.
+  ///
+  /// Cobrar y entregar son hechos distintos: el cliente puede pagar hoy y
+  /// llevarse el equipo otro día. No cambia el estado (la orden ya está
+  /// FINALIZADA por el cobro), solo estampa `fechaEntrega`.
+  Future<Resource<OrdenServicio>> registrarEntrega({
+    required String id,
+    String? notas,
+  });
+
   /// Registra un NUEVO abono de adelanto (ACUMULATIVO: se SUMA al total).
   Future<Resource<OrdenServicio>> agregarAdelanto({
     required String id,
