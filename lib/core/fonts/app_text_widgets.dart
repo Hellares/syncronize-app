@@ -58,7 +58,7 @@ class AppSubtitle extends StatelessWidget {
   const AppSubtitle(
     this.text, {
     super.key,
-    this.font = AppFont.oxygenBold,
+    this.font = AppFont.amazonEmberMedium,
     this.color,
     this.fontSize,
     this.fontWeight,

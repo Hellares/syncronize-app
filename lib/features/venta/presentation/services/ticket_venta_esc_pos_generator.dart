@@ -186,7 +186,7 @@ class TicketVentaEscPosGenerator {
     // se pegaban a la izquierda. Construir cada línea como texto plano
     // con padding garantiza que cualquier impresora la respete.
     final cols = _ColAnchos.forPaper(paperWidth);
-    bytes += generator.text('DETALLE');
+    //bytes += generator.text('DETALLE');
     bytes += generator.text(
       cols.formatear('CANT', 'DESCRIPCION', 'P.U.', 'TOTAL'),
     );

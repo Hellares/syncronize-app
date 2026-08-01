@@ -85,7 +85,7 @@ class _OrdenClienteDetailPageState extends State<OrdenClienteDetailPage> {
                 : RefreshIndicator(
                     onRefresh: _loadAll,
                     child: ListView(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       children: [
                         _buildEstadoCard(),
                         const SizedBox(height: 16),

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:printing/printing.dart';
+import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/di/injection_container.dart';
@@ -592,7 +594,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       onRefresh: _loadVenta,
       color: AppColors.blue1,
       child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
         children: [
           _buildHeaderSection(v),
           const SizedBox(height: 12),
@@ -626,9 +628,11 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   Widget _buildHeaderSection(Venta v) {
     
     return GradientContainer(
+      borderRadius: BorderRadius.circular(6),
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -638,14 +642,14 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.bluechip,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Icon(Icons.point_of_sale,
-                      color: AppColors.blue1, size: 16),
+                      color: AppColors.blue1, size: 14),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: AppSubtitle(v.codigo, fontSize: 11),
+                  child: AppSubtitle(v.codigo, fontSize: 11, font: AppFont.amazonEmberMedium,),
                 ),
                 VentaEstadoChip(estado: v.estado),
                 // Menú de acciones del comprobante (NC/ND/Anular/Guía).
@@ -670,7 +674,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             // Fecha y Sede en una sola fila, a extremos opuestos del header:
             // fecha a la izquierda, sede a la derecha.
             Row(
@@ -1108,7 +1112,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       children: [
         _buildSectionHeader(
             Icons.shopping_cart_outlined, 'ITEMS (${detalles.length})'),
-        const SizedBox(height: 5),
+        // const SizedBox(height: 3),
         Container(
           decoration: BoxDecoration(
             border: Border.all(
@@ -1124,7 +1128,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               Container(
                 color: AppColors.bluechip,
                 padding: const EdgeInsets.symmetric(
-                    vertical: 6, horizontal: 8),
+                    vertical: 4, horizontal: 8),
                 child: const Row(
                   children: [
                     SizedBox(
@@ -1344,20 +1348,28 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                     Text(
                       'TOTAL',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.blue1,
                         letterSpacing: 0.5,
                       ),
                     ),
+                    // Text(
+                    //   '${v.moneda} ${v.total.toStringAsFixed(2)}',
+                    //   style: TextStyle(
+                    //     fontSize: 11,
+                    //     fontWeight: FontWeight.w700,
+                    //     color: AppColors.blue1,
+                    //   ),
+                    // ),
                     Text(
-                      '${v.moneda} ${v.total.toStringAsFixed(2)}',
+                      'S/${v.total.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.blue1,
+                        color: AppColors.blue1
                       ),
-                    ),
+                    )
                   ],
                 ),
               ),
@@ -1404,34 +1416,41 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
     return [
       _buildFooterRow(
         'Op. Gravada',
-        '$moneda ${(v.comprobanteGravada ?? 0).toStringAsFixed(2)}',
+        // '$moneda ${(v.comprobanteGravada ?? 0).toStringAsFixed(2)}',
+        'S/ ${(v.comprobanteGravada ?? 0).toStringAsFixed(2)}',
       ),
       _buildFooterRow(
         'Op. Exonerada',
-        '$moneda ${(v.comprobanteExonerada ?? 0).toStringAsFixed(2)}',
+        // '$moneda ${(v.comprobanteExonerada ?? 0).toStringAsFixed(2)}',
+        'S/ ${(v.comprobanteExonerada ?? 0).toStringAsFixed(2)}',
       ),
       _buildFooterRow(
         'Op. Inafecta',
-        '$moneda ${(v.comprobanteInafecta ?? 0).toStringAsFixed(2)}',
+        // '$moneda ${(v.comprobanteInafecta ?? 0).toStringAsFixed(2)}',
+        'S/ ${(v.comprobanteInafecta ?? 0).toStringAsFixed(2)}',
       ),
       if (gratuitas > 0)
         _buildFooterRow(
           'Op. Gratuitas',
-          '$moneda ${gratuitas.toStringAsFixed(2)}',
+          // '$moneda ${gratuitas.toStringAsFixed(2)}',
+          'S/ ${gratuitas.toStringAsFixed(2)}',
           color: Colors.deepPurple.shade600,
         ),
       if (descuentoFiscal > 0)
         _buildFooterRow(
           'Descuento',
-          '-$moneda ${descuentoFiscal.toStringAsFixed(2)}',
+          // '-$moneda ${descuentoFiscal.toStringAsFixed(2)}',
+          '-S /${descuentoFiscal.toStringAsFixed(2)}',
           color: Colors.red.shade600,
         ),
       _buildFooterRow(
         _getNombreImpuesto(),
-        '$moneda ${(v.comprobanteIgv ?? v.impuestos).toStringAsFixed(2)}',
+        // '$moneda ${(v.comprobanteIgv ?? v.impuestos).toStringAsFixed(2)}',
+        'S/ ${(v.comprobanteIgv ?? v.impuestos).toStringAsFixed(2)}',
       ),
       if (icbper > 0)
-        _buildFooterRow('ICBPER', '$moneda ${icbper.toStringAsFixed(2)}'),
+        // _buildFooterRow('ICBPER', '$moneda ${icbper.toStringAsFixed(2)}'),
+        _buildFooterRow('ICBPER', 'S/ ${icbper.toStringAsFixed(2)}'),
     ];
   }
 
@@ -1453,7 +1472,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           ),
           const SizedBox(width: 10),
           SizedBox(
-            width: 110,
+            width: 90,
             child: Text(
               value,
               textAlign: TextAlign.right,
@@ -1502,24 +1521,28 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
         .where((d) => d.esOrdenServicio && (d.ordenAdelanto ?? 0) > 0)
         .toList();
     return GradientContainer(
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
+      borderRadius: BorderRadius.all(Radius.circular(6)),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSectionHeader(Icons.payment, 'PAGO'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             // Resumen
             if (v.metodoPagoDisplay != null)
               _buildDetailRow(
                   Icons.credit_card, 'Metodo', v.metodoPagoDisplay!),
             if (v.montoRecibido != null)
               _buildDetailRow(Icons.attach_money, 'Recibido',
-                  '${v.moneda} ${v.montoRecibido!.toStringAsFixed(2)}'),
+                  // '${v.moneda} ${v.montoRecibido!.toStringAsFixed(2)}'),
+                  'S/ ${v.montoRecibido!.toStringAsFixed(2)}'),
             if (v.montoCambio != null && v.montoCambio! > 0)
               _buildDetailRow(Icons.change_circle_outlined, 'Cambio',
-                  '${v.moneda} ${v.montoCambio!.toStringAsFixed(2)}'),
+                  // '${v.moneda} ${v.montoCambio!.toStringAsFixed(2)}'),
+                  'S/ ${v.montoCambio!.toStringAsFixed(2)}'),
             if (v.esCredito) ...[
               _buildDetailRow(Icons.schedule, 'Tipo', 'Venta a Credito'),
               if (v.plazoCredito != null)
@@ -1527,19 +1550,21 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                     Icons.timer, 'Plazo', '${v.plazoCredito} dias'),
             ],
             _buildDetailRow(Icons.account_balance_wallet, 'Pagado',
-                '${v.moneda} ${v.totalPagado.toStringAsFixed(2)}'),
+                // '${v.moneda} ${v.totalPagado.toStringAsFixed(2)}'),
+                'S/ ${v.totalPagado.toStringAsFixed(2)}'),
             if (v.saldoPendiente > 0)
               _buildDetailRow(Icons.warning_amber, 'Pendiente',
-                  '${v.moneda} ${v.saldoPendiente.toStringAsFixed(2)}'),
+                  // '${v.moneda} ${v.saldoPendiente.toStringAsFixed(2)}'),
+                  'S/ ${v.saldoPendiente.toStringAsFixed(2)}'),
             // Pagos previos de COTIZACIÓN: el cliente pagó online (Yape/
             // Plin) desde su cotización del marketplace; el dinero ya está
             // en Tesorería desde esa fecha.
             if (adelantosCotizacion.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 7),
               Divider(
                   height: 1,
                   color: AppColors.blueborder.withValues(alpha: 0.5)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 7),
               Row(
                 children: [
                   Icon(Icons.phone_android, size: 14, color: AppColors.blue1),
@@ -1675,24 +1700,25 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             // del MISMO card que el resumen — separado por un divisor +
             // subtítulo, no por otra tarjeta aparte.
             if (tieneHistorial) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 7),
               Divider(
                   height: 1,
                   color: AppColors.blueborder.withValues(alpha: 0.5)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 7),
               Row(
                 children: [
                   Icon(Icons.history, size: 14, color: AppColors.blue1),
                   const SizedBox(width: 6),
-                  Text(
-                    'HISTORIAL',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.blue1,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                  // Text(
+                  //   'HISTORIAL',
+                  //   style: TextStyle(
+                  //     fontSize: 10,
+                  //     fontWeight: FontWeight.w800,
+                  //     color: AppColors.blue1,
+                  //     letterSpacing: 0.5,
+                  //   ),
+                  // ),
+                  AppSubtitle('HISTORIAL', font: AppFont.amazonEmberMedium, fontSize: 10,),
                   const SizedBox(width: 6),
                   Text(
                     '(${pagosHoy.length})',
@@ -1713,7 +1739,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                     ? pago.monto - v.montoCambio!
                     : pago.monto;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(bottom: 3),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1726,7 +1752,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                                 Text(
                                   pago.metodoPago.label,
                                   style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.w600),
                                 ),
                                 Text(
@@ -1746,7 +1772,8 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             ),
                           ),
                           Text(
-                            '${v.moneda} ${montoNeto.toStringAsFixed(2)}',
+                            // '${v.moneda} ${montoNeto.toStringAsFixed(2)}',
+                            'S/ ${montoNeto.toStringAsFixed(2)}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600, fontSize: 11, color: AppColors.greendark),
                           ),
@@ -2121,8 +2148,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
 
     return GradientContainer(
       borderColor: AppColors.blueborder,
+      borderRadius: BorderRadius.circular(6),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2130,10 +2158,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               children: [
                 Icon(Icons.calendar_month, size: 16, color: AppColors.blue1),
                 const SizedBox(width: 6),
-                AppSubtitle('Cuotas ($cuotasPagadas/${cuotas.length} pagadas)', fontSize: 12),
+                AppSubtitle('Cuotas ($cuotasPagadas/${cuotas.length} pagadas)', fontSize: 10, font: AppFont.amazonEmberMedium,),
               ],
             ),
-            const Divider(height: 16),
+            const Divider(height: 12),
             // Resumen de mora si hay
             Builder(builder: (_) {
               final totalMora = cuotas.fold<double>(0, (sum, c) => sum + c.montoMora);
@@ -2192,16 +2220,16 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
               }
 
               return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 5),
                 child: Row(
                   children: [
-                    Icon(estadoIcon, size: 18, color: estadoColor),
+                    Icon(estadoIcon, size: 16, color: estadoColor),
                     const SizedBox(width: 8),
                     Container(
                       width: 24, height: 24,
                       decoration: BoxDecoration(
                         color: estadoColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Center(
                         child: Text('${cuota.numero}',
@@ -2214,7 +2242,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('S/ ${cuota.monto.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
                           Text(
                             'Vence: ${DateFormatter.formatDate(cuota.fechaVencimiento)}'
                             '${cuota.montoPagado > 0 ? ' | Pagado: S/ ${cuota.montoPagado.toStringAsFixed(2)}' : ''}',
@@ -3362,8 +3390,9 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             value,
             textAlign: alignEnd ? TextAlign.right : TextAlign.left,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
+              color: AppColors.blue1
             ),
             overflow: TextOverflow.ellipsis,
           ),

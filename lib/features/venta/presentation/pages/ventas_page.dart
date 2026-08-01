@@ -1069,7 +1069,8 @@ class _VentaListTile extends StatelessWidget {
     // Usar DateFormatter para formato consistente
 
     return GradientContainer(
-      shadowStyle: ShadowStyle.colorful,
+      gradient: AppGradients.sinfondo,
+      shadowStyle: ShadowStyle.glow,
       borderColor: AppColors.blueborder,
       margin: EdgeInsets.zero,
       child: InkWell(
@@ -1083,7 +1084,7 @@ class _VentaListTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  AppSubtitle(venta.codigo),
+                  AppSubtitle(venta.codigo, font: AppFont.amazonEmberMedium, fontSize: 10),
                   const SizedBox(width: 8),
                   VentaEstadoChip(
                     estado: venta.estado,
@@ -1162,7 +1163,7 @@ class _VentaListTile extends StatelessWidget {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  SizedBox(width: 70, child: AppSubtitle('Cliente:' , fontSize: 10, color: Colors.grey.shade600)),
+                  SizedBox(width: 70, child: AppSubtitle('Cliente:' , fontSize: 10, color: Colors.grey.shade600, font: AppFont.amazonEmberMedium)),
                   Expanded(
                       child: AppSubtitle(venta.nombreCliente,font: AppFont.amazonEmberMedium, fontSize: 10)),
                 ],
@@ -1171,7 +1172,7 @@ class _VentaListTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    SizedBox(width: 70, child: AppSubtitle('Telefono:', fontSize: 10, color: Colors.grey.shade600)),
+                    SizedBox(width: 70, child: AppSubtitle('Telefono:', fontSize: 10, color: Colors.grey.shade600, font: AppFont.amazonEmberMedium)),
                     Expanded(
                         child: AppSubtitle(venta.telefonoCliente!,font: AppFont.amazonEmberMedium, fontSize: 10)),
                   ],
@@ -1181,7 +1182,7 @@ class _VentaListTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    SizedBox(width: 70, child: AppSubtitle('Sede:', fontSize: 10, color: Colors.grey.shade600)),
+                    SizedBox(width: 70, child: AppSubtitle('Sede:', fontSize: 10, color: Colors.grey.shade600, font: AppFont.amazonEmberMedium)),
                     Expanded(
                         child: AppSubtitle(venta.sedeNombre!,font: AppFont.amazonEmberMedium, fontSize: 10)),
                   ],
@@ -1203,20 +1204,22 @@ class _VentaListTile extends StatelessWidget {
                   ],
                 ),
               ],
+              const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if (venta.vendedorNombre != null)
                     Text(
-                      'Vendedor:          ${venta.vendedorNombre}',
+                      'Vendedor:             ${venta.vendedorNombre}',
                       style: TextStyle(
                           fontSize: 8, color: Colors.grey.shade600),
                     ),
                   Text(
-                    '${venta.moneda} ${venta.total.toStringAsFixed(2)}',
+                    'S/${venta.total.toStringAsFixed(2)}',
                     style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11.5,
+                      color: AppColors.blue1,
                     ),
                   ),
                 ],

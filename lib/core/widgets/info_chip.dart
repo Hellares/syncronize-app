@@ -96,7 +96,7 @@ class InfoChip extends StatelessWidget {
     final double resolvedIconSize = iconSize ?? resolvedFontSize + 6;
 
     final EdgeInsets padding = contentPadding ??
-        const EdgeInsets.symmetric(horizontal: 10, vertical: 6);
+        const EdgeInsets.symmetric(horizontal: 6, vertical: 4);
 
     final Widget content = Padding(
       padding: padding,
@@ -114,6 +114,7 @@ class InfoChip extends StatelessWidget {
               fontSize: resolvedFontSize,
               fontWeight: fontWeight,
               fontFamily: resolvedFontFamily,
+              
             ),
           ),
           if (showCheckmark && selected) ...[

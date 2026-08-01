@@ -9,7 +9,7 @@ class EstadoBadgeWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: _color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
@@ -19,7 +19,7 @@ class EstadoBadgeWidget extends StatelessWidget {
         _label,
         style: TextStyle(
           fontSize: 9,
-          fontFamily: AppFonts.getFontFamily(AppFont.oxygenBold),
+          fontFamily: AppFonts.getFontFamily(AppFont.amazonEmberRegular),
           color: _color,
         ),
       ),

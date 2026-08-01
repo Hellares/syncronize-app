@@ -8,6 +8,7 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -216,7 +217,7 @@ class _ServicioListTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GradientContainer(
-        gradient: AppGradients.blueWhiteBlue(),
+        gradient: AppGradients.sinfondo,
         shadowStyle: ShadowStyle.glow,
         borderColor: AppColors.blueborder,
         borderWidth: 0.8,
@@ -224,7 +225,7 @@ class _ServicioListTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -245,30 +246,29 @@ class _ServicioListTile extends StatelessWidget {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: AppColors.blue1.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+              color: AppColors.green.withValues(alpha: 0.2), width: 0.8)
           ),
           child: const Icon(
-            Icons.room_service,
-            color: AppColors.blue1,
-            size: 20,
+            Icons.bolt,
+            color: AppColors.green,
+            size: 18,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 5),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Nombre
-              Text(
+              AppSubtitle(
                 servicio.nombre,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                  fontWeight: FontWeight.bold,
-                ),
+                fontSize: 10,
+                font: AppFont.amazonEmberRegular
               ),
               const SizedBox(height: 3),
               // Codigo + categoria
@@ -280,7 +280,7 @@ class _ServicioListTile extends StatelessWidget {
                   Text(
                     servicio.codigoEmpresa,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 9,
                       color: Colors.grey.shade700,
                       fontFamily:
                           AppFonts.getFontFamily(AppFont.oxygenRegular),
@@ -405,38 +405,55 @@ class _ServicioListTile extends StatelessWidget {
         ],
 
         // Estado badge
-        Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: (servicio.isActive ? AppColors.green : Colors.grey)
-                .withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: (servicio.isActive ? AppColors.green : Colors.grey)
-                  .withValues(alpha: 0.4),
-              width: 0.6,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                servicio.isActive ? Icons.check_circle : Icons.cancel,
-                size: 10,
-                color:
-                    servicio.isActive ? AppColors.green : Colors.grey,
-              ),
-              const SizedBox(width: 4),
-              AppSubtitle(
-                servicio.isActive ? 'ACTIVO' : 'INACTIVO',
-                fontSize: 9,
-                color:
-                    servicio.isActive ? AppColors.green : Colors.grey,
-              ),
-            ],
-          ),
-        ),
+        // Container(
+        //   padding:
+        //       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        //   decoration: BoxDecoration(
+        //     color: (servicio.isActive ? AppColors.green : Colors.grey)
+        //         .withValues(alpha: 0.1),
+        //     borderRadius: BorderRadius.circular(4),
+        //     border: Border.all(
+        //       color: (servicio.isActive ? AppColors.green : Colors.grey)
+        //           .withValues(alpha: 0.4),
+        //       width: 0.6,
+        //     ),
+        //   ),
+        //   child: Row(
+        //     mainAxisSize: MainAxisSize.min,
+        //     children: [
+        //       Icon(
+        //         servicio.isActive ? Icons.check_circle : Icons.cancel,
+        //         size: 10,
+        //         color:
+        //             servicio.isActive ? AppColors.green : Colors.grey,
+        //       ),
+        //       const SizedBox(width: 4),
+        //       AppSubtitle(
+        //         servicio.isActive ? 'ACTIVO' : 'INACTIVO',
+        //         fontSize: 9,
+        //         font: AppFont.amazonEmberMedium,
+        //         color:
+        //             servicio.isActive ? AppColors.green : Colors.grey,
+        //       ),
+        //     ],
+        //   ),
+        // ),
+        InfoChip(
+          font: AppFont.amazonEmberMedium,
+          fontSize: 9,
+          borderRadius: 4,
+          iconSize: 12,
+          text: servicio.isActive ? 'ACTIVO' : 'INACTIVO',
+          icon: servicio.isActive ? Icons.check_circle : Icons.cancel,
+          backgroundColor: (servicio.isActive
+                  ? AppColors.green.withValues(alpha: 0.1)
+                  : Colors.grey.withValues(alpha: 0.1)),
+          borderColor: (servicio.isActive
+                  ? AppColors.green.withValues(alpha: 0.4)
+                  : Colors.grey.withValues(alpha: 0.4)),
+          textColor:
+              servicio.isActive ? AppColors.green : Colors.grey,
+        )
       ],
     );
   }

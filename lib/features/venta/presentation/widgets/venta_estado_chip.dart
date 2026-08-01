@@ -26,15 +26,15 @@ class VentaEstadoChip extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text.rich(
         TextSpan(
           children: [
-            TextSpan(text: estado.label, style: base),
+            TextSpan(text: estado.label, style: base,),
             if (esCredito)
               // Más chico que el estado: informa sin robarle protagonismo
               // ni ensanchar de más la fila de la card.

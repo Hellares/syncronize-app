@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/theme/app_gradients.dart';
+import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -165,25 +169,24 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
     final total = widget.orden.adelanto ?? 0;
     final df = DateFormat('dd/MM/yy HH:mm');
 
-    return Container(
+    return GradientContainer(
       margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
+      padding: const EdgeInsets.all(10),
+      borderColor: AppColors.green,
+      gradient: AppGradients.sinfondo,
+      shadowStyle: ShadowStyle.colorful,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.savings_outlined, size: 18, color: AppColors.blue1),
+              Icon(Icons.savings_outlined, size: 18, color: AppColors.green),
               const SizedBox(width: 6),
               const Expanded(
-                child: Text('Adelantos',
-                    style:
-                        TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                // child: Text('Adelantos',
+                //     style:
+                //         TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                child: AppSubtitle('Adelantos', fontSize: 12, color:AppColors.green)
               ),
               Text(
                 'Total: S/ ${total.toStringAsFixed(2)}',
@@ -208,15 +211,25 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              // child: OutlinedButton.icon(
+              //   onPressed: _busy ? null : _agregarAdelanto,
+              //   icon: const Icon(Icons.add, size: 16),
+              //   label: const Text('Agregar adelanto',
+              //       style: TextStyle(fontSize: 12)),
+              //   style: OutlinedButton.styleFrom(
+              //     foregroundColor: AppColors.blue1,
+              //     side: BorderSide(color: AppColors.blue1.withValues(alpha: 0.5)),
+              //   ),
+              // ),
+              child: CustomButton(
                 onPressed: _busy ? null : _agregarAdelanto,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Agregar adelanto',
-                    style: TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.blue1,
-                  side: BorderSide(color: AppColors.blue1.withValues(alpha: 0.5)),
-                ),
+                icon: Icon(Icons.add),
+                text: 'Agregar Adelanto',
+                fontSize: 10,
+                backgroundColor: AppColors.white,
+                textColor: AppColors.green,
+                borderColor: AppColors.green,
+                borderWidth: 0.5,
               ),
             ),
           ],
