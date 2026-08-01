@@ -435,12 +435,17 @@ class _CobroViewState extends State<_CobroView> {
         .fold<double>(0, (s, p) => s + (p['monto'] as num).toDouble());
 
     bool aceptaRiesgo = false;
+    // La Ley 28194 mira el monto de la OPERACIÓN (el comprobante sale por
+    // `total`), no lo que se cobra hoy. Con órdenes de servicio que traen
+    // adelanto, `totalACobrar` puede quedar bajo el umbral aunque la operación
+    // lo supere: ahí la app no preguntaba y el backend —que sí valida contra el
+    // total— rebotaba con 400 y el cobro quedaba sin salida.
     if (!state.esCredito &&
-        aplicaBancarizacion(totalVentaPen: state.totalACobrar) &&
+        aplicaBancarizacion(totalVentaPen: state.total) &&
         totalEfectivo > 0 &&
         totalBancarizado < umbralBancarizacionPen) {
       final ok = await _confirmarRiesgoBancarizacion(
-        totalVenta: state.totalACobrar,
+        totalVenta: state.total,
         efectivo: totalEfectivo,
         bancarizado: totalBancarizado,
       );
@@ -797,7 +802,9 @@ class _CobroViewState extends State<_CobroView> {
     // Banco obligatorio cuando: aplica bancarización (≥ S/2,000) Y hay
     // un pago no-EFECTIVO con método que requiere entidad financiera
     // (TARJETA / TRANSFERENCIA) sin banco seleccionado.
-    final bancarizable = aplicaBancarizacion(totalVentaPen: state.totalACobrar);
+    // Contra el total de la OPERACIÓN, igual que el backend: si se mide contra
+    // lo cobrado hoy, no se pide el banco y el backend rechaza el cobro.
+    final bancarizable = aplicaBancarizacion(totalVentaPen: state.total);
     final faltaBanco = bancarizable &&
         _otrosPagos.any((p) {
           final monto = CurrencyUtilsImproved.parseToDouble(p.montoCtrl.text);
