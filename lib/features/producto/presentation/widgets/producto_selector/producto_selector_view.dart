@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/di/injection_container.dart';
 import '../../../../../core/services/realtime_sync_service.dart';
+import '../../../../../core/utils/busqueda_texto.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/widgets/barcode_scanner_sheet.dart';
 import '../../../../../core/utils/date_formatter.dart';
@@ -741,15 +742,26 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                   final serverYaFiltro = filtrosState?.search != null &&
                       filtrosState!.search!.isNotEmpty;
                   if (_localQuery.isNotEmpty) {
-                    final q = _localQuery.toLowerCase();
+                    // Mismo criterio que el backend: por PALABRAS, sin tildes
+                    // y mirando también MARCA y CATEGORÍA. Si acá se mira
+                    // menos que allá, las búsquedas que solo matchean en el
+                    // server devuelven vacío y nunca se consultan — con el
+                    // catálogo entero en el cliente este filtro es la única
+                    // instancia. Ver `core/utils/busqueda_texto.dart`.
+                    final terminos = terminosBusqueda(_localQuery);
                     final cubit = context.read<ProductoListCubit>();
                     final combinados = <String, ProductoListItem>{
                       for (final p in items) p.id: p,
                       ...cubit.vistosCache,
                     };
                     final localFiltrado = combinados.values.where((p) {
-                      return p.nombre.toLowerCase().contains(q) ||
-                          p.codigoEmpresa.toLowerCase().contains(q);
+                      final texto = [
+                        p.nombre,
+                        p.codigoEmpresa,
+                        p.marcaNombre ?? '',
+                        p.categoriaNombre ?? '',
+                      ].join(' ');
+                      return coincideTodosLosTerminos(texto, terminos);
                     }).toList();
                     // Si encontramos algo local → usamos local. Si no Y
                     // el server ya filtró → confiamos en el server. Si no
