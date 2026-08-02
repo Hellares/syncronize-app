@@ -185,6 +185,44 @@ class ProductoModel extends Producto {
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
       'creadoEn': creadoEn.toIso8601String(),
       'actualizadoEn': actualizadoEn.toIso8601String(),
+
+      // ── Relaciones ─────────────────────────────────────────────────────
+      // `fromJson` las lee, así que `toJson` TIENE que devolverlas: si no,
+      // cualquier ida y vuelta por JSON (caché, guardado local, copia entre
+      // capas) las pierde en silencio — el objeto sigue siendo válido, solo
+      // que sin marca, sin categoría y sin variantes.
+      //
+      // Van por `Model.fromEntity(x).toJson()` y no por un cast: estos
+      // campos están tipados como ENTIDAD, y castear a modelo revienta en
+      // runtime si el objeto no vino de un `fromJson`.
+      if (unidadCompra != null)
+        'unidadCompra':
+            EmpresaUnidadMedidaModel.fromEntity(unidadCompra!).toJson(),
+      if (categoria != null)
+        'categoria': ProductoCategoriaModel.fromEntity(categoria!).toJson(),
+      if (marca != null)
+        'marca': ProductoMarcaModel.fromEntity(marca!).toJson(),
+      if (sede != null) 'sede': ProductoSedeModel.fromEntity(sede!).toJson(),
+      if (unidadMedida != null)
+        'unidadMedida':
+            EmpresaUnidadMedidaModel.fromEntity(unidadMedida!).toJson(),
+      if (imagenes != null) 'imagenes': imagenes,
+      if (archivos != null)
+        'archivos': archivos!
+            .map((a) => ProductoArchivoModel.fromEntity(a).toJson())
+            .toList(),
+      if (atributosValores != null)
+        'atributosValores': atributosValores!
+            .map((a) => AtributoValorModel.fromEntity(a).toJson())
+            .toList(),
+      if (variantes != null)
+        'variantes': variantes!
+            .map((v) => ProductoVarianteModel.fromEntity(v).toJson())
+            .toList(),
+      if (stocksPorSede != null)
+        'stocksPorSede': stocksPorSede!
+            .map((s) => StockPorSedeInfoModel.fromEntity(s).toJson())
+            .toList(),
     };
   }
 
@@ -271,6 +309,16 @@ class ProductoCategoriaModel extends ProductoCategoria {
     );
   }
 
+  /// `toJson` de ProductoModel necesita esto: los campos vienen tipados como
+  /// ENTIDAD, no como modelo, así que castear a ciegas revienta en runtime.
+  factory ProductoCategoriaModel.fromEntity(ProductoCategoria e) =>
+      ProductoCategoriaModel(
+        id: e.id,
+        nombre: e.nombre,
+        categoriaMaestraId: e.categoriaMaestraId,
+        slug: e.slug,
+      );
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -300,6 +348,14 @@ class ProductoMarcaModel extends ProductoMarca {
     );
   }
 
+  factory ProductoMarcaModel.fromEntity(ProductoMarca e) => ProductoMarcaModel(
+        id: e.id,
+        nombre: e.nombre,
+        marcaMaestraId: e.marcaMaestraId,
+        slug: e.slug,
+        logo: e.logo,
+      );
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -323,6 +379,9 @@ class ProductoSedeModel extends ProductoSede {
       nombre: json['nombre'] as String,
     );
   }
+
+  factory ProductoSedeModel.fromEntity(ProductoSede e) =>
+      ProductoSedeModel(id: e.id, nombre: e.nombre);
 
   Map<String, dynamic> toJson() {
     return {
@@ -350,6 +409,15 @@ class ProductoArchivoModel extends ProductoArchivo {
       orden: json['orden'] as int?,
     );
   }
+
+  factory ProductoArchivoModel.fromEntity(ProductoArchivo e) =>
+      ProductoArchivoModel(
+        id: e.id,
+        url: e.url,
+        urlThumbnail: e.urlThumbnail,
+        categoria: e.categoria,
+        orden: e.orden,
+      );
 
   Map<String, dynamic> toJson() {
     return {
