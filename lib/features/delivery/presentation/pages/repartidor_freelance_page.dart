@@ -22,6 +22,7 @@ import '../../domain/entities/delivery_local.dart';
 import '../../domain/repositories/delivery_repository.dart';
 import '../services/delivery_gps_reporter.dart';
 import '../widgets/pin_entrega_dialog.dart';
+import '../widgets/zonas_selector.dart';
 
 /// Panel del repartidor FREELANCE de Syncronize — vive FUERA del tenant
 /// (no pertenece a ninguna empresa): verificación OTP, estado de su
@@ -223,6 +224,15 @@ class _RepartidorFreelancePageState extends State<RepartidorFreelancePage>
             backgroundColor: AppColors.blue1,
             foregroundColor: AppColors.white,
             actions: [
+              // Se puede editar zonas en CUALQUIER estado, no solo aprobado:
+              // el pendiente quiere corregirlas mientras espera, y al
+              // aprobado es lo primero que toca si no le llegan pedidos.
+              if (!_noEsRepartidor)
+                IconButton(
+                  tooltip: 'Mis zonas de reparto',
+                  icon: const Icon(Icons.map_outlined, size: 20),
+                  onPressed: _editarZonas,
+                ),
               // Puede pasear por el marketplace como cualquier persona;
               // con push, el botón atrás lo devuelve a su panel.
               IconButton(
@@ -261,6 +271,50 @@ class _RepartidorFreelancePageState extends State<RepartidorFreelancePage>
         ),
       ),
     );
+  }
+
+  /// Editar las zonas de reparto con el mismo selector del registro.
+  ///
+  /// Sin esto, equivocarse eligiendo zonas obligaba a borrar el repartidor
+  /// y volver a registrarlo — y es justo lo primero que hay que revisar
+  /// cuando el pool sale vacío.
+  Future<void> _editarZonas() async {
+    final actuales =
+        (_perfil?['zonas'] as List<dynamic>? ?? const []).cast<String>();
+
+    final guardadas = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditarZonasSheet(zonas: List<String>.from(actuales)),
+    );
+    if (guardadas == null || !mounted) return;
+
+    try {
+      await locator<RepartidorRemoteDataSource>()
+          .actualizarPerfil({'zonas': guardadas});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          'Zonas actualizadas (${guardadas.length}). Desliza para ver los '
+          'pedidos que te correspondan.',
+          style: const TextStyle(fontSize: 12),
+        ),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+      ));
+      await _cargar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          e.toString().replaceFirst(RegExp(r'^[A-Za-z]+Exception:\s*'), ''),
+          style: const TextStyle(fontSize: 12),
+        ),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   Widget _buildNoRegistrado() {
@@ -312,10 +366,22 @@ class _RepartidorFreelancePageState extends State<RepartidorFreelancePage>
                       fontSize: 14, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  'Zonas: $zonas',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary),
+                InkWell(
+                  onTap: _editarZonas,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Zonas: ${zonas.isEmpty ? 'sin zonas' : zonas}',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(Icons.edit_outlined,
+                          size: 15, color: AppColors.blue1),
+                    ],
+                  ),
                 ),
                 const Divider(height: 20),
                 if (!verificado) ...[
@@ -658,4 +724,103 @@ class _AccionTile {
     required this.color,
     required this.onTap,
   });
+}
+
+/// Sheet de edición de zonas: envuelve el mismo [ZonasSelector] del registro
+/// y devuelve la lista al confirmar (`null` si se cancela).
+class _EditarZonasSheet extends StatefulWidget {
+  final List<String> zonas;
+
+  const _EditarZonasSheet({required this.zonas});
+
+  @override
+  State<_EditarZonasSheet> createState() => _EditarZonasSheetState();
+}
+
+class _EditarZonasSheetState extends State<_EditarZonasSheet> {
+  late List<String> _zonas = widget.zonas;
+  bool _guardando = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // El teclado no aparece acá (todo es tap), pero el sheet igual respeta
+      // el inset por si el selector crece con muchos chips.
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Mis zonas de reparto',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Solo verás los pedidos cuya dirección caiga en estas zonas.',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 12),
+                ZonasSelector(
+                  zonas: _zonas,
+                  onChanged: (z) => setState(() => _zonas = z),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: _guardando
+                            ? null
+                            : () => Navigator.pop(context),
+                        child: const Text('Cancelar'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: CustomButton(
+                        text: 'Guardar',
+                        backgroundColor: AppColors.blue1,
+                        textColor: Colors.white,
+                        // Sin zonas el pool sale vacío: el backend corta con
+                        // `if (zonas.length === 0) return []`.
+                        onPressed: _zonas.isEmpty || _guardando
+                            ? null
+                            : () {
+                                setState(() => _guardando = true);
+                                Navigator.pop(context, _zonas);
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
