@@ -288,6 +288,9 @@ class VentaDeliveryData extends Equatable {
   /// SUBASTA: el pedido espera ofertas de los repartidores en vez de tener
   /// tarifa fija. La empresa elige una y ahí recién se asigna.
   final bool modoOferta;
+
+  /// Ancla que puso la empresa al publicar en subasta. `null` = sin precio.
+  final double? costoSugerido;
   final String? encargadoInterno;
 
   const VentaDeliveryData({
@@ -304,6 +307,7 @@ class VentaDeliveryData extends Equatable {
     this.entregadoEn,
     this.esInterno = false,
     this.modoOferta = false,
+    this.costoSugerido,
     this.encargadoInterno,
   });
 

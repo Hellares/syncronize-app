@@ -1034,10 +1034,20 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                 d.destinatarioCelular!.trim().isNotEmpty)
               _buildDetailRow(Icons.phone_outlined, 'Celular',
                   d.destinatarioCelular!),
-            _buildDetailRow(
-                Icons.payments_outlined,
-                d.esInterno ? 'Tarifa delivery' : 'Tarifa repartidor',
-                'S/ ${d.costoDelivery.toStringAsFixed(2)}'),
+            // En subasta `costoDelivery` es 0 hasta que se acepta una oferta:
+            // mostrar "0.00" haría creer que el envío sale gratis.
+            if (d.modoOferta)
+              _buildDetailRow(
+                  Icons.gavel_outlined,
+                  'Tarifa repartidor',
+                  d.costoSugerido != null
+                      ? 'A definir por oferta (sugerido S/ ${d.costoSugerido!.toStringAsFixed(2)})'
+                      : 'A definir por oferta')
+            else
+              _buildDetailRow(
+                  Icons.payments_outlined,
+                  d.esInterno ? 'Tarifa delivery' : 'Tarifa repartidor',
+                  'S/ ${d.costoDelivery.toStringAsFixed(2)}'),
             if (d.esInterno)
               _buildDetailRow(
                   Icons.badge_outlined,

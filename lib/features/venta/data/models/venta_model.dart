@@ -25,6 +25,9 @@ VentaDeliveryData? _deliveryFromJson(Map<String, dynamic> json) {
     lon: coords is Map ? (coords['lon'] as num?)?.toDouble() : null,
     esInterno: json['esInterno'] == true,
     modoOferta: json['modoOferta'] == true,
+    costoSugerido: json['costoSugerido'] is num
+        ? (json['costoSugerido'] as num).toDouble()
+        : double.tryParse(json['costoSugerido']?.toString() ?? ''),
     encargadoInterno: json['encargadoInterno'] as String?,
     costoDelivery: costo is num
         ? costo.toDouble()
