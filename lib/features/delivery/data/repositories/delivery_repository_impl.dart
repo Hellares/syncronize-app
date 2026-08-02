@@ -202,6 +202,69 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   }
 
   @override
+  Future<Resource<void>> ofertar(
+    String deliveryId,
+    String empresaId,
+    double monto, {
+    String? comentario,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.ofertar(deliveryId, empresaId, monto,
+          comentario: comentario);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
+  Future<Resource<void>> retirarOferta(String deliveryId) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.retirarOferta(deliveryId);
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
+  Future<Resource<List<Map<String, dynamic>>>> ofertasDe(
+    String deliveryId,
+    String empresaId,
+  ) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      return Success(await _remoteDataSource.ofertasDe(deliveryId, empresaId));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
+  Future<Resource<DeliveryLocal>> aceptarOferta(
+    String ofertaId,
+    String empresaId,
+  ) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final r = await _remoteDataSource.aceptarOferta(ofertaId, empresaId);
+      return Success(r.toEntity());
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
   Future<Resource<DeliveryLocal>> tomarExterno(String id) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');

@@ -54,4 +54,25 @@ abstract class DeliveryRepository {
   Future<Resource<List<DeliveryLocal>>> getExternoMisEntregas();
 
   Future<Resource<DeliveryLocal>> tomarExterno(String id);
+
+  /// Subasta: propongo mi precio para un pedido en `modoOferta`.
+  Future<Resource<void>> ofertar(
+    String deliveryId,
+    String empresaId,
+    double monto, {
+    String? comentario,
+  });
+
+  Future<Resource<void>> retirarOferta(String deliveryId);
+
+  /// Ofertas vigentes de un pedido (staff), de la más barata a la más cara.
+  Future<Resource<List<Map<String, dynamic>>>> ofertasDe(
+    String deliveryId,
+    String empresaId,
+  );
+
+  Future<Resource<DeliveryLocal>> aceptarOferta(
+    String ofertaId,
+    String empresaId,
+  );
 }

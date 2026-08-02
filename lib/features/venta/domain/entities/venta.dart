@@ -284,6 +284,10 @@ class VentaDeliveryData extends Equatable {
   /// Delivery INTERNO: lo lleva un empleado — no se publicó al pool; el
   /// staff avanza los estados desde el detalle (sin PIN).
   final bool esInterno;
+
+  /// SUBASTA: el pedido espera ofertas de los repartidores en vez de tener
+  /// tarifa fija. La empresa elige una y ahí recién se asigna.
+  final bool modoOferta;
   final String? encargadoInterno;
 
   const VentaDeliveryData({
@@ -299,6 +303,7 @@ class VentaDeliveryData extends Equatable {
     this.costoDelivery = 0,
     this.entregadoEn,
     this.esInterno = false,
+    this.modoOferta = false,
     this.encargadoInterno,
   });
 

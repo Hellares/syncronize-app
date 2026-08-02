@@ -19,6 +19,10 @@ class DeliveryLocalModel extends DeliveryLocal {
     super.entregadoEn,
     super.destinoLat,
     super.destinoLon,
+    super.modoOferta,
+    super.costoSugerido,
+    super.miOfertaMonto,
+    super.miOfertaExpiraEn,
   });
 
   factory DeliveryLocalModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +35,8 @@ class DeliveryLocalModel extends DeliveryLocal {
 
     DateTime? toDate(dynamic v) =>
         v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;
+
+    final mia = json['miOferta'] as Map<String, dynamic>?;
 
     final destino = json['coordenadas'];
     double? destinoLat;
@@ -58,6 +64,12 @@ class DeliveryLocalModel extends DeliveryLocal {
       entregadoEn: toDate(json['entregadoEn']),
       destinoLat: destinoLat,
       destinoLon: destinoLon,
+      modoOferta: json['modoOferta'] == true,
+      costoSugerido: json['costoSugerido'] != null
+          ? toDouble(json['costoSugerido'])
+          : null,
+      miOfertaMonto: mia != null ? toDouble(mia['monto']) : null,
+      miOfertaExpiraEn: mia != null ? toDate(mia['expiraEn']) : null,
     );
   }
 

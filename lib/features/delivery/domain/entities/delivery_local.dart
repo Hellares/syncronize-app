@@ -29,6 +29,17 @@ class DeliveryLocal extends Equatable {
   final double? destinoLat;
   final double? destinoLon;
 
+  /// SUBASTA: el pedido se asigna por oferta, NO se puede tomar directo.
+  /// La empresa no sabe cuánto sale llegar a la zona; el repartidor sí.
+  final bool modoOferta;
+
+  /// Ancla opcional que puso la empresa. `null` = publicó sin idea de precio.
+  final double? costoSugerido;
+
+  /// Mi oferta vigente en este pedido (solo en el pool del freelance).
+  final double? miOfertaMonto;
+  final DateTime? miOfertaExpiraEn;
+
   const DeliveryLocal({
     required this.id,
     required this.estado,
@@ -47,7 +58,18 @@ class DeliveryLocal extends Equatable {
     this.entregadoEn,
     this.destinoLat,
     this.destinoLon,
+    this.modoOferta = false,
+    this.costoSugerido,
+    this.miOfertaMonto,
+    this.miOfertaExpiraEn,
   });
+
+  /// Ya oferté y la oferta sigue viva: el pool muestra "ofertaste S/ X"
+  /// en vez del botón de ofertar.
+  bool get tengoOfertaViva =>
+      miOfertaMonto != null &&
+      miOfertaExpiraEn != null &&
+      miOfertaExpiraEn!.isAfter(DateTime.now());
 
   /// Link de NAVEGACIÓN de Google Maps (turn-by-turn, gratis — deep link,
   /// no API): coordenadas si existen, si no la dirección en texto.
@@ -88,5 +110,6 @@ class DeliveryLocal extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, estado, ventaCodigo, costoDelivery];
+  List<Object?> get props =>
+      [id, estado, ventaCodigo, costoDelivery, modoOferta, miOfertaMonto];
 }

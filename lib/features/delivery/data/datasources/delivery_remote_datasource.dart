@@ -152,6 +152,47 @@ class DeliveryRemoteDataSource {
         .toList();
   }
 
+  /// Subasta: propone mi precio. Re-ofertar pisa la anterior.
+  Future<void> ofertar(
+    String deliveryId,
+    String empresaId,
+    double monto, {
+    String? comentario,
+  }) async {
+    await _dioClient.post('$_basePath/ofertas/$deliveryId', data: {
+      'empresaId': empresaId,
+      'monto': monto,
+      if (comentario != null && comentario.isNotEmpty) 'comentario': comentario,
+    });
+  }
+
+  Future<void> retirarOferta(String deliveryId) async {
+    await _dioClient.delete('$_basePath/ofertas/$deliveryId');
+  }
+
+  /// Ofertas vigentes de un pedido (staff), de la más barata a la más cara.
+  Future<List<Map<String, dynamic>>> ofertasDe(
+    String deliveryId,
+    String empresaId,
+  ) async {
+    final r = await _dioClient.get(
+      '$_basePath/$deliveryId/ofertas',
+      queryParameters: {'empresaId': empresaId},
+    );
+    return (r.data as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  Future<DeliveryLocalModel> aceptarOferta(
+    String ofertaId,
+    String empresaId,
+  ) async {
+    final r = await _dioClient.post(
+      '$_basePath/ofertas/$ofertaId/aceptar',
+      data: {'empresaId': empresaId},
+    );
+    return DeliveryLocalModel.fromJson(r.data as Map<String, dynamic>);
+  }
+
   Future<DeliveryLocalModel> tomarExterno(String id) async {
     final response = await _dioClient.post('$_basePath/$id/tomar-externo');
     return DeliveryLocalModel.fromJson(response.data as Map<String, dynamic>);

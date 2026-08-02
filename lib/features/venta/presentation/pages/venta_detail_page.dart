@@ -50,6 +50,7 @@ import '../widgets/flujo_documentos_widget.dart';
 import '../widgets/venta_envio_sheet.dart';
 import '../../../delivery/domain/entities/delivery_local.dart';
 import '../../../delivery/domain/repositories/delivery_repository.dart';
+import '../../../delivery/presentation/widgets/ofertas_delivery_sheet.dart';
 import '../../../delivery/presentation/widgets/solicitar_delivery_sheet.dart';
 import '../widgets/venta_estado_chip.dart';
 import '../../../facturacion/domain/entities/crear_nota_item.dart';
@@ -313,6 +314,34 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   /// Edita la dirección del delivery (equivocada o el cliente pidió otro
   /// punto): reusa el sheet en modo edición con los datos actuales; al
   /// guardar, el backend avisa al repartidor si ya tomó el pedido.
+  /// Subasta: la empresa ve las ofertas de los repartidores y elige una.
+  Future<void> _verOfertasDelivery(VentaDeliveryData d) async {
+    final venta = _venta;
+    if (venta == null || d.id == null) return;
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final empresaId =
+        ctxState is EmpresaContextLoaded ? ctxState.context.empresa.id : '';
+    if (empresaId.isEmpty) return;
+
+    final acepto = await showOfertasDeliverySheet(
+      context: context,
+      deliveryId: d.id!,
+      empresaId: empresaId,
+      ventaCodigo: venta.codigo,
+    );
+    if (acepto != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text(
+        '🛵 Repartidor asignado con el precio acordado.',
+        style: TextStyle(fontSize: 12),
+      ),
+      backgroundColor: Colors.green.shade700,
+      behavior: SnackBarBehavior.floating,
+    ));
+    _loadVenta();
+  }
+
   Future<void> _editarDireccionDelivery(
     VentaDeliveryData d, {
     LatLng? destinoInicial,
@@ -941,6 +970,29 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                     ),
                   ),
                 const SizedBox(width: 6),
+                // Subasta: el pedido espera ofertas en vez de tener tarifa
+                // fija. Acá la empresa las ve y elige una.
+                if (d.modoOferta && d.id != null)
+                  GestureDetector(
+                    onTap: () => _verOfertasDelivery(d),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sell_outlined,
+                              size: 15, color: Colors.deepPurple.shade600),
+                          const SizedBox(width: 3),
+                          Text('Ver ofertas',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.deepPurple.shade600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (d.modoOferta && d.id != null) const SizedBox(width: 6),
                 // Corregir dirección (equivocada o el cliente pidió otra).
                 // El backend avisa al repartidor si ya tomó el pedido.
                 if (d.editable)

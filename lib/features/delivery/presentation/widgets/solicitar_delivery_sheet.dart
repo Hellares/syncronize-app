@@ -23,6 +23,10 @@ class SolicitarDeliveryFormData {
   final double? destinoLat;
   final double? destinoLon;
 
+  /// SUBASTA: en vez de tarifa fija, los repartidores proponen precio y la
+  /// empresa elige. La empresa no siempre sabe cuánto sale llegar a la zona.
+  final bool modoOferta;
+
   /// Delivery INTERNO: lo lleva un empleado — NO se publica al pool.
   final bool esInterno;
   final String? encargadoInterno;
@@ -34,6 +38,7 @@ class SolicitarDeliveryFormData {
     this.costoDelivery,
     this.destinoLat,
     this.destinoLon,
+    this.modoOferta = false,
     this.esInterno = false,
     this.encargadoInterno,
   });
@@ -43,10 +48,17 @@ class SolicitarDeliveryFormData {
         if (referencia != null && referencia!.isNotEmpty)
           'referencia': referencia,
         if (distrito != null && distrito!.isNotEmpty) 'distrito': distrito,
-        if (costoDelivery != null) 'costoDelivery': costoDelivery,
+        if (costoDelivery != null && !modoOferta)
+          'costoDelivery': costoDelivery,
         if (destinoLat != null && destinoLon != null) ...{
           'destinoLat': destinoLat,
           'destinoLon': destinoLon,
+        },
+        if (modoOferta) ...{
+          'modoOferta': true,
+          // El sugerido viaja en su propio campo: en subasta `costoDelivery`
+          // queda en 0 hasta que se acepte una oferta.
+          if (costoDelivery != null) 'costoSugerido': costoDelivery,
         },
         if (esInterno) ...{
           'esInterno': true,
@@ -126,6 +138,9 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
 
   /// Delivery interno: lo lleva un empleado — no se publica al pool.
   bool _esInterno = false;
+
+  /// Subasta: publicar sin tarifa fija y dejar que los repartidores oferten.
+  bool _modoOferta = false;
 
   /// Se está resolviendo la dirección de un punto que llegó ya fijado
   /// (ubicación compartida). Solo cambia el hint mientras tanto.
@@ -211,6 +226,7 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
       costoDelivery: costo,
       destinoLat: _destino?.latitude,
       destinoLon: _destino?.longitude,
+      modoOferta: _modoOferta,
       esInterno: _esInterno,
       encargadoInterno: _encargadoCtrl.text.trim(),
     ));
@@ -351,8 +367,8 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                     Expanded(
                       child: CustomText(
                         controller: _costoCtrl,
-                        label: 'Tarifa S/',
-                        hintText: 'de la sede',
+                        label: _modoOferta ? 'Sugerido S/' : 'Tarifa S/',
+                        hintText: _modoOferta ? 'opcional' : 'de la sede',
                         borderColor: AppColors.blue1,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
@@ -364,9 +380,31 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
               const SizedBox(height: 4),
               if (!widget.esEdicion)
                 Text(
-                  'Tarifa vacía = se usa la tarifa configurada de la sede.',
+                  _modoOferta
+                      ? 'Sugerido vacío = publicas sin precio y los repartidores proponen.'
+                      : 'Tarifa vacía = se usa la tarifa configurada de la sede.',
                   style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                 ),
+              // SUBASTA: la empresa no siempre sabe cuánto sale llegar a
+              // una zona; el repartidor sí. Incompatible con interno (ese no
+              // se publica al pool, así que no hay quién oferte).
+              if (!widget.esEdicion && !_esInterno) ...[
+                const SizedBox(height: 6),
+                CustomSwitchTile(
+                  title: 'Pedir ofertas a los repartidores',
+                  subtitle: _modoOferta
+                      ? 'Ellos proponen precio y tú eliges — vence en 10 min'
+                      : 'Se publica con tarifa fija',
+                  subtitleStyle: TextStyle(
+                    color: _modoOferta
+                        ? Colors.deepPurple
+                        : Colors.grey.shade600,
+                    fontSize: 10,
+                  ),
+                  value: _modoOferta,
+                  onChanged: (v) => setState(() => _modoOferta = v),
+                ),
+              ],
               // Delivery INTERNO: lo lleva un empleado — se cobra la tarifa
               // igual, pero NO se publica al pool de repartidores.
               if (!widget.esEdicion) ...[

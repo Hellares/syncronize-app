@@ -21,6 +21,7 @@ import '../../data/datasources/repartidor_remote_datasource.dart';
 import '../../domain/entities/delivery_local.dart';
 import '../../domain/repositories/delivery_repository.dart';
 import '../services/delivery_gps_reporter.dart';
+import '../widgets/ofertar_sheet.dart';
 import '../widgets/pin_entrega_dialog.dart';
 import '../widgets/zonas_selector.dart';
 
@@ -172,6 +173,28 @@ class _RepartidorFreelancePageState extends State<RepartidorFreelancePage>
           ? '🛵 ¡Pedido tomado!'
           : (r as Error<DeliveryLocal>).message,
       error: r is! Success<DeliveryLocal>,
+    );
+    _cargar();
+  }
+
+  /// Subasta: propongo mi precio (o cambio el que ya había puesto).
+  Future<void> _ofertar(DeliveryLocal d) async {
+    if (d.empresaId == null) return;
+    final datos = await showOfertarSheet(context: context, delivery: d);
+    if (datos == null || !mounted) return;
+
+    final r = await _deliveryRepo.ofertar(
+      d.id,
+      d.empresaId!,
+      datos.monto,
+      comentario: datos.comentario,
+    );
+    if (!mounted) return;
+    _snack(
+      r is Success
+          ? '💸 Oferta enviada por S/ ${datos.monto.toStringAsFixed(2)} — vence en 10 min'
+          : (r as Error).message,
+      error: r is! Success,
     );
     _cargar();
   }
@@ -509,12 +532,31 @@ class _RepartidorFreelancePageState extends State<RepartidorFreelancePage>
                 _disponibles,
                 vacio:
                     'No hay pedidos en tus zonas por ahora.\nDesliza para actualizar.',
-                accionDe: (d) => _AccionTile(
-                  label: 'TOMAR PEDIDO',
-                  icon: Icons.back_hand_outlined,
-                  color: AppColors.blue1,
-                  onTap: () => _tomar(d),
-                ),
+                // En subasta NO se toma directo: el backend lo rechaza y
+                // además arruinaría la subasta. Se oferta.
+                accionDe: (d) => !d.modoOferta
+                    ? _AccionTile(
+                        label: 'TOMAR PEDIDO',
+                        icon: Icons.back_hand_outlined,
+                        color: AppColors.blue1,
+                        onTap: () => _tomar(d),
+                      )
+                    : d.tengoOfertaViva
+                        ? _AccionTile(
+                            label:
+                                'OFERTASTE S/ ${d.miOfertaMonto!.toStringAsFixed(2)} — CAMBIAR',
+                            icon: Icons.hourglass_top,
+                            color: Colors.orange[800]!,
+                            onTap: () => _ofertar(d),
+                          )
+                        : _AccionTile(
+                            label: d.costoSugerido != null
+                                ? 'OFERTAR (sugerido S/ ${d.costoSugerido!.toStringAsFixed(2)})'
+                                : 'PROPONER MI PRECIO',
+                            icon: Icons.sell_outlined,
+                            color: Colors.teal[700]!,
+                            onTap: () => _ofertar(d),
+                          ),
               ),
               _buildLista(
                 [...activas, ...historial],
