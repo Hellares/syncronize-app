@@ -42,6 +42,12 @@ class _SeleccionarVentaUbicacionPageState
   String? _error;
   Timer? _debounce;
 
+  /// Arranca en HOY: la ubicación que manda el cliente es casi siempre de un
+  /// pedido recién hecho, y traer el histórico completo llena la lista de
+  /// ruido. Se puede apagar porque el cliente bien puede mandar su punto al
+  /// día siguiente de haber comprado.
+  bool _soloHoy = true;
+
   @override
   void initState() {
     super.initState();
@@ -64,9 +70,18 @@ class _SeleccionarVentaUbicacionPageState
     final sedeId = context.read<SedeActivaCubit>().state.activa?.id;
     final texto = _buscarCtrl.text.trim();
 
+    // El rango va en UTC pero recortado sobre el día LOCAL, si no "hoy"
+    // arranca a las 19:00 de ayer.
+    final hoy = DateTime.now();
     final res = await locator<VentaRepository>().getVentas(
       sedeId: sedeId,
       search: texto.isEmpty ? null : texto,
+      fechaDesde: _soloHoy
+          ? DateFormatter.toUtcIso(DateFormatter.startOfDay(hoy))
+          : null,
+      fechaHasta: _soloHoy
+          ? DateFormatter.toUtcIso(DateFormatter.endOfDay(hoy))
+          : null,
     );
     if (!mounted) return;
 
@@ -143,6 +158,40 @@ class _SeleccionarVentaUbicacionPageState
             textCase: TextCase.upper,
             onChanged: _onBuscarCambio,
           ),
+          const SizedBox(height: 8),
+          // Alto fijo: el chip solo mide ~32 px y queda por debajo del
+          // mínimo tocable de 48.
+          SizedBox(
+            height: 40,
+            child: Row(
+              children: [
+                FilterChip(
+                  selected: _soloHoy,
+                  onSelected: (v) {
+                    setState(() => _soloHoy = v);
+                    _cargar();
+                  },
+                  label: const Text('Solo hoy'),
+                  labelStyle: const TextStyle(fontSize: 11.5),
+                  selectedColor: AppColors.blue1.withValues(alpha: 0.18),
+                  checkmarkColor: AppColors.blue1,
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _soloHoy
+                        ? 'Mostrando las ventas de hoy'
+                        : 'Mostrando todo el historial',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -165,12 +214,28 @@ class _SeleccionarVentaUbicacionPageState
       );
     }
     if (_ventas.isEmpty) {
+      final buscando = _buscarCtrl.text.trim().isNotEmpty;
       return _mensaje(
         icono: Icons.receipt_long_outlined,
         titulo: 'Sin ventas para mostrar',
-        detalle: _buscarCtrl.text.trim().isEmpty
-            ? 'Esta sede todavía no tiene ventas registradas.'
-            : 'Ninguna venta coincide con la búsqueda.',
+        detalle: buscando
+            ? (_soloHoy
+                ? 'Ninguna venta de hoy coincide con la búsqueda.'
+                : 'Ninguna venta coincide con la búsqueda.')
+            : (_soloHoy
+                ? 'Esta sede todavía no registró ventas hoy.'
+                : 'Esta sede todavía no tiene ventas registradas.'),
+        // Sin esta salida, una venta de ayer sería inalcanzable.
+        accion: _soloHoy
+            ? TextButton.icon(
+                onPressed: () {
+                  setState(() => _soloHoy = false);
+                  _cargar();
+                },
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('Buscar en días anteriores'),
+              )
+            : null,
       );
     }
 
