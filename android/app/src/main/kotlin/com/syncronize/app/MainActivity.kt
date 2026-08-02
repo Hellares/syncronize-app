@@ -42,11 +42,19 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
+        // Se extrae ANTES de super: `extractSharedText` vacía el `data` del
+        // intent, y la implementación de FlutterActivity toma esa URI y se la
+        // manda al router de Dart como si fuera una ruta. Con un `geo:` eso
+        // terminaba en "Page not found" antes de que nuestro canal se enterara.
+        // El meta-data flutter_deeplinking_enabled=false del manifest ya corta
+        // ese camino; este orden es el segundo cerrojo.
+        val text = extractSharedText(intent)
+
         super.onNewIntent(intent)
         // Sin esto getIntent() sigue devolviendo el intent con el que arrancó la app.
         setIntent(intent)
 
-        val text = extractSharedText(intent) ?: return
+        if (text == null) return
         val channel = this.channel
         if (channel != null) {
             channel.invokeMethod("onSharedText", text)

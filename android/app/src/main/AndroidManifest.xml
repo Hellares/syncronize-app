@@ -62,6 +62,16 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Flutter, por defecto, agarra la URI del intent (el `geo:` de
+                 "Abrir con") y se la pasa al router de Dart como si fuera una
+                 ruta de la app. GoRouter no matchea "geo:-8.18,-78.99" y pinta
+                 "Page not found". Acá las ubicaciones entran por el
+                 MethodChannel de MainActivity, no por el router, así que se
+                 apaga. La app no usa app links ni rutas por URL. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
