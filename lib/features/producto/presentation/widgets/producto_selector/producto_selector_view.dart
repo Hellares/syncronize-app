@@ -1437,6 +1437,25 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
+                                            // La marca distingue dos productos
+                                            // que se llaman igual. Solo ocupa
+                                            // línea si existe: no todos la
+                                            // tienen cargada.
+                                            if ((producto.marcaNombre ?? '')
+                                                .trim()
+                                                .isNotEmpty)
+                                              Text(
+                                                producto.marcaNombre!,
+                                                style: TextStyle(
+                                                  fontSize: 8,
+                                                  color: AppColors.blue1
+                                                      .withValues(alpha: 0.75),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                              ),
                                           ],
                                         ),
                                       ),
