@@ -8,6 +8,7 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../data/datasources/repartidor_remote_datasource.dart';
+import '../widgets/zonas_selector.dart';
 
 /// Registro PÚBLICO de repartidor freelance de Syncronize (sin cuenta
 /// previa): DNI validado en RENIEC + celular (OTP por WhatsApp) + zonas.
@@ -23,7 +24,7 @@ class _RegistroRepartidorPageState extends State<RegistroRepartidorPage> {
   final _dniCtrl = TextEditingController();
   final _celularCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _zonasCtrl = TextEditingController();
+  List<String> _zonas = const [];
   final _placaCtrl = TextEditingController();
   bool _enviando = false;
 
@@ -32,7 +33,6 @@ class _RegistroRepartidorPageState extends State<RegistroRepartidorPage> {
     _dniCtrl.dispose();
     _celularCtrl.dispose();
     _passwordCtrl.dispose();
-    _zonasCtrl.dispose();
     _placaCtrl.dispose();
     super.dispose();
   }
@@ -49,11 +49,7 @@ class _RegistroRepartidorPageState extends State<RegistroRepartidorPage> {
     final dni = _dniCtrl.text.trim();
     final celular = _celularCtrl.text.trim();
     final password = _passwordCtrl.text;
-    final zonas = _zonasCtrl.text
-        .split(',')
-        .map((z) => z.trim())
-        .where((z) => z.isNotEmpty)
-        .toList();
+    final zonas = _zonas;
 
     if (!RegExp(r'^\d{8}$').hasMatch(dni)) {
       return _snack('El DNI debe tener 8 dígitos', error: true);
@@ -66,7 +62,7 @@ class _RegistroRepartidorPageState extends State<RegistroRepartidorPage> {
           error: true);
     }
     if (zonas.isEmpty) {
-      return _snack('Ingresa al menos una zona (ej. Chiclayo)', error: true);
+      return _snack('Elige al menos un distrito donde repartes', error: true);
     }
 
     setState(() => _enviando = true);
@@ -176,12 +172,9 @@ class _RegistroRepartidorPageState extends State<RegistroRepartidorPage> {
                       obscureText: true,
                     ),
                     const SizedBox(height: 8),
-                    CustomText(
-                      controller: _zonasCtrl,
-                      label: 'Zonas donde repartes',
-                      hintText: 'Separadas por coma: Chiclayo, JLO, La Victoria',
-                      borderColor: AppColors.blue1,
-                      textCase: TextCase.upper,
+                    ZonasSelector(
+                      zonas: _zonas,
+                      onChanged: (z) => setState(() => _zonas = z),
                     ),
                     const SizedBox(height: 8),
                     CustomText(

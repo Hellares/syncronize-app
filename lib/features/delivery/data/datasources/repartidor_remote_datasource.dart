@@ -31,6 +31,40 @@ class RepartidorRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Catálogo de ubigeo en cascada para el selector de zonas. Los tres son
+  /// PÚBLICOS: el registro del repartidor no tiene sesión todavía.
+  Future<List<({String codigo, String nombre})>> ubigeoDepartamentos() =>
+      _ubigeo('/delivery-local/catalogos/ubigeo/departamentos');
+
+  Future<List<({String codigo, String nombre})>> ubigeoProvincias(
+    String departamento,
+  ) =>
+      _ubigeo(
+        '/delivery-local/catalogos/ubigeo/provincias',
+        {'departamento': departamento},
+      );
+
+  Future<List<({String codigo, String nombre})>> ubigeoDistritos(
+    String provincia,
+  ) =>
+      _ubigeo(
+        '/delivery-local/catalogos/ubigeo/distritos',
+        {'provincia': provincia},
+      );
+
+  Future<List<({String codigo, String nombre})>> _ubigeo(
+    String path, [
+    Map<String, dynamic>? query,
+  ]) async {
+    final r = await _dioClient.get(path, queryParameters: query);
+    return (r.data as List<dynamic>)
+        .map((e) => (
+              codigo: (e as Map<String, dynamic>)['codigo'] as String,
+              nombre: e['nombre'] as String,
+            ))
+        .toList();
+  }
+
   /// Perfil del repartidor autenticado (404 = no es repartidor).
   Future<Map<String, dynamic>> miPerfil() async {
     final response = await _dioClient.get('$_basePath/mi-perfil');
