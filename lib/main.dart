@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
 
 import 'bloc_provider.dart';
 import 'config/routes/app_router.dart';
@@ -13,6 +14,8 @@ import 'core/network/dio_client.dart';
 import 'core/presentation/widgets/app_initializer.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/realtime_sync_service.dart';
+import 'core/services/shared_location_service.dart';
+import 'core/utils/ubicacion_compartida_parser.dart';
 import 'features/auth/presentation/bloc/auth/auth_bloc.dart';
 import 'features/empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import 'features/empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -60,6 +63,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _authSubscription?.cancel();
     _empresaSubscription?.cancel();
+    _ubicacionSubscription?.cancel();
     super.dispose();
   }
 
@@ -111,6 +115,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (state is Authenticated) {
         _wasAuthenticated = true;
         PushNotificationService().registerTokenWithBackend();
+        // Ubicación compartida que llegó con la app sin sesión: recién
+        // ahora se puede navegar a /empresa/*.
+        final pendiente = _ubicacionPendiente;
+        final router = _ubicacionRouter;
+        if (pendiente != null && router != null) {
+          _ubicacionPendiente = null;
+          _procesarUbicacionCompartida(router, pendiente);
+        }
       } else if (state is Unauthenticated && _wasAuthenticated) {
         _wasAuthenticated = false;
         // Si la salida fue involuntaria (sesión revocada, refresh
@@ -217,6 +229,105 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     };
   }
 
+  // ── Ubicación compartida desde otra app (WhatsApp → Compartir) ─────────
+
+  StreamSubscription? _ubicacionSubscription;
+  bool _ubicacionEscuchando = false;
+  GoRouter? _ubicacionRouter;
+
+  /// Ubicación que llegó antes de haber sesión. Navegar a `/empresa/*` sin
+  /// autenticar solo la perdería en el redirect al login, así que espera
+  /// acá hasta que el usuario entre.
+  String? _ubicacionPendiente;
+
+  void _setupUbicacionCompartida(GoRouter router) {
+    if (_ubicacionEscuchando) return;
+    _ubicacionEscuchando = true;
+
+    _ubicacionRouter = router;
+    final servicio = locator<SharedLocationService>();
+    servicio.init();
+
+    // App ya abierta: el share llega por el canal nativo.
+    _ubicacionSubscription = servicio.stream.listen(
+      (texto) => _procesarUbicacionCompartida(router, texto),
+    );
+
+    // App abierta DESDE el share: el texto quedó guardado en el nativo.
+    servicio.consumeInitial().then((texto) {
+      if (texto != null) _procesarUbicacionCompartida(router, texto);
+    });
+  }
+
+  Future<void> _procesarUbicacionCompartida(
+    GoRouter router,
+    String texto,
+  ) async {
+    if (!_wasAuthenticated) {
+      _ubicacionPendiente = texto;
+      return;
+    }
+
+    final ubicacion = UbicacionCompartidaParser.parse(texto);
+    if (ubicacion == null) {
+      _showUbicacionSnackbar(
+        'No se reconoció una ubicación en lo que compartiste.',
+      );
+      return;
+    }
+
+    var punto = ubicacion.punto;
+    if (ubicacion.tipo == TipoUbicacionCompartida.enlaceAcortado) {
+      _showUbicacionSnackbar('Abriendo la ubicación compartida…');
+      punto = await _resolverEnlaceAcortado(ubicacion.urlAcortada!);
+      if (punto == null) return;
+    }
+
+    router.push('/empresa/ventas/ubicacion-compartida', extra: punto);
+  }
+
+  /// Los `maps.app.goo.gl` no traen las coordenadas en la URL: solo
+  /// aparecen al seguir la redirección, y eso lo hace el backend.
+  Future<LatLng?> _resolverEnlaceAcortado(String url) async {
+    try {
+      final r = await locator<DioClient>().post(
+        '/delivery-local/direcciones/resolver-enlace',
+        data: {'url': url},
+      );
+      final lat = (r.data?['lat'] as num?)?.toDouble();
+      final lon = (r.data?['lon'] as num?)?.toDouble();
+      if (lat == null || lon == null) {
+        _showUbicacionSnackbar('El enlace no traía una ubicación.');
+        return null;
+      }
+      return LatLng(lat, lon);
+    } catch (_) {
+      _showUbicacionSnackbar(
+        'No se pudo abrir ese enlace de Maps. Pedile al cliente que '
+        'comparta la ubicación directamente.',
+      );
+      return null;
+    }
+  }
+
+  void _showUbicacionSnackbar(String mensaje) {
+    final messenger = _scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(mensaje, style: const TextStyle(fontSize: 12.5)),
+        backgroundColor: Colors.orange.shade800,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        margin: const EdgeInsets.all(12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+
   /// Suscribe al topic FCM `empresa-${empresaId}` cada vez que cambia
   /// el `EmpresaContext` (login, switch-tenant). Desuscribe en logout.
   StreamSubscription? _empresaSubscription;
@@ -276,6 +387,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           _listenAuthChanges(authBloc);
           _listenEmpresaContext(empresaCubit, context.read<SedeActivaCubit>());
           _setupPushDeepLinking(appRouter.router);
+          _setupUbicacionCompartida(appRouter.router);
 
           return MaterialApp.router(
             title: 'Syncronize',

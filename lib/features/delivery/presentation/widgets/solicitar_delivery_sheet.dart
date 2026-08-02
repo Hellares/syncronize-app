@@ -6,6 +6,7 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../pages/ubicacion_picker_page.dart';
+import '../services/reverse_geocoder.dart';
 
 /// Datos del delivery recolectados por el sheet (el caller arma el payload
 /// con empresaId/ventaId y hace el POST).
@@ -126,6 +127,10 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
   /// Delivery interno: lo lleva un empleado — no se publica al pool.
   bool _esInterno = false;
 
+  /// Se está resolviendo la dirección de un punto que llegó ya fijado
+  /// (ubicación compartida). Solo cambia el hint mientras tanto.
+  bool _resolviendoDireccion = false;
+
   @override
   void initState() {
     super.initState();
@@ -134,6 +139,34 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
     _referenciaCtrl.text = widget.initReferencia ?? '';
     _distritoCtrl.text = widget.initDistrito ?? '';
     _destino = widget.initDestino;
+
+    // El punto llegó ya fijado y sin dirección: pasa cuando el cliente
+    // comparte su ubicación por WhatsApp y el usuario nunca abre el mapa.
+    // Sin esto la caja de dirección queda vacía y hay que tipearla a mano.
+    if (_destino != null && _direccionCtrl.text.isEmpty) {
+      _autocompletarDireccion(_destino!);
+    }
+  }
+
+  Future<void> _autocompletarDireccion(LatLng punto) async {
+    setState(() => _resolviendoDireccion = true);
+    final aproximada = await reverseGeocode(punto);
+    if (!mounted) return;
+    setState(() {
+      _resolviendoDireccion = false;
+      // No pisar lo que el usuario haya alcanzado a escribir mientras
+      // Nominatim respondía.
+      final direccion = aproximada.direccion;
+      if (direccion != null &&
+          direccion.isNotEmpty &&
+          _direccionCtrl.text.isEmpty) {
+        _direccionCtrl.text = direccion.toUpperCase();
+      }
+      final zona = aproximada.zona;
+      if (zona != null && zona.isNotEmpty && _distritoCtrl.text.isEmpty) {
+        _distritoCtrl.text = zona.toUpperCase();
+      }
+    });
   }
 
   @override
@@ -286,7 +319,9 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
               CustomText(
                 controller: _direccionCtrl,
                 label: 'Dirección de entrega',
-                hintText: 'Se llena sola al fijar el pin (editable)',
+                hintText: _resolviendoDireccion
+                    ? 'Resolviendo la dirección del pin…'
+                    : 'Se llena sola al fijar el pin (editable)',
                 borderColor: AppColors.blue1,
                 textCase: TextCase.upper,
               ),

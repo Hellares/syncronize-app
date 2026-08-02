@@ -1598,6 +1598,7 @@ import '../services/logger_service.dart' as _i141;
 import '../services/realtime_sync_service.dart' as _i805;
 import '../services/search_history_service.dart' as _i283;
 import '../services/session_expired_notifier.dart' as _i284;
+import '../services/shared_location_service.dart' as _i864;
 import '../services/sistema_config_service.dart' as _i295;
 import '../services/storage_service.dart' as _i306;
 import '../storage/local_storage_service.dart' as _i744;
@@ -1629,6 +1630,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i141.LoggerService>(() => _i141.LoggerService());
     gh.lazySingleton<_i284.SessionExpiredNotifier>(
       () => _i284.SessionExpiredNotifier(),
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i864.SharedLocationService>(
+      () => _i864.SharedLocationService(),
       dispose: (i) => i.dispose(),
     );
     gh.lazySingleton<_i559.ProductoCatalogoLocalStore>(

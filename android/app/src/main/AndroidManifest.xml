@@ -57,6 +57,21 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Recibir ubicación compartida desde WhatsApp (Compartir → Syncronize).
+                 WhatsApp comparte el link de Maps como texto plano. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
+            <!-- Complemento: esquema geo: no requiere verificación de Digital
+                 Asset Links en Android 12+, a diferencia de https://maps.google.com -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="geo"/>
+            </intent-filter>
         </activity>
         <!-- FCM: Canal de notificaciones por defecto -->
         <meta-data

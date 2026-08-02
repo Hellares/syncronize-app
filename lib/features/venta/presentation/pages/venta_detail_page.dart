@@ -60,7 +60,16 @@ import '../../../facturacion/presentation/widgets/anular_comprobante_dialog.dart
 class VentaDetailPage extends StatefulWidget {
   final String ventaId;
 
-  const VentaDetailPage({super.key, required this.ventaId});
+  /// Punto que llegó por "Compartir" desde otra app (el cliente mandó su
+  /// ubicación por WhatsApp). Si viene, apenas carga la venta se abre solo
+  /// el sheet de delivery con el pin ya puesto ahí.
+  final LatLng? ubicacionCompartida;
+
+  const VentaDetailPage({
+    super.key,
+    required this.ventaId,
+    this.ubicacionCompartida,
+  });
 
   @override
   State<VentaDetailPage> createState() => _VentaDetailPageState();
@@ -72,6 +81,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   bool _loading = true;
   String? _error;
   bool _procesandoReversion = false;
+
+  /// El sheet de la ubicación compartida se abre UNA sola vez: `_loadVenta`
+  /// también corre al refrescar, y sin esto reaparecería en cada recarga.
+  bool _ubicacionCompartidaAplicada = false;
 
   /// Último intento de pago: si el backend rechaza por Ley 28194 (efectivo
   /// sobre el umbral de bancarización), se reintenta con el flag de
@@ -105,6 +118,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       });
       // Cargar reversión existente en segundo plano (no bloquea la pantalla).
       _loadReversion();
+      _abrirSheetUbicacionCompartida();
     } else if (result is Error<Venta>) {
       setState(() {
         _error = result.message;
@@ -228,7 +242,29 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   /// (vacía = la default de la sede) → el backend lo pone en el pool y
   /// notifica a los repartidores por push. El repartidor cobra SOLO la
   /// tarifa al entregar — el producto ya está pagado.
-  Future<void> _solicitarDeliveryLocal() async {
+  /// Abre el sheet de delivery con el pin de una ubicación que llegó
+  /// compartida desde otra app. Si la venta YA tiene delivery, edita la
+  /// dirección en vez de solicitar uno nuevo — el backend rechazaría el
+  /// alta duplicada con un 409.
+  void _abrirSheetUbicacionCompartida() {
+    final punto = widget.ubicacionCompartida;
+    if (punto == null || _ubicacionCompartidaAplicada) return;
+    _ubicacionCompartidaAplicada = true;
+
+    // Post-frame: el sheet necesita que el árbol de esta pantalla ya esté
+    // montado, y `_loadVenta` corre durante el build inicial.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final delivery = _venta?.delivery;
+      if (_venta?.tieneDelivery == true && delivery != null) {
+        _editarDireccionDelivery(delivery, destinoInicial: punto);
+      } else {
+        _solicitarDeliveryLocal(destinoInicial: punto);
+      }
+    });
+  }
+
+  Future<void> _solicitarDeliveryLocal({LatLng? destinoInicial}) async {
     final venta = _venta;
     if (venta == null) return;
     final ctxState = context.read<EmpresaContextCubit>().state;
@@ -242,6 +278,7 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       // Geocoder propio: búsqueda local + direcciones recientes del cliente.
       empresaId: empresaId,
       telefonoCliente: venta.telefonoCliente,
+      initDestino: destinoInicial,
     );
     if (datos == null || !mounted) return;
 
@@ -276,7 +313,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   /// Edita la dirección del delivery (equivocada o el cliente pidió otro
   /// punto): reusa el sheet en modo edición con los datos actuales; al
   /// guardar, el backend avisa al repartidor si ya tomó el pedido.
-  Future<void> _editarDireccionDelivery(VentaDeliveryData d) async {
+  Future<void> _editarDireccionDelivery(
+    VentaDeliveryData d, {
+    LatLng? destinoInicial,
+  }) async {
     final venta = _venta;
     if (venta == null || d.id == null) return;
     final ctxState = context.read<EmpresaContextCubit>().state;
@@ -293,8 +333,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       initDireccion: d.direccion,
       initReferencia: d.referencia,
       initDistrito: d.distrito,
-      initDestino:
-          (d.lat != null && d.lon != null) ? LatLng(d.lat!, d.lon!) : null,
+      // El punto compartido pisa al guardado: es justamente el dato nuevo
+      // que el cliente acaba de mandar.
+      initDestino: destinoInicial ??
+          ((d.lat != null && d.lon != null) ? LatLng(d.lat!, d.lon!) : null),
     );
     if (datos == null || !mounted) return;
 

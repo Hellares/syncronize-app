@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
 import '../../core/presentation/screens/about_page.dart';
 import '../../core/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/bloc/auth/auth_bloc.dart';
@@ -165,6 +166,7 @@ import '../../features/cotizacion_rapida/presentation/pages/cotizacion_rapida_pr
 import '../../features/cotizacion_rapida/presentation/pages/cotizacion_rapida_carrito_page.dart';
 import '../../features/cotizacion_rapida/presentation/pages/cotizacion_rapida_finalizar_page.dart';
 import '../../features/cotizacion_rapida/presentation/pages/cotizacion_rapida_editar_page.dart';
+import '../../features/venta/presentation/pages/seleccionar_venta_ubicacion_page.dart';
 import '../../features/venta/presentation/pages/ventas_page.dart';
 import '../../features/venta/presentation/pages/venta_pos_page.dart';
 import '../../features/venta_rapida/presentation/pages/venta_rapida_productos_page.dart';
@@ -1216,12 +1218,26 @@ class AppRouter {
           return FlujoDocumentosPage(codigoInicial: codigo);
         },
       ),
+      // Selector de venta para una ubicación llegada por "Compartir"
+      // (WhatsApp). ANTES de :id para que no la capture como un ventaId.
+      GoRoute(
+        path: '/empresa/ventas/ubicacion-compartida',
+        name: 'empresa-ventas-ubicacion-compartida',
+        builder: (context, state) => SeleccionarVentaUbicacionPage(
+          punto: state.extra! as LatLng,
+        ),
+      ),
       GoRoute(
         path: '/empresa/ventas/:id',
         name: 'empresa-ventas-detail',
         builder: (context, state) {
           final ventaId = state.pathParameters['id']!;
-          return VentaDetailPage(ventaId: ventaId);
+          // `extra` viene solo desde el selector de ubicación compartida;
+          // en la navegación normal es null.
+          return VentaDetailPage(
+            ventaId: ventaId,
+            ubicacionCompartida: state.extra as LatLng?,
+          );
         },
       ),
       GoRoute(

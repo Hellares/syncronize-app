@@ -10,6 +10,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../services/reverse_geocoder.dart';
 
 /// Resultado del picker: el punto exacto + la dirección aproximada de ese
 /// punto (reverse geocoding de Nominatim, best-effort) para autollenar la
@@ -340,53 +341,9 @@ class _UbicacionPickerPageState extends State<UbicacionPickerPage> {
       return;
     }
     setState(() => _confirmando = true);
-    String? direccion;
-    String? zona;
-    try {
-      final uri =
-          Uri.parse('https://nominatim.openstreetmap.org/reverse').replace(
-        queryParameters: {
-          'lat': punto.latitude.toString(),
-          'lon': punto.longitude.toString(),
-          'format': 'json',
-          'zoom': '18',
-          'addressdetails': '1',
-        },
-      );
-      final r = await http.get(
-        uri,
-        headers: {'User-Agent': 'SyncronizeApp/1.0 (delivery picker)'},
-      ).timeout(const Duration(seconds: 8));
-      if (r.statusCode == 200) {
-        final body = jsonDecode(r.body) as Map<String, dynamic>;
-        final nombre = body['display_name']?.toString();
-        if (nombre != null && nombre.isNotEmpty) {
-          // display_name es larguísimo (hasta el país): las 3 primeras
-          // partes bastan como dirección editable.
-          direccion = nombre.split(',').take(3).map((s) => s.trim()).join(', ');
-        }
-        // Zona/distrito: Nominatim lo reporta con nombres distintos según
-        // el lugar — se toma el primero disponible de mayor precisión.
-        final addr = body['address'];
-        if (addr is Map<String, dynamic>) {
-          for (final clave in [
-            'suburb',
-            'city_district',
-            'district',
-            'village',
-            'town',
-            'city',
-          ]) {
-            final v = addr[clave]?.toString();
-            if (v != null && v.isNotEmpty) {
-              zona = v;
-              break;
-            }
-          }
-        }
-      }
-    } catch (_) {}
-    direccion ??= _ultimaDireccionBuscada;
+    final aproximada = await reverseGeocode(punto);
+    final zona = aproximada.zona;
+    final direccion = aproximada.direccion ?? _ultimaDireccionBuscada;
     if (!mounted) return;
     setState(() => _confirmando = false);
     Navigator.pop(
