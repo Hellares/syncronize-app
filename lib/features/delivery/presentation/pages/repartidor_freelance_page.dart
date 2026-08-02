@@ -23,6 +23,7 @@ import '../../domain/repositories/delivery_repository.dart';
 import '../services/delivery_gps_reporter.dart';
 import '../widgets/ofertar_sheet.dart';
 import '../widgets/pin_entrega_dialog.dart';
+import '../widgets/ruta_delivery_dialog.dart';
 import '../widgets/zonas_selector.dart';
 
 /// Panel del repartidor FREELANCE de Syncronize — vive FUERA del tenant
@@ -691,6 +692,34 @@ class _RepartidorFreelancePageState extends State<RepartidorFreelancePage>
           ),
           if (d.referencia != null && d.referencia!.isNotEmpty)
             linea(Icons.info_outline, 'Ref: ${d.referencia}'),
+          // Con solo la dirección de entrega el repartidor no puede saber si
+          // el pedido le queda de camino. El recorrido solo se ofrece si la
+          // sede tiene coordenadas cargadas.
+          if (d.tieneRuta)
+            InkWell(
+              onTap: () =>
+                  showRutaDeliveryDialog(context: context, delivery: d),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    Icon(Icons.route_outlined,
+                        size: 14, color: AppColors.blue1),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Ver recorrido desde la tienda',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.blue1,
+                        decoration: TextDecoration.underline,
+                        decorationColor: AppColors.blue1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 6),
           Row(
             children: [

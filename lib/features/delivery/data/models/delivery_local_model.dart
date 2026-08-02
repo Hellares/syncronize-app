@@ -19,6 +19,10 @@ class DeliveryLocalModel extends DeliveryLocal {
     super.entregadoEn,
     super.destinoLat,
     super.destinoLon,
+    super.origenLat,
+    super.origenLon,
+    super.origenNombre,
+    super.origenDireccion,
     super.modoOferta,
     super.costoSugerido,
     super.miOfertaMonto,
@@ -37,6 +41,7 @@ class DeliveryLocalModel extends DeliveryLocal {
         v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;
 
     final mia = json['miOferta'] as Map<String, dynamic>?;
+    final origen = json['origen'] as Map<String, dynamic>?;
 
     final destino = json['coordenadas'];
     double? destinoLat;
@@ -64,6 +69,14 @@ class DeliveryLocalModel extends DeliveryLocal {
       entregadoEn: toDate(json['entregadoEn']),
       destinoLat: destinoLat,
       destinoLon: destinoLon,
+      origenLat: origen?['lat'] is num
+          ? (origen!['lat'] as num).toDouble()
+          : null,
+      origenLon: origen?['lon'] is num
+          ? (origen!['lon'] as num).toDouble()
+          : null,
+      origenNombre: origen?['nombre'] as String?,
+      origenDireccion: origen?['direccion'] as String?,
       modoOferta: json['modoOferta'] == true,
       costoSugerido: json['costoSugerido'] != null
           ? toDouble(json['costoSugerido'])

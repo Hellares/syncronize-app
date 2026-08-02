@@ -29,6 +29,20 @@ class DeliveryLocal extends Equatable {
   final double? destinoLat;
   final double? destinoLon;
 
+  /// Punto de PARTIDA: la sede que despacha. Sin esto el repartidor solo ve
+  /// el destino y no puede evaluar el recorrido. `null` = la sede todavía no
+  /// tiene coordenadas cargadas.
+  final double? origenLat;
+  final double? origenLon;
+  final String? origenNombre;
+  final String? origenDireccion;
+
+  bool get tieneRuta =>
+      origenLat != null &&
+      origenLon != null &&
+      destinoLat != null &&
+      destinoLon != null;
+
   /// SUBASTA: el pedido se asigna por oferta, NO se puede tomar directo.
   /// La empresa no sabe cuánto sale llegar a la zona; el repartidor sí.
   final bool modoOferta;
@@ -58,6 +72,10 @@ class DeliveryLocal extends Equatable {
     this.entregadoEn,
     this.destinoLat,
     this.destinoLon,
+    this.origenLat,
+    this.origenLon,
+    this.origenNombre,
+    this.origenDireccion,
     this.modoOferta = false,
     this.costoSugerido,
     this.miOfertaMonto,
