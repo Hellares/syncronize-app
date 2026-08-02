@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/entities/delivery_local.dart' show TarifaSugerida;
+import '../../domain/repositories/delivery_repository.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -142,6 +146,11 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
   /// Subasta: publicar sin tarifa fija y dejar que los repartidores oferten.
   bool _modoOferta = false;
 
+  /// Qué se viene pagando por esta zona, según las ofertas ya aceptadas.
+  /// Sirve para que la empresa no publique a ciegas.
+  TarifaSugerida? _referencia;
+  String? _distritoConsultado;
+
   /// Se está resolviendo la dirección de un punto que llegó ya fijado
   /// (ubicación compartida). Solo cambia el hint mientras tanto.
   bool _resolviendoDireccion = false;
@@ -180,6 +189,27 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
       final zona = aproximada.zona;
       if (zona != null && zona.isNotEmpty && _distritoCtrl.text.isEmpty) {
         _distritoCtrl.text = zona.toUpperCase();
+      }
+    });
+    if (_modoOferta) _cargarReferencia();
+  }
+
+  /// Consulta el histórico de la zona. Se dispara al prender la subasta y
+  /// al resolverse el distrito, porque puede llegar después (autocompletado).
+  Future<void> _cargarReferencia() async {
+    final distrito = _distritoCtrl.text.trim();
+    if (distrito.isEmpty || distrito == _distritoConsultado) return;
+    _distritoConsultado = distrito;
+    final r = await locator<DeliveryRepository>().tarifaSugerida(distrito);
+    if (!mounted) return;
+    setState(() {
+      _referencia = r is Success<TarifaSugerida> && r.data.hayDato
+          ? r.data
+          : null;
+      // Sin tarifa escrita, el histórico entra como sugerido: es mejor
+      // ancla que un campo vacío y el usuario puede pisarlo.
+      if (_referencia != null && _costoCtrl.text.trim().isEmpty) {
+        _costoCtrl.text = _referencia!.sugerido!.toStringAsFixed(2);
       }
     });
   }
@@ -381,7 +411,11 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
               if (!widget.esEdicion)
                 Text(
                   _modoOferta
-                      ? 'Sugerido vacío = publicas sin precio y los repartidores proponen.'
+                      ? (_referencia != null
+                          ? 'En ${_distritoCtrl.text.trim()} se viene pagando '
+                              'S/ ${_referencia!.sugerido!.toStringAsFixed(2)} '
+                              '(${_referencia!.muestras} entregas).'
+                          : 'Sugerido vacío = publicas sin precio y los repartidores proponen.')
                       : 'Tarifa vacía = se usa la tarifa configurada de la sede.',
                   style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                 ),
@@ -402,7 +436,10 @@ class _SolicitarDeliverySheetState extends State<_SolicitarDeliverySheet> {
                     fontSize: 10,
                   ),
                   value: _modoOferta,
-                  onChanged: (v) => setState(() => _modoOferta = v),
+                  onChanged: (v) {
+                    setState(() => _modoOferta = v);
+                    if (v) _cargarReferencia();
+                  },
                 ),
               ],
               // Delivery INTERNO: lo lleva un empleado — se cobra la tarifa

@@ -113,3 +113,22 @@ class DeliveryLocal extends Equatable {
   List<Object?> get props =>
       [id, estado, ventaCodigo, costoDelivery, modoOferta, miOfertaMonto];
 }
+
+/// Referencia de precio de una zona, calculada con las ofertas ya aceptadas
+/// ahí. `sugerido` es la MEDIANA (un outlier no debe arrastrarla) y es null
+/// mientras no haya al menos 3 muestras.
+class TarifaSugerida {
+  final double? sugerido;
+  final int muestras;
+  final double? min;
+  final double? max;
+
+  const TarifaSugerida({
+    this.sugerido,
+    this.muestras = 0,
+    this.min,
+    this.max,
+  });
+
+  bool get hayDato => sugerido != null;
+}

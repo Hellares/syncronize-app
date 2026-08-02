@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/repositories/delivery_repository.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/delivery_local.dart';
@@ -49,6 +52,26 @@ class _OfertarSheetState extends State<_OfertarSheet> {
   );
   final _comentarioCtrl = TextEditingController();
   String? _error;
+
+  /// Qué se viene pagando por esa zona. Le dice al repartidor contra qué
+  /// está compitiendo en vez de hacerlo adivinar.
+  TarifaSugerida? _referencia;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarReferencia();
+  }
+
+  Future<void> _cargarReferencia() async {
+    final distrito = widget.delivery.distrito;
+    if (distrito == null || distrito.trim().isEmpty) return;
+    final r = await locator<DeliveryRepository>().tarifaSugerida(distrito);
+    if (!mounted) return;
+    if (r is Success<TarifaSugerida> && r.data.hayDato) {
+      setState(() => _referencia = r.data);
+    }
+  }
 
   @override
   void dispose() {
@@ -131,6 +154,25 @@ class _OfertarSheetState extends State<_OfertarSheet> {
                   style: TextStyle(fontSize: 11.5, color: AppColors.blue1),
                 ),
               ),
+              if (_referencia != null) ...[
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'En esta zona se viene pagando '
+                    'S/ ${_referencia!.sugerido!.toStringAsFixed(2)} '
+                    '(${_referencia!.muestras} entregas, entre '
+                    'S/ ${_referencia!.min!.toStringAsFixed(2)} y '
+                    'S/ ${_referencia!.max!.toStringAsFixed(2)}).',
+                    style: TextStyle(fontSize: 11.5, color: Colors.teal.shade900),
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
               CustomText(
                 controller: _montoCtrl,

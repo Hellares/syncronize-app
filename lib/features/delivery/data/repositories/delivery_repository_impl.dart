@@ -202,6 +202,18 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   }
 
   @override
+  Future<Resource<TarifaSugerida>> tarifaSugerida(String distrito) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      return Success(await _remoteDataSource.tarifaSugerida(distrito));
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'Delivery');
+    }
+  }
+
+  @override
   Future<Resource<void>> ofertar(
     String deliveryId,
     String empresaId,

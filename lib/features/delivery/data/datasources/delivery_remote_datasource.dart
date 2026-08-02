@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import '../../domain/entities/delivery_local.dart' show TarifaSugerida;
 import '../../../../core/network/dio_client.dart';
 import '../models/delivery_local_model.dart';
 
@@ -150,6 +151,24 @@ class DeliveryRemoteDataSource {
     return list
         .map((e) => DeliveryLocalModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Cuánto se viene pagando por llegar a un distrito, según las ofertas ya
+  /// aceptadas ahí. `sugerido` null = todavía no hay muestras suficientes.
+  Future<TarifaSugerida> tarifaSugerida(String distrito) async {
+    final r = await _dioClient.get(
+      '$_basePath/tarifa-sugerida',
+      queryParameters: {'distrito': distrito},
+    );
+    final d = r.data as Map<String, dynamic>;
+    double? num_(dynamic v) =>
+        v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
+    return TarifaSugerida(
+      sugerido: num_(d['sugerido']),
+      muestras: (d['muestras'] as num?)?.toInt() ?? 0,
+      min: num_(d['min']),
+      max: num_(d['max']),
+    );
   }
 
   /// Subasta: propone mi precio. Re-ofertar pisa la anterior.

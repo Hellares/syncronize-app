@@ -55,6 +55,9 @@ abstract class DeliveryRepository {
 
   Future<Resource<DeliveryLocal>> tomarExterno(String id);
 
+  /// Precio de referencia de una zona según su historial de ofertas.
+  Future<Resource<TarifaSugerida>> tarifaSugerida(String distrito);
+
   /// Subasta: propongo mi precio para un pedido en `modoOferta`.
   Future<Resource<void>> ofertar(
     String deliveryId,
