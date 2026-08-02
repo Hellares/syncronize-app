@@ -13,8 +13,10 @@ import io.flutter.plugin.common.MethodChannel
  *  - **App cerrada**: el texto se guarda en [pendingSharedText] y Dart lo pide
  *    con `getInitialSharedText` cuando termina de arrancar.
  *  - **App abierta**: llega por `onNewIntent` y se empuja a Dart con
- *    `onSharedText`. Requiere `launchMode="singleTop"` en el manifest — sin eso
- *    Android crea una Activity nueva y este método nunca se ejecuta.
+ *    `onSharedText`. Requiere `launchMode="singleTask"` en el manifest — sin eso
+ *    Android crea una Activity nueva y este método nunca se ejecuta. `singleTop`
+ *    NO alcanza: solo reutiliza la Activity si está encima de la MISMA tarea, y
+ *    el intent de WhatsApp sale desde la tarea de WhatsApp.
  */
 class MainActivity : FlutterActivity() {
 
