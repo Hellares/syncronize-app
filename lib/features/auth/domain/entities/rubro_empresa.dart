@@ -1,3 +1,10 @@
+/// ⚠️ ESPEJO EXACTO del enum `RubroEmpresa` de Prisma (backend
+/// `prisma/schema/empresa.prisma`). El DTO valida con @IsEnum, así que un
+/// `value` que no exista allá devuelve 400 al crear la empresa — y el
+/// dropdown lo ofrece igual. Pasó con MASCOTAS, BELLEZA, OFICINA,
+/// ENTRETENIMIENTO y con DEPORTE (el backend lo llama DEPORTES).
+/// Agregar un rubro acá = migración de enum + entrada en RUBROS_GENERICOS o
+/// en CATALOGOS_POR_RUBRO del backend, o la empresa nace sin catálogo.
 enum RubroEmpresa {
   tecnologia('TECNOLOGIA', 'Tecnología', '💻'),
   moda('MODA', 'Moda', '👗'),
@@ -6,7 +13,7 @@ enum RubroEmpresa {
   educacion('EDUCACION', 'Educación', '📚'),
   construccion('CONSTRUCCION', 'Construcción', '🏗️'),
   automotriz('AUTOMOTRIZ', 'Automotriz', '🚗'),
-  deporte('DEPORTE', 'Deporte', '⚽'),
+  deportes('DEPORTES', 'Deportes', '⚽'),
   hogar('HOGAR', 'Hogar', '🏠'),
   belleza('BELLEZA', 'Belleza', '💄'),
   mascotas('MASCOTAS', 'Mascotas', '🐾'),
