@@ -114,7 +114,23 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                 Expanded(
                   child: ListView(
                     controller: _scrollController,
-                    padding: EdgeInsets.zero,
+                    // El Drawer no aplica safe-area inferior, así que el
+                    // último tile ("Impresoras") quedaba debajo de la barra de
+                    // gestos del sistema: se veía, pero el tap se lo comía la
+                    // barra. Con el padding, el final de la lista se puede
+                    // scrollear por encima de ella.
+                    //
+                    // Va como padding y no como SafeArea a propósito: SafeArea
+                    // achica el viewport y deja una franja muerta fija abajo;
+                    // así el contenido sigue pasando por debajo al scrollear,
+                    // que es como se ve bien, y solo se gana el remate final.
+                    //
+                    // `paddingOf` y no `viewPaddingOf`: si algún día el drawer
+                    // queda dentro de un SafeArea, este da 0 y no se suma dos
+                    // veces el mismo inset.
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.paddingOf(context).bottom,
+                    ),
                     children: _renderNodes(
                       context,
                       nodes,
