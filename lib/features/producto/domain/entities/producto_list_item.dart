@@ -35,6 +35,17 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   /// la unidad real en el toggle "Comprar por" y el costo equivalente.
   final String? unidadMedidaSimbolo;
 
+  // Unidad de PRESENTACIÓN: cómo se le habla al usuario y al cliente cuando la
+  // unidad de venta es demasiado chica. Un alimento a granel se guarda en
+  // gramos —para que el stock entero y la balanza funcionen— pero se cotiza y
+  // se cobra en KILOS. No cambia nada de lo almacenado: precio, costo y stock
+  // siguen en unidad de venta. Null = se muestra en la unidad de venta, que es
+  // el comportamiento de siempre.
+  final String? unidadPresentacionSimbolo;
+
+  /// Unidades de venta que trae 1 de presentación (kg = 1000 g).
+  final double? factorPresentacion;
+
   ProductoListItem({
     required this.id,
     required this.nombre,
@@ -57,7 +68,21 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     this.factorCompra,
     this.unidadCompraSimbolo,
     this.unidadMedidaSimbolo,
+    this.unidadPresentacionSimbolo,
+    this.factorPresentacion,
   });
+
+  /// Factor efectivo de presentación: 1 cuando el producto no tiene una
+  /// configurada (o es inválida), así multiplicar/dividir por él es inocuo.
+  double get factorPresentacionEfectivo =>
+      (factorPresentacion != null && factorPresentacion! > 1)
+          ? factorPresentacion!
+          : 1;
+
+  /// Símbolo en el que se le habla al usuario: el de presentación si existe,
+  /// si no el de la unidad de venta.
+  String? get simboloVisible =>
+      unidadPresentacionSimbolo ?? unidadMedidaSimbolo;
 
   /// Stock consolidado: para productos con variantes suma el stock de todas las variantes,
   /// para productos normales usa el stock directo
@@ -122,5 +147,7 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         factorCompra,
         unidadCompraSimbolo,
         unidadMedidaSimbolo,
+        unidadPresentacionSimbolo,
+        factorPresentacion,
       ];
 }

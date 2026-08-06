@@ -25,6 +25,8 @@ class ProductoListItemModel extends ProductoListItem {
     super.factorCompra,
     super.unidadCompraSimbolo,
     super.unidadMedidaSimbolo,
+    super.unidadPresentacionSimbolo,
+    super.factorPresentacion,
   });
 
   factory ProductoListItemModel.fromJson(Map<String, dynamic> json) {
@@ -70,6 +72,12 @@ class ProductoListItemModel extends ProductoListItem {
           : null,
       unidadCompraSimbolo: _extractUnidadCompraSimbolo(json),
       unidadMedidaSimbolo: _extractSimbolo(json['unidadMedida']),
+      // La presentación llega PLANA desde el backend (no como objeto anidado):
+      // lo único que se hace con ella es formatear y convertir.
+      unidadPresentacionSimbolo: json['unidadPresentacionSimbolo'] as String?,
+      factorPresentacion: json['factorPresentacion'] != null
+          ? double.tryParse(json['factorPresentacion'].toString())
+          : null,
     );
   }
 
@@ -120,6 +128,11 @@ class ProductoListItemModel extends ProductoListItem {
         'unidadCompra': {'simboloLocal': unidadCompraSimbolo},
       if (unidadMedidaSimbolo != null)
         'unidadMedida': {'simboloLocal': unidadMedidaSimbolo},
+      // Mismas claves planas que manda el backend, para que toJson y fromJson
+      // sean simétricos (el catálogo se persiste en disco con esto).
+      if (unidadPresentacionSimbolo != null)
+        'unidadPresentacionSimbolo': unidadPresentacionSimbolo,
+      if (factorPresentacion != null) 'factorPresentacion': factorPresentacion,
     };
   }
 

@@ -637,7 +637,14 @@ class _ProductosPageState extends State<ProductosPage>
             providers: [
               BlocProvider(create: (_) => locator<ConfigurarPreciosCubit>()),
             ],
-            child: ConfigurarPreciosDialog(stock: stock, empresaId: empresaId),
+            child: ConfigurarPreciosDialog(
+              stock: stock,
+              empresaId: empresaId,
+              // Con presentación, el diálogo cobra en esa unidad (kg) aunque
+              // el precio se guarde por unidad de venta (g).
+              unidadPresentacionSimbolo: producto.unidadPresentacionSimbolo,
+              factorPresentacion: producto.factorPresentacion,
+            ),
           ),
         ).then((result) {
           if (result == true && mounted) {

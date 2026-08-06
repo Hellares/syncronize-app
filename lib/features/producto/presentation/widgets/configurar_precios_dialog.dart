@@ -32,10 +32,21 @@ class ConfigurarPreciosDialog extends StatefulWidget {
   final ProductoStock stock;
   final String empresaId;
 
+  /// Unidad de PRESENTACIÓN del producto (ej. "kg") y cuántas unidades de
+  /// venta trae (1 kg = 1000 g). Cuando están, el diálogo trabaja entero en
+  /// esa unidad: se escribe S/9.00 por kg y se guarda S/0.009 por gramo.
+  ///
+  /// Sin esto, un producto con unidad de venta chica es INCARGABLE desde acá:
+  /// `CurrencyTextField` es de 2 decimales y S/0.009 no se puede tipear.
+  final String? unidadPresentacionSimbolo;
+  final double? factorPresentacion;
+
   const ConfigurarPreciosDialog({
     super.key,
     required this.stock,
     required this.empresaId,
+    this.unidadPresentacionSimbolo,
+    this.factorPresentacion,
   });
 
   @override
@@ -85,19 +96,19 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   void initState() {
     super.initState();
 
-    // Inicializar controladores con valores actuales
+    // Inicializar controladores con valores actuales, llevados a la unidad de
+    // presentación: lo guardado está SIEMPRE en unidad de venta.
     if (widget.stock.precio != null && widget.stock.precio! > 0) {
-      _precioController.text = widget.stock.precio!.toStringAsFixed(2);
+      _precioController.text = _aPresentacion(widget.stock.precio!)
+          .toStringAsFixed(2);
     }
     if (widget.stock.precioCosto != null && widget.stock.precioCosto! > 0) {
-      _precioCostoController.text = widget.stock.precioCosto!.toStringAsFixed(
-        2,
-      );
+      _precioCostoController.text = _aPresentacion(widget.stock.precioCosto!)
+          .toStringAsFixed(2);
     }
     if (widget.stock.precioOferta != null && widget.stock.precioOferta! > 0) {
-      _precioOfertaController.text = widget.stock.precioOferta!.toStringAsFixed(
-        2,
-      );
+      _precioOfertaController.text = _aPresentacion(widget.stock.precioOferta!)
+          .toStringAsFixed(2);
     }
     _enOferta = widget.stock.enOferta;
     // Backend devuelve UTC (ej. "2026-05-09T04:59:59Z"). Convertir a local
@@ -253,6 +264,34 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   double _getControllerValue(TextEditingController controller) {
     return CurrencyUtilsImproved.parseToDouble(controller.text);
   }
+
+  // ─── Unidad de presentación ────────────────────────────────────────────
+  // Todo el diálogo (campos, desglose de IGV, márgenes, sugerencias) trabaja
+  // en unidad de PRESENTACIÓN, que es como piensa el usuario: "S/9 el kilo".
+  // La conversión pasa solo en los dos bordes: al abrir y al guardar.
+
+  /// 1 cuando el producto no tiene presentación configurada, así todas las
+  /// cuentas quedan igual que antes.
+  double get _factorPresentacion =>
+      (widget.factorPresentacion != null && widget.factorPresentacion! > 1)
+          ? widget.factorPresentacion!
+          : 1;
+
+  bool get _tienePresentacion => _factorPresentacion > 1;
+
+  /// Unidad de venta (guardada) → unidad de presentación (mostrada).
+  double _aPresentacion(double porUnidadDeVenta) =>
+      porUnidadDeVenta * _factorPresentacion;
+
+  /// Unidad de presentación (escrita) → unidad de venta (guardada).
+  double _aUnidadDeVenta(double porPresentacion) =>
+      porPresentacion / _factorPresentacion;
+
+  /// Sufijo para los labels: " (por kg)" cuando hay presentación.
+  String get _sufijoUnidad =>
+      _tienePresentacion && widget.unidadPresentacionSimbolo != null
+          ? ' (por ${widget.unidadPresentacionSimbolo})'
+          : '';
 
   double _calcularPrecioBase(double precioConIGV) =>
       precioConIGV / (1 + _porcentajeIGV / 100);
@@ -419,7 +458,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                             Expanded(
                               flex: 1,
                               child: CurrencyTextField(
-                                label: 'Precio de Venta',
+                                label: 'Precio de Venta$_sufijoUnidad',
                                 controller: _precioController,
                                 borderColor: AppColors.blue1,
                                 enabled: !_stockEfectivo.isLiquidacionActiva,
@@ -542,7 +581,9 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                           Expanded(
                             flex: 1,
                             child: CurrencyTextField(
-                              label: 'Precio de Costo (por unidad)',
+                              label: _tienePresentacion
+                                  ? 'Precio de Costo$_sufijoUnidad'
+                                  : 'Precio de Costo (por unidad)',
                               controller: _precioCostoController,
                               borderColor: AppColors.blue1,
                               allowZero: false,
@@ -646,7 +687,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                             Expanded(
                               flex: 2,
                               child: CurrencyTextField(
-                                label: 'Precio de Oferta',
+                                label: 'Precio de Oferta$_sufijoUnidad',
                                 controller: _precioOfertaController,
                                 borderColor: AppColors.blue1,
                                 allowZero: false,
@@ -1431,13 +1472,15 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     // relacionado a oferta (no se vende directo). Solo el precioCosto
     // que es lo único que tiene sentido para un insumo.
     final esInsumo = widget.stock.producto?.esInsumo == true;
+    // Se guarda SIEMPRE por unidad de venta: lo escrito está en presentación.
     context.read<ConfigurarPreciosCubit>().configurarPrecios(
       productoStockId: widget.stock.id,
       empresaId: widget.empresaId,
-      precio: esInsumo ? 0 : precio,
-      precioCosto: precioCosto > 0 ? precioCosto : null,
-      precioOferta:
-          !esInsumo && _enOferta && precioOferta > 0 ? precioOferta : null,
+      precio: esInsumo ? 0 : _aUnidadDeVenta(precio),
+      precioCosto: precioCosto > 0 ? _aUnidadDeVenta(precioCosto) : null,
+      precioOferta: !esInsumo && _enOferta && precioOferta > 0
+          ? _aUnidadDeVenta(precioOferta)
+          : null,
       enOferta: !esInsumo && _enOferta,
       fechaInicioOferta: !esInsumo && _enOferta ? _fechaInicioOferta : null,
       fechaFinOferta: !esInsumo && _enOferta ? _fechaFinOferta : null,
