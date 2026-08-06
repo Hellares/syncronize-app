@@ -83,9 +83,11 @@ void main() {
   group('Ticket térmico', () {
     /// El generador devuelve bytes ESC-POS; el texto viaja en ASCII plano, así
     /// que basta decodificarlo para leer lo que sale impreso.
-    Future<String> imprimir(Map<String, dynamic> linea) async {
+    Future<String> imprimir(Map<String, dynamic> linea,
+        {int paperWidth = 80}) async {
       final d = VentaDetalleModel.fromJson(linea);
       final bytes = await TicketVentaEscPosGenerator.generate(
+        paperWidth: paperWidth,
         venta: Venta(
           id: 'v1',
           empresaId: 'emp1',
@@ -117,6 +119,30 @@ void main() {
       // El precio por gramo redondeado a centavos era el número fantasma.
       expect(texto, isNot(contains('0.01')));
       expect(texto, isNot(contains('1500')));
+    });
+
+    test('un peso partido NUNCA se imprime truncado (58mm)', () async {
+      // 1.237 kg son 5 caracteres y la columna de 58mm mide 4: se imprimía
+      // "1.23", un número que no es el que se cobró y que ni siquiera
+      // multiplica al total de al lado (1.23 × 8.00 = 9.84, no 9.90).
+      final texto = await imprimir(
+        {...lineaRicocan(), 'cantidad': 1237, 'total': 9.9, 'subtotal': 8.39},
+        paperWidth: 58,
+      );
+
+      expect(texto, contains('1.237 kg x S/8.00/kg'));
+      expect(texto, isNot(contains('1.23 ')));
+    });
+
+    test('en 80mm la cantidad sí entra en la columna', () async {
+      // 5 chars de ancho: "1.237" entra justo, así que no se blanquea.
+      final texto = await imprimir(
+        {...lineaRicocan(), 'cantidad': 1237, 'total': 9.9, 'subtotal': 8.39},
+        paperWidth: 80,
+      );
+
+      expect(texto, contains('1.237   RICOCAN 22KG'));
+      expect(texto, contains('1.237 kg x S/8.00/kg'));
     });
 
     test('sin presentación imprime exactamente como antes', () async {

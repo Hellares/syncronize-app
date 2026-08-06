@@ -237,11 +237,20 @@ class TicketVentaEscPosGenerator {
         final pu = u.precio(d.precioUnitario).toStringAsFixed(2);
         final total = d.total.toStringAsFixed(2);
 
+        // Nunca imprimir una cantidad TRUNCADA. La columna CANT mide 4 chars
+        // en 58mm y `formatear` corta sin avisar: "1.237" salía "1.23", un
+        // número que no es el que se cobró y que además no multiplica al
+        // total de al lado (1.23 × 8.00 = 9.84, no 9.90). Cuando no entra, la
+        // sub-línea de abajo la dice entera y la columna queda vacía —
+        // preferible un hueco a un número equivocado en el papel que se
+        // lleva el cliente.
+        final qtyCol = (u.activa && qty.length > cols.cant) ? '' : qty;
+
         // Si la descripción es más larga que su columna, envolver al
         // siguiente renglón indentada al inicio de la columna DESC.
         final chunks = _wrapEnAncho(descripcion, cols.desc);
         bytes += generator.text(
-          cols.formatear(qty, chunks.first, pu, total),
+          cols.formatear(qtyCol, chunks.first, pu, total),
         );
         for (var i = 1; i < chunks.length; i++) {
           bytes += generator.text(
