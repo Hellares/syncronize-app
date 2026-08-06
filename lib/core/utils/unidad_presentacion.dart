@@ -47,10 +47,18 @@ class UnidadPresentacion {
   double precio(double porUnidadDeVenta) =>
       activa ? porUnidadDeVenta * factor : porUnidadDeVenta;
 
-  /// Lo que el usuario escribió (por unidad mostrada) → por unidad de venta,
-  /// que es como se guarda SIEMPRE.
-  double aUnidadDeVenta(double porUnidadMostrada) =>
+  /// PRECIO escrito por unidad mostrada → por unidad de venta, que es como se
+  /// guarda SIEMPRE. S/8.00 el kilo → S/0.008 el gramo.
+  double precioAUnidadDeVenta(double porUnidadMostrada) =>
       activa ? porUnidadMostrada / factor : porUnidadMostrada;
+
+  /// CANTIDAD escrita en unidad mostrada → unidad de venta. 1.5 kg → 1500 g.
+  ///
+  /// ⚠️ Va al REVÉS que el precio, y por eso son dos métodos y no uno: la
+  /// cantidad se multiplica y el precio se divide. Usar el del precio para
+  /// una cantidad convierte 1 kg en 0.001 g, que el carrito redondea a cero.
+  double cantidadAUnidadDeVenta(double enUnidadMostrada) =>
+      activa ? enUnidadMostrada * factor : enUnidadMostrada;
 
   /// "22 kg" · "20.5 kg" · "1.237 kg" · sin presentación, "22000".
   ///

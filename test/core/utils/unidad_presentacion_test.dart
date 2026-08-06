@@ -40,10 +40,35 @@ void main() {
       expect(kg.precioTexto(0.006727), 'S/ 6.73/kg');
     });
 
-    test('lo que escribe el usuario vuelve a unidad de venta', () {
+    test('el precio que escribe el usuario vuelve a unidad de venta', () {
       // Es la conversión que evita guardar S/8 el GRAMO, o sea S/8000 el kilo.
-      expect(kg.aUnidadDeVenta(8.00), closeTo(0.008, 1e-9));
-      expect(kg.aUnidadDeVenta(9.49), closeTo(0.00949, 1e-9));
+      expect(kg.precioAUnidadDeVenta(8.00), closeTo(0.008, 1e-9));
+      expect(kg.precioAUnidadDeVenta(9.49), closeTo(0.00949, 1e-9));
+    });
+  });
+
+  group('cantidad y precio van en sentidos OPUESTOS', () {
+    // El bug que motivó separarlos: usar el inverso del precio para una
+    // cantidad convertía 1 kg en 0.001 g, el carrito lo redondeaba a 0 y el
+    // campo quedaba en cero, sin poder editarlo.
+    test('la cantidad escrita se MULTIPLICA', () {
+      expect(kg.cantidadAUnidadDeVenta(1), 1000);
+      expect(kg.cantidadAUnidadDeVenta(1.5), 1500);
+      expect(kg.cantidadAUnidadDeVenta(0.25), 250);
+    });
+
+    test('el precio escrito se DIVIDE', () {
+      expect(kg.precioAUnidadDeVenta(8.00), closeTo(0.008, 1e-9));
+    });
+
+    test('ida y vuelta de la cantidad no pierde nada', () {
+      expect(kg.cantidad(kg.cantidadAUnidadDeVenta(1.5)), closeTo(1.5, 1e-9));
+      expect(kg.cantidadTexto(kg.cantidadAUnidadDeVenta(1.5)), '1.5 kg');
+    });
+
+    test('sin presentación ninguno de los dos toca el número', () {
+      expect(sinPresentacion.cantidadAUnidadDeVenta(3), 3);
+      expect(sinPresentacion.precioAUnidadDeVenta(3), 3);
     });
   });
 
@@ -52,7 +77,7 @@ void main() {
       expect(sinPresentacion.activa, isFalse);
       expect(sinPresentacion.cantidadTexto(22000), '22000 und');
       expect(sinPresentacion.precio(0.008), 0.008);
-      expect(sinPresentacion.aUnidadDeVenta(8.0), 8.0);
+      expect(sinPresentacion.precioAUnidadDeVenta(8.0), 8.0);
     });
 
     test('un factor de 1 no agrupa nada, aunque venga con símbolo', () {

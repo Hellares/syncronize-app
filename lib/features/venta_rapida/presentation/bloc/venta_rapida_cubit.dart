@@ -323,7 +323,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     );
     if (idx >= 0) {
       final actual = state.items[idx];
-      final nuevaCantidad = actual.cantidad + 1;
+      // Suma 1 unidad de PRESENTACION: en un producto que se guarda en gramos
+      // y se vende en kilos, tocar "+" tiene que agregar 1 kg, no 1 gramo.
+      final nuevaCantidad = actual.cantidad + actual.presentacion.factor;
       final icbperPerUnit =
           actual.cantidad > 0 ? actual.icbper / actual.cantidad : icbperUnit;
       final nueva = actual
@@ -337,10 +339,13 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
     // Item nuevo: precio base inicialmente; los niveles se cargan async.
     final nivelesEnCache = _nivelCacheService.peek(producto.id);
+    // Arranca en 1 unidad de PRESENTACION (1 kg = 1000 g). Sin presentacion
+    // el factor es 1 y es la cantidad de siempre.
+    final cantidadInicial = producto.presentacion.factor;
     final item = VentaDetalleInput(
       productoId: producto.id,
       descripcion: producto.nombre,
-      cantidad: 1,
+      cantidad: cantidadInicial,
       precioUnitario: precio,
       precioBase: precio,
       porcentajeIGV: igvPorc,
@@ -355,9 +360,13 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       enLiquidacion: producto.enLiquidacionEnSede(sedeId),
       // Precio especial VIP si el cliente actual lo tiene.
       vipIntents: _vipParaNuevoProducto(producto.id),
+      // Como se le habla al cliente: cantidad y precio se muestran y se
+      // capturan en esta unidad, pero viajan en unidad de venta.
+      factorPresentacion: producto.factorPresentacion,
+      unidadPresentacionSimbolo: producto.unidadPresentacionSimbolo,
     );
     final itemConNivel = nivelesEnCache != null
-        ? item.recalcularPrecioPorNiveles(1)
+        ? item.recalcularPrecioPorNiveles(cantidadInicial)
         : item;
     emit(state.copyWith(items: [...state.items, itemConNivel], clearError: true));
 
@@ -978,11 +987,14 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
   void _decrementarEnIndice(int idx) {
     final actual = state.items[idx];
-    if (actual.cantidad <= 1) {
+    // Resta 1 unidad de PRESENTACIÓN (1 kg), no 1 gramo. Y al llegar al
+    // último kilo saca la línea, igual que antes hacía con la última unidad.
+    final paso = actual.presentacion.factor;
+    if (actual.cantidad <= paso) {
       eliminarItem(idx);
       return;
     }
-    final nuevaCantidad = actual.cantidad - 1;
+    final nuevaCantidad = actual.cantidad - paso;
     final icbperPerUnit =
         actual.cantidad > 0 ? actual.icbper / actual.cantidad : 0.0;
     final nueva = actual

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/autorizacion_dialog.dart';
 import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_selector.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
@@ -871,10 +873,31 @@ class _ItemRowState extends State<_ItemRow> {
   late TextEditingController _cantCtrl;
   late FocusNode _focusNode;
 
+  /// La cantidad viaja en unidad de venta (1500 g) y se muestra/escribe en
+  /// presentación (1.5 kg). Sin presentación configurada el factor es 1 y el
+  /// texto queda igual que siempre.
+  UnidadPresentacion get _pres => widget.item.presentacion;
+
+  /// Lo que debe verse en el campo para la cantidad actual del state.
+  String get _textoCantidad =>
+      _pres.cantidadTexto(widget.item.cantidad, conSimbolo: false);
+
+  /// Lo tecleado está en presentación (1.5 kg) y el carrito guarda unidad de
+  /// venta (1500 g). Sin convertir, vender 1.5 kg descontaría 1.5 gramos.
+  void _aplicarCantidad(BuildContext context, String texto) {
+    final escrito = double.tryParse(texto.replaceAll(',', '.')) ?? 0;
+    // MULTIPLICA (1.5 kg → 1500 g). El precio va al revés; usar el método del
+    // precio acá convertía 1 kg en 0.001 g y el campo se iba a cero.
+    context.read<VentaRapidaCubit>().actualizarCantidad(
+          widget.index,
+          _pres.cantidadAUnidadDeVenta(escrito),
+        );
+  }
+
   @override
   void initState() {
     super.initState();
-    _cantCtrl = TextEditingController(text: widget.item.cantidad.toStringAsFixed(0));
+    _cantCtrl = TextEditingController(text: _textoCantidad);
     _focusNode = FocusNode();
     _focusNode.addListener(_onFocusChange);
   }
@@ -884,7 +907,7 @@ class _ItemRowState extends State<_ItemRow> {
   /// (campo vacío pero state con cantidad anterior).
   void _onFocusChange() {
     if (_focusNode.hasFocus) return;
-    final esperado = widget.item.cantidad.toStringAsFixed(0);
+    final esperado = _textoCantidad;
     if (esperado != _cantCtrl.text) {
       _cantCtrl.value = TextEditingValue(
         text: esperado,
@@ -893,11 +916,23 @@ class _ItemRowState extends State<_ItemRow> {
     }
   }
 
+  /// True si lo tecleado ya representa la cantidad del state.
+  ///
+  /// Se comparan VALORES y no strings: mientras escribís "1.5" el campo pasa
+  /// por "1." , que vale 1 igual que "1". Comparando texto, el re-sync te
+  /// borraba el punto apenas lo tocabas y era imposible escribir decimales.
+  bool get _textoYaCoincide {
+    final tecleado = double.tryParse(_cantCtrl.text.replaceAll(',', '.'));
+    if (tecleado == null) return false;
+    final esperado = _pres.cantidad(widget.item.cantidad);
+    return (tecleado - esperado).abs() < 1e-9;
+  }
+
   @override
   void didUpdateWidget(_ItemRow old) {
     super.didUpdateWidget(old);
-    final esperado = widget.item.cantidad.toStringAsFixed(0);
-    if (esperado != _cantCtrl.text) {
+    final esperado = _textoCantidad;
+    if (esperado != _cantCtrl.text && !_textoYaCoincide) {
       // Mantener el cursor al final tras un cap (state.cantidad < lo tipeado).
       _cantCtrl.value = TextEditingValue(
         text: esperado,
@@ -1024,7 +1059,7 @@ class _ItemRowState extends State<_ItemRow> {
                   if (item.precioBase != null &&
                       item.precioBase! > item.precioUnitario + 0.001)
                     Text(
-                      item.precioBase!.toStringAsFixed(2),
+                      _pres.precio(item.precioBase!).toStringAsFixed(2),
                       style: TextStyle(
                         fontSize: 10,
                         color: Colors.grey.shade500,
@@ -1032,7 +1067,9 @@ class _ItemRowState extends State<_ItemRow> {
                       ),
                     ),
                   Text(
-                    item.precioUnitario.toStringAsFixed(2),
+                    // Precio en la unidad en la que se cobra: S/0.008 el gramo
+                    // se lee "0.01" y en realidad son S/8.00 el kilo.
+                    _pres.precio(item.precioUnitario).toStringAsFixed(2),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight:
@@ -1056,7 +1093,7 @@ class _ItemRowState extends State<_ItemRow> {
             width: 50,
             child: Center(
               child: Text(
-                esOrden ? '—' : '$stock',
+                esOrden ? '—' : _pres.cantidadTexto(stock),
                 style: TextStyle(
                   fontSize: 12,
                   color: excedeStock ? Colors.red : Colors.black87,
@@ -1071,7 +1108,7 @@ class _ItemRowState extends State<_ItemRow> {
             child: Center(
               child: widget.readonly
                   ? Text(
-                      item.cantidad.toStringAsFixed(0),
+                      _pres.cantidadTexto(item.cantidad),
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -1082,21 +1119,27 @@ class _ItemRowState extends State<_ItemRow> {
                       child: CustomText(
                         controller: _cantCtrl,
                         focusNode: _focusNode,
-                        fieldType: FieldType.number,
+                        // Con presentación se escriben kilos y hay que poder
+                        // tipear "1.5". `FieldType.number` NO sirve acá: su
+                        // NumberFormatter hace replaceAll(RegExp('[^\\d]'))
+                        // y se come el punto, aunque el teclado lo muestre.
+                        fieldType: _pres.activa
+                            ? FieldType.text
+                            : FieldType.number,
+                        keyboardType: _pres.activa
+                            ? const TextInputType.numberWithOptions(
+                                decimal: true)
+                            : TextInputType.number,
+                        inputFormatters: _pres.activa
+                            ? [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[0-9.,]')),
+                              ]
+                            : null,
                         borderColor: excedeStock ? Colors.red : AppColors.blue1,
                         height: 27,
-                        onSubmitted: (v) {
-                          final n = double.tryParse(v) ?? 0;
-                          context
-                              .read<VentaRapidaCubit>()
-                              .actualizarCantidad(widget.index, n);
-                        },
-                        onChanged: (v) {
-                          final n = double.tryParse(v) ?? 0;
-                          context
-                              .read<VentaRapidaCubit>()
-                              .actualizarCantidad(widget.index, n);
-                        },
+                        onSubmitted: (v) => _aplicarCantidad(context, v),
+                        onChanged: (v) => _aplicarCantidad(context, v),
                       ),
                     ),
             ),

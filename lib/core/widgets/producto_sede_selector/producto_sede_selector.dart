@@ -142,9 +142,12 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
     if (sedeId == null) {
       return '${producto.nombre} | S/ 0.00 | Stock: ${producto.stockConsolidado}';
     }
+    // En la unidad en la que se le habla al cliente: un producto que se guarda
+    // en gramos muestra "S/ 8.00/kg | Stock: 22 kg" y no "S/ 0.01 | 22000".
+    final pres = producto.presentacion;
     final precio = producto.precioEnSede(sedeId) ?? 0.0;
-    return '${producto.nombre} | S/ ${precio.toStringAsFixed(2)} | '
-        'Stock: ${producto.stockConsolidadoEnSede(sedeId)}';
+    return '${producto.nombre} | ${pres.precioTexto(precio)} | '
+        'Stock: ${pres.cantidadTexto(producto.stockConsolidadoEnSede(sedeId))}';
   }
 
   void _buscarProductos({String? query}) {

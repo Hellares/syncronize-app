@@ -16,7 +16,13 @@ class CatalogoLocalSnapshot {
   /// Versión del schema. Si cambia el shape de ProductoListItem o
   /// agregamos campos críticos, bumpear y los snapshots viejos se
   /// invalidan automáticamente al leer.
-  static const int currentVersion = 1;
+  ///
+  /// v2 (06-08): unidad de PRESENTACIÓN (`unidadPresentacionSimbolo` +
+  /// `factorPresentacion`). Sin bumpear, al abrir la app el catálogo viejo
+  /// pintaba el producto a granel en crudo —"Stock: 20500" y "S/ 0.01"— y
+  /// recién se corregía al refrescar, porque el snapshot en disco no traía
+  /// los campos y sin ellos la conversión a kilos no se aplica.
+  static const int currentVersion = 2;
 
   final int version;
   final List<ProductoListItem> productos;

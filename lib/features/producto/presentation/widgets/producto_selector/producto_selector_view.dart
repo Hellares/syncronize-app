@@ -532,8 +532,13 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
           BlocBuilder<TCubit, TState>(
             builder: (context, state) {
               final snap = widget.snapshotBuilder(state);
+              // Se cuenta en la unidad en la que se vende: 1 kg de un producto
+              // que se guarda en gramos es 1, no 1000. Se redondea hacia
+              // arriba para que medio kilo no desaparezca del contador.
               final cantidadUnidades = snap.items
-                  .fold<int>(0, (sum, i) => sum + i.cantidad.toInt());
+                  .fold<double>(
+                      0, (sum, i) => sum + i.presentacion.cantidad(i.cantidad))
+                  .ceil();
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -1264,6 +1269,10 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
         0.0;
     final stockTotal = producto.stockConsolidadoEnSede(sedeId);
     final imagen = producto.imagenPrincipal;
+    // Un producto que se guarda en gramos se muestra en kilos: "S/ 8.00/kg" y
+    // "Stock: 22 kg" en vez de "S/ 0.01" y "Stock: 22000". Sin presentación
+    // configurada no cambia ningún número.
+    final pres = producto.presentacion;
 
     return BlocBuilder<TCubit, TState>(
       buildWhen: (prev, curr) {
@@ -1429,7 +1438,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                             Text(
                                               agotado
                                                   ? 'Sin stock'
-                                                  : 'Stock: $stockDisponible',
+                                                  : 'Stock: ${pres.cantidadTexto(stockDisponible)}',
                                               style: TextStyle(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w600,
@@ -1532,7 +1541,8 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                                   ),
                                                 ),
                                                 Text(
-                                                  'S/ ${precioMostrado.toStringAsFixed(2)}',
+                                                  pres.precioTexto(
+                                                      precioMostrado),
                                                   style: TextStyle(
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w700,
@@ -1711,7 +1721,8 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 3, vertical: 2),
                               child: Text(
-                                cantidadEnCarrito.toStringAsFixed(0),
+                                pres.cantidadTexto(cantidadEnCarrito,
+                                    conSimbolo: false),
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,

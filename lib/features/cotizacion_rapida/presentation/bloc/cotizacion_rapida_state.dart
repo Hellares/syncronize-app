@@ -99,8 +99,12 @@ class CotizacionRapidaState extends Equatable {
   double get icbper => items.fold(0, (sum, i) => sum + i.icbper);
   double get total => items.fold(0, (sum, i) => sum + i.total);
   int get cantidadItems => items.length;
-  int get cantidadUnidades =>
-      items.fold(0, (sum, i) => sum + i.cantidad.toInt());
+  /// Unidades contadas en la unidad en la que se VENDE: 1 kg de un producto
+  /// que se guarda en gramos cuenta 1, no 1000. Se redondea hacia arriba para
+  /// que medio kilo no desaparezca del contador.
+  int get cantidadUnidades => items
+      .fold<double>(0, (sum, i) => sum + i.presentacion.cantidad(i.cantidad))
+      .ceil();
 
   /// True si la cotización es convertible directamente a venta (todos los
   /// items son de catálogo, sin manuales). El backend usa este criterio

@@ -1,3 +1,4 @@
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../descuento/domain/entities/vip_precio.dart';
 import '../../../descuento/domain/entities/politica_descuento.dart'
@@ -107,6 +108,25 @@ class VentaDetalleInput {
   /// el cliente por la oferta pública.
   final double? precioAntesOferta;
 
+  /// Unidad en la que se le habla al cliente cuando la de venta es demasiado
+  /// chica: `cantidad` y `precioUnitario` viajan SIEMPRE en unidad de venta
+  /// (1500 g a S/0.008) pero se muestran y se capturan en presentación
+  /// (1.5 kg a S/8.00). Null = el producto se vende en su unidad de venta,
+  /// que es el caso de siempre.
+  ///
+  /// Es solo capa de vista y captura: el backend no recibe estos campos.
+  final double? factorPresentacion;
+  final String? unidadPresentacionSimbolo;
+
+  /// Traductor entre lo que viaja y lo que se muestra. Se puede usar siempre:
+  /// sin presentación el factor es 1 y no cambia ningún número.
+  UnidadPresentacion get presentacion => UnidadPresentacion(
+        factor: (factorPresentacion != null && factorPresentacion! > 1)
+            ? factorPresentacion!
+            : 1,
+        simbolo: unidadPresentacionSimbolo,
+      );
+
   /// Intenciones de precio especial VIP aplicables a esta línea (el cliente
   /// puede estar en varias políticas). Vacío = sin VIP. recalcularPrecioPorNiveles
   /// elige el menor entre ellas.
@@ -144,6 +164,8 @@ class VentaDetalleInput {
     this.enLiquidacion = false,
     this.enOferta = false,
     this.precioAntesOferta,
+    this.factorPresentacion,
+    this.unidadPresentacionSimbolo,
     this.vipIntents = const [],
   });
 
@@ -246,6 +268,8 @@ class VentaDetalleInput {
     bool? enLiquidacion,
     bool? enOferta,
     double? precioAntesOferta,
+    double? factorPresentacion,
+    String? unidadPresentacionSimbolo,
     List<VipPrecioIntent>? vipIntents,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
@@ -285,6 +309,9 @@ class VentaDetalleInput {
       enLiquidacion: enLiquidacion ?? this.enLiquidacion,
       enOferta: enOferta ?? this.enOferta,
       precioAntesOferta: precioAntesOferta ?? this.precioAntesOferta,
+      factorPresentacion: factorPresentacion ?? this.factorPresentacion,
+      unidadPresentacionSimbolo:
+          unidadPresentacionSimbolo ?? this.unidadPresentacionSimbolo,
       vipIntents: vipIntents ?? this.vipIntents,
     );
   }

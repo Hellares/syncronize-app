@@ -126,8 +126,12 @@ class VentaRapidaState extends Equatable {
   /// Número de líneas distintas en el carrito.
   int get cantidadItems => items.length;
   /// Suma de unidades de todos los productos en el carrito (para el badge UX).
-  int get cantidadUnidades =>
-      items.fold(0, (sum, i) => sum + i.cantidad.toInt());
+  /// Unidades contadas en la unidad en la que se VENDE: 1 kg de un producto
+  /// que se guarda en gramos cuenta 1, no 1000. Se redondea hacia arriba para
+  /// que medio kilo no desaparezca del contador.
+  int get cantidadUnidades => items
+      .fold<double>(0, (sum, i) => sum + i.presentacion.cantidad(i.cantidad))
+      .ceil();
   bool get esCredito => condicionPago == 'CREDITO';
 
   /// True si alguna línea tiene precio especial VIP aplicado (cliente VIP).
