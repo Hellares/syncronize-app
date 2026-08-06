@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../../../core/services/pdf/pdf_document_style.dart';
 import '../../../../core/services/pdf/pdf_row_builders.dart';
 import '../../../../core/utils/number_to_words.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../configuracion_documentos/domain/entities/configuracion_documento_completa.dart';
 import '../../domain/entities/venta.dart';
 
@@ -575,9 +576,15 @@ class PdfVentaGenerator {
         lastCombo = null;
       }
 
-      final qty = d.cantidad % 1 == 0
-          ? d.cantidad.toInt().toString()
-          : d.cantidad.toStringAsFixed(2);
+      // Cantidad y P.U. en la unidad en la que se le habló al cliente: un
+      // granel se guarda en gramos y sin esto la línea sale "1500" a "0.01".
+      // Sin presentación el factor es 1 y no toca ningún número.
+      final u = d.presentacion as UnidadPresentacion;
+      final qty = u.activa
+          ? u.cantidadTexto(d.cantidad, conSimbolo: false)
+          : (d.cantidad % 1 == 0
+              ? d.cantidad.toInt().toString()
+              : d.cantidad.toStringAsFixed(2));
       // Total de línea sin ICBPER (ICBPER se muestra aparte como impuesto)
       final totalLinea = (d.total as double) - (d.icbper as double);
       final descuento = d.descuento as double;
@@ -602,6 +609,14 @@ class PdfVentaGenerator {
                 children: [
                   pw.Text(d.descripcion,
                       style: pw.TextStyle(fontSize: 6, color: colorCuerpo)),
+                  // La columna de cantidad es angosta y no entra "1.5 kg":
+                  // el cliente tiene derecho a leer en qué unidad se le cobró.
+                  if (u.activa)
+                    pw.Text(
+                      '${u.cantidadTexto(d.cantidad)} x '
+                      '$simboloMoneda${u.precio(d.precioUnitario).toStringAsFixed(2)}/${u.simboloVisible}',
+                      style: pw.TextStyle(fontSize: 5, color: colorCuerpo),
+                    ),
                   if (descuento > 0)
                     pw.Text(
                       'Desc $simboloMoneda${descuento.toStringAsFixed(2)}',
@@ -634,7 +649,7 @@ class PdfVentaGenerator {
             pw.SizedBox(
               width: 42,
               child: pw.Text(
-                '$simboloMoneda${d.precioUnitario.toStringAsFixed(2)}',
+                '$simboloMoneda${u.precio(d.precioUnitario).toStringAsFixed(2)}',
                 style: pw.TextStyle(fontSize: 7, color: colorCuerpo),
                 textAlign: pw.TextAlign.right,
               ),

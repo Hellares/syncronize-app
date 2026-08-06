@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/unidad_presentacion.dart';
+
 /// Entity que representa un item/linea de una venta
 class VentaDetalle extends Equatable {
   final String id;
@@ -37,6 +39,21 @@ class VentaDetalle extends Equatable {
   /// Etiqueta del precio aplicado al vender (snapshot): nombre del nivel
   /// ("Por Mayor"), "Oferta" o "Liquidación". Null si fue precio base.
   final String? nivelAplicadoSnapshot;
+
+  /// Unidad en la que se le habló al cliente en esta línea (snapshot del
+  /// momento de la venta). `cantidad` y `precioUnitario` siguen guardados en
+  /// unidad de venta: un granel vendido en kilos llega como 1500 y 0.008, y
+  /// es [presentacion] la que lo traduce a "1.5 kg" y "S/8.00/kg".
+  ///
+  /// Snapshot y no lookup al producto: reimprimir el ticket de una venta
+  /// vieja tiene que mostrar lo que se cobró ese día.
+  final String? unidadPresentacionSimbolo;
+  final double? factorPresentacion;
+
+  /// Unidad SUNAT (catálogo 03) con la que se declaró esta línea, ej. "KGM".
+  /// La necesita la nota de crédito: tiene que declararse en la misma unidad
+  /// que el comprobante que afecta.
+  final String? codigoUnidadSunat;
 
   // Cobro de orden de servicio: esta línea representa el SALDO de una
   // orden (REPARADO/LISTO_ENTREGA). El desglose permite que el ticket
@@ -76,6 +93,9 @@ class VentaDetalle extends Equatable {
     this.origenComboId,
     this.origenComboNombre,
     this.nivelAplicadoSnapshot,
+    this.unidadPresentacionSimbolo,
+    this.factorPresentacion,
+    this.codigoUnidadSunat,
     this.ordenServicioId,
     this.ordenCodigo,
     this.ordenCostoTotal,
@@ -86,6 +106,16 @@ class VentaDetalle extends Equatable {
 
   /// True si esta línea cobra el saldo de una orden de servicio.
   bool get esOrdenServicio => ordenServicioId != null;
+
+  /// Traductor de unidades de esta línea. Sin presentación configurada el
+  /// factor es 1 y no toca ningún número, así que se puede usar en cualquier
+  /// pantalla sin preguntar si el producto la tiene.
+  UnidadPresentacion get presentacion => factorPresentacion == null
+      ? const UnidadPresentacion.ninguna()
+      : UnidadPresentacion(
+          factor: factorPresentacion!,
+          simbolo: unidadPresentacionSimbolo,
+        );
 
   String get tipoItem {
     if (ordenServicioId != null) return 'orden_servicio';
@@ -118,6 +148,9 @@ class VentaDetalle extends Equatable {
         origenComboId,
         origenComboNombre,
         nivelAplicadoSnapshot,
+        unidadPresentacionSimbolo,
+        factorPresentacion,
+        codigoUnidadSunat,
         ordenServicioId,
         ordenCodigo,
         ordenCostoTotal,

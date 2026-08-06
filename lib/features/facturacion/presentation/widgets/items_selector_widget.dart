@@ -103,7 +103,11 @@ class _ItemRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Original: ${item.cantidad} × S/${item.valorUnitario.toStringAsFixed(2)}',
+                  // El símbolo importa: la cantidad que se edita abajo está
+                  // en la unidad del comprobante (kilos para un granel), no
+                  // en la unidad de stock.
+                  'Original: ${item.cantidad}${item.simboloUnidad != null ? ' ${item.simboloUnidad}' : ''}'
+                  ' × S/${item.valorUnitario.toStringAsFixed(2)}',
                   style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
                 ),
               ],
@@ -115,11 +119,14 @@ class _ItemRow extends StatelessWidget {
               enabled: incluido,
               initialValue: cantidadActual.toString(),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Cant.',
+              decoration: InputDecoration(
+                labelText: item.simboloUnidad != null
+                    ? 'Cant. (${item.simboloUnidad})'
+                    : 'Cant.',
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                border: OutlineInputBorder(),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                border: const OutlineInputBorder(),
               ),
               style: const TextStyle(fontSize: 11),
               onChanged: (v) {

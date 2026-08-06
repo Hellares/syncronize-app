@@ -216,9 +216,17 @@ class TicketVentaEscPosGenerator {
           lastCombo = null;
         }
 
-        final qty = d.cantidad % 1 == 0
-            ? d.cantidad.toInt().toString()
-            : d.cantidad.toStringAsFixed(2);
+        // Cantidad y P.U. en la unidad en la que se le habló al cliente: un
+        // granel se guarda en gramos, así que sin esto la línea salía
+        // "1500 ... 0.01" — dos números que no aparecen en ninguna otra
+        // parte y que hacen dudar de la plata. Sin presentación el factor es
+        // 1 y la línea queda exactamente como siempre.
+        final u = d.presentacion;
+        final qty = u.activa
+            ? u.cantidadTexto(d.cantidad, conSimbolo: false)
+            : (d.cantidad % 1 == 0
+                ? d.cantidad.toInt().toString()
+                : d.cantidad.toStringAsFixed(2));
         // Sangría visual en la descripción para items que vienen de un combo.
         // _ascii(): las térmicas usan code pages (CP437/CP850) sin "—", "·",
         // comillas tipográficas, etc. — un carácter fuera del code page
@@ -226,7 +234,7 @@ class TicketVentaEscPosGenerator {
         final descripcion = _ascii(d.origenComboId != null
             ? '  ${d.descripcion}'
             : d.descripcion);
-        final pu = d.precioUnitario.toStringAsFixed(2);
+        final pu = u.precio(d.precioUnitario).toStringAsFixed(2);
         final total = d.total.toStringAsFixed(2);
 
         // Si la descripción es más larga que su columna, envolver al
@@ -239,6 +247,19 @@ class TicketVentaEscPosGenerator {
           bytes += generator.text(
             cols.formatear('', chunks[i], '', ''),
           );
+        }
+
+        // La columna CANT es de 4-5 chars: no entra "1.5 kg". Sin nombrar la
+        // unidad, un "1.5" a "8.00" es ambiguo — el cliente tiene derecho a
+        // leer en qué se le cobró. Va como sub-línea, igual que el descuento.
+        if (u.activa) {
+          // _ascii(): el símbolo lo escribe la empresa y puede traer
+          // caracteres fuera del code page de la térmica, que abortan el
+          // trabajo de impresión entero.
+          bytes += generator.text(_ascii(
+            '  ${u.cantidadTexto(d.cantidad)} x '
+            'S/${u.precio(d.precioUnitario).toStringAsFixed(2)}/${u.simboloVisible}',
+          ));
         }
 
         if (d.descuento > 0) {

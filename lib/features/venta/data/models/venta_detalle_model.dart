@@ -28,6 +28,9 @@ class VentaDetalleModel extends VentaDetalle {
     super.origenComboId,
     super.origenComboNombre,
     super.nivelAplicadoSnapshot,
+    super.unidadPresentacionSimbolo,
+    super.factorPresentacion,
+    super.codigoUnidadSunat,
     super.ordenServicioId,
     super.ordenCodigo,
     super.ordenCostoTotal,
@@ -69,6 +72,13 @@ class VentaDetalleModel extends VentaDetalle {
       origenComboId: json['origenComboId'] as String?,
       origenComboNombre: json['origenComboNombre'] as String?,
       nivelAplicadoSnapshot: json['nivelAplicadoSnapshot'] as String?,
+      // Unidad con la que se le habló al cliente. Null en ventas anteriores a
+      // la capa de presentación: ahí la línea se lee tal cual se guardó.
+      unidadPresentacionSimbolo: json['unidadPresentacionSimbolo'] as String?,
+      factorPresentacion: json['factorPresentacion'] != null
+          ? _toDouble(json['factorPresentacion'])
+          : null,
+      codigoUnidadSunat: json['codigoUnidadSunat'] as String?,
       // Fallback al id del objeto anidado: si el backend solo mandara la
       // relación `ordenServicio`, `esOrdenServicio` no debe apagarse (de él
       // depende TODO el desglose en ticket/PDF/detalle).
@@ -105,6 +115,12 @@ class VentaDetalleModel extends VentaDetalle {
       'subtotal': subtotal,
       'total': total,
       'orden': orden,
+      // Paridad con fromJson: sin esto una línea que pasa por caché vuelve
+      // sin presentación y el ticket reimpreso dice "1500" en vez de "1.5 kg".
+      if (unidadPresentacionSimbolo != null)
+        'unidadPresentacionSimbolo': unidadPresentacionSimbolo,
+      if (factorPresentacion != null) 'factorPresentacion': factorPresentacion,
+      if (codigoUnidadSunat != null) 'codigoUnidadSunat': codigoUnidadSunat,
     };
   }
 

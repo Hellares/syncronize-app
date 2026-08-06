@@ -1374,11 +1374,19 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                               ],
                             ),
                           ),
+                          // Cantidad y P.U. en la unidad en la que se cobró:
+                          // el ticket y la boleta dicen "1.5 kg" y "8.00", y
+                          // esta tabla tiene que decir lo mismo, no los
+                          // 1500 g que guarda la base.
                           Expanded(
                             flex: 2,
                             child: Center(
                               child: Text(
-                                _fmtCantidad(detalles[i].cantidad),
+                                detalles[i].presentacion.activa
+                                    ? detalles[i]
+                                        .presentacion
+                                        .cantidadTexto(detalles[i].cantidad)
+                                    : _fmtCantidad(detalles[i].cantidad),
                                 style: const TextStyle(fontSize: 10),
                               ),
                             ),
@@ -1388,7 +1396,10 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
                             child: Align(
                               alignment: Alignment.centerRight,
                               child: Text(
-                                detalles[i].precioUnitario.toStringAsFixed(2),
+                                detalles[i]
+                                    .presentacion
+                                    .precio(detalles[i].precioUnitario)
+                                    .toStringAsFixed(2),
                                 style: const TextStyle(fontSize: 10),
                               ),
                             ),
@@ -3250,18 +3261,27 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
 
   Future<void> _abrirDialogNota(BuildContext context, Venta v, TipoNota tipo) async {
     if (v.comprobanteId == null) return;
+    // La nota se declara en la MISMA unidad que el comprobante que afecta: si
+    // la boleta salió en kilos, acá van kilos. La venta guarda gramos, así
+    // que la línea se traduce igual que en el comprobante — cantidad dividida
+    // por el factor, precio multiplicado. Sin presentación no cambia nada.
     final itemsOrigen = (v.detalles ?? const [])
-        .map((d) => CrearNotaItem(
-              descripcion: d.descripcion,
-              cantidad: d.cantidad,
-              valorUnitario: d.precioUnitario,
-              precioUnitario: d.precioUnitario,
-              tipoAfectacion: d.tipoAfectacion,
-              igv: d.igv,
-              icbper: d.icbper,
-              subtotal: d.subtotal,
-              total: d.total,
-            ))
+        .map((d) {
+          final u = d.presentacion;
+          return CrearNotaItem(
+            descripcion: d.descripcion,
+            cantidad: u.cantidad(d.cantidad),
+            valorUnitario: u.precio(d.precioUnitario),
+            precioUnitario: u.precio(d.precioUnitario),
+            tipoAfectacion: d.tipoAfectacion,
+            igv: d.igv,
+            icbper: d.icbper,
+            subtotal: d.subtotal,
+            total: d.total,
+            unidadMedida: d.codigoUnidadSunat,
+            simboloUnidad: u.simboloVisible,
+          );
+        })
         .toList();
 
     final result = await CrearNotaDialog.show(

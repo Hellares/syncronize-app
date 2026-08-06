@@ -13,6 +13,16 @@ class CrearNotaItem extends Equatable {
   final double? subtotal;
   final double? total;
 
+  /// Unidad SUNAT (catálogo 03) con la que se declaró la línea en el
+  /// comprobante que la nota afecta. Una nota que rebaja 1.5 KGM no puede
+  /// declararse en NIU: es otro documento. Null → el backend la deduce de la
+  /// línea homónima del original.
+  final String? unidadMedida;
+
+  /// Símbolo legible de esa unidad ("kg"), solo para mostrar en el diálogo.
+  /// No viaja al backend.
+  final String? simboloUnidad;
+
   const CrearNotaItem({
     required this.descripcion,
     required this.cantidad,
@@ -23,6 +33,8 @@ class CrearNotaItem extends Equatable {
     this.icbper,
     this.subtotal,
     this.total,
+    this.unidadMedida,
+    this.simboloUnidad,
   });
 
   CrearNotaItem copyWith({
@@ -44,6 +56,8 @@ class CrearNotaItem extends Equatable {
       icbper: icbper ?? this.icbper,
       subtotal: subtotal ?? this.subtotal,
       total: total ?? this.total,
+      unidadMedida: unidadMedida,
+      simboloUnidad: simboloUnidad,
     );
   }
 
@@ -58,5 +72,7 @@ class CrearNotaItem extends Equatable {
         icbper,
         subtotal,
         total,
+        unidadMedida,
+        simboloUnidad,
       ];
 }

@@ -21,6 +21,7 @@ class CrearNotaRequestModel {
       'valorUnitario': item.valorUnitario,
       'precioUnitario': item.precioUnitario,
     };
+    if (item.unidadMedida != null) json['unidadMedida'] = item.unidadMedida;
     if (item.tipoAfectacion != null) json['tipoAfectacion'] = item.tipoAfectacion;
     if (item.igv != null) json['igv'] = item.igv;
     if (item.icbper != null) json['icbper'] = item.icbper;
