@@ -121,6 +121,21 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
               controller.factorCompraController.text.replaceAll(',', '.'),
             );
 
+      // Unidad de presentación: los dos campos van SIEMPRE juntos. Si el
+      // usuario apagó la sección, ambos quedan en null y el backend la
+      // limpia; mandar uno solo hace que rebote con 400.
+      final factorPresentacionValue =
+          controller.factorPresentacionController.text.trim().isEmpty
+              ? null
+              : double.tryParse(
+                  controller.factorPresentacionController.text
+                      .replaceAll(',', '.'),
+                );
+      final unidadPresentacionValue =
+          factorPresentacionValue == null
+              ? null
+              : controller.selectedUnidadPresentacionId;
+
       final Resource<Producto> result;
       if (isEditing && productoId != null) {
         result = await _actualizarProductoUseCase(
@@ -130,6 +145,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           unidadMedidaId: controller.selectedUnidadMedidaId,
           unidadCompraId: controller.selectedUnidadCompraId,
           factorCompra: factorCompraValue,
+          unidadPresentacionId: unidadPresentacionValue,
+          factorPresentacion:
+              unidadPresentacionValue == null ? null : factorPresentacionValue,
           nombre: nombre,
           descripcion: descripcion.isEmpty ? null : descripcion,
           empresaCategoriaId: controller.selectedCategoriaId,
@@ -164,6 +182,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           unidadMedidaId: controller.selectedUnidadMedidaId,
           unidadCompraId: controller.selectedUnidadCompraId,
           factorCompra: factorCompraValue,
+          unidadPresentacionId: unidadPresentacionValue,
+          factorPresentacion:
+              unidadPresentacionValue == null ? null : factorPresentacionValue,
           nombre: nombre,
           descripcion: descripcion.isEmpty ? null : descripcion,
           empresaCategoriaId: controller.selectedCategoriaId,

@@ -49,6 +49,7 @@ class ProductoFormController extends ChangeNotifier {
         dimensionAnchoController,
         dimensionAltoController,
         factorCompraController,
+        factorPresentacionController,
       ];
 
   // ============================================================
@@ -104,6 +105,22 @@ class ProductoFormController extends ChangeNotifier {
   /// Factor de conversión: cuántas unidades de venta trae 1 unidad
   /// de compra. Ej: 100 (BOLSAS por PAQUETE), 1000 (GR por KG).
   final TextEditingController factorCompraController = TextEditingController();
+
+  /// Unidad de PRESENTACIÓN (opcional). Cómo se le habla al cliente cuando
+  /// la unidad de venta es demasiado chica: se guarda en gramos y se cobra
+  /// en KILOS. No cambia stock ni costo, que siguen en unidad de venta.
+  String? _selectedUnidadPresentacionId;
+  String? get selectedUnidadPresentacionId => _selectedUnidadPresentacionId;
+  set selectedUnidadPresentacionId(String? value) {
+    _selectedUnidadPresentacionId = value;
+    markAsChanged();
+    notifyListeners();
+  }
+
+  /// Cuántas unidades de venta trae 1 de presentación (1 kg = 1000 g).
+  /// El backend exige que sea > 1: la presentación existe para AGRUPAR.
+  final TextEditingController factorPresentacionController =
+      TextEditingController();
 
   String? _selectedConfiguracionPrecioId;
   String? get selectedConfiguracionPrecioId => _selectedConfiguracionPrecioId;
@@ -293,6 +310,10 @@ class ProductoFormController extends ChangeNotifier {
     _selectedUnidadMedidaId = producto.unidadMedidaId;
     _selectedUnidadCompraId = producto.unidadCompraId;
     factorCompraController.text = producto.factorCompra?.toString() ?? '';
+    _selectedUnidadPresentacionId = producto.unidadPresentacionId;
+    // Sin decimales de relleno: un factor de 1000 se guarda como 1000.0 y
+    // "1000.0" en el campo se lee como si tuviera precisión que no aporta.
+    factorPresentacionController.text = _factorTexto(producto.factorPresentacion);
     _selectedConfiguracionPrecioId = producto.configuracionPrecioId;
     _visibleMarketplace = producto.visibleMarketplace;
     _destacado = producto.destacado;
@@ -318,6 +339,15 @@ class ProductoFormController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Factor → texto editable. `1000.0` se muestra "1000": los decimales de
+  /// relleno sugieren una precisión que el factor no tiene y encima el
+  /// usuario los tiene que borrar a mano para corregirlo.
+  static String _factorTexto(double? factor) {
+    if (factor == null) return '';
+    if (factor == factor.truncateToDouble()) return factor.toInt().toString();
+    return factor.toString();
+  }
+
   /// Establece la sede por defecto (sede principal o primera activa)
   void setDefaultSede(String? sedeId) {
     if (_selectedSedesIds.isEmpty && sedeId != null) {
@@ -338,6 +368,8 @@ class ProductoFormController extends ChangeNotifier {
     _selectedUnidadMedidaId = null;
     _selectedUnidadCompraId = null;
     factorCompraController.clear();
+    _selectedUnidadPresentacionId = null;
+    factorPresentacionController.clear();
     _selectedConfiguracionPrecioId = null;
     _selectedPlantillaId = null;
     _selectedPlantilla = null;

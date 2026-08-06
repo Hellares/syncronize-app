@@ -36,6 +36,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? unidadMedidaId,
     String? unidadCompraId,
     double? factorCompra,
+    String? unidadPresentacionId,
+    double? factorPresentacion,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,
@@ -73,6 +75,11 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
         if (unidadCompraId != null) 'unidadCompraId': unidadCompraId,
         if (factorCompra != null) 'factorCompra': factorCompra,
+        // Al crear sí se omite en null: no hay nada que limpiar, y el
+        // backend rechaza la pareja incompleta.
+        if (unidadPresentacionId != null)
+          'unidadPresentacionId': unidadPresentacionId,
+        if (factorPresentacion != null) 'factorPresentacion': factorPresentacion,
         if (empresaCategoriaId != null)
           'empresaCategoriaId': empresaCategoriaId,
         if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,
@@ -196,6 +203,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? unidadMedidaId,
     String? unidadCompraId,
     double? factorCompra,
+    String? unidadPresentacionId,
+    double? factorPresentacion,
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sku,
@@ -233,6 +242,13 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
         if (unidadCompraId != null) 'unidadCompraId': unidadCompraId,
         if (factorCompra != null) 'factorCompra': factorCompra,
+        // La presentación viaja SIEMPRE, incluso en null. El backend
+        // distingue `undefined` (no tocar) de `null` (limpiar), así que
+        // omitirla —como hace la unidad de compra de arriba— haría imposible
+        // APAGARLA desde el formulario: el switch se vería en off y el
+        // producto seguiría cobrándose en kilos.
+        'unidadPresentacionId': unidadPresentacionId,
+        'factorPresentacion': factorPresentacion,
         if (empresaCategoriaId != null)
           'empresaCategoriaId': empresaCategoriaId,
         if (empresaMarcaId != null) 'empresaMarcaId': empresaMarcaId,

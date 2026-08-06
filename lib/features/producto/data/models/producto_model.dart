@@ -16,6 +16,9 @@ class ProductoModel extends Producto {
     super.unidadCompraId,
     super.factorCompra,
     super.unidadCompra,
+    super.unidadPresentacionId,
+    super.factorPresentacion,
+    super.unidadPresentacionSimbolo,
     required super.codigoEmpresa,
     required super.codigoSistema,
     super.sku,
@@ -61,6 +64,12 @@ class ProductoModel extends Producto {
       empresaCategoriaId: json['empresaCategoriaId'] as String?,
       empresaMarcaId: json['empresaMarcaId'] as String?,
       unidadMedidaId: json['unidadMedidaId'] as String?,
+      unidadPresentacionId: json['unidadPresentacionId'] as String?,
+      factorPresentacion: json['factorPresentacion'] != null
+          ? toSafeDouble(json['factorPresentacion'])
+          : null,
+      unidadPresentacionSimbolo:
+          json['unidadPresentacionSimbolo'] as String?,
       unidadCompraId: json['unidadCompraId'] as String?,
       factorCompra: json['factorCompra'] != null
           ? toSafeDouble(json['factorCompra'])
@@ -157,6 +166,11 @@ class ProductoModel extends Producto {
       if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
       if (unidadCompraId != null) 'unidadCompraId': unidadCompraId,
       if (factorCompra != null) 'factorCompra': factorCompra,
+      if (unidadPresentacionId != null)
+        'unidadPresentacionId': unidadPresentacionId,
+      if (factorPresentacion != null) 'factorPresentacion': factorPresentacion,
+      if (unidadPresentacionSimbolo != null)
+        'unidadPresentacionSimbolo': unidadPresentacionSimbolo,
       'codigoEmpresa': codigoEmpresa,
       'codigoSistema': codigoSistema,
       if (sku != null) 'sku': sku,
@@ -251,6 +265,9 @@ class ProductoModel extends Producto {
       unidadMedidaId: entity.unidadMedidaId,
       unidadCompraId: entity.unidadCompraId,
       factorCompra: entity.factorCompra,
+      unidadPresentacionId: entity.unidadPresentacionId,
+      factorPresentacion: entity.factorPresentacion,
+      unidadPresentacionSimbolo: entity.unidadPresentacionSimbolo,
       unidadCompra: entity.unidadCompra,
       codigoEmpresa: entity.codigoEmpresa,
       codigoSistema: entity.codigoSistema,

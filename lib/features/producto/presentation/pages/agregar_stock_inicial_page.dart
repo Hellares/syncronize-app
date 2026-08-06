@@ -14,6 +14,7 @@ import '../../../sede/presentation/bloc/sede_list/sede_list_state.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../domain/entities/producto.dart';
 import '../bloc/agregar_stock_inicial/agregar_stock_inicial_cubit.dart';
 import '../bloc/agregar_stock_inicial/agregar_stock_inicial_state.dart';
@@ -33,6 +34,37 @@ class AgregarStockInicialPage extends StatefulWidget {
 
 class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
   final _formKey = GlobalKey<FormState>();
+
+  /// Unidad en la que se le habla al usuario. Un granel se guarda en gramos
+  /// pero acá se carga en KILOS: escribir "22000" y "0.008" es pedir un error
+  /// de tres ceros justo en la pantalla que fija el stock y el precio.
+  /// Sin presentación el factor es 1 y todo queda como estaba.
+  UnidadPresentacion get _u => widget.producto.presentacion;
+
+  /// Sufijo para las etiquetas: " (kg)". Vacío sin presentación, para no
+  /// ensuciar los productos normales.
+  String get _sufijo => _u.activa ? ' (${_u.simboloVisible})' : '';
+
+  /// Texto escrito → cantidad en unidad de VENTA, que es como se guarda el
+  /// stock. "1.5" con presentación en kilos son 1500 gramos.
+  ///
+  /// Redondea: `stockActual` es entero en toda la app (kardex, reservas,
+  /// combos), así que la unidad de venta tiene que ser lo bastante fina para
+  /// que redondear no pierda nada — con base en gramos, medio gramo.
+  int _aCantidadDeVenta(String texto) {
+    final valor = double.tryParse(texto.trim().replaceAll(',', '.'));
+    if (valor == null || valor <= 0) return 0;
+    return _u.cantidadAUnidadDeVenta(valor).round();
+  }
+
+  /// Texto escrito → precio POR unidad de venta. S/8.00 el kilo se guarda
+  /// como 0.008 el gramo. Va al revés que la cantidad.
+  double? _aPrecioDeVenta(String texto) {
+    if (texto.trim().isEmpty) return null;
+    final valor = double.tryParse(texto.trim().replaceAll(',', '.'));
+    if (valor == null) return null;
+    return _u.precioAUnidadDeVenta(valor);
+  }
 
   // Mapa de sede ID -> controllers
   final Map<String, SedeStockControllers> _sedeControllers = {};
@@ -119,29 +151,28 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
 
     for (final sedeId in _sedesSeleccionadas) {
       final controllers = _sedeControllers[sedeId]!;
-      final cantidad = int.tryParse(controllers.cantidadController.text) ?? 0;
+      // Lo escrito está en unidad de PRESENTACIÓN (22 kg); lo que viaja y se
+      // guarda es SIEMPRE unidad de venta (22000 g). Las cantidades se
+      // multiplican por el factor y los precios se dividen: van al revés, y
+      // usar el método equivocado convierte 1 kg en 0.001 g.
+      final cantidad = _aCantidadDeVenta(controllers.cantidadController.text);
 
       if (cantidad > 0) {
         stocksPorSede[sedeId] = StockInicialData(
           cantidad: cantidad,
           stockMinimo: controllers.stockMinimoController.text.isEmpty
               ? null
-              : int.tryParse(controllers.stockMinimoController.text),
+              : _aCantidadDeVenta(controllers.stockMinimoController.text),
           stockMaximo: controllers.stockMaximoController.text.isEmpty
               ? null
-              : int.tryParse(controllers.stockMaximoController.text),
+              : _aCantidadDeVenta(controllers.stockMaximoController.text),
           ubicacion: controllers.ubicacionController.text.trim().isEmpty
               ? null
               : controllers.ubicacionController.text.trim(),
-          precio: controllers.precioController.text.isEmpty
-              ? null
-              : double.tryParse(controllers.precioController.text),
-          precioCosto: controllers.precioCostoController.text.isEmpty
-              ? null
-              : double.tryParse(controllers.precioCostoController.text),
-          precioOferta: controllers.precioOfertaController.text.isEmpty
-              ? null
-              : double.tryParse(controllers.precioOfertaController.text),
+          precio: _aPrecioDeVenta(controllers.precioController.text),
+          precioCosto: _aPrecioDeVenta(controllers.precioCostoController.text),
+          precioOferta:
+              _aPrecioDeVenta(controllers.precioOfertaController.text),
         );
       }
     }
@@ -364,16 +395,29 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                             child: CustomText(
                               controller: controllers.cantidadController,
                               borderColor: AppColors.blue1,
-                              label: 'Cantidad *',
+                              label: 'Cantidad *$_sufijo',
                               hintText: '0',
-                              keyboardType: TextInputType.number,
+                              // Con presentación hay que poder escribir 1.5 kg;
+                              // sin ella el stock sigue siendo entero.
+                              keyboardType: _u.activa
+                                  ? const TextInputType.numberWithOptions(
+                                      decimal: true)
+                                  : TextInputType.number,
+                              onChanged: (_) => setState(() {}),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Requerido';
                                 }
-                                final cantidad = int.tryParse(value);
+                                final cantidad = double.tryParse(
+                                    value.trim().replaceAll(',', '.'));
                                 if (cantidad == null || cantidad < 0) {
                                   return 'Inválido';
+                                }
+                                // Una cantidad que al convertir se redondea a
+                                // cero guardaría stock 0 sin decir nada.
+                                if (cantidad > 0 &&
+                                    _aCantidadDeVenta(value) == 0) {
+                                  return 'Muy poco';
                                 }
                                 return null;
                               },
@@ -384,9 +428,12 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                             child: CustomText(
                               controller: controllers.stockMinimoController,
                               borderColor: AppColors.blue1,
-                              label: 'Mínimo',
+                              label: 'Mínimo$_sufijo',
                               hintText: '0',
-                              keyboardType: TextInputType.number,
+                              keyboardType: _u.activa
+                                  ? const TextInputType.numberWithOptions(
+                                      decimal: true)
+                                  : TextInputType.number,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -394,13 +441,17 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                             child: CustomText(
                               controller: controllers.stockMaximoController,
                               borderColor: AppColors.blue1,
-                              label: 'Máximo',
+                              label: 'Máximo$_sufijo',
                               hintText: '0',
-                              keyboardType: TextInputType.number,
+                              keyboardType: _u.activa
+                                  ? const TextInputType.numberWithOptions(
+                                      decimal: true)
+                                  : TextInputType.number,
                             ),
                           ),
                         ],
                       ),
+                      _buildEquivalencia(controllers),
                       const SizedBox(height: 12),
                       CustomDropdown<String>(
                         label: 'Ubicación física (opcional)',
@@ -436,7 +487,7 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                             child: CustomText(
                               controller: controllers.precioController,
                               borderColor: AppColors.blue1,
-                              label: 'Precio Venta',
+                              label: 'Precio Venta$_sufijo',
                               hintText: '0.00',
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             ),
@@ -446,7 +497,7 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                             child: CustomText(
                               controller: controllers.precioCostoController,
                               borderColor: AppColors.blue1,
-                              label: 'Precio Costo',
+                              label: 'Precio Costo$_sufijo',
                               hintText: '0.00',
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             ),
@@ -457,7 +508,7 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                       CustomText(
                         controller: controllers.precioOfertaController,
                         borderColor: AppColors.blue1,
-                        label: 'Precio Oferta (opcional)',
+                        label: 'Precio Oferta$_sufijo (opcional)',
                         hintText: '0.00',
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       ),
@@ -471,6 +522,37 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
 
         return const SizedBox.shrink();
       },
+    );
+  }
+
+  /// Qué se va a guardar realmente. La conversión es invisible y silenciosa:
+  /// mostrar "22 kg = 22 000 g en stock" es lo que deja ver de una que el
+  /// factor está bien ANTES de fijar el inventario.
+  Widget _buildEquivalencia(SedeStockControllers controllers) {
+    if (!_u.activa) return const SizedBox.shrink();
+
+    final enVenta = _aCantidadDeVenta(controllers.cantidadController.text);
+    if (enVenta <= 0) return const SizedBox.shrink();
+
+    final simVenta = widget.producto.unidadMedida?.displayCorto ?? 'u';
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Icon(Icons.swap_horiz, size: 12, color: Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              'Se guardan $enVenta $simVenta en stock.',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade700,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

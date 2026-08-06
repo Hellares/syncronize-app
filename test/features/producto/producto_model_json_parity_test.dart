@@ -57,6 +57,46 @@ void main() {
     expect(revivido.visibleMarketplace, isTrue);
   });
 
+  test('la unidad de presentación sobrevive al ida y vuelta', () {
+    // Es lo que el formulario relee al editar: si se pierde acá, la sección
+    // aparece apagada y guardar el producto BORRA la presentación.
+    final revivido = ProductoModel.fromJson(
+      ProductoModel.fromJson({
+        ...productoCompleto(),
+        'unidadPresentacionId': 'um-kg',
+        'factorPresentacion': 1000,
+        'unidadPresentacionSimbolo': 'kg',
+      }).toJson(),
+    );
+
+    expect(revivido.unidadPresentacionId, 'um-kg');
+    expect(revivido.factorPresentacion, 1000);
+    expect(revivido.unidadPresentacionSimbolo, 'kg');
+    // El traductor que usan las pantallas de captura sale de acá.
+    expect(revivido.presentacion.activa, isTrue);
+    expect(revivido.presentacion.cantidadAUnidadDeVenta(22), 22000);
+    expect(revivido.presentacion.precioAUnidadDeVenta(8), closeTo(0.008, 1e-9));
+  });
+
+  test('sin presentación el traductor no altera ningún número', () {
+    final p = ProductoModel.fromJson(productoCompleto());
+
+    expect(p.presentacion.activa, isFalse);
+    expect(p.presentacion.cantidadAUnidadDeVenta(22), 22);
+    expect(p.presentacion.precioAUnidadDeVenta(8), 8);
+  });
+
+  test('el factor tolera que el backend lo mande como String', () {
+    // Prisma serializa Decimal como String.
+    final p = ProductoModel.fromJson({
+      ...productoCompleto(),
+      'unidadPresentacionId': 'um-kg',
+      'factorPresentacion': '1000',
+    });
+
+    expect(p.factorPresentacion, 1000);
+  });
+
   test('un producto sin relaciones no inventa claves vacías', () {
     final minimo = ProductoModel.fromJson({
       'id': 'p2',

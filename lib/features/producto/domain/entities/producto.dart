@@ -4,6 +4,7 @@ import 'atributo_valor.dart';
 import 'stock_por_sede_info.dart';
 import 'stock_por_sede_mixin.dart';
 import '../../../catalogo/domain/entities/unidad_medida.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 
 /// Entity que representa un producto
 class Producto extends Equatable with StockPorSedeMixin {
@@ -22,6 +23,30 @@ class Producto extends Equatable with StockPorSedeMixin {
   final String? unidadCompraId;
   final double? factorCompra;
   final EmpresaUnidadMedida? unidadCompra;
+
+  /// Unidad de PRESENTACIÓN opcional. Cómo se le HABLA al usuario y al
+  /// cliente cuando la unidad de venta es demasiado chica para mostrarla:
+  /// un alimento a granel se guarda en gramos —para que el stock entero y
+  /// la balanza funcionen— pero se cotiza, se cobra y se imprime en KILOS.
+  ///
+  /// `factorPresentacion` = unidades de venta que trae 1 de presentación
+  /// (1 kg = 1000 g). NO cambia nada de lo almacenado: stock, precioCosto y
+  /// movimientos siguen SIEMPRE en unidad de venta. Es capa de vista.
+  final String? unidadPresentacionId;
+  final double? factorPresentacion;
+
+  /// Símbolo de la presentación ("kg"), plano desde el backend. Lo usan las
+  /// pantallas que capturan cantidades para nombrar la unidad en la etiqueta.
+  final String? unidadPresentacionSimbolo;
+
+  /// Traductor entre lo que se GUARDA y lo que se MUESTRA. Sin presentación
+  /// el factor es 1 y no toca ningún número.
+  UnidadPresentacion get presentacion => factorPresentacion == null
+      ? const UnidadPresentacion.ninguna()
+      : UnidadPresentacion(
+          factor: factorPresentacion!,
+          simbolo: unidadPresentacionSimbolo,
+        );
 
   final String codigoEmpresa;
   final String codigoSistema;
@@ -75,6 +100,9 @@ class Producto extends Equatable with StockPorSedeMixin {
     this.unidadCompraId,
     this.factorCompra,
     this.unidadCompra,
+    this.unidadPresentacionId,
+    this.factorPresentacion,
+    this.unidadPresentacionSimbolo,
     required this.codigoEmpresa,
     required this.codigoSistema,
     this.sku,
@@ -168,6 +196,9 @@ class Producto extends Equatable with StockPorSedeMixin {
         unidadMedidaId,
         unidadCompraId,
         factorCompra,
+        unidadPresentacionId,
+        factorPresentacion,
+        unidadPresentacionSimbolo,
         unidadCompra,
         codigoEmpresa,
         codigoSistema,

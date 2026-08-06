@@ -55,6 +55,7 @@ import '../widgets/form_sections/producto_options_section.dart';
 import '../widgets/form_sections/producto_tipo_section.dart';
 import '../widgets/form_sections/producto_categorizacion_section.dart';
 import '../widgets/form_sections/producto_unidad_compra_section.dart';
+import '../widgets/form_sections/producto_unidad_presentacion_section.dart';
 import '../widgets/form_sections/producto_impuestos_section.dart';
 import '../widgets/form_sections/producto_variantes_banner.dart';
 import '../widgets/form_sections/producto_combo_banner.dart';
@@ -555,6 +556,26 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     onUnidadCompraChanged: (value) {
                       setState(() {
                         _controller.selectedUnidadCompraId = value;
+                        _markAsChanged();
+                      });
+                    },
+                    onChanged: _markAsChanged,
+                  ),
+                  const SizedBox(height: 12),
+                  // Sección opcional: cómo se le HABLA al cliente cuando la
+                  // unidad de venta es demasiado chica (se guarda en gramos,
+                  // se cobra en kilos). Va pegada a la unidad de compra
+                  // porque son las dos caras del mismo concepto: una mira al
+                  // proveedor y la otra al cliente.
+                  ProductoUnidadPresentacionSection(
+                    selectedUnidadMedidaId: _controller.selectedUnidadMedidaId,
+                    selectedUnidadPresentacionId:
+                        _controller.selectedUnidadPresentacionId,
+                    factorPresentacionController:
+                        _controller.factorPresentacionController,
+                    onUnidadPresentacionChanged: (value) {
+                      setState(() {
+                        _controller.selectedUnidadPresentacionId = value;
                         _markAsChanged();
                       });
                     },
