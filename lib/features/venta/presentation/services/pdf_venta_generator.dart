@@ -613,9 +613,17 @@ class PdfVentaGenerator {
                   // el cliente tiene derecho a leer en qué unidad se le cobró.
                   if (u.activa)
                     pw.Text(
-                      '${u.cantidadTexto(d.cantidad)} x '
-                      '$simboloMoneda${u.precio(d.precioUnitario).toStringAsFixed(2)}/${u.simboloVisible}',
-                      style: pw.TextStyle(fontSize: 5, color: colorCuerpo),
+                      // Etiquetada, igual que en el ticket térmico: escrito
+                      // como multiplicación ("2.5 kg x S/7.50/kg") el cliente
+                      // entiende que 2.5 kg le costaron S/7.50. La cantidad no
+                      // se repite porque la columna de la izquierda ya la
+                      // muestra.
+                      'Precio por ${u.simboloVisible}: '
+                      '$simboloMoneda${u.precio(d.precioUnitario).toStringAsFixed(2)}',
+                      // 1pt menos que el resto de las sub-líneas (descuento,
+                      // adelanto): es un dato de apoyo, no debe competir con
+                      // las columnas.
+                      style: pw.TextStyle(fontSize: 4, color: colorCuerpo),
                     ),
                   if (descuento > 0)
                     pw.Text(

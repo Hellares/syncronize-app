@@ -262,12 +262,31 @@ class TicketVentaEscPosGenerator {
         // unidad, un "1.5" a "8.00" es ambiguo — el cliente tiene derecho a
         // leer en qué se le cobró. Va como sub-línea, igual que el descuento.
         if (u.activa) {
+          // Etiquetada, no como multiplicación. "2.5 kg x S/7.50/kg" se lee
+          // mal: la "x" pasa por un "=" y el "/kg" del final se pierde, así
+          // que el cliente entiende que 2.5 kg le costaron S/7.50. Con la
+          // etiqueta delante no hay forma de confundir la tarifa con un total.
+          //
+          // El tamaño no se puede bajar en la térmica: fontB ya es la fuente
+          // más chica del estándar y las Bienex no traen la C (probado,
+          // `ESC M 2` imprime igual). Lo que se puede es que diga menos y
+          // más claro.
+          //
           // _ascii(): el símbolo lo escribe la empresa y puede traer
           // caracteres fuera del code page de la térmica, que abortan el
           // trabajo de impresión entero.
+          //
+          // Si la columna CANT quedó vacía porque el número no entraba, la
+          // cantidad va acá con su propia etiqueta: es el único lugar donde
+          // aparece.
+          if (qtyCol.isEmpty) {
+            bytes += generator.text(
+              _ascii('  Cantidad: ${u.cantidadTexto(d.cantidad)}'),
+            );
+          }
           bytes += generator.text(_ascii(
-            '  ${u.cantidadTexto(d.cantidad)} x '
-            'S/${u.precio(d.precioUnitario).toStringAsFixed(2)}/${u.simboloVisible}',
+            '  Precio por ${u.simboloVisible}: '
+            'S/${u.precio(d.precioUnitario).toStringAsFixed(2)}',
           ));
         }
 
