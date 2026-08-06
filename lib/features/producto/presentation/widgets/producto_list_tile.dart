@@ -46,10 +46,18 @@ class ProductoListTile extends StatelessWidget {
   // Precio costo en la sede (para insumos, que no tienen precio de venta).
   double? get _precioCosto => producto.precioCostoEnSede(sedeId);
 
-  // Helper para formatear precios de manera segura
+  // Helper para formatear precios de manera segura.
+  //
+  // Lleva el precio a la unidad de PRESENTACIÓN: lo guardado es por unidad de
+  // venta, y con base en gramos son S/0.008, que a 2 decimales se lee "0.01".
+  // En kilos es S/8.00, que es el precio de verdad.
   String _formatPrecio(double precio) {
-    return precio.toStringAsFixed(2);
+    return producto.presentacion.precio(precio).toStringAsFixed(2);
   }
+
+  /// "/kg" para colgar del precio cuando hay presentación.
+  String get _sufijoPrecio =>
+      producto.presentacion.activa ? '/${producto.presentacion.simbolo}' : '';
 
   bool get _isOfertaActiva {
     return producto.enOfertaEnSede(sedeId);
@@ -486,7 +494,7 @@ class ProductoListTile extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   _precioCosto != null
-                      ? 'Costo: S/ ${_formatPrecio(_precioCosto!)}'
+                      ? 'Costo: S/ ${_formatPrecio(_precioCosto!)}$_sufijoPrecio'
                       : 'Sin costo',
                   style: TextStyle(
                     fontSize: 11,
@@ -516,7 +524,7 @@ class ProductoListTile extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
-                 'S/ ${_formatPrecio(_precioEfectivo)}',
+                 'S/ ${_formatPrecio(_precioEfectivo)}$_sufijoPrecio',
                  style: const TextStyle(
                    fontSize: 11,
                    fontWeight: FontWeight.bold,
@@ -524,7 +532,7 @@ class ProductoListTile extends StatelessWidget {
                  ),
                ),
                Text(
-                 'S/ ${_formatPrecio(_precio)}',
+                 'S/ ${_formatPrecio(_precio)}$_sufijoPrecio',
                  style: TextStyle(
                    fontSize: 9,
                    decoration: TextDecoration.lineThrough,
@@ -594,7 +602,7 @@ class ProductoListTile extends StatelessWidget {
             ),
           ] else ...[
             Text(
-             'S/ ${_formatPrecio(_precioEfectivo)}',
+             'S/ ${_formatPrecio(_precioEfectivo)}$_sufijoPrecio',
              style: const TextStyle(
                fontSize: 11,
                fontWeight: FontWeight.bold,
@@ -763,18 +771,25 @@ class ProductoListTile extends StatelessWidget {
     IconData icon;
     String badgeText;
 
+    // El stock se guarda en unidad de venta (22 000 g) pero se lee en la de
+    // presentación (22 kg). Al vender 1.5 kg salen 1500 g y el badge pasa
+    // solo a 20.5 kg. Sin presentación configurada muestra el número crudo,
+    // igual que siempre.
+    final pres = producto.presentacion;
+    final stockTexto = pres.cantidadTexto(stockToShow);
+
     if (!hasStock) {
       badgeColor = Colors.red;
       icon = producto.esCombo ? Icons.lock_outline : Icons.remove_circle_outline;
-      badgeText = '0';
+      badgeText = pres.activa ? '0 ${pres.simboloVisible}' : '0';
     } else if (isLowStock) {
       badgeColor = Colors.orange;
       icon = Icons.warning_amber_rounded;
-      badgeText = '$stockToShow';
+      badgeText = stockTexto;
     } else {
       badgeColor = Colors.green;
       icon = producto.esCombo ? Icons.lock : Icons.check_circle_outline;
-      badgeText = '$stockToShow';
+      badgeText = stockTexto;
     }
 
     // Si hay stock por sede, mostrar información adicional (no para productos con variantes)

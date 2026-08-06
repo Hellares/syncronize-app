@@ -645,6 +645,17 @@ class _CompraFormViewState extends State<_CompraFormView> {
   String _fmtCant(double v) =>
       v == v.truncateToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
+  /// Formatea un PRECIO UNITARIO sin mentir: por debajo del centavo, 2
+  /// decimales lo redondean a "0.01" y el usuario cree que le cobraron de más
+  /// (S/0.006727 el gramo son S/6.73 el kilo, no S/10). Ahí muestra los
+  /// decimales que hagan falta, hasta 6, que es lo que guarda el backend.
+  String _fmtPrecioUnit(double v) {
+    if (v >= 0.01 || v <= 0) return v.toStringAsFixed(2);
+    var s = v.toStringAsFixed(6);
+    s = s.replaceFirst(RegExp(r'0+$'), '');
+    return s.replaceFirst(RegExp(r'\.$'), '');
+  }
+
   /// Tabla estilo "Excel" de los items agregados (compra standalone), con
   /// dual-view de unidad de compra y botón de eliminar por fila.
   Widget _buildDetallesTabla() {
@@ -699,6 +710,14 @@ class _CompraFormViewState extends State<_CompraFormView> {
       final precioAtomico =
           usaUC && factor != null && factor > 0 ? precioNum / factor : null;
 
+      // Unidad de PRESENTACIÓN: el equivalente se muestra en la unidad en la
+      // que el usuario piensa (kg) y no en la de venta (g). Sin esto, un costo
+      // de S/0.006727 por gramo se leía como "S/0.01/u".
+      final factorPres = (d['factorPresentacion'] as num?)?.toDouble();
+      final simboloPres = d['unidadPresentacionSimbolo'] as String?;
+      final tienePres =
+          factorPres != null && factorPres > 1 && simboloPres != null;
+
       final cantTxt = usaUC && simboloUC != null
           ? '${_fmtCant(cantidadNum)} $simboloUC'
           : _fmtCant(cantidadNum);
@@ -720,7 +739,10 @@ class _CompraFormViewState extends State<_CompraFormView> {
                     overflow: TextOverflow.ellipsis),
                 if (usaUC && cantAtomica != null && precioAtomico != null)
                   Text(
-                    '= ${_fmtCant(cantAtomica)} u @ S/${precioAtomico.toStringAsFixed(2)}/u',
+                    tienePres
+                        ? '= ${_fmtCant(cantAtomica / factorPres)} $simboloPres'
+                            ' @ S/${(precioAtomico * factorPres).toStringAsFixed(2)}/$simboloPres'
+                        : '= ${_fmtCant(cantAtomica)} u @ S/${_fmtPrecioUnit(precioAtomico)}/u',
                     style: TextStyle(
                         fontSize: 8,
                         color: Colors.green.shade700,
@@ -734,7 +756,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
             ),
           ),
           celda(cantTxt, cellStyle, align: TextAlign.right, maxLines: 1),
-          celda(precioNum.toStringAsFixed(2), cellStyle,
+          celda(_fmtPrecioUnit(precioNum), cellStyle,
               align: TextAlign.right, maxLines: 1),
           celda(subtotal.toStringAsFixed(2), cellBold,
               align: TextAlign.right, maxLines: 1),

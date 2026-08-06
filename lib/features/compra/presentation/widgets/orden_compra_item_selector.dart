@@ -211,10 +211,12 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
 
   /// Precio de venta que quedaría tras esta compra: el nuevo (si se escribió)
   /// o, si no, el actual.
+  /// Ojo: el campo se escribe en unidad de PRESENTACIÓN (S/9 el kilo) y esto
+  /// devuelve por unidad de venta, que es como se compara contra el costo.
   double? get _precioVentaEfectivo {
     final txt = _nuevoPrecioVentaController.text.trim().replaceAll(',', '.');
     final nuevo = double.tryParse(txt);
-    if (nuevo != null && nuevo > 0) return nuevo;
+    if (nuevo != null && nuevo > 0) return nuevo / _factorPresentacion;
     return _precioVentaActualSede;
   }
 
@@ -229,9 +231,11 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     return costo > venta;
   }
 
+  /// [v] viene por unidad de venta; el campo se escribe en presentación.
   void _aplicarSugerencia(double v) {
     setState(() {
-      _nuevoPrecioVentaController.text = v.toStringAsFixed(2);
+      _nuevoPrecioVentaController.text =
+          _precioEnPresentacion(v).toStringAsFixed(2);
     });
   }
 
@@ -267,6 +271,33 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     final s = _usaUnidadCompra ? p.unidadCompraSimbolo : p.unidadMedidaSimbolo;
     return (s != null && s.isNotEmpty) ? s : null;
   }
+
+  // ─── Unidad de presentación ────────────────────────────────────────────
+  // Los informativos (preview de conversión, costo actual, precio de venta)
+  // se muestran en la unidad en la que el usuario piensa: un alimento que se
+  // guarda en gramos se lee en KILOS. Sin presentación configurada el factor
+  // es 1 y todo queda como antes.
+
+  double get _factorPresentacion =>
+      _productoSeleccionado?.factorPresentacionEfectivo ?? 1;
+
+  bool get _tienePresentacion => _factorPresentacion > 1;
+
+  /// Símbolo en el que se le habla al usuario: presentación si hay, si no la
+  /// unidad de venta.
+  String get _simboloPresentacion =>
+      _productoSeleccionado?.unidadPresentacionSimbolo ??
+      _productoSeleccionado?.unidadMedidaSimbolo ??
+      'u';
+
+  /// Un precio POR unidad de venta llevado a la unidad de presentación.
+  /// S/0.006727 por gramo → S/6.73 por kilo.
+  double _precioEnPresentacion(double porUnidadDeVenta) =>
+      porUnidadDeVenta * _factorPresentacion;
+
+  /// Una cantidad en unidad de venta llevada a presentación (22 000 g → 22 kg).
+  String _cantidadEnPresentacion(double enUnidadDeVenta) =>
+      _formatNum(enUnidadDeVenta / _factorPresentacion);
 
   /// Formatea un precio quitando ceros/punto sobrantes (5.0 → "5",
   /// 0.0500 → "0.05").
@@ -406,6 +437,16 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
             _productoSeleccionado!.unidadCompraSimbolo;
       }
 
+      // Snapshot de la presentación para que la tabla de ítems muestre
+      // "= 22 kg @ S/6.73/kg" en vez del costo por gramo, que redondeado a
+      // centavos se lee como S/0.01. El backend ignora estas claves: el
+      // payload se arma con una lista explícita de campos.
+      if (_tienePresentacion) {
+        item['factorPresentacion'] = _factorPresentacion;
+        item['unidadPresentacionSimbolo'] =
+            _productoSeleccionado!.unidadPresentacionSimbolo;
+      }
+
       // Si el usuario seteó un nuevo precio de venta distinto al
       // actual, se aplica al confirmar la compra (mismo tx que el
       // costo). Si el field está vacío o coincide con el actual, no
@@ -413,7 +454,12 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       final nuevoPrecioVentaText =
           _nuevoPrecioVentaController.text.trim().replaceAll(',', '.');
       if (nuevoPrecioVentaText.isNotEmpty) {
-        final nuevoPrecio = double.tryParse(nuevoPrecioVentaText);
+        // Lo escrito está en unidad de PRESENTACIÓN (S/9 el kilo); el backend
+        // guarda SIEMPRE por unidad de venta. Sin dividir, S/9 el kilo se
+        // guardaría como S/9 el gramo: S/9000 el kilo.
+        final escrito = double.tryParse(nuevoPrecioVentaText);
+        final nuevoPrecio =
+            escrito != null ? escrito / _factorPresentacion : null;
         if (nuevoPrecio != null &&
             nuevoPrecio > 0 &&
             nuevoPrecio != _precioVentaActualSede) {
@@ -446,8 +492,10 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       backgroundColor: Colors.white,
       content: [
         Text(
-          'El nuevo costo (S/ ${costo.toStringAsFixed(2)}) supera el precio de '
-          'venta (S/ ${venta?.toStringAsFixed(2) ?? '—'}).',
+          'El nuevo costo (S/ ${_precioEnPresentacion(costo).toStringAsFixed(2)}'
+          '${_tienePresentacion ? '/$_simboloPresentacion' : ''}) supera el precio de '
+          'venta (S/ ${venta != null ? _precioEnPresentacion(venta).toStringAsFixed(2) : '—'}'
+          '${_tienePresentacion ? '/$_simboloPresentacion' : ''}).',
           style: const TextStyle(
               fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w600),
         ),
@@ -580,14 +628,18 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
               children: [
                 Expanded(
                   child: Text(
-                    'Costo: S/${_costoActualSede?.toStringAsFixed(4) ?? '—'}',
+                    _tienePresentacion
+                        ? 'Costo: S/${_costoActualSede != null ? _precioEnPresentacion(_costoActualSede!).toStringAsFixed(2) : '—'}/$_simboloPresentacion'
+                        : 'Costo: S/${_costoActualSede?.toStringAsFixed(4) ?? '—'}',
                     style: TextStyle(
                         fontSize: 10, color: Colors.grey.shade800),
                   ),
                 ),
                 if (hayLote && costoNuevo != null)
                   Text(
-                    '→ S/${costoNuevo.toStringAsFixed(4)} (nuevo)',
+                    _tienePresentacion
+                        ? '→ S/${_precioEnPresentacion(costoNuevo).toStringAsFixed(2)}/$_simboloPresentacion (nuevo)'
+                        : '→ S/${costoNuevo.toStringAsFixed(4)} (nuevo)',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
@@ -602,7 +654,9 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
               children: [
                 Expanded(
                   child: Text(
-                    'P. venta actual: S/${_precioVentaActualSede?.toStringAsFixed(2) ?? '—'}',
+                    _tienePresentacion
+                        ? 'P. venta actual: S/${_precioVentaActualSede != null ? _precioEnPresentacion(_precioVentaActualSede!).toStringAsFixed(2) : '—'}/$_simboloPresentacion'
+                        : 'P. venta actual: S/${_precioVentaActualSede?.toStringAsFixed(2) ?? '—'}',
                     style: TextStyle(
                         fontSize: 10, color: Colors.grey.shade800),
                   ),
@@ -627,9 +681,13 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                   child: CustomText(
                     controller: _nuevoPrecioVentaController,
                     borderColor: Colors.amber.shade700,
-                    label: 'Nuevo precio venta',
-                    hintText:
-                        _precioVentaActualSede?.toStringAsFixed(2) ?? '0.00',
+                    label: _tienePresentacion
+                        ? 'Nuevo precio venta (por $_simboloPresentacion)'
+                        : 'Nuevo precio venta',
+                    hintText: _precioVentaActualSede != null
+                        ? _precioEnPresentacion(_precioVentaActualSede!)
+                            .toStringAsFixed(2)
+                        : '0.00',
                     keyboardType: const TextInputType.numberWithOptions(
                         decimal: true),
                     onChanged: (_) => setState(() {}),
@@ -645,12 +703,13 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 if (mantenerMargen != null)
                   _SugerenciaChip(
                     label:
-                        'Mantener margen${margenActual != null ? ' ${margenActual.toStringAsFixed(0)}%' : ''} → S/${mantenerMargen.toStringAsFixed(2)}',
+                        'Mantener margen${margenActual != null ? ' ${margenActual.toStringAsFixed(0)}%' : ''} → S/${_precioEnPresentacion(mantenerMargen).toStringAsFixed(2)}',
                     onTap: () => _aplicarSugerencia(mantenerMargen),
                   ),
                 if (mas10 != null)
                   _SugerenciaChip(
-                    label: 'Costo +10% → S/${mas10.toStringAsFixed(2)}',
+                    label:
+                        'Costo +10% → S/${_precioEnPresentacion(mas10).toStringAsFixed(2)}',
                     onTap: () => _aplicarSugerencia(mas10),
                   ),
               ],
@@ -1202,8 +1261,14 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                '= ${_formatNum(cantidadAtomica)} unidad(es) · '
-                'costo S/${precioAtomico.toStringAsFixed(2)}/u',
+                // Con presentación: "= 22 kg · costo S/6.73/kg". Sin ella se
+                // mostraba el costo atómico con 2 decimales, y S/0.006727 por
+                // gramo se leía como "S/0.01/u".
+                _tienePresentacion
+                    ? '= ${_cantidadEnPresentacion(cantidadAtomica)} $_simboloPresentacion · '
+                        'costo S/${_precioEnPresentacion(precioAtomico.toDouble()).toStringAsFixed(2)}/$_simboloPresentacion'
+                    : '= ${_formatNum(cantidadAtomica)} unidad(es) · '
+                        'costo S/${precioAtomico.toStringAsFixed(2)}/u',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.green.shade900,

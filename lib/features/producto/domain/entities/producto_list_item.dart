@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import 'producto_variante.dart';
 import 'stock_por_sede_info.dart';
 import 'stock_por_sede_mixin.dart';
@@ -83,6 +84,14 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   /// si no el de la unidad de venta.
   String? get simboloVisible =>
       unidadPresentacionSimbolo ?? unidadMedidaSimbolo;
+
+  /// Traductor entre lo que se guarda y lo que se muestra. Se puede usar
+  /// siempre: sin presentación configurada no cambia nada.
+  UnidadPresentacion get presentacion => UnidadPresentacion(
+        factor: factorPresentacionEfectivo,
+        simbolo: unidadPresentacionSimbolo,
+        simboloVenta: unidadMedidaSimbolo,
+      );
 
   /// Stock consolidado: para productos con variantes suma el stock de todas las variantes,
   /// para productos normales usa el stock directo
