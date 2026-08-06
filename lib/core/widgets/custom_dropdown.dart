@@ -293,6 +293,8 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
     if (widget.dropdownStyle != DropdownStyle.multiSelect) {
       if (oldWidget.value != widget.value) {
         _selectedValue = widget.value;
+        // Acá sí: el padre soltó la selección, el label cacheado ya no aplica.
+        if (widget.value == null) _selectedLabel = null;
         _cacheSelectedLabel();
         _safeFormDidChange(_selectedValue);
       }
@@ -616,7 +618,10 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
 
                                     return InkWell(
                                       onTap: item.enabled
-                                          ? () => _onItemSelected(item.value)
+                                          ? () => _onItemSelected(
+                                              item.value,
+                                              label: item.label,
+                                            )
                                           : null,
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
@@ -730,7 +735,12 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
     );
   }
 
-  void _onItemSelected(T value) {
+  /// [label] es el texto del item tocado. Se recibe explícitamente porque hay
+  /// que guardarlo YA, no en el post-frame: `_closeDropdown()` limpia el
+  /// buscador, eso dispara una consulta nueva y para cuando corre el
+  /// `_safeSetState` los `items` ya son otros. Buscar el label ahí llegaba
+  /// tarde y la caja terminaba mostrando el `toString()` del objeto.
+  void _onItemSelected(T value, {String? label}) {
     if (widget.dropdownStyle == DropdownStyle.multiSelect) {
       // UI update: post-frame para evitar colisión con build del padre (Bloc/Form)
       _safeSetState(() {
@@ -756,9 +766,12 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
         _closeDropdown();
       }
     } else {
+      // Sincrónico, antes de cerrar (ver el doc del método).
+      if (label != null) _selectedLabel = label;
+
       _safeSetState(() {
         _selectedValue = value;
-        _cacheSelectedLabel();
+        if (label == null) _cacheSelectedLabel();
       });
 
       _postFrame(() {
@@ -777,10 +790,11 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
   void _cacheSelectedLabel() {
     if (widget.dropdownStyle == DropdownStyle.multiSelect) return;
     final value = _selectedValue;
-    if (value == null) {
-      _selectedLabel = null;
-      return;
-    }
+    // Refresca el cache, nunca lo borra. `_selectedValue` puede estar en null
+    // por un instante — se asigna en un post-frame y entremedio llegan items
+    // nuevos —; limpiar acá tiraba el label que se acababa de guardar en el
+    // tap. El label lo limpia quien limpia de verdad la selección.
+    if (value == null) return;
     for (final item in widget.items) {
       if (item.value == value) {
         _selectedLabel = item.label;

@@ -85,6 +85,59 @@ void main() {
     expect(find.text('Café Molido 500g'), findsOneWidget);
   });
 
+  testWidgets(
+      'el seleccionado conserva su nombre aunque la lista se reemplace después',
+      (tester) async {
+    // Al cerrarse, el dropdown limpia el buscador y eso dispara una consulta
+    // nueva: los items pasan a ser OTROS y el elegido puede no estar. Antes la
+    // caja mostraba el toString() del objeto — "ProductoListItemModel(...)".
+    var items = const [
+      DropdownItem(value: 'p1', label: 'Polo Algodón'),
+      DropdownItem(value: 'p2', label: 'Casaca Jean'),
+    ];
+
+    await tester.pumpWidget(
+      StatefulBuilder(
+        builder: (context, setState) {
+          return MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 300,
+                height: 60,
+                child: CustomDropdown<String>(
+                  hintText: 'Buscar producto...',
+                  items: items,
+                  dropdownStyle: DropdownStyle.searchable,
+                  showSearchBox: true,
+                  searchDebounceMs: 0,
+                  // Simula la búsqueda remota: responde con OTRA lista, que ya
+                  // no contiene al producto elegido.
+                  onSearchChanged: (_) {
+                    setState(() {
+                      items = const [
+                        DropdownItem(value: 'p9', label: 'Otro producto'),
+                      ];
+                    });
+                  },
+                  onChanged: (_) {},
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    await tester.tap(find.byType(InkWell).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Polo Algodón'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Polo Algodón'), findsOneWidget);
+    expect(find.textContaining('DropdownItem'), findsNothing);
+    expect(find.text('Buscar producto...'), findsNothing);
+  });
+
   testWidgets('sin onSearchChanged sigue filtrando localmente',
       (tester) async {
     final items = [
