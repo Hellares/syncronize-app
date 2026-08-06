@@ -11,9 +11,10 @@ void main() {
   const sedeA = 'sede-a';
   const sedeB = 'sede-b';
 
-  StockPorSedeInfo stock(String sedeId, int cantidad) => StockPorSedeInfo(
+  StockPorSedeInfo stock(String sedeId, int cantidad, {String? nombre}) =>
+      StockPorSedeInfo(
         sedeId: sedeId,
-        sedeNombre: sedeId,
+        sedeNombre: nombre ?? sedeId,
         sedeCodigo: sedeId,
         cantidad: cantidad,
       );
@@ -57,10 +58,19 @@ void main() {
   });
 
   test('marca NUEVO cuando el producto no tiene stock en esa sede', () {
-    final p = producto(stocks: [stock(sedeB, 40)]);
+    final p = producto(stocks: [stock(sedeB, 40, nombre: 'Chiclayo')]);
+
+    expect(
+      labelProductoCompra(p, sedeA),
+      'Taladro | NUEVO en esta sede · 40 en Chiclayo',
+    );
+    expect(productoEstaEnSede(p, sedeA), isFalse);
+  });
+
+  test('NUEVO sin stock en ninguna otra sede va sin aviso', () {
+    final p = producto(stocks: [stock(sedeB, 0, nombre: 'Chiclayo')]);
 
     expect(labelProductoCompra(p, sedeA), 'Taladro | NUEVO en esta sede');
-    expect(productoEstaEnSede(p, sedeA), isFalse);
   });
 
   test('stock 0 en la sede NO es lo mismo que no estar en la sede', () {
@@ -68,6 +78,56 @@ void main() {
 
     expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 0');
     expect(productoEstaEnSede(p, sedeA), isTrue);
+  });
+
+  test('en 0 acá pero con stock en otra sede, avisa cuál y cuánto', () {
+    final p = producto(stocks: [
+      stock(sedeA, 0),
+      stock(sedeB, 5, nombre: 'Chiclayo'),
+    ]);
+
+    expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 0 · 5 en Chiclayo');
+  });
+
+  test('en 0 acá y stock en varias sedes, resume la cantidad de sedes', () {
+    final p = producto(stocks: [
+      stock(sedeA, 0),
+      stock(sedeB, 5, nombre: 'Chiclayo'),
+      stock('sede-c', 3, nombre: 'Trujillo'),
+    ]);
+
+    expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 0 · 8 en 2 sedes');
+  });
+
+  test('con stock en la sede NO agrega el aviso de otras sedes', () {
+    final p = producto(stocks: [
+      stock(sedeA, 3),
+      stock(sedeB, 40, nombre: 'Chiclayo'),
+    ]);
+
+    expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 3');
+  });
+
+  test('las otras sedes en 0 no cuentan como stock disponible', () {
+    final p = producto(stocks: [
+      stock(sedeA, 0),
+      stock(sedeB, 0, nombre: 'Chiclayo'),
+    ]);
+
+    expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 0');
+  });
+
+  test('con variantes suma las otras sedes y cuenta cada sede una vez', () {
+    // sedeB aparece en las dos variantes: son 5+2 unidades en UNA sola sede.
+    final p = producto(
+      stocks: [stock(sedeA, 0)],
+      variantes: [
+        variante('v1', [stock(sedeB, 5, nombre: 'Chiclayo')]),
+        variante('v2', [stock(sedeB, 2, nombre: 'Chiclayo')]),
+      ],
+    );
+
+    expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 0 · 7 en Chiclayo');
   });
 
   test('con variantes suma las de la sede y no lo da por nuevo', () {
@@ -83,14 +143,17 @@ void main() {
     expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 7');
   });
 
-  test('con variantes que solo viven en otra sede, marca NUEVO', () {
+  test('con variantes que solo viven en otra sede, marca NUEVO y avisa', () {
     final p = producto(
       variantes: [
-        variante('v1', [stock(sedeB, 9)]),
+        variante('v1', [stock(sedeB, 9, nombre: 'Chiclayo')]),
       ],
     );
 
-    expect(labelProductoCompra(p, sedeA), 'Taladro | NUEVO en esta sede');
+    expect(
+      labelProductoCompra(p, sedeA),
+      'Taladro | NUEVO en esta sede · 9 en Chiclayo',
+    );
   });
 
   test('sin sede cae al nombre pelado', () {
