@@ -185,7 +185,13 @@ class TicketVentaEscPosGenerator {
     // Generator.row() internamente. Por eso los detalles con 4 columnas
     // se pegaban a la izquierda. Construir cada línea como texto plano
     // con padding garantiza que cualquier impresora la respete.
-    final cols = _ColAnchos.forPaper(paperWidth);
+    // Si el ticket tiene algún ítem pesado, la tabla se reparte distinto:
+    // CANT y P.U. ganan lugar para que entren "1.237" y "7.50(kg)", y la
+    // unidad viaja pegada al precio en vez de en una sub-línea aparte.
+    // Los tickets sin ítems pesados conservan el reparto de siempre.
+    final hayPesados =
+        venta.detalles?.any((d) => d.presentacion.activa) ?? false;
+    final cols = _ColAnchos.forPaper(paperWidth, conUnidad: hayPesados);
     //bytes += generator.text('DETALLE');
     bytes += generator.text(
       cols.formatear('CANT', 'DESCRIPCION', 'P.U.', 'TOTAL'),
@@ -234,7 +240,19 @@ class TicketVentaEscPosGenerator {
         final descripcion = _ascii(d.origenComboId != null
             ? '  ${d.descripcion}'
             : d.descripcion);
-        final pu = u.precio(d.precioUnitario).toStringAsFixed(2);
+        // La unidad va PEGADA al precio: "7.50(kg)". Es lo que evita la
+        // sub-línea aparte y, sobre todo, la lectura equivocada — un 7.50
+        // suelto al lado de un total de 18.75 se entiende como el precio de
+        // los 2.5 kg, no como la tarifa por kilo.
+        //
+        // Si no entra en la columna se manda el precio pelado: `_padLeft`
+        // recorta por la IZQUIERDA, así que un "147.50(kg)" que no entra
+        // saldría "47.50(kg)" — el precio equivocado, y sin que se note.
+        // Ese caso cae a la sub-línea de abajo.
+        final puPelado = u.precio(d.precioUnitario).toStringAsFixed(2);
+        final puConUnidad = '$puPelado(${u.simboloVisible})';
+        final unidadEnPu = u.activa && puConUnidad.length <= cols.pu;
+        final pu = unidadEnPu ? puConUnidad : puPelado;
         final total = d.total.toStringAsFixed(2);
 
         // Nunca imprimir una cantidad TRUNCADA. La columna CANT mide 4 chars
@@ -258,36 +276,27 @@ class TicketVentaEscPosGenerator {
           );
         }
 
-        // La columna CANT es de 4-5 chars: no entra "1.5 kg". Sin nombrar la
-        // unidad, un "1.5" a "8.00" es ambiguo — el cliente tiene derecho a
-        // leer en qué se le cobró. Va como sub-línea, igual que el descuento.
+        // Sub-líneas de respaldo. Con la unidad pegada al P.U. y la cantidad
+        // entrando en su columna, lo normal es que NO se impriman: el ítem
+        // entra entero en una sola línea. Solo aparecen cuando algo no entró,
+        // y dicen exactamente lo que falta.
+        //
+        // _ascii(): el símbolo lo escribe la empresa y puede traer caracteres
+        // fuera del code page de la térmica, que abortan el trabajo entero.
         if (u.activa) {
-          // Etiquetada, no como multiplicación. "2.5 kg x S/7.50/kg" se lee
-          // mal: la "x" pasa por un "=" y el "/kg" del final se pierde, así
-          // que el cliente entiende que 2.5 kg le costaron S/7.50. Con la
-          // etiqueta delante no hay forma de confundir la tarifa con un total.
-          //
-          // El tamaño no se puede bajar en la térmica: fontB ya es la fuente
-          // más chica del estándar y las Bienex no traen la C (probado,
-          // `ESC M 2` imprime igual). Lo que se puede es que diga menos y
-          // más claro.
-          //
-          // _ascii(): el símbolo lo escribe la empresa y puede traer
-          // caracteres fuera del code page de la térmica, que abortan el
-          // trabajo de impresión entero.
-          //
-          // Si la columna CANT quedó vacía porque el número no entraba, la
-          // cantidad va acá con su propia etiqueta: es el único lugar donde
-          // aparece.
           if (qtyCol.isEmpty) {
             bytes += generator.text(
               _ascii('  Cantidad: ${u.cantidadTexto(d.cantidad)}'),
             );
           }
-          bytes += generator.text(_ascii(
-            '  Precio por ${u.simboloVisible}: '
-            'S/${u.precio(d.precioUnitario).toStringAsFixed(2)}',
-          ));
+          if (!unidadEnPu) {
+            // Etiquetada, nunca como multiplicación: "2.5 kg x S/7.50/kg" se
+            // lee mal —la "x" pasa por un "=" y el "/kg" se pierde— y el
+            // cliente entiende que 2.5 kg le costaron S/7.50.
+            bytes += generator.text(_ascii(
+              '  Precio por ${u.simboloVisible}: S/$puPelado',
+            ));
+          }
         }
 
         if (d.descuento > 0) {
@@ -602,15 +611,34 @@ class _ColAnchos {
     required this.sepPu,
   });
 
-  static _ColAnchos forPaper(int paperWidth) {
+  /// [conUnidad] reparte para un ticket con ítems pesados: CANT y P.U. crecen
+  /// a costa de DESCRIPCION, que es la única columna que puede ceder porque
+  /// envuelve al renglón siguiente en vez de recortar.
+  ///
+  /// Los números salen de los dos casos que rompen: "1.237" son 5 chars y no
+  /// entraban en la CANT de 4; "147.50(kg)" son 10 y no entraban en la P.U.
+  /// de 7. Con esta repartición los dos entran y el ítem cabe en UNA línea.
+  static _ColAnchos forPaper(int paperWidth, {bool conUnidad = false}) {
     // Con fontB el ancho útil cambia: 42 chars en 58mm, 64 en 80mm.
     if (paperWidth == 58) {
+      // 5 + 2 + 14 + 2 + 10 + 2 + 7 = 42
+      if (conUnidad) {
+        return const _ColAnchos(
+          cant: 5, sepCant: 2, desc: 14, sepDesc: 2, pu: 10, sepPu: 2, total: 7,
+        );
+      }
       // 4 + 2 + 18 + 2 + 7 + 2 + 7 = 42
       return const _ColAnchos(
         cant: 4, sepCant: 2, desc: 18, sepDesc: 2, pu: 7, sepPu: 2, total: 7,
       );
     }
-    // 80mm = 64 chars: 5 + 3 + 32 + 3 + 9 + 3 + 9 = 64
+    // 80mm = 64 chars: 6 + 3 + 28 + 3 + 12 + 3 + 9 = 64
+    if (conUnidad) {
+      return const _ColAnchos(
+        cant: 6, sepCant: 3, desc: 28, sepDesc: 3, pu: 12, sepPu: 3, total: 9,
+      );
+    }
+    // 5 + 3 + 32 + 3 + 9 + 3 + 9 = 64
     return const _ColAnchos(
       cant: 5, sepCant: 3, desc: 32, sepDesc: 3, pu: 9, sepPu: 3, total: 9,
     );

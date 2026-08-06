@@ -97,4 +97,51 @@ class VentaFixture {
       ],
     );
   }
+
+  /// Boleta con un producto a GRANEL: se guarda en gramos (1500) a S/0.0075
+  /// el gramo, y se cobra en kilos (2.5 kg a S/7.50). Los números de la línea
+  /// son los guardados; la presentación es lo que los traduce al imprimir.
+  static Venta buildBoletaGranel() {
+    return Venta(
+      id: 'vta_test_003',
+      empresaId: 'emp_test',
+      sedeId: 'sede_test',
+      vendedorId: 'vendedor_test',
+      codigo: 'V-2026-00003',
+      canalVenta: 'POS',
+      nombreCliente: 'Cliente de Prueba',
+      documentoCliente: '12345678',
+      moneda: 'PEN',
+      subtotal: 15.89,
+      descuento: 0,
+      impuestos: 2.86,
+      total: 18.75,
+      estado: EstadoVenta.pagadaCompleta,
+      tipoComprobante: 'BOLETA',
+      codigoComprobante: 'B001-00000003',
+      fechaVenta: _fechaVenta,
+      creadoEn: _creadoEn,
+      actualizadoEn: _actualizadoEn,
+      sedeNombre: 'Sede Principal',
+      vendedorNombre: 'Vendedor Test',
+      detalles: [
+        VentaDetalle(
+          id: 'vd_003',
+          ventaId: 'vta_test_003',
+          productoId: 'prod_003',
+          descripcion: 'RICOCAT',
+          cantidad: 2500,
+          precioUnitario: 0.0075,
+          subtotal: 15.89,
+          igv: 2.86,
+          total: 18.75,
+          orden: 0,
+          productoNombre: 'RICOCAT',
+          unidadPresentacionSimbolo: 'kg',
+          factorPresentacion: 1000,
+          codigoUnidadSunat: 'KGM',
+        ),
+      ],
+    );
+  }
 }

@@ -135,12 +135,12 @@ void main() {
     test('imprime kilos, no gramos', () async {
       final texto = await imprimir(lineaRicocan());
 
-      expect(texto, matches(RegExp(r'1\.5\s+RICOCAN 22KG')));
-      // Etiquetada: "1.5 kg x S/8.00/kg" se leia como si 1.5 kg costaran 8.00.
-      expect(texto, contains('Precio por kg: S/8.00'));
-      expect(texto, isNot(contains(' x S/')));
-      // La cantidad ya esta en la columna: no se repite.
+      // Todo el item en UNA linea: la unidad va pegada al precio.
+      expect(texto, matches(RegExp(r'1\.5\s+RICOCAN 22KG\s+8\.00\(kg\)')));
+      // Sin sub-lineas: no hizo falta ninguna.
+      expect(texto, isNot(contains('Precio por')));
       expect(texto, isNot(contains('Cantidad:')));
+      expect(texto, isNot(contains(' x S/')));
       // El precio por gramo redondeado a centavos era el número fantasma.
       expect(texto, isNot(contains('0.01')));
       expect(texto, isNot(contains('1500')));
@@ -155,24 +155,51 @@ void main() {
         paperWidth: 58,
       );
 
-      // La columna quedo vacia, asi que la cantidad va etiquetada aca: es el
-      // unico lugar donde aparece.
-      expect(texto, contains('Cantidad: 1.237 kg'));
-      expect(texto, contains('Precio por kg: S/8.00'));
+      // Con items pesados la columna CANT crece a 5: ahora "1.237" SI entra,
+      // asi que no se trunca ni hace falta la sub-linea.
+      expect(texto, matches(RegExp(r'1\.237\s+RICOCAN')));
+      expect(texto, contains('8.00(kg)'));
       expect(texto, isNot(contains('1.23 ')));
+      expect(texto, isNot(contains('Cantidad:')));
     });
 
-    test('en 80mm la cantidad sí entra en la columna', () async {
-      // 5 chars de ancho: "1.237" entra justo, así que no se blanquea.
+    test('un precio que no entra con la unidad cae a la sub-línea', () async {
+      // "1450.00(kg)" son 11 chars y la columna P.U. de 58mm mide 10. Sin el
+      // guard, `_padLeft` recortaria por la izquierda y saldria "450.00(kg)":
+      // un precio 1000 soles menor, y sin que se note.
+      final texto = await imprimir(
+        {...lineaRicocan(), 'precioUnitario': 1.45, 'total': 2175},
+        paperWidth: 58,
+      );
+
+      expect(texto, isNot(contains('450.00(kg)')));
+      expect(texto, contains('Precio por kg: S/1450.00'));
+    });
+
+    test('en 80mm el ítem pesado también entra en una línea', () async {
       final texto = await imprimir(
         {...lineaRicocan(), 'cantidad': 1237, 'total': 9.9, 'subtotal': 8.39},
         paperWidth: 80,
       );
 
-      expect(texto, matches(RegExp(r'1\.237\s+RICOCAN 22KG')));
-      expect(texto, contains('Precio por kg: S/8.00'));
-      // Entra en la columna, asi que no hace falta repetirla.
+      expect(texto, matches(RegExp(r'1\.237\s+RICOCAN 22KG\s+8\.00\(kg\)')));
       expect(texto, isNot(contains('Cantidad:')));
+      expect(texto, isNot(contains('Precio por')));
+    });
+
+    test('un ticket SIN ítems pesados conserva el reparto de columnas', () async {
+      // Las columnas se ensanchan solo cuando hacen falta: un ticket normal
+      // no debe perder ancho de descripción por una función que no usa.
+      final texto = await imprimir({
+        ...lineaRicocan(factorPresentacion: null, simbolo: null),
+        'descripcion': 'PRODUCTO CON NOMBRE LARGUISIMO',
+        'cantidad': 2,
+        'precioUnitario': 6,
+        'total': 12,
+      });
+
+      // 32 chars de descripción en 80mm: entra sin envolver.
+      expect(texto, contains('PRODUCTO CON NOMBRE LARGUISIMO'));
     });
 
     test('el ticket NUNCA cambia de fuente a mano', () async {

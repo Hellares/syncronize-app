@@ -270,7 +270,7 @@ class PdfVentaGenerator {
                   children: [
                     pw.SizedBox(width: 22, child: pw.Text('CANT', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: colorPrimario))),
                     pw.Expanded(child: pw.Text('DESCRIPCIÓN', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: colorPrimario))),
-                    pw.SizedBox(width: 42, child: pw.Text('P.U.', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: colorPrimario), textAlign: pw.TextAlign.right)),
+                    pw.SizedBox(width: _anchoPu(detalles), child: pw.Text('P.U.', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: colorPrimario), textAlign: pw.TextAlign.right)),
                     pw.SizedBox(width: 48, child: pw.Text('TOTAL', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: colorPrimario), textAlign: pw.TextAlign.right)),
                   ],
                 ),
@@ -522,6 +522,20 @@ class PdfVentaGenerator {
   /// Items sueltos (sin origenComboId) se renderizan tal cual.
   /// Asume que los items del mismo combo están contiguos (lo está al
   /// crearse desde el cubit, y el backend respeta `orden`).
+  /// Ancho de la columna P.U.
+  ///
+  /// Con ítems pesados la unidad viaja pegada al precio ("S/7.50(kg)") y la
+  /// columna necesita más lugar; se lo saca a la descripción, que es
+  /// `Expanded` y se acomoda sola. Un documento sin ítems pesados conserva el
+  /// ancho de siempre — mismo criterio que el ticket térmico.
+  ///
+  /// El encabezado y las filas TIENEN que usar este mismo número: son dos
+  /// `Row` independientes y si se separan, la columna queda corrida.
+  static double _anchoPu(List<dynamic> detalles) =>
+      detalles.any((d) => (d.presentacion as UnidadPresentacion).activa)
+          ? 56.0
+          : 42.0;
+
   static List<pw.Widget> _buildDetallesConCombosAgrupados(
     List<dynamic> detalles, // List<VentaDetalle>
     String simboloMoneda,
@@ -530,6 +544,8 @@ class PdfVentaGenerator {
   ) {
     final widgets = <pw.Widget>[];
     String? lastCombo;
+
+    final anchoPu = _anchoPu(detalles);
 
     for (var i = 0; i < detalles.length; i++) {
       final d = detalles[i];
@@ -611,20 +627,6 @@ class PdfVentaGenerator {
                       style: pw.TextStyle(fontSize: 6, color: colorCuerpo)),
                   // La columna de cantidad es angosta y no entra "1.5 kg":
                   // el cliente tiene derecho a leer en qué unidad se le cobró.
-                  if (u.activa)
-                    pw.Text(
-                      // Etiquetada, igual que en el ticket térmico: escrito
-                      // como multiplicación ("2.5 kg x S/7.50/kg") el cliente
-                      // entiende que 2.5 kg le costaron S/7.50. La cantidad no
-                      // se repite porque la columna de la izquierda ya la
-                      // muestra.
-                      'Precio por ${u.simboloVisible}: '
-                      '$simboloMoneda${u.precio(d.precioUnitario).toStringAsFixed(2)}',
-                      // 1pt menos que el resto de las sub-líneas (descuento,
-                      // adelanto): es un dato de apoyo, no debe competir con
-                      // las columnas.
-                      style: pw.TextStyle(fontSize: 4, color: colorCuerpo),
-                    ),
                   if (descuento > 0)
                     pw.Text(
                       'Desc $simboloMoneda${descuento.toStringAsFixed(2)}',
@@ -655,9 +657,13 @@ class PdfVentaGenerator {
               ),
             ),
             pw.SizedBox(
-              width: 42,
+              width: anchoPu,
               child: pw.Text(
-                '$simboloMoneda${u.precio(d.precioUnitario).toStringAsFixed(2)}',
+                // La unidad pegada al precio, igual que en el ticket térmico:
+                // un "7.50" suelto al lado de un total de 18.75 se entiende
+                // como el precio de los 2.5 kg, no como la tarifa por kilo.
+                '$simboloMoneda${u.precio(d.precioUnitario).toStringAsFixed(2)}'
+                '${u.activa ? "(${u.simboloVisible})" : ""}',
                 style: pw.TextStyle(fontSize: 7, color: colorCuerpo),
                 textAlign: pw.TextAlign.right,
               ),
