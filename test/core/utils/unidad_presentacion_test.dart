@@ -92,4 +92,54 @@ void main() {
       expect(nada.cantidadTexto(7), '7');
     });
   });
+
+  group('costoUnitarioDesdeBulto', () {
+    // RICOCAT: saco de 22 000 g a S/147.99. El usuario solo sabe el precio
+    // del saco; el sistema guarda el costo por gramo.
+    const kilo = UnidadPresentacion(factor: 1000, simbolo: 'kg');
+
+    test('reparte el precio del saco entre las unidades que trae', () {
+      final porGramo = costoUnitarioDesdeBulto(147.99, 22000)!;
+
+      expect(porGramo, closeTo(0.00672681, 1e-8));
+      // Y el número que se le muestra al usuario: S/6.7268 el kilo.
+      expect(kilo.precio(porGramo), closeTo(6.726818, 1e-6));
+    });
+
+    test('la cuenta vuelve a dar la factura del proveedor', () {
+      // La prueba que importa: costo unitario x unidades del bulto tiene que
+      // reconstruir lo que se pagó, o el costo promedio queda mal para
+      // siempre.
+      final porGramo = costoUnitarioDesdeBulto(147.99, 22000)!;
+      expect(porGramo * 22000, closeTo(147.99, 1e-9));
+    });
+
+    test('divide por el factor de COMPRA, no por el de presentación', () {
+      // 147.99/1000 = 0.14799 seria el error de usar el factor equivocado:
+      // un costo 22 veces mas alto que el real.
+      final porGramo = costoUnitarioDesdeBulto(147.99, 22000)!;
+      expect(porGramo, isNot(closeTo(0.14799, 1e-6)));
+    });
+
+    test('sin factor de compra no inventa un costo', () {
+      expect(costoUnitarioDesdeBulto(147.99, null), isNull);
+      expect(costoUnitarioDesdeBulto(147.99, 0), isNull);
+      expect(costoUnitarioDesdeBulto(0, 22000), isNull);
+    });
+  });
+
+  group('formatearNumero', () {
+    test('no rellena con ceros', () {
+      expect(UnidadPresentacion.formatearNumero(22), '22');
+      expect(UnidadPresentacion.formatearNumero(20.5), '20.5');
+    });
+
+    test('conserva los 4 decimales del costo por kilo', () {
+      // A 2 decimales mostraria 6.73, que no es el numero que se guarda.
+      expect(
+        UnidadPresentacion.formatearNumero(6.726818, maxDecimales: 4),
+        '6.7268',
+      );
+    });
+  });
 }

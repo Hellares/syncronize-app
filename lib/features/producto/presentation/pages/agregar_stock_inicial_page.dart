@@ -15,6 +15,7 @@ import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/unidad_presentacion.dart';
+import '../../../../core/widgets/custom_switch.dart';
 import '../../domain/entities/producto.dart';
 import '../bloc/agregar_stock_inicial/agregar_stock_inicial_cubit.dart';
 import '../bloc/agregar_stock_inicial/agregar_stock_inicial_state.dart';
@@ -45,6 +46,26 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
   /// ensuciar los productos normales.
   String get _sufijo => _u.activa ? ' (${_u.simboloVisible})' : '';
 
+  /// El costo se carga por BULTO en vez de por unidad. Nadie sabe cuánto le
+  /// costó el gramo: sabe que el saco le salió S/147.99. Es preferencia de
+  /// captura, no cambia lo que se guarda.
+  bool _costoPorBulto = false;
+
+  /// Nombre del bulto para las etiquetas ("SACO"). Null si el producto no
+  /// tiene unidad de compra configurada — ahí la opción ni se ofrece.
+  String? get _nombreBulto {
+    final fc = widget.producto.factorCompra;
+    if (fc == null || fc <= 1) return null;
+    return widget.producto.unidadCompra?.nombreEfectivo;
+  }
+
+  bool get _puedeCargarPorBulto => _nombreBulto != null;
+
+  /// Cuántas unidades de PRESENTACIÓN trae 1 bulto: 22 000 g por saco son
+  /// 22 kg. Es el divisor que el usuario haría con la calculadora.
+  double get _presentacionesPorBulto =>
+      _u.cantidad(widget.producto.factorCompra ?? 1);
+
   /// Texto escrito → cantidad en unidad de VENTA, que es como se guarda el
   /// stock. "1.5" con presentación en kilos son 1500 gramos.
   ///
@@ -64,6 +85,19 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
     final valor = double.tryParse(texto.trim().replaceAll(',', '.'));
     if (valor == null) return null;
     return _u.precioAUnidadDeVenta(valor);
+  }
+
+  /// Costo escrito → costo POR unidad de venta, respetando el modo de carga.
+  ///
+  /// Por bulto se divide directo por `factorCompra` (147.99 / 22 000) en vez
+  /// de pasar por el precio por kilo: una sola división en lugar de dos evita
+  /// que el redondeo intermedio se multiplique después por 22 000 unidades.
+  double? _aCostoDeVenta(String texto) {
+    if (!_costoPorBulto) return _aPrecioDeVenta(texto);
+    if (texto.trim().isEmpty) return null;
+    final valor = double.tryParse(texto.trim().replaceAll(',', '.'));
+    if (valor == null) return null;
+    return costoUnitarioDesdeBulto(valor, widget.producto.factorCompra);
   }
 
   // Mapa de sede ID -> controllers
@@ -170,7 +204,7 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
               ? null
               : controllers.ubicacionController.text.trim(),
           precio: _aPrecioDeVenta(controllers.precioController.text),
-          precioCosto: _aPrecioDeVenta(controllers.precioCostoController.text),
+          precioCosto: _aCostoDeVenta(controllers.precioCostoController.text),
           precioOferta:
               _aPrecioDeVenta(controllers.precioOfertaController.text),
         );
@@ -497,13 +531,17 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
                             child: CustomText(
                               controller: controllers.precioCostoController,
                               borderColor: AppColors.blue1,
-                              label: 'Precio Costo$_sufijo',
+                              label: _costoPorBulto
+                                  ? 'Costo por $_nombreBulto'
+                                  : 'Precio Costo$_sufijo',
                               hintText: '0.00',
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              onChanged: (_) => setState(() {}),
                             ),
                           ),
                         ],
                       ),
+                      _buildCostoPorBulto(controllers),
                       const SizedBox(height: 12),
                       CustomText(
                         controller: controllers.precioOfertaController,
@@ -524,6 +562,100 @@ class _AgregarStockInicialPageState extends State<AgregarStockInicialPage> {
       },
     );
   }
+
+  /// Carga del costo por BULTO.
+  ///
+  /// El usuario no sabe cuánto le costó el gramo ni el kilo: sabe que el saco
+  /// le salió S/147.99. Antes tenía que sacar la calculadora y dividir —y si
+  /// se equivocaba, el error quedaba enterrado en el costo de cada gramo, que
+  /// es lo que después decide si una venta va bajo costo.
+  ///
+  /// Solo aparece si el producto tiene unidad de compra con factor.
+  Widget _buildCostoPorBulto(SedeStockControllers controllers) {
+    if (!_puedeCargarPorBulto) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Sé cuánto me costó el $_nombreBulto completo',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+              ),
+            ),
+            CustomSwitch(
+              value: _costoPorBulto,
+              onChanged: (v) => setState(() => _costoPorBulto = v),
+            ),
+          ],
+        ),
+        _buildCalculoCosto(controllers),
+      ],
+    );
+  }
+
+  /// El cálculo, a la vista. Es el punto del pedido: que el usuario VEA de
+  /// dónde sale el número en vez de confiar en que la app hizo bien la
+  /// división.
+  Widget _buildCalculoCosto(SedeStockControllers controllers) {
+    if (!_costoPorBulto) return const SizedBox.shrink();
+
+    final costoUnitario = _aCostoDeVenta(controllers.precioCostoController.text);
+    if (costoUnitario == null || costoUnitario <= 0) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          'Escribí lo que pagaste por el $_nombreBulto y calculo el resto.',
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey.shade600,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    final total = double.parse(
+      controllers.precioCostoController.text.trim().replaceAll(',', '.'),
+    );
+    final porPresentacion = _u.precio(costoUnitario);
+    final unidad = _u.activa ? _u.simboloVisible! : 'unidad';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'S/ ${total.toStringAsFixed(2)} ÷ '
+            '${_fmt(_presentacionesPorBulto)} $unidad',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Tu costo es S/ ${_fmt(porPresentacion, maxDecimales: 4)} '
+            'por $unidad',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.green.shade800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _fmt(double v, {int maxDecimales = 3}) =>
+      UnidadPresentacion.formatearNumero(v, maxDecimales: maxDecimales);
 
   /// Qué se va a guardar realmente. La conversión es invisible y silenciosa:
   /// mostrar "22 kg = 22 000 g en stock" es lo que deja ver de una que el

@@ -90,4 +90,30 @@ class UnidadPresentacion {
     s = s.replaceFirst(RegExp(r'0+$'), '');
     return s.replaceFirst(RegExp(r'\.$'), '');
   }
+
+  /// Sin ceros de relleno y con tope de decimales. Público porque el costo
+  /// por bulto necesita 4 decimales (S/6.7268 el kilo) y forzarlo a 2 mostraría
+  /// un número que no es el que se guarda.
+  static String formatearNumero(double v, {int maxDecimales = 3}) =>
+      _sinCerosSobrantes(v, maxDecimales);
+}
+
+/// Costo de un BULTO completo → costo por UNIDAD DE VENTA.
+///
+/// El usuario no sabe cuánto le costó el gramo: sabe que el saco le salió
+/// S/147.99. `unidadesPorBulto` es el `factorCompra` del producto —unidades de
+/// venta que trae 1 unidad de compra— así que la cuenta es una sola división:
+///
+///     147.99 / 22000 g  =  S/0.00672681… por gramo  (= S/6.7268 el kilo)
+///
+/// ⚠️ Se divide por el factor de COMPRA, no por el de presentación, y en un
+/// solo paso. Pasar por el precio por kilo primero mete un redondeo intermedio
+/// que después se multiplica por 22 000 unidades — el error que ya nos infló
+/// un costo 48% cuando esto se redondeaba a centavos.
+///
+/// Devuelve null si los datos no permiten la cuenta.
+double? costoUnitarioDesdeBulto(double costoBulto, double? unidadesPorBulto) {
+  if (unidadesPorBulto == null || unidadesPorBulto <= 0) return null;
+  if (costoBulto <= 0) return null;
+  return costoBulto / unidadesPorBulto;
 }
