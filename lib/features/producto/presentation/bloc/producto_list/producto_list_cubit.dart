@@ -547,6 +547,11 @@ class ProductoListCubit extends Cubit<ProductoListState> {
         f.soloProductos != true &&
         f.soloCombos != true &&
         f.enLiquidacion != true &&
+        // `mostrarTodos` ignora el filtro por sede y trae productos que NO
+        // viven en ella: es un conjunto MÁS ancho que el catálogo base que se
+        // persiste en disco (que sí es de la sede). Servirlo desde el cache
+        // devolvería de menos y en silencio.
+        f.mostrarTodos != true &&
         // Filtros avanzados (si están activos, tampoco es el catálogo base).
         f.visibleMarketplace == null &&
         f.destacado == null &&

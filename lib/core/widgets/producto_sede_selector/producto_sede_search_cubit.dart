@@ -23,6 +23,9 @@ class ProductoSedeSearchCubit extends Cubit<ProductoSedeSearchState> {
   List<ProductoListItem> get _productosActuales => state.productosActuales;
 
   /// Busca productos con debouncing (300ms)
+  ///
+  /// [mostrarTodos] trae también los productos que todavía NO tienen stock en
+  /// la sede (ver `ProductoFiltros.mostrarTodos`).
   void searchProductos({
     required String empresaId,
     String? sedeId,
@@ -30,6 +33,7 @@ class ProductoSedeSearchCubit extends Cubit<ProductoSedeSearchState> {
     int page = 1,
     int limit = 20,
     bool soloProductos = true,
+    bool mostrarTodos = false,
   }) {
     _debounceTimer?.cancel();
 
@@ -48,6 +52,7 @@ class ProductoSedeSearchCubit extends Cubit<ProductoSedeSearchState> {
           page: page,
           limit: limit,
           soloProductos: soloProductos,
+          mostrarTodos: mostrarTodos,
         );
       });
     } else {
@@ -58,6 +63,7 @@ class ProductoSedeSearchCubit extends Cubit<ProductoSedeSearchState> {
         page: page,
         limit: limit,
         soloProductos: soloProductos,
+        mostrarTodos: mostrarTodos,
       );
     }
   }
@@ -70,13 +76,15 @@ class ProductoSedeSearchCubit extends Cubit<ProductoSedeSearchState> {
     required int page,
     required int limit,
     required bool soloProductos,
+    required bool mostrarTodos,
   }) async {
     emit(ProductoSedeSearchLoading(
       query: query,
       productosAnteriores: _productosActuales,
     ));
 
-    final cacheKey = '$empresaId-$sedeId-$query-$page-$limit-$soloProductos';
+    final cacheKey =
+        '$empresaId-$sedeId-$query-$page-$limit-$soloProductos-$mostrarTodos';
 
     if (_cache.containsKey(cacheKey)) {
       emit(ProductoSedeSearchLoaded(
@@ -92,6 +100,7 @@ class ProductoSedeSearchCubit extends Cubit<ProductoSedeSearchState> {
       limit: limit,
       search: query,
       soloProductos: soloProductos,
+      mostrarTodos: mostrarTodos,
     );
 
     final result = await _getProductos(

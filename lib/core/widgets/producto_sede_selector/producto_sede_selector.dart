@@ -45,6 +45,14 @@ class ProductoSedeSelector extends StatefulWidget {
   final ProductoLabelBuilder? labelBuilder;
   final String? emptyMessage;
 
+  /// Incluir productos que todavía NO tienen stock en la sede.
+  ///
+  /// Default false: para vender, mermar o transferir, el producto tiene que
+  /// existir ya en la sede. Se pone en true donde la operación es justamente
+  /// la que lo da de alta ahí — una recepción de compra —; si no, el producto
+  /// del catálogo es invisible y el usuario termina creándolo duplicado.
+  final bool mostrarTodos;
+
   const ProductoSedeSelector({
     super.key,
     required this.empresaId,
@@ -57,6 +65,7 @@ class ProductoSedeSelector extends StatefulWidget {
     this.soloProductos = true,
     this.labelBuilder,
     this.emptyMessage,
+    this.mostrarTodos = false,
   });
 
   @override
@@ -82,6 +91,7 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
         sedeId: _sedeSeleccionadaId,
         limit: widget.limite,
         soloProductos: widget.soloProductos,
+        mostrarTodos: widget.mostrarTodos,
       );
     }
   }
@@ -118,11 +128,23 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
     super.dispose();
   }
 
+  /// Label por defecto: precio y stock **de la sede seleccionada**.
+  ///
+  /// El stock salía de `stockTotal`, que suma TODAS las sedes y, en un
+  /// producto con variantes, mira al padre — que no tiene fila de stock
+  /// porque cuelga de la variante (es un XOR), así que daba 0. En una empresa
+  /// multi-sede el número no tenía relación con la sede en la que se estaba
+  /// trabajando: se vendía desde una sede mirando el stock de otra.
   String _defaultLabelBuilder(ProductoListItem producto) {
-    final precio = _sedeSeleccionadaId != null
-        ? (producto.precioEnSede(_sedeSeleccionadaId!) ?? 0.0)
-        : 0.0;
-    return '${producto.nombre} | S/ ${precio.toStringAsFixed(2)} | Stock: ${producto.stockTotal}';
+    final sedeId = _sedeSeleccionadaId;
+    // Sin sede no hay a qué referirse: se cae al consolidado de la empresa
+    // (en la práctica el dropdown ni se arma sin sede).
+    if (sedeId == null) {
+      return '${producto.nombre} | S/ 0.00 | Stock: ${producto.stockConsolidado}';
+    }
+    final precio = producto.precioEnSede(sedeId) ?? 0.0;
+    return '${producto.nombre} | S/ ${precio.toStringAsFixed(2)} | '
+        'Stock: ${producto.stockConsolidadoEnSede(sedeId)}';
   }
 
   void _buscarProductos({String? query}) {
@@ -134,6 +156,7 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
       query: query,
       limit: widget.limite,
       soloProductos: widget.soloProductos,
+      mostrarTodos: widget.mostrarTodos,
     );
   }
 
@@ -206,6 +229,7 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
       query: codigo,
       limit: widget.limite,
       soloProductos: widget.soloProductos,
+      mostrarTodos: widget.mostrarTodos,
     );
   }
 
@@ -269,33 +293,42 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
   }
 
   Widget _buildProductosListWithScanner() {
-    return Row(
-      // Alinea al fondo para que el botón de escaneo quede a la misma
-      // altura que la caja del dropdown (33px), sin importar el label.
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(child: _buildProductosList()),
-        const SizedBox(width: 8),
-        // Botón escáner a la misma altura que la caja del dropdown (33px).
-        SizedBox(
-          height: 33,
-          width: 42,
-          child: Material(
-            color: AppColors.blue1,
-            borderRadius: BorderRadius.circular(6),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(6),
-              onTap: _escanearCodigoBarras,
-              child: const Center(
-                child: Icon(
-                  Icons.qr_code_scanner_rounded,
-                  color: Colors.white,
-                  size: 22,
+        Row(
+          // Alinea al fondo para que el botón de escaneo quede a la misma
+          // altura que la caja del dropdown (33px), sin importar el label.
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(child: _buildProductosList()),
+            const SizedBox(width: 8),
+            // Botón escáner a la misma altura que la caja del dropdown (33px).
+            SizedBox(
+              height: 33,
+              width: 42,
+              child: Material(
+                color: AppColors.blue1,
+                borderRadius: BorderRadius.circular(6),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: _escanearCodigoBarras,
+                  child: const Center(
+                    child: Icon(
+                      Icons.qr_code_scanner_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
+        // El mensaje de estado va FUERA de la fila: adentro empujaba el
+        // botón de escaneo hacia abajo y lo despegaba del dropdown.
+        _buildMensajeEstado(),
       ],
     );
   }
@@ -333,100 +366,30 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
 
     return BlocBuilder<ProductoSedeSearchCubit, ProductoSedeSearchState>(
       builder: (context, state) {
-        // Estado inicial sin sede seleccionada
-        if (state is ProductoSedeSearchInitial) {
-          if (_sedeSeleccionadaId == null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  'Selecciona una sede para ver productos',
-                  style: TextStyle(color: Colors.grey[500]),
-                ),
+        // Sin sede no hay contra qué buscar todavía.
+        if (_sedeSeleccionadaId == null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Selecciona una sede para ver productos',
+                style: TextStyle(color: Colors.grey[500]),
               ),
-            );
-          }
-          return const SizedBox.shrink();
-        }
-
-        // Error: mostrar mensaje con productos previos si existen
-        if (state is ProductoSedeSearchError) {
-          if (state.productosActuales.isNotEmpty) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDropdown(state.productosActuales, labelBuilder),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange[700]),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          state.message,
-                          style: TextStyle(fontSize: 11, color: Colors.orange[700]),
-                        ),
-                      ),
-                      InkWell(
-                        onTap: _buscarProductos,
-                        child: Text(
-                          'Reintentar',
-                          style: TextStyle(fontSize: 11, color: AppColors.blue1, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }
-          return Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Row(
-              children: [
-                Icon(Icons.error_outline, size: 14, color: Colors.red[400]),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    state.message,
-                    style: TextStyle(fontSize: 12, color: Colors.red[400]),
-                  ),
-                ),
-                InkWell(
-                  onTap: _buscarProductos,
-                  child: Text(
-                    'Reintentar',
-                    style: TextStyle(fontSize: 12, color: AppColors.blue1, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
             ),
           );
         }
 
-        // Obtener productos (del estado actual o anteriores durante loading/debouncing)
+        // Productos del estado actual o los previos durante loading/debouncing.
         final productos = state.productosActuales;
         final isLoading = state is ProductoSedeSearchLoading ||
             state is ProductoSedeSearchDebouncing;
 
-        // Loading sin productos previos: no mostrar nada (evita salto visual)
-        if (isLoading && productos.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        // Sin productos — texto compacto debajo del dropdown
-        if (productos.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              widget.emptyMessage ?? 'No se encontraron productos',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-            ),
-          );
-        }
-
-        // Dropdown con productos (opacidad reducida si está cargando)
+        // 🔑 El dropdown se renderiza SIEMPRE, aunque la búsqueda no traiga
+        // nada y aunque falle. Antes se reemplazaba por un texto: eso
+        // desmonta el widget, su `dispose()` cierra el overlay y el usuario
+        // se quedaba SIN caja donde corregir lo que tecleó — con un typo
+        // había que salir de la pantalla. La lista vacía ya avisa
+        // "Sin resultados" adentro del desplegable.
         return Stack(
           children: [
             Opacity(
@@ -445,6 +408,60 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
               ),
           ],
         );
+      },
+    );
+  }
+
+  /// Línea de estado debajo del buscador: error (con reintento) o
+  /// "no se encontraron productos". Nunca reemplaza al dropdown.
+  Widget _buildMensajeEstado() {
+    return BlocBuilder<ProductoSedeSearchCubit, ProductoSedeSearchState>(
+      builder: (context, state) {
+        if (_sedeSeleccionadaId == null) return const SizedBox.shrink();
+
+        if (state is ProductoSedeSearchError) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    size: 14, color: Colors.orange[700]),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    state.message,
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.orange[700]),
+                  ),
+                ),
+                InkWell(
+                  onTap: _buscarProductos,
+                  child: Text(
+                    'Reintentar',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.blue1,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Solo tras una búsqueda resuelta: durante el debounce/loading el
+        // mensaje parpadearía en cada tecla.
+        if (state is ProductoSedeSearchLoaded && state.productos.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              widget.emptyMessage ?? 'No se encontraron productos',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+            ),
+          );
+        }
+
+        return const SizedBox.shrink();
       },
     );
   }

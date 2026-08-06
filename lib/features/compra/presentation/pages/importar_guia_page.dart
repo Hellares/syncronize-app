@@ -10,6 +10,7 @@ import '../../../../core/widgets/producto_sede_selector/producto_sede_selector_e
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../data/datasources/compra_remote_datasource.dart';
+import '../widgets/label_producto_compra.dart';
 
 /// Importa los bienes de una guía SUNAT del proveedor y los MAPEA a tu catálogo
 /// (auto-mapeo por alias guardado + sugerencia por similitud; renombre in-line).
@@ -175,6 +176,11 @@ class _ImportarGuiaPageState extends State<ImportarGuiaPage> {
             empresaId: widget.empresaId,
             sedeIdInicial: widget.sedeId,
             mostrarSelectorSede: false,
+            // Mapear la guía del proveedor es parte de la recepción: el
+            // producto puede no vivir todavía en esta sede.
+            mostrarTodos: true,
+            labelBuilder: (producto) =>
+                labelProductoCompra(producto, widget.sedeId),
             onProductoSeleccionado: ({required producto, required sedeId, variante}) =>
                 Navigator.pop(context, producto),
           ),

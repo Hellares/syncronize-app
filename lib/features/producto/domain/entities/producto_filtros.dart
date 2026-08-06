@@ -21,6 +21,12 @@ class ProductoFiltros extends Equatable {
   final String? empresaCategoriaId;
   final String? empresaMarcaId;
   final String? sedeId;
+  /// Con `sedeId`, el backend devuelve SOLO los productos que ya tienen
+  /// `ProductoStock` en esa sede. `mostrarTodos: true` se salta ese filtro y
+  /// trae todo el catálogo de la empresa. Necesario donde el producto todavía
+  /// NO vive en la sede y justamente se lo está por dar de alta ahí (una
+  /// recepción de compra), si no el usuario lo crea duplicado.
+  final bool? mostrarTodos;
   final bool? visibleMarketplace;
   final bool? destacado;
   final bool? enOferta;
@@ -47,6 +53,7 @@ class ProductoFiltros extends Equatable {
     this.empresaCategoriaId,
     this.empresaMarcaId,
     this.sedeId,
+    this.mostrarTodos,
     this.visibleMarketplace,
     this.destacado,
     this.enOferta,
@@ -70,6 +77,7 @@ class ProductoFiltros extends Equatable {
     String? empresaCategoriaId,
     String? empresaMarcaId,
     String? sedeId,
+    bool? mostrarTodos,
     bool? visibleMarketplace,
     bool? destacado,
     bool? enOferta,
@@ -84,6 +92,7 @@ class ProductoFiltros extends Equatable {
     bool clearEmpresaCategoriaId = false,
     bool clearEmpresaMarcaId = false,
     bool clearSedeId = false,
+    bool clearMostrarTodos = false,
     bool clearVisibleMarketplace = false,
     bool clearDestacado = false,
     bool clearEnOferta = false,
@@ -101,6 +110,7 @@ class ProductoFiltros extends Equatable {
       empresaCategoriaId: clearEmpresaCategoriaId ? null : (empresaCategoriaId ?? this.empresaCategoriaId),
       empresaMarcaId: clearEmpresaMarcaId ? null : (empresaMarcaId ?? this.empresaMarcaId),
       sedeId: clearSedeId ? null : (sedeId ?? this.sedeId),
+      mostrarTodos: clearMostrarTodos ? null : (mostrarTodos ?? this.mostrarTodos),
       visibleMarketplace: clearVisibleMarketplace ? null : (visibleMarketplace ?? this.visibleMarketplace),
       destacado: clearDestacado ? null : (destacado ?? this.destacado),
       enOferta: clearEnOferta ? null : (enOferta ?? this.enOferta),
@@ -136,6 +146,11 @@ class ProductoFiltros extends Equatable {
     }
     if (sedeId != null) {
       params['sedeId'] = sedeId;
+    }
+    // Solo cuando es true: el backend lo lee con `value === 'true'` y su
+    // default ya es false.
+    if (mostrarTodos == true) {
+      params['mostrarTodos'] = 'true';
     }
     if (visibleMarketplace != null) {
       params['visibleMarketplace'] = visibleMarketplace.toString();
@@ -203,6 +218,7 @@ class ProductoFiltros extends Equatable {
         empresaCategoriaId,
         empresaMarcaId,
         sedeId,
+        mostrarTodos,
         visibleMarketplace,
         destacado,
         enOferta,

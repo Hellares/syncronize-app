@@ -108,9 +108,11 @@ class CustomDropdown<T> extends StatefulWidget {
   final int searchDebounceMs;
 
   /// Callback opcional cuando el texto de búsqueda cambia. Útil para
-  /// disparar una búsqueda remota (paginación en backend) en paralelo
-  /// al filtro local sobre los items ya cargados. El parámetro es el
-  /// texto crudo del search box (sin transformar).
+  /// disparar una búsqueda remota (el backend filtra y pagina). El
+  /// parámetro es el texto crudo del search box (sin transformar).
+  ///
+  /// Definirlo APAGA el filtro local: los `items` que manda el caller son
+  /// el resultado de la búsqueda y se muestran tal cual (ver `_applyFilter`).
   final ValueChanged<String>? onSearchChanged;
 
   const CustomDropdown({
@@ -160,6 +162,11 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
 
   T? _selectedValue;
   List<T> _selectedMultiValues = [];
+
+  /// Último label conocido del valor seleccionado. Con búsqueda remota los
+  /// `items` cambian en cada consulta y el seleccionado puede no estar en la
+  /// lista actual; sin este cache la caja mostraría `value.toString()`.
+  String? _selectedLabel;
 
   List<DropdownItem<T>> _filteredItems = [];
   final TextEditingController _searchController = TextEditingController();
@@ -226,6 +233,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
     _selectedValue = widget.value;
     _selectedMultiValues = List<T>.from(widget.selectedValues ?? <T>[]);
     _filteredItems = List<DropdownItem<T>>.from(widget.items);
+    _cacheSelectedLabel();
 
     _ownsFocusNode = widget.focusNode == null;
     _focusNode = widget.focusNode ?? FocusNode();
@@ -276,6 +284,8 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
     // Items update
     if (oldWidget.items != widget.items) {
       _filteredItems = _applyFilter(widget.items, _searchController.text);
+      // Refresca el label cacheado mientras el seleccionado siga en la lista.
+      _cacheSelectedLabel();
       _safeOverlayRebuild();
     }
 
@@ -283,6 +293,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
     if (widget.dropdownStyle != DropdownStyle.multiSelect) {
       if (oldWidget.value != widget.value) {
         _selectedValue = widget.value;
+        _cacheSelectedLabel();
         _safeFormDidChange(_selectedValue);
       }
     } else {
@@ -350,17 +361,29 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
 
         if (_isExpanded) _safeOverlayRebuild();
 
-        // Dispara la búsqueda remota en paralelo al filtro local. El
-        // caller actualiza `items` y el dropdown re-filtra automáticamente.
+        // Dispara la búsqueda remota: el caller actualiza `items` y el
+        // dropdown muestra ese resultado tal cual (sin filtro local).
         widget.onSearchChanged?.call(_searchController.text);
       },
     );
   }
 
+  /// Filtra los items por el texto del buscador.
+  ///
+  /// ⚠️ Con `onSearchChanged` NO se filtra localmente: quien busca es el
+  /// backend y esta lista YA es el resultado. Filtrar de nuevo por substring
+  /// del label descartaba resultados legítimos — el backend busca por
+  /// palabras sobre nombre + marca + categoría + códigos (`textoBusqueda`,
+  /// ya normalizado sin tildes) y el label suele traer solo el nombre. Así,
+  /// "samsung" (marca), "monitor 24" (palabras separadas) o "cafe" (contra
+  /// "Café") devolvían cero aunque el backend los hubiera encontrado.
   List<DropdownItem<T>> _applyFilter(
     List<DropdownItem<T>> items,
     String query,
   ) {
+    if (widget.onSearchChanged != null) {
+      return List<DropdownItem<T>>.from(items);
+    }
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return List<DropdownItem<T>>.from(items);
     return items.where((i) => i.label.toLowerCase().contains(q)).toList();
@@ -733,7 +756,10 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
         _closeDropdown();
       }
     } else {
-      _safeSetState(() => _selectedValue = value);
+      _safeSetState(() {
+        _selectedValue = value;
+        _cacheSelectedLabel();
+      });
 
       _postFrame(() {
         widget.onChanged?.call(value);
@@ -742,6 +768,24 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
       });
 
       _closeDropdown();
+    }
+  }
+
+  /// Guarda el label del valor seleccionado mientras siga presente en
+  /// `items`. Si la próxima búsqueda no lo trae, la caja sigue mostrando
+  /// este texto en vez del `toString()` del objeto.
+  void _cacheSelectedLabel() {
+    if (widget.dropdownStyle == DropdownStyle.multiSelect) return;
+    final value = _selectedValue;
+    if (value == null) {
+      _selectedLabel = null;
+      return;
+    }
+    for (final item in widget.items) {
+      if (item.value == value) {
+        _selectedLabel = item.label;
+        return;
+      }
     }
   }
 
@@ -766,9 +810,11 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>>
       return widget.items
           .firstWhere(
             (item) => item.value == _selectedValue,
+            // Con búsqueda remota el seleccionado puede no estar en el
+            // resultado actual: usamos el último label conocido.
             orElse: () => DropdownItem<T>(
               value: _selectedValue as T,
-              label: _selectedValue.toString(),
+              label: _selectedLabel ?? _selectedValue.toString(),
             ),
           )
           .label;

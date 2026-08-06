@@ -11,6 +11,7 @@ import '../../../../core/widgets/producto_sede_selector/producto_sede_selector_e
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import 'historial_compras_producto_panel.dart';
+import 'label_producto_compra.dart';
 import 'quick_create_producto_dialog.dart';
 
 /// Widget para buscar y agregar productos/items al detalle de una Orden de Compra.
@@ -785,11 +786,14 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
           sedeIdInicial: widget.sedeId,
           mostrarSelectorSede: false,
           soloProductos: true,
+          // Una recepción es la forma en que un producto ENTRA por primera vez
+          // a una sede: hay que poder elegir los que todavía no viven ahí. El
+          // backend le crea el ProductoStock al confirmar la compra.
+          mostrarTodos: true,
           label: 'Selecciona un producto *',
           hintText: 'Buscar producto...',
-          labelBuilder: (producto) {
-            return '${producto.nombre} | Stock: ${producto.stockTotal}';
-          },
+          labelBuilder: (producto) =>
+              labelProductoCompra(producto, widget.sedeId),
           onProductoSeleccionado: ({
             required ProductoListItem producto,
             required String sedeId,
