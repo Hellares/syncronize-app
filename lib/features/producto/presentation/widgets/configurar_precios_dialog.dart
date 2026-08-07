@@ -586,7 +586,18 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                                   : 'Precio de Costo (por unidad)',
                               controller: _precioCostoController,
                               borderColor: AppColors.blue1,
-                              allowZero: false,
+                              // Un costo en 0 es VÁLIDO: significa "todavía no
+                              // se sabe". El granel de un saco no tiene costo
+                              // hasta que se abre uno —lo escribe la apertura
+                              // por promedio ponderado— y un producto nuevo
+                              // tampoco hasta la primera compra.
+                              //
+                              // Con `allowZero: false` era imposible dejarlo
+                              // sin cargar: `treatEmptyAsZero` (default true)
+                              // convierte el campo vacío en 0.00 al perder el
+                              // foco, y el validador rechazaba ese mismo 0.00.
+                              // El guardado ya trata 0 como null.
+                              allowZero: true,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return null;
