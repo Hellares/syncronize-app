@@ -236,6 +236,7 @@ import '../../features/cita/presentation/pages/cita_cliente_detail_page.dart';
 import '../../features/cita/presentation/pages/nueva_cita_sheet.dart';
 import '../../features/cita/presentation/pages/historial_citas_cliente_page.dart';
 import '../../features/cita/presentation/pages/clientes_citas_page.dart';
+import '../../features/inventario/presentation/pages/abrir_bultos_page.dart';
 import '../../features/inventario/presentation/pages/inventarios_page.dart';
 import '../../features/inventario/presentation/pages/inventario_detail_page.dart';
 import '../../features/inventario/presentation/pages/crear_inventario_page.dart';
@@ -685,6 +686,11 @@ class AppRouter {
         path: '/empresa/inventario/produccion',
         name: 'empresa-lotes-produccion',
         builder: (context, state) => const LotesProduccionPage(),
+      ),
+      GoRoute(
+        path: '/empresa/inventario/abrir-bultos',
+        name: 'empresa-abrir-bultos',
+        builder: (context, state) => const AbrirBultosPage(),
       ),
       GoRoute(
         path: '/empresa/inventario/trazabilidad',

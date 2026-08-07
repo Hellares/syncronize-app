@@ -355,6 +355,15 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
                 _tap(ctx, () => ctx.push('/empresa/inventario/produccion')),
           ),
           tile(
+            title: 'Abrir bultos',
+            icon: Icons.open_in_full,
+            iconColor: Colors.amber,
+            routeMatch:
+                const _RouteMatch.exact('/empresa/inventario/abrir-bultos'),
+            onTap: (ctx) =>
+                _tap(ctx, () => ctx.push('/empresa/inventario/abrir-bultos')),
+          ),
+          tile(
             title: 'Trazabilidad de producto',
             icon: Icons.account_tree_outlined,
             iconColor: Colors.teal,
