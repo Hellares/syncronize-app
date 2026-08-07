@@ -285,11 +285,16 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
 
   Widget _buildProductoCard(Map<String, dynamic> p) {
     final id = (p['id'] ?? p['_id'] ?? '').toString();
-    final nombre = p['nombre'] as String? ??
-        (p['producto'] is Map
-            ? (p['producto'] as Map)['nombre'] as String?
-            : null) ??
-        'Sin nombre';
+    // Las filas de VARIANTE tienen `producto` en null (el XOR del modelo), así
+    // que mirando solo ahí salían todas como "Sin nombre" — y son justamente
+    // las que hay que configurar en un producto con saco cerrado y granel.
+    final prod = p['producto'] is Map ? p['producto'] as Map : null;
+    final variante = p['variante'] is Map ? p['variante'] as Map : null;
+    final partes = [
+      p['nombre'] as String? ?? prod?['nombre'] as String?,
+      variante?['nombre'] as String?,
+    ].whereType<String>().where((s) => s.isNotEmpty);
+    final nombre = partes.isEmpty ? 'Sin nombre' : partes.join(' · ');
     final stockActual = p['stockActual'] ?? p['stock'] ?? 0;
 
     final minController = _minControllers[id];
