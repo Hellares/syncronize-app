@@ -1458,7 +1458,12 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
     // tipoCambio. Se guarda en ProductoPrecioHistorialSede para trazabilidad.
     String? tipoCambioAuditoria;
     String? razonAuditoria;
-    final costoOriginal = widget.stock.precioCosto ?? 0;
+    // EN PRESENTACIÓN, igual que el campo: `stock.precioCosto` está por unidad
+    // de venta (por gramo) y lo tecleado por kilo. Comparándolos crudos, un
+    // costo de 0.01/g contra los 10.00/kg que muestra el campo daban una
+    // diferencia de 9.99 y el diálogo pedía motivo por un cambio inexistente
+    // cada vez que se abría y guardaba un producto con presentación.
+    final costoOriginal = _aPresentacion(widget.stock.precioCosto ?? 0);
     final cambioCosto = precioCosto > 0 && (precioCosto - costoOriginal).abs() > 0.001;
     if (cambioCosto) {
       final result = await _pedirMotivoCambioCosto(costoOriginal, precioCosto);
