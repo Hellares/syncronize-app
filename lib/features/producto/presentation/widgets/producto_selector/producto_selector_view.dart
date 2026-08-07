@@ -1284,6 +1284,9 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
     // "Stock: 22 kg" en vez de "S/ 0.01" y "Stock: 22000". Sin presentación
     // configurada no cambia ningún número.
     final pres = producto.presentacion;
+    // Saco cerrado + granel: cada variante en su unidad ("3 und · 15 kg").
+    // null para el caso normal, donde el consolidado sí tiene sentido.
+    final stockPorVariante = producto.stockPorVarianteEnSede(sedeId);
 
     return BlocBuilder<TCubit, TState>(
       buildWhen: (prev, curr) {
@@ -1449,7 +1452,12 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                             Text(
                                               agotado
                                                   ? 'Sin stock'
-                                                  : 'Stock: ${pres.cantidadTexto(stockDisponible)}',
+                                                  // Con variantes en unidades
+                                                  // distintas se muestra cada
+                                                  // una en la suya: el total
+                                                  // consolidado sumaría sacos
+                                                  // con gramos.
+                                                  : 'Stock: ${stockPorVariante ?? pres.cantidadTexto(stockDisponible)}',
                                               style: TextStyle(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w600,

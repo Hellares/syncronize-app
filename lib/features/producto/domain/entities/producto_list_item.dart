@@ -115,6 +115,42 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     return stockEnSede(sedeId) ?? 0;
   }
 
+  /// Las variantes NO se venden todas en la misma unidad.
+  ///
+  /// Pasa con el saco cerrado vs granel: una variante va por unidad y la otra
+  /// por gramo presentada en kilos. Sumarlas da un número sin significado —
+  /// "3 sacos + 15000 g = 15003"— y expresarlo en kilos sería peor, porque
+  /// escondería los 3 sacos.
+  bool get variantesEnUnidadesDistintas {
+    final vs = variantes;
+    if (!tieneVariantes || vs == null || vs.length < 2) return false;
+    final primera = vs.first;
+    return vs.any((v) =>
+        v.unidadMedidaId != primera.unidadMedidaId ||
+        v.factorPresentacion != primera.factorPresentacion);
+  }
+
+  /// Stock de la sede listo para mostrar, cada variante en SU unidad:
+  /// "3 und · 15 kg". Para el caso normal (colores, tallas) devuelve null y
+  /// el llamador usa el consolidado de siempre.
+  String? stockPorVarianteEnSede(String sedeId) {
+    if (!variantesEnUnidadesDistintas) return null;
+    final partes = <String>[];
+    for (final v in variantes!) {
+      final stock = v.stockEnSede(sedeId) ?? 0;
+      if (stock <= 0) continue;
+      partes.add(
+        v.tienePresentacionPropia
+            ? UnidadPresentacion(
+                factor: v.factorPresentacion!,
+                simbolo: v.unidadPresentacionSimbolo,
+              ).cantidadTexto(stock)
+            : '$stock ${v.unidadDisplay}',
+      );
+    }
+    return partes.isEmpty ? null : partes.join(' · ');
+  }
+
   /// True si el producto base O alguna de sus variantes está en liquidación
   /// activa en la sede. Usado para mostrar badge "LIQ." en el card padre
   /// aunque la liquidación esté configurada a nivel variante.

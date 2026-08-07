@@ -327,6 +327,24 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// la cantidad en la unidad de PRESENTACIÓN.
   bool get _esGranel => _varianteResuelta?.tienePresentacionPropia ?? false;
 
+  /// Precio en la unidad en la que se COBRA. Un granel guardado en gramos
+  /// tiene precio 0.015/g: mostrar "S/ 0.01" es un precio que no existe y que
+  /// además está redondeado. Se muestra "S/ 15.00 /kg", igual que hace la card
+  /// de un producto a granel sin variantes.
+  String _precioTexto(double porUnidadDeVenta) {
+    final p = _presentacion;
+    // `precioTexto` ya trae la moneda y el sufijo de unidad ("S/ 15.00/kg").
+    if (p == null) return 'S/ ${porUnidadDeVenta.toStringAsFixed(2)}';
+    return p.precioTexto(porUnidadDeVenta);
+  }
+
+  /// Stock en la unidad de cobro: "15 kg" en vez de "15000".
+  String _stockTexto(int enUnidadDeVenta) {
+    final p = _presentacion;
+    if (p == null) return '$enUnidadDeVenta';
+    return p.cantidadTexto(enUnidadDeVenta);
+  }
+
   UnidadPresentacion? get _presentacion {
     final v = _varianteResuelta;
     if (v == null || !v.tienePresentacionPropia) return null;
@@ -619,8 +637,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       AppSubtitle(
-                        font: AppFont.amazonEmberBold, 
-                        'S/ ${precioInfo.precio!.toStringAsFixed(2)}',
+                        font: AppFont.amazonEmberBold,
+                        _precioTexto(precioInfo.precio!),
                         fontSize: 15,
                         color: precioInfo.nivel != null
                             ? AppColors.blue1
@@ -629,7 +647,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                       if (precioInfo.base != null) ...[
                         const SizedBox(width: 6),
                         Text(
-                          'S/ ${precioInfo.base!.toStringAsFixed(2)}',
+                          _precioTexto(precioInfo.base!),
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade500,
@@ -661,7 +679,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                       AppSubtitle(
                         font: AppFont.amazonEmberMedium,
                         _stockRestante > 0
-                            ? 'Stock disponible: $_stockRestante'
+                            ? 'Stock disponible: ${_stockTexto(_stockRestante)}'
                             : 'Sin stock',
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
