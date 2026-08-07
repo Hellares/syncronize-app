@@ -376,7 +376,20 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
   }
 
-  void agregarVariante(ProductoListItem producto, ProductoVariante variante) {
+  /// Agrega [cantidad] unidades ATÓMICAS de una variante al carrito.
+  ///
+  /// La cantidad es un parámetro y no un `+1` repetido porque un granel se
+  /// vende en su unidad atómica: 1.5 kg de un producto que se guarda en gramos
+  /// son 1500 unidades, y llamar 1500 veces emitiría 1500 estados.
+  /// `cantidad` va POSICIONAL opcional a propósito: las páginas pasan este
+  /// método como tear-off (`onAgregarVariante: cubit.agregarVariante`) y un
+  /// parámetro con nombre no encajaría en `void Function(P, V, int)`.
+  void agregarVariante(
+    ProductoListItem producto,
+    ProductoVariante variante, [
+    int cantidad = 1,
+  ]) {
+    if (cantidad <= 0) return;
     final sedeId = state.sedeId ?? '';
     final precio = variante.precioEfectivoEnSede(sedeId) ??
         variante.precioEnSede(sedeId) ??
@@ -395,7 +408,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     );
     if (idx >= 0) {
       final actual = state.items[idx];
-      final nuevaCantidad = actual.cantidad + 1;
+      final nuevaCantidad = actual.cantidad + cantidad;
       final icbperPerUnit =
           actual.cantidad > 0 ? actual.icbper / actual.cantidad : icbperUnit;
       final nueva = actual
@@ -413,7 +426,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       productoId: producto.id,
       varianteId: variante.id,
       descripcion: descripcion,
-      cantidad: 1,
+      cantidad: cantidad.toDouble(),
       precioUnitario: precio,
       precioBase: precio,
       porcentajeIGV: igvPorc,
@@ -428,7 +441,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       vipIntents: _vipParaNuevoProducto(producto.id),
     );
     final itemConNivel = nivelesEnCache != null
-        ? item.recalcularPrecioPorNiveles(1)
+        ? item.recalcularPrecioPorNiveles(cantidad.toDouble())
         : item;
     emit(state.copyWith(items: [...state.items, itemConNivel], clearError: true));
 

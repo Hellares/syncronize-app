@@ -500,7 +500,14 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     }
   }
 
-  void agregarVariante(ProductoListItem producto, ProductoVariante variante) {
+  /// `cantidad` en unidad ATÓMICA (gramos para un granel). Posicional
+  /// opcional: la página lo pasa como tear-off a `onAgregarVariante`.
+  void agregarVariante(
+    ProductoListItem producto,
+    ProductoVariante variante, [
+    int cantidad = 1,
+  ]) {
+    if (cantidad <= 0) return;
     final sedeId = state.sedeId ?? '';
     final precio = variante.precioEfectivoEnSede(sedeId) ??
         variante.precioEnSede(sedeId) ??
@@ -519,7 +526,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     );
     if (idx >= 0) {
       final actual = state.items[idx];
-      final nuevaCantidad = actual.cantidad + 1;
+      final nuevaCantidad = actual.cantidad + cantidad;
       final icbperPerUnit =
           actual.cantidad > 0 ? actual.icbper / actual.cantidad : icbperUnit;
       final nueva = actual
@@ -538,7 +545,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       productoId: producto.id,
       varianteId: variante.id,
       descripcion: descripcion,
-      cantidad: 1,
+      cantidad: cantidad.toDouble(),
       precioUnitario: precio,
       precioBase: precio,
       porcentajeIGV: igvPorc,
@@ -557,7 +564,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
           : null,
     );
     final itemConNivel = (nivelesEnCache != null || vipIntents.isNotEmpty)
-        ? item.recalcularPrecioPorNiveles(1)
+        ? item.recalcularPrecioPorNiveles(cantidad.toDouble())
         : item;
     emit(state.copyWith(
       items: [...state.items, itemConNivel],

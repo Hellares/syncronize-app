@@ -11,12 +11,26 @@ class StockCard extends StatelessWidget {
   final VoidCallback? onAjustar;
   final VoidCallback? onHistorial;
 
+  /// Acción "abrir un bulto", solo cuando este stock es el granel de un bulto
+  /// que TIENE unidades cerradas en depósito. Es la diferencia entre pedirle
+  /// al proveedor y usar mercadería que ya está comprada y pagada.
+  final VoidCallback? onAbrirBulto;
+
+  /// Cuántos bultos cerrados hay, para poder decirlo en la tarjeta.
+  final int bultosCerrados;
+
+  /// Nombre del bulto ("SACO 15KG"), para que el aviso sea concreto.
+  final String? nombreBulto;
+
   const StockCard({
     super.key,
     required this.stock,
     this.onTap,
     this.onAjustar,
     this.onHistorial,
+    this.onAbrirBulto,
+    this.bultosCerrados = 0,
+    this.nombreBulto,
   });
 
   @override
@@ -180,12 +194,61 @@ class StockCard extends StatelessWidget {
                   ),
                 ],
 
+                // Qué hacer con este faltante. Sin esto, "bajo mínimo"
+                // significa siempre "comprale al proveedor" — y cuando hay
+                // bultos cerrados en depósito eso es una compra que no hace
+                // falta, con el granel parado esperando al proveedor.
+                if (onAbrirBulto != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.inventory_2,
+                            size: 16, color: Colors.amber.shade800),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'No hace falta comprar: hay $bultosCerrados '
+                            '${nombreBulto ?? 'bulto'}(s) sin abrir en esta sede.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.amber.shade900,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 // Botones de acción
-                if (onAjustar != null || onHistorial != null) ...[
+                if (onAjustar != null ||
+                    onHistorial != null ||
+                    onAbrirBulto != null) ...[
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      if (onAbrirBulto != null) ...[
+                        FilledButton.icon(
+                          onPressed: onAbrirBulto,
+                          icon: const Icon(Icons.open_in_full, size: 16),
+                          label: const Text('Abrir bulto'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.amber.shade700,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       if (onHistorial != null) ...[
                         TextButton.icon(
                           onPressed: onHistorial,

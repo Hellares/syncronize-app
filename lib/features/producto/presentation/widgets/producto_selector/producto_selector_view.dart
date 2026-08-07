@@ -77,7 +77,10 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
   final void Function(ProductoListItem) onAgregarProducto;
 
   /// Callback para agregar una variante específica al carrito.
-  final void Function(ProductoListItem, ProductoVariante)? onAgregarVariante;
+  /// El tercer parámetro es la cantidad en unidad ATÓMICA (gramos para un
+  /// granel). Opcional para los llamadores que agregan de a uno.
+  final void Function(ProductoListItem, ProductoVariante, [int])?
+      onAgregarVariante;
 
   /// Callback para decrementar una variante desde el sheet.
   final void Function(ProductoListItem, ProductoVariante)? onDecrementarVariante;
@@ -279,15 +282,23 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         cantidadesEnCarrito: cantidades,
         nivelesVariantes: nivelesMap,
         onAgregar: (variante, cantidad) {
-          // `agregarVariante` suma 1 (y mergea por varianteId); para N
-          // unidades lo invocamos N veces.
-          for (var k = 0; k < cantidad; k++) {
-            widget.onAgregarVariante!(p, variante);
-          }
+          // La cantidad viaja entera al carrito. Antes se llamaba N veces a
+          // `agregarVariante`, lo que con un granel en gramos serían 1500
+          // llamadas (y 1500 emits) para vender kilo y medio.
+          widget.onAgregarVariante!(p, variante, cantidad);
         },
         onQuitarUnidad: widget.onDecrementarVariante != null
             ? (variante) => widget.onDecrementarVariante!(p, variante)
             : null,
+        // Abrir un bulto desde la venta cambia el stock del granel: hay que
+        // revalidar o la grilla seguiría mostrando el stock viejo.
+        onBultoAbierto: () {
+          try {
+            context
+                .read<ProductoListCubit>()
+                .revalidarSinDeltas(sedeId: widget.sedeId);
+          } catch (_) {/* cubit no disponible */}
+        },
       );
       _varianteSheetOpen = false;
     } else {

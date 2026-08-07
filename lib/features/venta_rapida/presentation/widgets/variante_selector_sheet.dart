@@ -6,6 +6,9 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
+import '../../../producto/presentation/widgets/abrir_bulto_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
@@ -32,6 +35,7 @@ Future<void> showVarianteSelectorSheet({
   void Function(ProductoVariante variante)? onQuitarUnidad,
   Map<String, int> cantidadesEnCarrito = const {},
   Map<String, List<PrecioNivel>> nivelesVariantes = const {},
+  VoidCallback? onBultoAbierto,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -49,6 +53,7 @@ Future<void> showVarianteSelectorSheet({
       onQuitarUnidad: onQuitarUnidad,
       cantidadesEnCarrito: cantidadesEnCarrito,
       nivelesVariantes: nivelesVariantes,
+      onBultoAbierto: onBultoAbierto,
     ),
   );
 }
@@ -70,6 +75,10 @@ class _VarianteSelectorSheet extends StatefulWidget {
   final Map<String, int> cantidadesEnCarrito;
   final Map<String, List<PrecioNivel>> nivelesVariantes;
 
+  /// Se abrió un bulto desde la venta: el stock del granel cambió y el caller
+  /// tiene que revalidar el catálogo.
+  final VoidCallback? onBultoAbierto;
+
   const _VarianteSelectorSheet({
     required this.producto,
     required this.sedeId,
@@ -77,6 +86,7 @@ class _VarianteSelectorSheet extends StatefulWidget {
     this.onQuitarUnidad,
     this.cantidadesEnCarrito = const {},
     this.nivelesVariantes = const {},
+    this.onBultoAbierto,
   });
 
   @override
@@ -93,7 +103,20 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
 
   /// Valor elegido por clave de atributo (null = sin elegir).
   final Map<String, String?> _seleccion = {};
+
+  /// SIEMPRE en unidad atómica (gramos para un granel). Lo que se teclea en
+  /// kilos se convierte antes de tocar esta variable, así el resto del sheet
+  /// —stock, niveles, carrito— sigue hablando un solo idioma.
   int _cantidad = 1;
+
+  /// Texto del campo de granel, en unidad de presentación.
+  final _cantidadGranelCtrl = TextEditingController();
+
+  /// Bulto cerrado con el que se puede reponer el granel que se está
+  /// vendiendo. Se consulta UNA sola vez y recién cuando hace falta: es el
+  /// camino excepcional (quedarse corto a media venta), no el normal.
+  Map<String, dynamic>? _bultoParaReponer;
+  bool _bultoConsultado = false;
 
   /// Copia mutable de lo que ya está en el carrito (varianteId -> cantidad).
   /// Se actualiza localmente al "Limpiar" para refrescar el stock disponible.
@@ -195,7 +218,14 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         }
       }
     }
-    _cantidad = _stockRestante > 0 ? 1 : 0;
+    // A granel el campo arranca vacío: no tiene sentido proponer "1 g".
+    _cantidad = _stockRestante > 0 && !_esGranel ? 1 : 0;
+  }
+
+  @override
+  void dispose() {
+    _cantidadGranelCtrl.dispose();
+    super.dispose();
   }
 
   // ---- Matching y disponibilidad -------------------------------------------
@@ -268,7 +298,14 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         );
       }
       final rest = _stockRestante;
-      _cantidad = rest > 0 ? _cantidad.clamp(1, rest) : 0;
+      // Cambiar de variante puede pasar de granel a unidad y viceversa: el
+      // campo de kilos se limpia para no arrastrar un valor de la anterior.
+      if (_esGranel) {
+        _cantidadGranelCtrl.clear();
+        _cantidad = 0;
+      } else {
+        _cantidad = rest > 0 ? _cantidad.clamp(1, rest) : 0;
+      }
     });
     // Cargar niveles de la nueva variante resuelta (si aún no se pidieron).
     _cargarNivelesResuelta();
@@ -280,6 +317,95 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     if (nueva == _cantidad) return;
     HapticFeedback.lightImpact();
     setState(() => _cantidad = nueva);
+  }
+
+  // ---- Granel ---------------------------------------------------------------
+
+  /// La variante resuelta se vende a granel: tiene presentación propia, así
+  /// que se cobra en kilos aunque se guarde en gramos. El stepper de +1 no
+  /// sirve —nadie toca 1500 veces para vender kilo y medio— y hay que capturar
+  /// la cantidad en la unidad de PRESENTACIÓN.
+  bool get _esGranel => _varianteResuelta?.tienePresentacionPropia ?? false;
+
+  UnidadPresentacion? get _presentacion {
+    final v = _varianteResuelta;
+    if (v == null || !v.tienePresentacionPropia) return null;
+    return UnidadPresentacion(
+      factor: v.factorPresentacion!,
+      simbolo: v.unidadDisplay,
+    );
+  }
+
+  /// Lo tecleado (kilos) convertido a unidad atómica (gramos), que es lo que
+  /// viaja al carrito y al stock. Se redondea porque el stock es entero: la
+  /// balanza entrega gramos enteros de todos modos.
+  void _cantidadDesdeTexto(String texto) {
+    final p = _presentacion;
+    final valor = double.tryParse(texto.trim().replaceAll(',', '.'));
+    if (p == null || valor == null) {
+      setState(() => _cantidad = 0);
+      return;
+    }
+    final atomica = (valor * p.factor).round();
+    // Pidió más de lo que hay suelto: puede haber un bulto cerrado que lo
+    // resuelva sin mandar al cliente a otro lado.
+    if (atomica > _stockRestante) _consultarBultoParaReponer();
+    setState(() => _cantidad = atomica.clamp(0, _stockRestante));
+  }
+
+  /// Busca si el granel que se está vendiendo tiene un bulto cerrado con
+  /// stock. Una sola vez por sheet y solo bajo demanda: es el POS.
+  Future<void> _consultarBultoParaReponer() async {
+    if (_bultoConsultado) return;
+    _bultoConsultado = true;
+    final v = _varianteResuelta;
+    if (v == null) return;
+    try {
+      final resp = await locator<DioClient>().get(
+        '/apertura-bulto/disponibles',
+        queryParameters: {'sedeId': widget.sedeId},
+      );
+      Map<String, dynamic>? encontrado;
+      for (final e in (resp.data as List<dynamic>? ?? [])) {
+        final j = e as Map<String, dynamic>;
+        final destino = j['destino'] as Map<String, dynamic>;
+        final cerrados = ((j['bulto'] as Map<String, dynamic>)['stock'] as num?)
+                ?.toInt() ??
+            0;
+        if (destino['varianteId'] == v.id && cerrados > 0) {
+          encontrado = j;
+          break;
+        }
+      }
+      if (!mounted || encontrado == null) return;
+      setState(() => _bultoParaReponer = encontrado);
+    } catch (_) {
+      // Silencioso: es una ayuda, no puede romper una venta en curso.
+    }
+  }
+
+  /// Abre un bulto sin salir de la venta. Al volver hay que refrescar el
+  /// catálogo —el stock del granel cambió— y eso lo hace el caller, así que
+  /// el sheet se cierra y avisa.
+  Future<void> _abrirDesdeVenta() async {
+    final j = _bultoParaReponer!;
+    final bulto = j['bulto'] as Map<String, dynamic>;
+    final destino = j['destino'] as Map<String, dynamic>;
+    final r = await AbrirBultoDialog.show(
+      context: context,
+      bultoVarianteId: bulto['varianteId'].toString(),
+      bultoNombre: bulto['nombre'].toString(),
+      destinoNombre: destino['nombre'].toString(),
+      destinoFactor: (destino['factorPresentacion'] as num?)?.toDouble(),
+      destinoSimbolo: destino['simbolo']?.toString(),
+      rendimiento: (j['rendimiento'] as num?)?.toDouble() ?? 0,
+      sedeId: widget.sedeId,
+      stockBultos: (bulto['stock'] as num?)?.toInt() ?? 0,
+      stockDestino: (destino['stock'] as num?)?.toInt() ?? 0,
+    );
+    if (r == null || !mounted) return;
+    widget.onBultoAbierto?.call();
+    Navigator.pop(context);
   }
 
   /// Resetea toda la selección (deselecciona cada atributo), la cantidad y
@@ -442,6 +568,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                   ),
           ),
           const Divider(height: 1),
+          _buildOfrecerAbrir(),
           _buildFooter(resuelta, puedeAgregar),
         ],
       ),
@@ -624,6 +751,87 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     );
   }
 
+  /// Campo decimal en la unidad de cobro, con el equivalente atómico debajo:
+  /// que se vea "= 1500 g" es lo que evita cargar 1.5 creyendo que son gramos.
+  Widget _buildInputGranel(bool puedeAgregar) {
+    final p = _presentacion!;
+    final restante = _stockRestante;
+    return SizedBox(
+      width: 132,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _cantidadGranelCtrl,
+            autofocus: true,
+            enabled: puedeAgregar || restante > 0,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,3}')),
+            ],
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            decoration: InputDecoration(
+              isDense: true,
+              suffixText: p.simbolo,
+              border: const OutlineInputBorder(),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            ),
+            onChanged: _cantidadDesdeTexto,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _cantidad > 0
+                ? '= $_cantidad ${_varianteResuelta?.unidadMedida?.displayCorto ?? ''}'
+                : 'Disponible ${p.cantidadTexto(restante)}',
+            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "Faltan 3 kg — hay 4 SACO 15KG sin abrir". Avisa y OFRECE; no bloquea la
+  /// venta ni abre por su cuenta, que es lo que se decidió con el user: si el
+  /// cajero no puede registrarlo pero igual rompe el saco, el sistema miente.
+  Widget _buildOfrecerAbrir() {
+    final j = _bultoParaReponer;
+    if (j == null || !_esGranel) return const SizedBox.shrink();
+    final bulto = j['bulto'] as Map<String, dynamic>;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.amber.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.inventory_2, size: 16, color: Colors.amber.shade800),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'No alcanza el suelto, pero hay ${bulto['stock']} '
+              '${bulto['nombre']} sin abrir.',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.amber.shade900,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _abrirDesdeVenta,
+            child: const Text('Abrir', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFooter(ProductoVariante? resuelta, bool puedeAgregar) {
     final sinStock = resuelta != null && _stockRestante <= 0;
     return Padding(
@@ -631,42 +839,46 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
           16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
       child: Row(
         children: [
-          // Stepper de cantidad
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _stepBtn(
-                  Icons.remove,
-                  onTap: puedeAgregar && _cantidad > 1
-                      ? () => _cambiarCantidad(-1)
-                      : null,
-                ),
-                Container(
-                  constraints: const BoxConstraints(minWidth: 36),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '$_cantidad',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
+          // A granel se teclea la cantidad en la unidad de cobro (kg); por
+          // unidad, el stepper de siempre.
+          if (_esGranel)
+            _buildInputGranel(puedeAgregar)
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _stepBtn(
+                    Icons.remove,
+                    onTap: puedeAgregar && _cantidad > 1
+                        ? () => _cambiarCantidad(-1)
+                        : null,
+                  ),
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 36),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$_cantidad',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-                _stepBtn(
-                  Icons.add,
-                  onTap: puedeAgregar && _cantidad < _stockRestante
-                      ? () => _cambiarCantidad(1)
-                      : null,
-                ),
-              ],
+                  _stepBtn(
+                    Icons.add,
+                    onTap: puedeAgregar && _cantidad < _stockRestante
+                        ? () => _cambiarCantidad(1)
+                        : null,
+                  ),
+                ],
+              ),
             ),
-          ),
           const SizedBox(width: 12),
           // Botón agregar (design system)
           Expanded(

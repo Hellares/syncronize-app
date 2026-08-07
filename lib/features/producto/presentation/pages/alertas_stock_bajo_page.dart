@@ -13,6 +13,32 @@ import '../bloc/ajustar_stock/ajustar_stock_cubit.dart';
 import '../widgets/stock_card.dart';
 import '../widgets/ajustar_stock_dialog.dart';
 import '../widgets/historial_movimientos_bottom_sheet.dart';
+import '../widgets/abrir_bulto_dialog.dart';
+import 'package:dio/dio.dart';
+import 'package:syncronize/core/network/dio_client.dart';
+
+/// Un bulto cerrado que puede reponer a un granel bajo mínimo.
+class _BultoDisponible {
+  final String bultoVarianteId;
+  final String bultoNombre;
+  final int bultoStock;
+  final String destinoNombre;
+  final double? destinoFactor;
+  final String? destinoSimbolo;
+  final double rendimiento;
+  final int destinoStock;
+
+  _BultoDisponible({
+    required this.bultoVarianteId,
+    required this.bultoNombre,
+    required this.bultoStock,
+    required this.destinoNombre,
+    required this.destinoFactor,
+    required this.destinoSimbolo,
+    required this.rendimiento,
+    required this.destinoStock,
+  });
+}
 
 class AlertasStockBajoPage extends StatefulWidget {
   final String? sedeId; // Si es null, muestra alertas de todas las sedes
@@ -31,11 +57,77 @@ class _AlertasStockBajoPageState extends State<AlertasStockBajoPage>
   late TabController _tabController;
   String? _empresaId;
 
+  /// Bultos abribles, indexados por `sedeId|varianteId` del GRANEL: es la
+  /// clave con la que se busca desde cada fila de alerta.
+  final Map<String, _BultoDisponible> _bultosPorDestino = {};
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadAlertas();
+  }
+
+  /// Cruza las alertas con `/apertura-bulto/disponibles`.
+  ///
+  /// La pantalla puede estar en "todas las sedes", y el endpoint es por sede,
+  /// así que se consulta una vez por cada sede que aparezca en las alertas —
+  /// en la práctica una o dos. Si falla, se ignora en silencio: es información
+  /// ADICIONAL y no puede tumbar la pantalla de alertas.
+  Future<void> _cargarBultosDisponibles(Iterable<String> sedeIds) async {
+    final dio = locator<DioClient>();
+    final nuevos = <String, _BultoDisponible>{};
+    for (final sedeId in sedeIds.toSet()) {
+      try {
+        final resp = await dio.get(
+          '/apertura-bulto/disponibles',
+          queryParameters: {'sedeId': sedeId},
+        );
+        for (final e in (resp.data as List<dynamic>? ?? [])) {
+          final j = e as Map<String, dynamic>;
+          final bulto = j['bulto'] as Map<String, dynamic>;
+          final destino = j['destino'] as Map<String, dynamic>;
+          final cerrados = (bulto['stock'] as num?)?.toInt() ?? 0;
+          // Sin bultos cerrados no hay nada que ofrecer: ahí sí toca comprar.
+          if (cerrados <= 0) continue;
+          nuevos['$sedeId|${destino['varianteId']}'] = _BultoDisponible(
+            bultoVarianteId: bulto['varianteId'].toString(),
+            bultoNombre: bulto['nombre'].toString(),
+            bultoStock: cerrados,
+            destinoNombre: destino['nombre'].toString(),
+            destinoFactor: (destino['factorPresentacion'] as num?)?.toDouble(),
+            destinoSimbolo: destino['simbolo']?.toString(),
+            rendimiento: (j['rendimiento'] as num?)?.toDouble() ?? 0,
+            destinoStock: (destino['stock'] as num?)?.toInt() ?? 0,
+          );
+        }
+      } on DioException {
+        // Ignorado a propósito: ver doc de arriba.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _bultosPorDestino
+        ..clear()
+        ..addAll(nuevos);
+    });
+  }
+
+  Future<void> _abrirBulto(_BultoDisponible b, String sedeId) async {
+    final r = await AbrirBultoDialog.show(
+      context: context,
+      bultoVarianteId: b.bultoVarianteId,
+      bultoNombre: b.bultoNombre,
+      destinoNombre: b.destinoNombre,
+      destinoFactor: b.destinoFactor,
+      destinoSimbolo: b.destinoSimbolo,
+      rendimiento: b.rendimiento,
+      sedeId: sedeId,
+      stockBultos: b.bultoStock,
+      stockDestino: b.destinoStock,
+    );
+    // Tras abrir, el granel ya no está bajo mínimo: recargar saca la alerta.
+    if (r != null) _loadAlertas();
   }
 
   @override
@@ -75,7 +167,19 @@ class _AlertasStockBajoPageState extends State<AlertasStockBajoPage>
         ),
       ),
       body: GradientBackground(
-        child: BlocBuilder<AlertasStockCubit, AlertasStockState>(
+        child: BlocConsumer<AlertasStockCubit, AlertasStockState>(
+          listener: (context, state) {
+            // Los bultos se cruzan DESPUÉS de tener las alertas: recién ahí se
+            // sabe qué sedes hay que consultar. Va en el listener y no en el
+            // builder para no disparar una consulta por cada repintado.
+            if (state is AlertasStockLoaded) {
+              final sedes = [
+                ...state.productosBajoMinimo.map((s) => s.sedeId),
+                ...state.productosCriticos.map((s) => s.sedeId),
+              ];
+              if (sedes.isNotEmpty) _cargarBultosDisponibles(sedes);
+            }
+          },
           builder: (context, state) {
             if (state is AlertasStockLoading) {
               return const CustomLoading();
@@ -271,6 +375,10 @@ class _AlertasStockBajoPageState extends State<AlertasStockBajoPage>
         itemCount: stocks.length,
         itemBuilder: (context, index) {
           final stock = stocks[index];
+          // Solo las filas de VARIANTE pueden ser el granel de un bulto.
+          final bulto = stock.varianteId != null
+              ? _bultosPorDestino['${stock.sedeId}|${stock.varianteId}']
+              : null;
           return StockCard(
             stock: stock,
             onAjustar: () => _showAjustarDialog(stock),
@@ -278,6 +386,10 @@ class _AlertasStockBajoPageState extends State<AlertasStockBajoPage>
               context,
               stock,
             ),
+            onAbrirBulto:
+                bulto != null ? () => _abrirBulto(bulto, stock.sedeId) : null,
+            bultosCerrados: bulto?.bultoStock ?? 0,
+            nombreBulto: bulto?.bultoNombre,
           );
         },
       ),
