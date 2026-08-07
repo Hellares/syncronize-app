@@ -549,6 +549,12 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
             child: ConfigurarPreciosDialog(
               stock: stock,
               empresaId: _empresaId!,
+              // Sin esto el diálogo pide el precio por unidad de VENTA: para
+              // un granel en gramos eso es un número sub-céntimo que no entra
+              // en un campo de moneda de 2 decimales. Con la presentación,
+              // cobra por kg y guarda por gramo.
+              unidadPresentacionSimbolo: variante.unidadPresentacionSimbolo,
+              factorPresentacion: variante.factorPresentacion,
             ),
           ),
         ).then((result) {

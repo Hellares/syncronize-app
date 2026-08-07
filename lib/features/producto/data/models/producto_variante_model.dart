@@ -11,6 +11,7 @@ class ProductoVarianteModel extends ProductoVariante {
     required super.empresaId,
     super.unidadMedidaId,
     super.unidadPresentacionId,
+    super.unidadPresentacionSimbolo,
     super.factorPresentacion,
     super.varianteAperturaId,
     super.rendimientoApertura,
@@ -52,6 +53,7 @@ class ProductoVarianteModel extends ProductoVariante {
       empresaId: json['empresaId'] as String? ?? '',
       unidadMedidaId: json['unidadMedidaId'] as String?,
       unidadPresentacionId: json['unidadPresentacionId'] as String?,
+      unidadPresentacionSimbolo: json['unidadPresentacionSimbolo'] as String?,
       // Prisma serializa Decimal como String: `toSafeDouble` cubre los dos.
       factorPresentacion: json['factorPresentacion'] != null
           ? toSafeDouble(json['factorPresentacion'])
@@ -107,6 +109,8 @@ class ProductoVarianteModel extends ProductoVariante {
       if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
       if (unidadPresentacionId != null)
         'unidadPresentacionId': unidadPresentacionId,
+      if (unidadPresentacionSimbolo != null)
+        'unidadPresentacionSimbolo': unidadPresentacionSimbolo,
       if (factorPresentacion != null) 'factorPresentacion': factorPresentacion,
       if (varianteAperturaId != null) 'varianteAperturaId': varianteAperturaId,
       if (rendimientoApertura != null)
@@ -149,6 +153,7 @@ class ProductoVarianteModel extends ProductoVariante {
       empresaId: entity.empresaId,
       unidadMedidaId: entity.unidadMedidaId,
       unidadPresentacionId: entity.unidadPresentacionId,
+      unidadPresentacionSimbolo: entity.unidadPresentacionSimbolo,
       factorPresentacion: entity.factorPresentacion,
       varianteAperturaId: entity.varianteAperturaId,
       rendimientoApertura: entity.rendimientoApertura,

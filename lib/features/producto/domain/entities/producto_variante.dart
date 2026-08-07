@@ -15,6 +15,10 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
   /// producto: es el granel que se guarda en gramos y se cobra en kilos.
   /// Null = hereda la del producto, que es el caso de casi todas las variantes.
   final String? unidadPresentacionId;
+
+  /// Símbolo legible de la presentación ("kg"). Lo usa el diálogo de precios
+  /// para cobrar en esa unidad en vez de pedir el precio por gramo.
+  final String? unidadPresentacionSimbolo;
   final double? factorPresentacion;
 
   /// Apertura de bulto: en qué variante se convierte ésta al abrirla
@@ -44,6 +48,7 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
     required this.empresaId,
     this.unidadMedidaId,
     this.unidadPresentacionId,
+    this.unidadPresentacionSimbolo,
     this.factorPresentacion,
     this.varianteAperturaId,
     this.rendimientoApertura,
@@ -143,6 +148,7 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
         empresaId,
         unidadMedidaId,
         unidadPresentacionId,
+        unidadPresentacionSimbolo,
         factorPresentacion,
         varianteAperturaId,
         rendimientoApertura,
