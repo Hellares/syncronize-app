@@ -350,7 +350,10 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     if (v == null || !v.tienePresentacionPropia) return null;
     return UnidadPresentacion(
       factor: v.factorPresentacion!,
-      simbolo: v.unidadDisplay,
+      // El símbolo de la PRESENTACIÓN ("kg"), no el de la unidad de venta:
+      // `unidadDisplay` mira `unidadMedida`, que en un granel que hereda la
+      // del producto viene null y cae a "und".
+      simbolo: v.unidadPresentacionSimbolo,
     );
   }
 

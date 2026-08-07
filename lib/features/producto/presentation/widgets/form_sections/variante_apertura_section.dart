@@ -216,7 +216,7 @@ class _VarianteAperturaSectionState extends State<VarianteAperturaSection> {
     if (destino.tienePresentacionPropia) {
       final u = UnidadPresentacion(
         factor: destino.factorPresentacion!,
-        simbolo: destino.unidadDisplay,
+        simbolo: destino.unidadPresentacionSimbolo,
       );
       enPresentacion = ' (${u.cantidadTexto(rendimiento)})';
     }

@@ -45,7 +45,7 @@ class CompraListTile extends StatelessWidget {
 
     return GradientContainer(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      // padding: EdgeInsets.zero,
+      gradient: AppGradients.sinfondo,
       shadowStyle: ShadowStyle.glow,
       borderRadius: BorderRadius.circular(10),
       borderColor: AppColors.blueborder,
@@ -56,7 +56,7 @@ class CompraListTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(10),
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Row(
               children: [
                 // Avatar con ícono de estado
@@ -76,7 +76,6 @@ class CompraListTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         color: AppColors.blue3,
-                        font: AppFont.amazonEmberMedium,
                       ),
                       const SizedBox(height: 2),
                       AppSubtitle(
@@ -127,6 +126,7 @@ class CompraListTile extends StatelessWidget {
                   children: [
                     Text(
                       '${compra.moneda} ${compra.total.toStringAsFixed(2)}',
+                      // 'S/ ${compra.total.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,

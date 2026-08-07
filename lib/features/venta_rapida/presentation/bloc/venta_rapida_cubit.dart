@@ -439,6 +439,14 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       precioCostoSnapshot: variante.precioCostoEnSede(sedeId),
       enLiquidacion: variante.enLiquidacionEnSede(sedeId),
       vipIntents: _vipParaNuevoProducto(producto.id),
+      // La presentación de la VARIANTE, con la del producto como respaldo.
+      // Sin esto el carrito muestra la cantidad atómica —"1000" al vender
+      // 1 kg— mientras que un granel sin variantes (RICOCAN) sí se ve en kg,
+      // porque `agregarProducto` sí las pasaba.
+      factorPresentacion:
+          variante.factorPresentacion ?? producto.factorPresentacion,
+      unidadPresentacionSimbolo: variante.unidadPresentacionSimbolo ??
+          producto.unidadPresentacionSimbolo,
     );
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(cantidad.toDouble())

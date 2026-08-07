@@ -1022,6 +1022,34 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
     return total;
   }
 
+  /// "1.5" y no "1.500"; "2" y no "2.0".
+  static String _fmtCantidad(double v) {
+    if (v == v.truncateToDouble()) return v.toStringAsFixed(0);
+    return v
+        .toStringAsFixed(3)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
+  }
+
+  /// Cantidad en carrito para MOSTRAR en la insignia, sumando cada línea en su
+  /// propia presentación.
+  ///
+  /// La insignia usaba la presentación del PRODUCTO, que con variantes está
+  /// vacía: 1 kg de granel se veía como "1000". Y no alcanza con aplicarle la
+  /// del producto, porque dos variantes pueden estar en unidades distintas —
+  /// 2 sacos y 1 kg suelto no se pueden sumar en crudo. Cada línea se traduce
+  /// con la suya, igual que el contador del carrito.
+  double _qtyMostrableEnCarrito(TState state) {
+    final items = snapshotBuilder(state).items;
+    double total = 0;
+    for (final i in items) {
+      if (i.productoId == producto.id && i.origenComboId == null) {
+        total += i.presentacion.cantidad(i.cantidad);
+      }
+    }
+    return total;
+  }
+
   /// Devuelve los datos del item en carrito (precio con nivel aplicado y
   /// nombre del nivel) para que la card refleje el precio efectivo en vez
   /// del precio base. Para productos con variantes (múltiples líneas en
@@ -1740,8 +1768,8 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 3, vertical: 2),
                               child: Text(
-                                pres.cantidadTexto(cantidadEnCarrito,
-                                    conSimbolo: false),
+                                _fmtCantidad(
+                                    _qtyMostrableEnCarrito(state)),
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
