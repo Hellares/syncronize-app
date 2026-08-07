@@ -10,6 +10,10 @@ class ProductoVarianteModel extends ProductoVariante {
     required super.productoId,
     required super.empresaId,
     super.unidadMedidaId,
+    super.unidadPresentacionId,
+    super.factorPresentacion,
+    super.varianteAperturaId,
+    super.rendimientoApertura,
     required super.nombre,
     required super.sku,
     super.codigoBarras,
@@ -47,6 +51,15 @@ class ProductoVarianteModel extends ProductoVariante {
       productoId: json['productoId'] as String? ?? '',
       empresaId: json['empresaId'] as String? ?? '',
       unidadMedidaId: json['unidadMedidaId'] as String?,
+      unidadPresentacionId: json['unidadPresentacionId'] as String?,
+      // Prisma serializa Decimal como String: `toSafeDouble` cubre los dos.
+      factorPresentacion: json['factorPresentacion'] != null
+          ? toSafeDouble(json['factorPresentacion'])
+          : null,
+      varianteAperturaId: json['varianteAperturaId'] as String?,
+      rendimientoApertura: json['rendimientoApertura'] != null
+          ? toSafeDouble(json['rendimientoApertura'])
+          : null,
       nombre: nombre,
       sku: sku,
       codigoBarras: json['codigoBarras'] as String?,
@@ -92,6 +105,12 @@ class ProductoVarianteModel extends ProductoVariante {
       'productoId': productoId,
       'empresaId': empresaId,
       if (unidadMedidaId != null) 'unidadMedidaId': unidadMedidaId,
+      if (unidadPresentacionId != null)
+        'unidadPresentacionId': unidadPresentacionId,
+      if (factorPresentacion != null) 'factorPresentacion': factorPresentacion,
+      if (varianteAperturaId != null) 'varianteAperturaId': varianteAperturaId,
+      if (rendimientoApertura != null)
+        'rendimientoApertura': rendimientoApertura,
       'nombre': nombre,
       'sku': sku,
       if (codigoBarras != null) 'codigoBarras': codigoBarras,
@@ -129,6 +148,10 @@ class ProductoVarianteModel extends ProductoVariante {
       productoId: entity.productoId,
       empresaId: entity.empresaId,
       unidadMedidaId: entity.unidadMedidaId,
+      unidadPresentacionId: entity.unidadPresentacionId,
+      factorPresentacion: entity.factorPresentacion,
+      varianteAperturaId: entity.varianteAperturaId,
+      rendimientoApertura: entity.rendimientoApertura,
       nombre: entity.nombre,
       sku: entity.sku,
       codigoBarras: entity.codigoBarras,

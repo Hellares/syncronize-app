@@ -14,8 +14,13 @@ import '../../domain/entities/producto_variante.dart';
 import '../bloc/precio_nivel/precio_nivel_cubit.dart';
 import '../bloc/precio_nivel/precio_nivel_state.dart';
 import '../bloc/variante_atributo/variante_atributo_cubit.dart';
+import 'form_sections/producto_unidad_presentacion_section.dart';
+import 'form_sections/variante_apertura_section.dart';
 import 'precio_niveles_section.dart';
 import 'variante_atributos_section.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../empresa/presentation/widgets/unidad_medida_dropdown.dart';
 
 class ProductoVarianteFormDialog extends StatefulWidget {
   final String productoId;
@@ -24,6 +29,10 @@ class ProductoVarianteFormDialog extends StatefulWidget {
   final String empresaId;
   final ProductoVariante? variante;
   final List<ProductoAtributo>? atributosDisponibles;
+
+  /// Las otras variantes del mismo producto, para poder elegir en cuál se
+  /// convierte ésta al abrirla. Excluye la que se está editando.
+  final List<ProductoVariante> variantesHermanas;
   final Function(Map<String, dynamic>) onSave;
 
   const ProductoVarianteFormDialog({
@@ -34,6 +43,7 @@ class ProductoVarianteFormDialog extends StatefulWidget {
     required this.empresaId,
     this.variante,
     this.atributosDisponibles,
+    this.variantesHermanas = const [],
     required this.onSave,
   });
 
@@ -50,8 +60,17 @@ class _ProductoVarianteFormDialogState
   late TextEditingController _codigoBarrasController;
   late TextEditingController _pesoController;
 
+  late TextEditingController _factorPresentacionController;
+  late TextEditingController _rendimientoAperturaController;
+
   bool _isActive = true;
   int _orden = 0;
+
+  /// Unidad de VENTA propia. null = hereda la del producto, que es el caso de
+  /// casi todas las variantes (colores, tallas).
+  String? _unidadMedidaId;
+  String? _unidadPresentacionId;
+  String? _varianteAperturaId;
 
   @override
   void initState() {
@@ -63,6 +82,15 @@ class _ProductoVarianteFormDialogState
     _pesoController = TextEditingController(
       text: widget.variante?.peso?.toString(),
     );
+    _factorPresentacionController = TextEditingController(
+      text: _numTexto(widget.variante?.factorPresentacion),
+    );
+    _rendimientoAperturaController = TextEditingController(
+      text: _numTexto(widget.variante?.rendimientoApertura),
+    );
+    _unidadMedidaId = widget.variante?.unidadMedidaId;
+    _unidadPresentacionId = widget.variante?.unidadPresentacionId;
+    _varianteAperturaId = widget.variante?.varianteAperturaId;
 
     if (widget.variante != null) {
       _isActive = widget.variante!.isActive;
@@ -94,7 +122,21 @@ class _ProductoVarianteFormDialogState
     _skuController.dispose();
     _codigoBarrasController.dispose();
     _pesoController.dispose();
+    _factorPresentacionController.dispose();
+    _rendimientoAperturaController.dispose();
     super.dispose();
+  }
+
+  /// Un factor de 1000 se escribe "1000", no "1000.0".
+  static String? _numTexto(double? v) {
+    if (v == null) return null;
+    return v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
+  }
+
+  static double? _parseNum(String texto) {
+    final t = texto.trim();
+    if (t.isEmpty) return null;
+    return double.tryParse(t.replaceAll(',', '.'));
   }
 
   Widget _buildPrecioNivelesSection() {
@@ -300,6 +342,64 @@ class _ProductoVarianteFormDialogState
                     ),
                     const SizedBox(height: 24),
 
+                    // ─── Unidad propia de la variante ───────────────
+                    // Casi ninguna variante la necesita: un color o una talla
+                    // se vende en la misma unidad que el producto. La usa el
+                    // bulto cerrado, que se vende por unidad dentro de un
+                    // producto que se guarda en gramos.
+                    AppSubtitle('UNIDAD DE ESTA VARIANTE'),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Si la dejás vacía, la variante se vende en la misma unidad que el producto.',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    BlocBuilder<EmpresaContextCubit, EmpresaContextState>(
+                      builder: (context, state) {
+                        if (state is! EmpresaContextLoaded) {
+                          return const SizedBox.shrink();
+                        }
+                        return UnidadMedidaDropdown(
+                          empresaId: state.context.empresa.id,
+                          selectedUnidadId: _unidadMedidaId,
+                          onChanged: (v) => setState(() => _unidadMedidaId = v),
+                          labelText: 'Unidad de venta (opcional)',
+                          hintText: 'Hereda la del producto',
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Presentación PROPIA de la variante. Se reusa la misma
+                    // sección del formulario de producto: la regla es idéntica
+                    // (factor > 1, unidad distinta a la de venta) y así lo que
+                    // se ve acá coincide con lo que ya conoce el usuario.
+                    ProductoUnidadPresentacionSection(
+                      selectedUnidadMedidaId: _unidadMedidaId,
+                      selectedUnidadPresentacionId: _unidadPresentacionId,
+                      factorPresentacionController:
+                          _factorPresentacionController,
+                      onUnidadPresentacionChanged: (v) =>
+                          setState(() => _unidadPresentacionId = v),
+                      onChanged: () => setState(() {}),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Vínculo de apertura (saco cerrado → granel).
+                    VarianteAperturaSection(
+                      variantesHermanas: widget.variantesHermanas,
+                      selectedVarianteAperturaId: _varianteAperturaId,
+                      rendimientoController: _rendimientoAperturaController,
+                      onVarianteAperturaChanged: (v) =>
+                          setState(() => _varianteAperturaId = v),
+                      onChanged: () => setState(() {}),
+                    ),
+                    const SizedBox(height: 24),
+
                     // Niveles de precio (solo en modo edición)
                     if (widget.variante != null) ...[
                       _buildPrecioNivelesSection(),
@@ -490,6 +590,15 @@ class _ProductoVarianteFormDialogState
       'codigoBarras': _codigoBarrasController.text.trim().isEmpty
           ? null
           : _codigoBarrasController.text.trim(),
+      // ⚠️ Estos cinco van SIEMPRE, incluso en null. Si se omitieran cuando
+      // están vacíos, el backend lo leería como "no tocar" y la configuración
+      // no se podría APAGAR nunca — es el bug que tiene hoy la unidad de
+      // compra del producto.
+      'unidadMedidaId': _unidadMedidaId,
+      'unidadPresentacionId': _unidadPresentacionId,
+      'factorPresentacion': _parseNum(_factorPresentacionController.text),
+      'varianteAperturaId': _varianteAperturaId,
+      'rendimientoApertura': _parseNum(_rendimientoAperturaController.text),
       if (atributosEstructurados.isNotEmpty)
         'atributosEstructurados': atributosEstructurados,
       // NOTA: Los precios y stock se gestionan vía ProductoStock (por sede).

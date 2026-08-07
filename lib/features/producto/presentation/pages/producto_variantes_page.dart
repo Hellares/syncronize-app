@@ -470,6 +470,11 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           empresaId: _empresaId!,
           variante: variante,
           atributosDisponibles: _atributosDisponibles,
+          // Las otras variantes del producto, para elegir en cuál se convierte
+          // ésta al abrirla. Se excluye a sí misma: no puede abrirse en sí.
+          variantesHermanas: _getVariantes(
+            context.read<ProductoVarianteCubit>().state,
+          ).where((v) => v.id != variante?.id).toList(),
           onSave: (data) async {
             if (_empresaId == null) return;
 

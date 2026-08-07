@@ -10,6 +10,18 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
   final String productoId;
   final String empresaId;
   final String? unidadMedidaId;
+
+  /// Unidad de PRESENTACIÓN propia de la variante. Si está, gana sobre la del
+  /// producto: es el granel que se guarda en gramos y se cobra en kilos.
+  /// Null = hereda la del producto, que es el caso de casi todas las variantes.
+  final String? unidadPresentacionId;
+  final double? factorPresentacion;
+
+  /// Apertura de bulto: en qué variante se convierte ésta al abrirla
+  /// (SACO → GRANEL) y cuántas unidades de VENTA del destino salen de 1 bulto.
+  final String? varianteAperturaId;
+  final double? rendimientoApertura;
+
   final String nombre;
   final String sku;
   final String? codigoBarras;
@@ -31,6 +43,10 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
     required this.productoId,
     required this.empresaId,
     this.unidadMedidaId,
+    this.unidadPresentacionId,
+    this.factorPresentacion,
+    this.varianteAperturaId,
+    this.rendimientoApertura,
     required this.nombre,
     required this.sku,
     this.codigoBarras,
@@ -46,6 +62,15 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
     required this.creadoEn,
     required this.actualizadoEn,
   });
+
+  /// La variante tiene presentación PROPIA (no la heredada del producto).
+  /// El factor tiene que agrupar: con 1 no agruparía nada.
+  bool get tienePresentacionPropia =>
+      unidadPresentacionId != null && (factorPresentacion ?? 0) > 1;
+
+  /// Esta variante es un bulto cerrado que se puede abrir.
+  bool get sePuedeAbrir =>
+      varianteAperturaId != null && (rendimientoApertura ?? 0) > 0;
 
   /// Obtiene la imagen principal de la variante
   String? get imagenPrincipal {
@@ -117,6 +142,10 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
         productoId,
         empresaId,
         unidadMedidaId,
+        unidadPresentacionId,
+        factorPresentacion,
+        varianteAperturaId,
+        rendimientoApertura,
         nombre,
         sku,
         codigoBarras,
