@@ -200,10 +200,17 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
             // Save button
             if (_modified.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.all(16),
+                // El inset inferior va a mano: este Scaffold no tiene
+                // bottomNavigationBar y la barra de navegación del sistema
+                // tapaba el botón, que quedaba sin poder tocarse.
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  16 + MediaQuery.of(context).padding.bottom,
+                ),
                 child: CustomButton(
-                  text:
-                      'Guardar Cambios (${_modified.length})',
+                  text: 'Guardar Cambios (${_modified.length})',
                   isLoading: _saving,
                   onPressed: _saving ? null : _guardarCambios,
                 ),
