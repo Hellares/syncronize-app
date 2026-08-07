@@ -325,7 +325,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// que se cobra en kilos aunque se guarde en gramos. El stepper de +1 no
   /// sirve —nadie toca 1500 veces para vender kilo y medio— y hay que capturar
   /// la cantidad en la unidad de PRESENTACIÓN.
-  bool get _esGranel => _varianteResuelta?.tienePresentacionPropia ?? false;
+  /// Se vende a granel: hay presentación activa, propia o heredada.
+  bool get _esGranel => _presentacion != null;
 
   /// Precio en la unidad en la que se COBRA. Un granel guardado en gramos
   /// tiene precio 0.015/g: mostrar "S/ 0.01" es un precio que no existe y que
@@ -345,16 +346,20 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     return p.cantidadTexto(enUnidadDeVenta);
   }
 
+  /// Presentación de la variante resuelta, con la del PRODUCTO como herencia.
+  ///
+  /// La herencia importa: con varios sabores conviene configurar "kg ×1000"
+  /// una sola vez en el producto en lugar de repetirlo en cada granel. Los
+  /// bultos cerrados no la heredan porque tienen unidad propia distinta —esa
+  /// es la regla que ya aplica el backend al declarar el comprobante— así que
+  /// el saco sigue mostrándose por unidad.
+  ///
+  /// Null = sin presentación activa; la variante se muestra en su unidad.
   UnidadPresentacion? get _presentacion {
     final v = _varianteResuelta;
-    if (v == null || !v.tienePresentacionPropia) return null;
-    return UnidadPresentacion(
-      factor: v.factorPresentacion!,
-      // El símbolo de la PRESENTACIÓN ("kg"), no el de la unidad de venta:
-      // `unidadDisplay` mira `unidadMedida`, que en un granel que hereda la
-      // del producto viene null y cae a "und".
-      simbolo: v.unidadPresentacionSimbolo,
-    );
+    if (v == null) return null;
+    final pres = widget.producto.presentacionDeVariante(v);
+    return pres.activa ? pres : null;
   }
 
   /// Lo tecleado (kilos) convertido a unidad atómica (gramos), que es lo que

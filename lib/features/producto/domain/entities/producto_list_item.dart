@@ -130,25 +130,64 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         v.factorPresentacion != primera.factorPresentacion);
   }
 
-  /// Stock de la sede listo para mostrar, cada variante en SU unidad:
-  /// "3 und · 15 kg". Para el caso normal (colores, tallas) devuelve null y
-  /// el llamador usa el consolidado de siempre.
+  /// En qué unidad se MUESTRA una variante.
+  ///
+  /// Si trae presentación propia, esa. Si no, hereda la del producto — que es
+  /// lo que pasa cuando se configura "kg ×1000" una sola vez en el producto en
+  /// vez de repetirlo en cada granel. Los bultos cerrados no heredan: tienen
+  /// unidad propia distinta, y ahí la presentación del producto no aplica.
+  UnidadPresentacion presentacionDeVariante(ProductoVariante v) {
+    if (v.tienePresentacionPropia) {
+      return UnidadPresentacion(
+        factor: v.factorPresentacion!,
+        simbolo: v.unidadPresentacionSimbolo,
+      );
+    }
+    // Se compara por SÍMBOLO porque el list item no baja el id de la unidad
+    // del producto. Para decidir cómo mostrar un número alcanza; dos unidades
+    // distintas con el mismo símbolo serían indistinguibles en pantalla igual.
+    final tieneUnidadPropia = v.unidadMedidaId != null &&
+        v.unidadMedida != null &&
+        v.unidadDisplay != unidadMedidaSimbolo;
+    if (tieneUnidadPropia) {
+      return UnidadPresentacion(factor: 1, simbolo: v.unidadDisplay);
+    }
+    return presentacion;
+  }
+
+  /// Stock de la sede listo para mostrar, AGRUPADO por unidad: "8 und · 45 kg".
+  ///
+  /// Se agrupa y no se lista variante por variante porque un producto con
+  /// varios sabores tiene doce variantes, y enumerarlas daría una tira
+  /// ilegible en una card de POS. Sumar todo junto tampoco sirve: sacos y
+  /// gramos no se suman.
+  ///
+  /// Devuelve null cuando todas las variantes comparten unidad (colores,
+  /// tallas) y el consolidado de siempre alcanza.
   String? stockPorVarianteEnSede(String sedeId) {
     if (!variantesEnUnidadesDistintas) return null;
-    final partes = <String>[];
+    // LinkedHashMap: conserva el orden de aparición de las variantes, así el
+    // texto no baila entre repintados.
+    final porUnidad = <String, double>{};
     for (final v in variantes!) {
       final stock = v.stockEnSede(sedeId) ?? 0;
       if (stock <= 0) continue;
-      partes.add(
-        v.tienePresentacionPropia
-            ? UnidadPresentacion(
-                factor: v.factorPresentacion!,
-                simbolo: v.unidadPresentacionSimbolo,
-              ).cantidadTexto(stock)
-            : '$stock ${v.unidadDisplay}',
-      );
+      final pres = presentacionDeVariante(v);
+      final simbolo = pres.simboloVisible ?? v.unidadDisplay;
+      porUnidad[simbolo] = (porUnidad[simbolo] ?? 0) + pres.cantidad(stock);
     }
-    return partes.isEmpty ? null : partes.join(' · ');
+    if (porUnidad.isEmpty) return null;
+    return porUnidad.entries
+        .map((e) => '${_sinCerosSobrantes(e.value)} ${e.key}')
+        .join(' · ');
+  }
+
+  static String _sinCerosSobrantes(double v) {
+    if (v == v.truncateToDouble()) return v.toStringAsFixed(0);
+    return v
+        .toStringAsFixed(3)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
   }
 
   /// True si el producto base O alguna de sus variantes está en liquidación
