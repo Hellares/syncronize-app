@@ -543,13 +543,23 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
           BlocBuilder<TCubit, TState>(
             builder: (context, state) {
               final snap = widget.snapshotBuilder(state);
-              // Se cuenta en la unidad en la que se vende: 1 kg de un producto
-              // que se guarda en gramos es 1, no 1000. Se redondea hacia
-              // arriba para que medio kilo no desaparezca del contador.
+              // El globo cuenta COSAS en el carrito, no cantidad vendida.
+              //
+              // Para lo que se vende por unidad, cada unidad cuenta: 3 poleras
+              // son 3. Pero una línea a granel cuenta como UNA: 3.5 kg de
+              // alimento es un solo ítem, y redondeando la cantidad el globo
+              // decía "4" como si hubiera cuatro productos.
+              //
+              // El total es entero por construcción: las líneas a granel
+              // aportan 1 y las de unidad aportan cantidades enteras.
               final cantidadUnidades = snap.items
                   .fold<double>(
-                      0, (sum, i) => sum + i.presentacion.cantidad(i.cantidad))
-                  .ceil();
+                      0,
+                      (sum, i) => sum +
+                          (i.presentacion.activa
+                              ? 1
+                              : i.presentacion.cantidad(i.cantidad)))
+                  .round();
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
