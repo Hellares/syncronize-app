@@ -3,6 +3,7 @@ import '../../domain/entities/stock_por_sede_info.dart';
 
 class StockPorSedeInfoModel extends StockPorSedeInfo {
   const StockPorSedeInfoModel({
+    super.productoStockId,
     required super.sedeId,
     required super.sedeNombre,
     required super.sedeCodigo,
@@ -50,6 +51,8 @@ class StockPorSedeInfoModel extends StockPorSedeInfo {
     }
 
     return StockPorSedeInfoModel(
+      // Solo lo manda el detalle de variantes; el catálogo no lo incluye.
+      productoStockId: json['id'] as String?,
       sedeId: sedeId,
       sedeNombre: sedeNombre,
       sedeCodigo: sedeCodigo,

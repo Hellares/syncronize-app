@@ -32,7 +32,14 @@ class StockPorSedeInfo extends Equatable {
   final bool precioConfigurado;
   final bool precioIncluyeIgv;
 
+  /// Id de la fila de ProductoStock. Lo necesitan los endpoints que actúan
+  /// sobre el stock de una sede (el bulk de mínimos va por `productoStockId`).
+  /// Null cuando la respuesta no lo trae — el catálogo, por ejemplo, no lo
+  /// manda porque el POS no lo usa.
+  final String? productoStockId;
+
   const StockPorSedeInfo({
+    this.productoStockId,
     required this.sedeId,
     required this.sedeNombre,
     required this.sedeCodigo,
@@ -113,6 +120,7 @@ class StockPorSedeInfo extends Equatable {
 
   @override
   List<Object?> get props => [
+        productoStockId,
         sedeId,
         sedeNombre,
         sedeCodigo,

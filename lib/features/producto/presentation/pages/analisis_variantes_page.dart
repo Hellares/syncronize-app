@@ -8,7 +8,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/utils/unidad_presentacion.dart';
+import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_sede_selector.dart';
+import '../../../../core/widgets/snack_bar_helper.dart';
+import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../../core/utils/resource.dart';
@@ -183,6 +187,114 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
       empresaId: _empresaId!,
     );
     _cargarRotacion();
+  }
+
+  /// Pone el stock mínimo de todas las variantes que tienen rotación, a partir
+  /// de la misma venta diaria con la que se calcula la cobertura: N días de
+  /// venta. Es la única forma de hacerlo con criterio — poner el mismo número a
+  /// todas es tan arbitrario como no ponerlo.
+  ///
+  /// Las variantes sin ventas quedan afuera: sin ritmo no hay nada que
+  /// multiplicar, y meterles un número inventado sería peor que dejarlas sin
+  /// mínimo.
+  Future<void> _configurarMinimos(List<ProductoVariante> todas) async {
+    final sedeId = _sedeId;
+    if (sedeId == null) return;
+
+    final calculables = todas
+        .where(
+          (v) => (_rotacion[v.id]?.cantidad ?? 0) > 0 && _stockRowId(v) != null,
+        )
+        .toList();
+    final sinRitmo = todas.length - calculables.length;
+
+    if (calculables.isEmpty) {
+      SnackBarHelper.showError(
+        context,
+        'Ninguna variante vendió en los últimos $_dias días: no hay ritmo con '
+        'el cual calcular un mínimo.',
+      );
+      return;
+    }
+
+    final diasCtrl = TextEditingController(text: '15');
+    final confirmar = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.blue1,
+      backgroundColor: Colors.white,
+      icon: Icons.notifications_active_outlined,
+      titulo: 'Configurar mínimos',
+      content: [
+        Text(
+          'El mínimo se calcula como los días de venta que quieras cubrir, '
+          'al ritmo de los últimos $_dias días.',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+        ),
+        const SizedBox(height: 12),
+        CustomText(
+          controller: diasCtrl,
+          label: 'Días de cobertura',
+          hintText: '15',
+          keyboardType: TextInputType.number,
+          borderColor: AppColors.blue1,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Se van a configurar ${calculables.length} variante(s).'
+          '${sinRitmo > 0 ? '\n$sinRitmo quedan sin mínimo por no tener ventas en la ventana.' : ''}',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Aplicar',
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ),
+      ],
+    );
+
+    final diasCobertura = int.tryParse(diasCtrl.text.trim()) ?? 15;
+    diasCtrl.dispose();
+    if (confirmar != true || !mounted) return;
+
+    final items = calculables.map((v) {
+      final porDia = _rotacion[v.id]!.cantidad / _dias;
+      return {
+        'productoStockId': _stockRowId(v),
+        // Al menos 1: un mínimo en 0 es lo mismo que no tener mínimo.
+        'stockMinimo': (porDia * diasCobertura).round().clamp(1, 1 << 31),
+      };
+    }).toList();
+
+    try {
+      await _dio.patch(
+        '/producto-stock/sede/$sedeId/stock-minmax-bulk',
+        data: {'items': items},
+      );
+      if (!mounted) return;
+      SnackBarHelper.showSuccess(
+        context,
+        'Mínimo configurado en ${items.length} variante(s)',
+      );
+      _recargar();
+    } catch (_) {
+      if (mounted) {
+        SnackBarHelper.showError(context, 'No se pudieron guardar los mínimos');
+      }
+    }
   }
 
   /// Menú de lo que se puede hacer con esta variante. Solo ofrece lo aplicable:
@@ -372,6 +484,9 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
     if (p == null || c == null || c <= 0) return null;
     return ((p - c) / c) * 100;
   }
+
+  String? _stockRowId(ProductoVariante v) =>
+      _sedeId == null ? null : v.stockSedeInfo(_sedeId!)?.productoStockId;
 
   int? _stockMinimo(ProductoVariante v) =>
       _sedeId == null ? null : v.stockSedeInfo(_sedeId!)?.stockMinimo;
@@ -684,40 +799,58 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
       (n) => '$n variante(s) sin stock mínimo: no van a avisar cuando falten',
     );
 
-    if (avisos.isEmpty) return const SizedBox.shrink();
+    // El botón acompaña al aviso de "sin mínimo": denunciar el problema sin
+    // dar la salida era la mitad del trabajo.
+    final faltanMinimos = todas
+        .where((v) => (_stockMinimo(v) ?? 0) <= 0)
+        .isNotEmpty;
+
+    if (avisos.isEmpty && !faltanMinimos) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
-        children: avisos
-            .map(
-              (a) => Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: a.color.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: a.color.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(a.icono, size: 14, color: a.color),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        a.texto,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: a.color,
-                        ),
+        children: [
+          ...avisos.map(
+            (a) => Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: a.color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: a.color.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(a.icono, size: 14, color: a.color),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      a.texto,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: a.color,
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (faltanMinimos)
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () => _configurarMinimos(todas),
+                icon: const Icon(Icons.notifications_active_outlined, size: 15),
+                label: const Text(
+                  'Configurar mínimos según la rotación',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                 ),
               ),
-            )
-            .toList(),
+            ),
+        ],
       ),
     );
   }
