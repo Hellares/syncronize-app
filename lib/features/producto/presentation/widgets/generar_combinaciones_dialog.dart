@@ -354,25 +354,38 @@ class _GenerarCombinacionesDialogState
                       const Divider(),
                       //const SizedBox(height: 8),
 
-                      // Precio base
+                      // Precio base. OPCIONAL a propósito: lo que se escriba
+                      // acá se copia igual a todas las combinaciones de la
+                      // pasada, y hay generaciones donde ese número común no
+                      // existe — un granel se cobra por gramo y su saco por
+                      // unidad. Antes era obligatorio y obligaba a inventar uno.
                       CustomText(
                         borderColor: AppColors.blue1,
                         controller: _precioBaseController,
-                        label: 'Precio base *',
-                        hintText: 'Ej: 45.00',
+                        label: 'Precio base',
+                        hintText: 'Ej: 45.00 (opcional)',
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
                         prefixIcon: const Icon(Icons.attach_money, size: 20),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'El precio base es requerido';
-                          }
-                          final precio = double.tryParse(value);
+                          if (value == null || value.trim().isEmpty) return null;
+                          final precio = _parsePrecio(value);
                           if (precio == null || precio <= 0) {
                             return 'Ingrese un precio valido mayor a 0';
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Se copia igual a todas las variantes de esta pasada. '
+                        'Dejalo vacío si no comparten precio: nacen SIN PRECIO '
+                        'y se lo ponés a cada una.',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                       const SizedBox(height: 6),
 
@@ -388,7 +401,7 @@ class _GenerarCombinacionesDialogState
                             const Icon(Icons.price_change_outlined, size: 20),
                         validator: (value) {
                           if (value != null && value.trim().isNotEmpty) {
-                            final precio = double.tryParse(value);
+                            final precio = _parsePrecio(value);
                             if (precio == null || precio < 0) {
                               return 'Ingrese un precio valido';
                             }
@@ -776,6 +789,14 @@ class _GenerarCombinacionesDialogState
     return const SizedBox.shrink();
   }
 
+  /// El teclado numérico deja escribir coma decimal: "0,015" tiene que valer
+  /// lo mismo que "0.015" y no caerse a null.
+  static double? _parsePrecio(String texto) {
+    final t = texto.trim();
+    if (t.isEmpty) return null;
+    return double.tryParse(t.replaceAll(',', '.'));
+  }
+
   void _onGenerate() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -787,9 +808,6 @@ class _GenerarCombinacionesDialogState
 
     if (atributosConSeleccion.isEmpty) return;
 
-    final precioBase = double.tryParse(_precioBaseController.text.trim());
-    if (precioBase == null || precioBase <= 0) return;
-
     final data = <String, dynamic>{
       'atributos': atributosConSeleccion.map((a) {
         return {
@@ -797,10 +815,16 @@ class _GenerarCombinacionesDialogState
           'valores': _selectedValues[a.atributoId]!.toList(),
         };
       }).toList(),
-      'precioBase': precioBase,
     };
 
-    final precioCosto = double.tryParse(_precioCostoController.text.trim());
+    // Vacío significa "todavía no", no "gratis": se omite la clave y el
+    // backend deja las variantes sin precio y sin marcarlas como configuradas.
+    final precioBase = _parsePrecio(_precioBaseController.text);
+    if (precioBase != null && precioBase > 0) {
+      data['precioBase'] = precioBase;
+    }
+
+    final precioCosto = _parsePrecio(_precioCostoController.text);
     if (precioCosto != null && precioCosto >= 0) {
       data['precioCosto'] = precioCosto;
     }

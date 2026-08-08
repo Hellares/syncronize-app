@@ -4,6 +4,7 @@ import '../../../../../core/fonts/app_text_widgets.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/gradient_container.dart';
 import '../../../../../core/utils/unidad_presentacion.dart';
+import '../../../../../core/widgets/custom_dropdown.dart';
 import '../../../../../core/widgets/custom_switch.dart';
 import '../../../../auth/presentation/widgets/custom_text.dart';
 import '../../../domain/entities/producto_variante.dart';
@@ -146,22 +147,28 @@ class _VarianteAperturaSectionState extends State<VarianteAperturaSection> {
           ),
           if (_expandido) ...[
             const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: widget.selectedVarianteAperturaId,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Se convierte en',
-                hintText: 'Elegí la variante suelta',
-                border: OutlineInputBorder(),
-                isDense: true,
+            CustomDropdown<String>(
+              label: 'Se convierte en',
+              hintText: 'Elegí la variante suelta',
+              borderColor: AppColors.blue1,
+              value: widget.selectedVarianteAperturaId,
+              prefixIcon: const Icon(
+                Icons.arrow_forward,
+                size: 16,
+                color: AppColors.blue1,
               ),
+              // Un producto de 6 sabores deja 11 hermanas con nombres casi
+              // iguales ("Sabor CARNE / Presentación GRANEL"): sin buscador
+              // hay que scrollear leyendo etiquetas que solo cambian al final.
+              showSearchBox: widget.variantesHermanas.length > 5,
               items: widget.variantesHermanas
-                  .map((v) => DropdownMenuItem(
+                  .map((v) => DropdownItem(
                         value: v.id,
-                        child: Text(
-                          v.nombre,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        label: v.nombre,
+                        // La presentación es lo que delata al granel (se cobra
+                        // en kg): distingue el destino correcto de un saco
+                        // hermano, que se vende por unidad y no la tiene.
+                        trailing: _chipPresentacion(v),
                       ))
                   .toList(),
               onChanged: (value) {
@@ -197,6 +204,30 @@ class _VarianteAperturaSectionState extends State<VarianteAperturaSection> {
                   'usá una unidad de venta más chica en la variante destino.'),
           ],
         ],
+      ),
+    );
+  }
+
+  /// Etiqueta con la unidad en la que se cobra la hermana ("kg"), para poder
+  /// reconocer el granel de un vistazo dentro de una lista larga. Null cuando
+  /// la variante no tiene presentación propia: no hay nada que aclarar.
+  Widget? _chipPresentacion(ProductoVariante v) {
+    final simbolo = v.unidadPresentacionSimbolo;
+    if (!v.tienePresentacionPropia || simbolo == null) return null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.blue1.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        simbolo,
+        style: const TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
+          color: AppColors.blue1,
+        ),
       ),
     );
   }
