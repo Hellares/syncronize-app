@@ -67,6 +67,12 @@ class AnalisisVariantesPage extends StatelessWidget {
 /// Cómo se ordena la tabla maestra.
 enum _Orden { margen, valor, nombre }
 
+const _estiloEncabezado = TextStyle(
+  fontSize: 9,
+  fontWeight: FontWeight.w700,
+  color: Colors.black54,
+);
+
 /// Lo que salió de una variante en la ventana consultada. `cantidad` viene en
 /// UNIDAD DE VENTA (gramos para un granel), igual que el stock.
 class _Rotacion {
@@ -1314,10 +1320,37 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
             ],
           ),
           Text(
-            'Últimos $_dias días, en esta sede.',
+            'Últimos $_dias días, en esta sede. La cobertura es cuánto dura el '
+            'stock a ese ritmo.',
             style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
+          // Encabezado: sin él, "6 kg" y "45 d" en la misma fila no dicen qué
+          // es cada uno. Mismos flex que las filas para que las columnas
+          // queden alineadas.
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                const Expanded(
+                  flex: 5,
+                  child: Text('Variante', style: _estiloEncabezado),
+                ),
+                const Expanded(
+                  flex: 3,
+                  child: Text('Vendido',
+                      textAlign: TextAlign.right, style: _estiloEncabezado),
+                ),
+                const Expanded(
+                  flex: 3,
+                  child: Text('Cobertura',
+                      textAlign: TextAlign.right, style: _estiloEncabezado),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: Colors.grey.shade300),
+          const SizedBox(height: 6),
           ...lista.map((v) {
             final r = _rotacion[v.id];
             final u = _presentacionDe(v);
