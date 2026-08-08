@@ -1339,6 +1339,14 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                 const Expanded(
                   flex: 3,
                   child: Text(
+                    'Vendido',
+                    textAlign: TextAlign.right,
+                    style: _estiloEncabezado,
+                  ),
+                ),
+                const Expanded(
+                  flex: 4,
+                  child: Text(
                     'Ritmo',
                     textAlign: TextAlign.right,
                     style: _estiloEncabezado,
@@ -1361,6 +1369,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
             final r = _rotacion[v.id];
             final u = _presentacionDe(v);
             final cobertura = _cobertura(v);
+            final vendio = r != null && r.cantidad > 0;
             return Padding(
               padding: const EdgeInsets.only(bottom: 5),
               child: Row(
@@ -1369,23 +1378,39 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                     flex: 5,
                     child: Text(
                       v.nombre,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 10),
                     ),
                   ),
+                  // Vendido: el total de la ventana. Va junto al ritmo porque
+                  // responden preguntas distintas — "cuánto salió" y "a qué
+                  // velocidad" — y el segundo sin el primero esconde si son
+                  // 6 kg en una venta o en veinte.
                   Expanded(
                     flex: 3,
                     child: Text(
-                      r == null || r.cantidad <= 0
-                          ? 'sin ventas'
-                          : _ritmoTexto(u, r.cantidad / _dias),
+                      vendio ? u.cantidadTexto(r.cantidad) : '—',
                       textAlign: TextAlign.right,
                       style: TextStyle(
                         fontSize: 9,
-                        color: r == null || r.cantidad <= 0
-                            ? Colors.grey.shade500
-                            : Colors.grey.shade800,
+                        fontWeight: FontWeight.w600,
+                        color: vendio
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade400,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 4,
+                    child: Text(
+                      vendio ? _ritmoTexto(u, r.cantidad / _dias) : '—',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: vendio
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade400,
                       ),
                     ),
                   ),
