@@ -11,22 +11,30 @@ import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../../core/widgets/custom_sede_selector.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../../core/utils/resource.dart';
+import '../../domain/entities/producto_stock.dart';
 import '../../domain/entities/producto_variante.dart';
 import '../../domain/entities/stock_por_sede_info.dart';
+import '../../domain/usecases/get_stock_variante_en_sede_usecase.dart';
+import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/producto_variante/producto_variante_cubit.dart';
 import '../bloc/producto_variante/producto_variante_state.dart';
+import '../widgets/abrir_bulto_dialog.dart';
+import '../widgets/configurar_precios_dialog.dart';
 
 /// Análisis de las variantes de un producto en una sede: dónde está la plata,
 /// qué margen deja cada una y —para los productos que se venden cerrados y a
 /// granel— cuánto hay realmente disponible sumando las dos formas.
 ///
-/// Es de SOLO LECTURA. Para tocar precios o stock está la edición masiva; acá
-/// se viene a entender, no a corregir.
+/// El grueso sale de las variantes que ya trae `getVariantes` —`stocksPorSede`,
+/// presentación, vínculo de apertura—; la única llamada extra es la rotación
+/// (`/productos/:id/variantes/rotacion`), y su error se traga: si falla, el
+/// resto del análisis sigue sirviendo.
 ///
-/// Todo sale de las variantes que ya trae el endpoint (`stocksPorSede`,
-/// presentación, vínculo de apertura): no pega a ningún endpoint nuevo. Por eso
-/// no hay rotación ni ventas — eso necesita agrupar VentaDetalle por variante
-/// en el backend y queda para una segunda etapa.
+/// Se lee, pero también se actúa: tocando una fila salen las acciones que
+/// aplican a esa variante, y cada bulto tiene su botón de abrir. Detectar el
+/// problema y tener que salir a otra pantalla para resolverlo era la mitad del
+/// trabajo hecho.
 class AnalisisVariantesPage extends StatelessWidget {
   final String productoId;
   final String productoNombre;
@@ -118,9 +126,9 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
     }
     if (_empresaId != null) {
       context.read<ProductoVarianteCubit>().loadVariantes(
-            productoId: widget.productoId,
-            empresaId: _empresaId!,
-          );
+        productoId: widget.productoId,
+        empresaId: _empresaId!,
+      );
     }
     _cargarRotacion();
   }
@@ -159,6 +167,156 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
     } catch (_) {
       if (mounted) setState(() => _cargandoRotacion = false);
     }
+  }
+
+  // ---- Acciones -------------------------------------------------------------
+  //
+  // La página detecta el problema —margen flaco, granel por agotarse— y hasta
+  // acá había que salir, buscar la variante y entrar a otra pantalla para
+  // resolverlo. Los diálogos ya existen; solo faltaba invocarlos desde donde se
+  // ve el problema.
+
+  void _recargar() {
+    if (_empresaId == null) return;
+    context.read<ProductoVarianteCubit>().loadVariantes(
+      productoId: widget.productoId,
+      empresaId: _empresaId!,
+    );
+    _cargarRotacion();
+  }
+
+  /// Menú de lo que se puede hacer con esta variante. Solo ofrece lo aplicable:
+  /// "abrir" únicamente si es un bulto configurado y con stock.
+  Future<void> _accionesDe(
+    ProductoVariante v,
+    List<ProductoVariante> todas,
+  ) async {
+    final esBultoAbrible = v.sePuedeAbrir && _stock(v) > 0;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Text(
+                v.nombre,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.attach_money, size: 20),
+              title: const Text(
+                'Configurar precio y costo',
+                style: TextStyle(fontSize: 13),
+              ),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _configurarPrecio(v, todas);
+              },
+            ),
+            if (esBultoAbrible)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.open_in_full, size: 20),
+                title: const Text(
+                  'Abrir bulto',
+                  style: TextStyle(fontSize: 13),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _abrirBulto(v, todas);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _configurarPrecio(
+    ProductoVariante v,
+    List<ProductoVariante> todas,
+  ) async {
+    final sedeId = _sedeId;
+    final empresaId = _empresaId;
+    if (sedeId == null || empresaId == null) return;
+
+    // Los bultos que se abren en esta variante, para el bloque "de dónde sale
+    // este costo". Se arma ANTES del await: después el estado pudo cambiar.
+    final costos = <CostoDesdeBulto>[];
+    for (final b in _bultosDe(v, todas)) {
+      final costo = _costo(b) ?? 0;
+      final rinde = b.rendimientoApertura ?? 0;
+      if (costo <= 0 || rinde <= 0) continue;
+      costos.add(
+        CostoDesdeBulto(
+          nombre: b.nombre,
+          costoBulto: costo,
+          rendimiento: rinde,
+        ),
+      );
+    }
+
+    final result = await locator<GetStockVarianteEnSedeUseCase>()(
+      varianteId: v.id,
+      sedeId: sedeId,
+    );
+    if (!mounted) return;
+    if (result is! Success<ProductoStock>) return;
+
+    final guardado = await showDialog<bool>(
+      context: context,
+      builder: (_) => BlocProvider(
+        create: (_) => locator<ConfigurarPreciosCubit>(),
+        child: ConfigurarPreciosDialog(
+          stock: result.data,
+          empresaId: empresaId,
+          unidadPresentacionSimbolo: v.unidadPresentacionSimbolo,
+          factorPresentacion: v.factorPresentacion,
+          costosDesdeBulto: costos,
+        ),
+      ),
+    );
+    if (guardado == true) _recargar();
+  }
+
+  Future<void> _abrirBulto(
+    ProductoVariante bulto,
+    List<ProductoVariante> todas,
+  ) async {
+    final sedeId = _sedeId;
+    if (sedeId == null) return;
+
+    ProductoVariante? destino;
+    for (final v in todas) {
+      if (v.id == bulto.varianteAperturaId) destino = v;
+    }
+    if (destino == null) return;
+
+    final u = _presentacionDe(destino);
+    final r = await AbrirBultoDialog.show(
+      context: context,
+      bultoVarianteId: bulto.id,
+      bultoNombre: bulto.nombre,
+      destinoNombre: destino.nombre,
+      destinoFactor: destino.factorPresentacion,
+      destinoSimbolo: u.simbolo,
+      rendimiento: bulto.rendimientoApertura!,
+      sedeId: sedeId,
+      stockBultos: _stock(bulto),
+      stockDestino: _stock(destino),
+    );
+    if (r != null) _recargar();
   }
 
   /// Cuántos días de venta cubre el stock actual al ritmo de la ventana.
@@ -238,12 +396,13 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   List<ProductoVariante> _bultosDe(
     ProductoVariante destino,
     List<ProductoVariante> todas,
-  ) =>
-      todas
-          .where((v) =>
-              v.varianteAperturaId == destino.id &&
-              (v.rendimientoApertura ?? 0) > 0)
-          .toList();
+  ) => todas
+      .where(
+        (v) =>
+            v.varianteAperturaId == destino.id &&
+            (v.rendimientoApertura ?? 0) > 0,
+      )
+      .toList();
 
   /// Variantes que son destino de al menos un bulto: los graneles.
   List<ProductoVariante> _graneles(List<ProductoVariante> todas) =>
@@ -284,15 +443,20 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
         foregroundColor: Colors.white,
         title: Column(
           children: [
-            const Text('Análisis de Variantes',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.white)),
-            Text(widget.productoNombre,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 10, color: AppColors.white)),
+            const Text(
+              'Análisis de Variantes',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.white,
+              ),
+            ),
+            Text(
+              widget.productoNombre,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10, color: AppColors.white),
+            ),
           ],
         ),
       ),
@@ -341,8 +505,10 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
       children: [
         Icon(Icons.store, size: 16, color: Colors.grey[600]),
         const SizedBox(width: 6),
-        const Text('Sede:',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text(
+          'Sede:',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
         const SizedBox(width: 8),
         CustomSedeSelector(
           sedes: _sedes,
@@ -376,8 +542,9 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
       costoTotal += c * unidades;
       gananciaTotal += (p - c) * unidades;
     }
-    final margenPond =
-        costoTotal > 0 ? (gananciaTotal / costoTotal) * 100 : null;
+    final margenPond = costoTotal > 0
+        ? (gananciaTotal / costoTotal) * 100
+        : null;
 
     // Stock agrupado POR UNIDAD: sacos y gramos no se suman.
     final porUnidad = <String, double>{};
@@ -405,8 +572,11 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _dato('Valor en inventario', _plata(valorTotal),
-                    grande: true),
+                child: _dato(
+                  'Valor en inventario',
+                  _plata(valorTotal),
+                  grande: true,
+                ),
               ),
               if (margenPond != null)
                 _dato(
@@ -433,14 +603,17 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
     );
   }
 
-  Widget _dato(String label, String valor,
-      {Color? color, bool grande = false}) {
+  Widget _dato(
+    String label,
+    String valor, {
+    Color? color,
+    bool grande = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label,
-            style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+        Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
         const SizedBox(height: 1),
         Text(
           valor,
@@ -459,7 +632,12 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   Widget _buildAlertas(List<ProductoVariante> todas) {
     final avisos = <({IconData icono, Color color, String texto})>[];
 
-    void agregar(List<ProductoVariante> vs, IconData i, Color c, String Function(int) t) {
+    void agregar(
+      List<ProductoVariante> vs,
+      IconData i,
+      Color c,
+      String Function(int) t,
+    ) {
       if (vs.isEmpty) return;
       avisos.add((icono: i, color: c, texto: t(vs.length)));
     }
@@ -512,30 +690,33 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         children: avisos
-            .map((a) => Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: a.color.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: a.color.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(a.icono, size: 14, color: a.color),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          a.texto,
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: a.color),
+            .map(
+              (a) => Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: a.color.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: a.color.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(a.icono, size: 14, color: a.color),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        a.texto,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: a.color,
                         ),
                       ),
-                    ],
-                  ),
-                ))
+                    ),
+                  ],
+                ),
+              ),
+            )
             .toList(),
       ),
     );
@@ -577,7 +758,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
               children: [
                 _buildEncabezadoTabla(),
                 const Divider(height: 1),
-                ...lista.map(_buildFila),
+                ...lista.map((v) => _buildFila(v, todas)),
               ],
             ),
           ),
@@ -589,7 +770,10 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   Widget _buildEncabezadoTabla() {
     const estilo = TextStyle(fontSize: 9, fontWeight: FontWeight.w700);
     Widget celda(String t, double w, {TextAlign a = TextAlign.right}) =>
-        SizedBox(width: w, child: Text(t, style: estilo, textAlign: a));
+        SizedBox(
+          width: w,
+          child: Text(t, style: estilo, textAlign: a),
+        );
 
     return Container(
       color: AppColors.blue1.withValues(alpha: 0.07),
@@ -636,7 +820,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
     );
   }
 
-  Widget _buildFila(ProductoVariante v) {
+  Widget _buildFila(ProductoVariante v, List<ProductoVariante> todas) {
     final u = _presentacionDe(v);
     final costo = _costo(v);
     final precio = _precio(v);
@@ -645,7 +829,8 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
     // unidad, así que la columna no puede tener un rótulo único.
     final sufijo = u.simboloVisible != null ? '/${u.simboloVisible}' : '';
 
-    Widget num(String t, double w, {Color? color, FontWeight? peso}) => SizedBox(
+    Widget num(String t, double w, {Color? color, FontWeight? peso}) =>
+        SizedBox(
           width: w,
           child: Text(
             t,
@@ -660,42 +845,55 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
           ),
         );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      child: Row(
-        children: [
-          SizedBox(
-            width: _wNombre,
-            child: Text(
-              v.nombre,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+    return InkWell(
+      // Tocar la fila abre lo que se puede hacer con esa variante: se ve el
+      // problema y se resuelve sin salir de la pantalla.
+      onTap: () => _accionesDe(v, todas),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        child: Row(
+          children: [
+            SizedBox(
+              width: _wNombre,
+              child: Text(
+                v.nombre,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
-          num(
-            u.cantidadTexto(_stock(v)),
-            _wStock,
-            // Bajo mínimo en naranja: es la que hay que reponer, y en una
-            // tabla de 24 filas el color es lo único que se lee de un vistazo.
-            color: _bajoMinimo(v) ? Colors.deepOrange.shade700 : null,
-            peso: _bajoMinimo(v) ? FontWeight.w800 : null,
-          ),
-          num(costo == null ? '—' : '${_plata(u.precio(costo))}$sufijo',
-              _wCosto),
-          num(precio == null ? '—' : '${_plata(u.precio(precio))}$sufijo',
-              _wPrecio),
-          num(
-            margen == null
-                ? 'sin precio'
-                : '${margen >= 0 ? '+' : ''}${margen.toStringAsFixed(1)}%',
-            _wMargen,
-            color: margen == null ? Colors.grey.shade500 : _colorMargen(margen),
-            peso: FontWeight.w800,
-          ),
-          num(_plata(_valor(v)), _wValor, peso: FontWeight.w700),
-        ],
+            num(
+              u.cantidadTexto(_stock(v)),
+              _wStock,
+              // Bajo mínimo en naranja: es la que hay que reponer, y en una
+              // tabla de 24 filas el color es lo único que se lee de un vistazo.
+              color: _bajoMinimo(v) ? Colors.deepOrange.shade700 : null,
+              peso: _bajoMinimo(v) ? FontWeight.w800 : null,
+            ),
+            num(
+              costo == null ? '—' : '${_plata(u.precio(costo))}$sufijo',
+              _wCosto,
+            ),
+            num(
+              precio == null ? '—' : '${_plata(u.precio(precio))}$sufijo',
+              _wPrecio,
+            ),
+            num(
+              margen == null
+                  ? 'sin precio'
+                  : '${margen >= 0 ? '+' : ''}${margen.toStringAsFixed(1)}%',
+              _wMargen,
+              color: margen == null
+                  ? Colors.grey.shade500
+                  : _colorMargen(margen),
+              peso: FontWeight.w800,
+            ),
+            num(_plata(_valor(v)), _wValor, peso: FontWeight.w700),
+          ],
+        ),
       ),
     );
   }
@@ -722,8 +920,11 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
         children: [
           Row(
             children: [
-              const Icon(Icons.inventory_2_outlined,
-                  size: 14, color: AppColors.blue1),
+              const Icon(
+                Icons.inventory_2_outlined,
+                size: 14,
+                color: AppColors.blue1,
+              ),
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
@@ -731,9 +932,10 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.blue1),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue1,
+                  ),
                 ),
               ),
             ],
@@ -763,6 +965,11 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                   ? '${_plata(u.precio(costoB / rinde))}/${u.simboloVisible ?? ''}'
                   : '—',
               _plata(_valor(b)),
+              // Acá es donde se piensa "me faltan kilos, abro un saco", así que
+              // el botón va en la línea del saco y no escondido en la tabla.
+              onAbrir: b.sePuedeAbrir && stockB > 0
+                  ? () => _abrirBulto(b, todas)
+                  : null,
             );
           }),
           const Divider(height: 14),
@@ -772,23 +979,27 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                 child: Text(
                   'Disponible total',
                   style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade800),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade800,
+                  ),
                 ),
               ),
               Text(
                 u.cantidadTexto(totalUnidadesVenta),
                 style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.blue1),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.blue1,
+                ),
               ),
               const SizedBox(width: 10),
               Text(
                 _plata(totalPlata),
                 style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w800),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
@@ -835,11 +1046,14 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: (conviene ? Colors.green : Colors.orange).withValues(alpha: 0.07),
+        color: (conviene ? Colors.green : Colors.orange).withValues(
+          alpha: 0.07,
+        ),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: (conviene ? Colors.green : Colors.orange)
-              .withValues(alpha: 0.35),
+          color: (conviene ? Colors.green : Colors.orange).withValues(
+            alpha: 0.35,
+          ),
         ),
       ),
       child: Column(
@@ -854,8 +1068,12 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
             ),
           ),
           const SizedBox(height: 4),
-          ...lineas.map((l) => Text(l,
-              style: TextStyle(fontSize: 9, color: Colors.grey.shade700))),
+          ...lineas.map(
+            (l) => Text(
+              l,
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+            ),
+          ),
           Text(
             'Suelto: ${_plata(u.precio(precioGranel))}/${u.simboloVisible ?? ''}',
             style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
@@ -884,14 +1102,19 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   /// está en las líneas de arriba, pero la diferencia entre formatos es una
   /// decisión de COMPRAS y merece decirse con el número en la mano.
   Widget _buildComparaCostos(
-      List<ProductoVariante> bultos, UnidadPresentacion u) {
+    List<ProductoVariante> bultos,
+    UnidadPresentacion u,
+  ) {
     final conCosto = bultos
         .where((b) => (_costo(b) ?? 0) > 0 && (b.rendimientoApertura ?? 0) > 0)
         .toList();
     if (conCosto.length < 2) return const SizedBox.shrink();
 
-    conCosto.sort((a, b) => (_costo(a)! / a.rendimientoApertura!)
-        .compareTo(_costo(b)! / b.rendimientoApertura!));
+    conCosto.sort(
+      (a, b) => (_costo(a)! / a.rendimientoApertura!).compareTo(
+        _costo(b)! / b.rendimientoApertura!,
+      ),
+    );
     final barato = conCosto.first;
     final caro = conCosto.last;
     final cBarato = _costo(barato)! / barato.rendimientoApertura!;
@@ -924,12 +1147,16 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
         padding: EdgeInsets.symmetric(vertical: 20),
         child: Center(
           child: SizedBox(
-              width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         ),
       );
     }
     // Primero lo que se está por acabar; después lo que no se movió nunca.
-    final lista = [...todas]..sort((a, b) {
+    final lista = [...todas]
+      ..sort((a, b) {
         final ca = _cobertura(a);
         final cb = _cobertura(b);
         if (ca == null && cb == null) return a.nombre.compareTo(b.nombre);
@@ -968,10 +1195,12 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                 children: [
                   Expanded(
                     flex: 5,
-                    child: Text(v.nombre,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 10)),
+                    child: Text(
+                      v.nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10),
+                    ),
                   ),
                   Expanded(
                     flex: 3,
@@ -1075,8 +1304,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
         valor[s.sedeId] =
             (valor[s.sedeId] ?? 0) + s.cantidad * (s.precioCosto ?? 0);
         final porUnidad = unidades.putIfAbsent(s.sedeId, () => {});
-        porUnidad[simbolo] =
-            (porUnidad[simbolo] ?? 0) + u.cantidad(s.cantidad);
+        porUnidad[simbolo] = (porUnidad[simbolo] ?? 0) + u.cantidad(s.cantidad);
       }
     }
     if (nombre.length < 2) return const SizedBox.shrink();
@@ -1093,8 +1321,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
           const AppSubtitle('POR SEDE'),
           const SizedBox(height: 6),
           ...ids.map((id) {
-            final detalle = (unidades[id] ?? {})
-                .entries
+            final detalle = (unidades[id] ?? {}).entries
                 .where((e) => e.value > 0)
                 .map((e) => '${_num(e.value)} ${e.key}')
                 .join('  ·  ');
@@ -1106,20 +1333,30 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(nombre[id] ?? '—',
-                            style: const TextStyle(
-                                fontSize: 10, fontWeight: FontWeight.w600)),
+                        Text(
+                          nombre[id] ?? '—',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         Text(
                           detalle.isEmpty ? 'sin stock' : detalle,
                           style: TextStyle(
-                              fontSize: 9, color: Colors.grey.shade600),
+                            fontSize: 9,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  Text(_plata(valor[id] ?? 0),
-                      style: const TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w700)),
+                  Text(
+                    _plata(valor[id] ?? 0),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -1130,36 +1367,61 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   }
 
   Widget _lineaFamilia(
-      String nombre, String cantidad, String costo, String plata) {
+    String nombre,
+    String cantidad,
+    String costo,
+    String plata, {
+    VoidCallback? onAbrir,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
+          if (onAbrir != null)
+            InkWell(
+              onTap: onAbrir,
+              borderRadius: BorderRadius.circular(3),
+              child: const Padding(
+                padding: EdgeInsets.only(right: 4, top: 2, bottom: 2),
+                child: Icon(
+                  Icons.open_in_full,
+                  size: 13,
+                  color: AppColors.blue1,
+                ),
+              ),
+            ),
           Expanded(
             flex: 4,
-            child: Text(nombre,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 10)),
+            child: Text(
+              nombre,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10),
+            ),
           ),
           Expanded(
             flex: 3,
-            child: Text(cantidad,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                    fontSize: 10, fontWeight: FontWeight.w600)),
+            child: Text(
+              cantidad,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+            ),
           ),
           Expanded(
             flex: 2,
-            child: Text(costo,
-                textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+            child: Text(
+              costo,
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+            ),
           ),
           Expanded(
             flex: 2,
-            child: Text(plata,
-                textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 10)),
+            child: Text(
+              plata,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 10),
+            ),
           ),
         ],
       ),
