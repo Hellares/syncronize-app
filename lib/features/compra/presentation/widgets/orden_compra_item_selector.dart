@@ -4,6 +4,7 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/network/dio_client.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/unidad_presentacion.dart';
 import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
@@ -268,7 +269,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   String? get _simboloUnidadSel {
     final p = _productoSeleccionado;
     if (p == null) return null;
-    final s = _usaUnidadCompra ? p.unidadCompraSimbolo : p.unidadMedidaSimbolo;
+    final s = _usaUnidadCompra ? p.unidadCompraSimbolo : _simboloUnidadVenta;
     return (s != null && s.isNotEmpty) ? s : null;
   }
 
@@ -278,17 +279,38 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
   // guarda en gramos se lee en KILOS. Sin presentación configurada el factor
   // es 1 y todo queda como antes.
 
-  double get _factorPresentacion =>
-      _productoSeleccionado?.factorPresentacionEfectivo ?? 1;
+  /// En qué unidad se le habla al usuario en ESTA línea.
+  ///
+  /// Con variante seleccionada manda la de la VARIANTE: un saco cerrado se
+  /// compra por unidad aunque su producto se guarde en gramos, y un granel se
+  /// lee en kilos aunque la presentación esté puesta en la variante y no en el
+  /// producto. Mirar solo el producto hacía que comprar un saco de 15 kg
+  /// pidiera la cantidad "en gramos" — invitando a escribir 15000 donde va 1.
+  /// Es la misma regla que ya usa el POS.
+  UnidadPresentacion get _presentacionLinea {
+    final p = _productoSeleccionado;
+    if (p == null) return const UnidadPresentacion(factor: 1);
+    final v = _varianteSeleccionada;
+    return v == null ? p.presentacion : p.presentacionDeVariante(v);
+  }
+
+  double get _factorPresentacion => _presentacionLinea.factor;
 
   bool get _tienePresentacion => _factorPresentacion > 1;
 
   /// Símbolo en el que se le habla al usuario: presentación si hay, si no la
   /// unidad de venta.
-  String get _simboloPresentacion =>
-      _productoSeleccionado?.unidadPresentacionSimbolo ??
-      _productoSeleccionado?.unidadMedidaSimbolo ??
-      'u';
+  String get _simboloPresentacion => _presentacionLinea.simboloVisible ?? 'u';
+
+  /// Unidad en la que se GUARDA el stock de esta línea. Con un bulto cerrado
+  /// es la suya (`und`), no la del producto (gramo).
+  String? get _simboloUnidadVenta {
+    final v = _varianteSeleccionada;
+    if (v != null && v.unidadMedidaId != null && v.unidadMedida != null) {
+      return v.unidadDisplay;
+    }
+    return _productoSeleccionado?.unidadMedidaSimbolo;
+  }
 
   /// Un precio POR unidad de venta llevado a la unidad de presentación.
   /// S/0.006727 por gramo → S/6.73 por kilo.
@@ -443,8 +465,9 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       // payload se arma con una lista explícita de campos.
       if (_tienePresentacion) {
         item['factorPresentacion'] = _factorPresentacion;
-        item['unidadPresentacionSimbolo'] =
-            _productoSeleccionado!.unidadPresentacionSimbolo;
+        // De la LÍNEA, no del producto: con variantes la presentación puede
+        // vivir en la variante (el granel) y el producto no tener ninguna.
+        item['unidadPresentacionSimbolo'] = _presentacionLinea.simbolo;
       }
 
       // Si el usuario seteó un nuevo precio de venta distinto al
@@ -766,9 +789,11 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
                 precioCompra: _precioCompraAtomico,
                 precioVenta: _precioVentaActualSede,
               ),
-            if (_tipoItem == 'producto' &&
-                _productoSeleccionado != null &&
-                _varianteSeleccionada == null)
+            // También con variante: el backend aplica el `nuevoPrecioVenta`
+            // sobre la fila de ProductoStock que resolvió para la línea, que
+            // con `varianteId` es la de la variante. Estaba apagado solo
+            // porque los datos de costo/precio nunca se cargaban.
+            if (_tipoItem == 'producto' && _productoSeleccionado != null)
               _buildAjustePrecioVentaCard(),
           ],
         ),
@@ -902,8 +927,24 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
       if (variante != null) {
         _descripcionController.text =
             '${producto.nombre} - ${variante.nombre}';
-        final precio = variante.precioEnSede(sedeId) ?? 0.0;
-        _precioController.text = precio.toStringAsFixed(2);
+        // Costo, precio de venta y stock DE LA VARIANTE en esta sede. Ya
+        // vienen en la respuesta del buscador, así que no hace falta el viaje
+        // que sí necesita el producto base. Sin esto la línea iba a ciegas:
+        // los informativos de costo/margen y las sugerencias de precio solo
+        // aparecían comprando productos sin variantes.
+        final info = variante.stockSedeInfo(sedeId);
+        _costoActualSede = info?.precioCosto;
+        _precioVentaActualSede = info?.precio;
+        _stockActualSede = info?.cantidad;
+        // La caché de `_cargarStockSede` es por productoId y estos datos son
+        // de la variante: se invalida para que volver al base recargue.
+        _productoIdInfoCargada = null;
+        // En una COMPRA el precio por defecto es el COSTO, no el de venta.
+        // Traía el de venta: aceptar el prellenado registraba la compra al
+        // precio de lista y el costo saltaba a ese número.
+        final costo = _costoActualSede;
+        _precioController.text =
+            (costo != null && costo > 0) ? _fmtPrecio(costo) : '';
       } else {
         _descripcionController.text = producto.nombre;
         // En una COMPRA el precio por defecto es el COSTO actual, no el de
@@ -1033,8 +1074,8 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     final simbolo = _productoSeleccionado!.unidadCompraSimbolo ?? '?';
     // Factor efectivo (override puntual o config del producto).
     final factor = _factorEfectivo;
-    // Unidad base real (ej. "cm"). Si el producto no la tiene, caemos a "UNID".
-    final base = _productoSeleccionado!.unidadMedidaSimbolo ?? 'UNID';
+    // Unidad base real (ej. "cm"). Si no la tiene, caemos a "UNID".
+    final base = _simboloUnidadVenta ?? 'UNID';
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Container(
@@ -1292,7 +1333,7 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     }
     final ratio = atomico / costoActual;
     if (ratio <= 4 && ratio >= 0.25) return const SizedBox.shrink();
-    final base = _productoSeleccionado?.unidadMedidaSimbolo ?? 'u';
+    final base = _simboloUnidadVenta ?? 'u';
     final detalle = ratio >= 1
         ? '${_formatNum(ratio)}× más caro'
         : '${_formatNum(1 / ratio)}× más barato';

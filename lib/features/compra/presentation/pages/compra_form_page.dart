@@ -319,7 +319,17 @@ class _CompraFormViewState extends State<_CompraFormView> {
           return Stack(
             children: [
               SingleChildScrollView(
-                padding: const EdgeInsets.all(10),
+                // El inset inferior va a mano: este Scaffold no tiene
+                // bottomNavigationBar, así que la barra de navegación del
+                // sistema tapaba el botón de crear —último hijo del scroll— y
+                // no había forma de tocarlo. Mismo patrón que
+                // configurar_stock_minmax_page y pos_action_bar.
+                padding: EdgeInsets.fromLTRB(
+                  10,
+                  10,
+                  10,
+                  10 + MediaQuery.of(context).padding.bottom,
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
