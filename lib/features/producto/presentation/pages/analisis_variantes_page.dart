@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/fonts/app_text_widgets.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/gradient_container.dart';
@@ -54,6 +55,20 @@ class AnalisisVariantesPage extends StatelessWidget {
 /// Cómo se ordena la tabla maestra.
 enum _Orden { margen, valor, nombre }
 
+/// Lo que salió de una variante en la ventana consultada. `cantidad` viene en
+/// UNIDAD DE VENTA (gramos para un granel), igual que el stock.
+class _Rotacion {
+  final double cantidad;
+  final int ventas;
+  final DateTime? ultimaVenta;
+
+  const _Rotacion({
+    required this.cantidad,
+    required this.ventas,
+    this.ultimaVenta,
+  });
+}
+
 class _AnalisisVariantesView extends StatefulWidget {
   final String productoId;
   final String productoNombre;
@@ -74,6 +89,14 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   String? _sedeId;
   List<dynamic> _sedes = [];
   _Orden _orden = _Orden.margen;
+
+  final DioClient _dio = locator<DioClient>();
+
+  /// Ventana de rotación en días. 90 por defecto: 30 es demasiado ruidoso para
+  /// un producto de baja frecuencia y 365 diluye lo que pasó hace poco.
+  int _dias = 90;
+  Map<String, _Rotacion> _rotacion = {};
+  bool _cargandoRotacion = false;
 
   @override
   void initState() {
@@ -99,6 +122,53 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
             empresaId: _empresaId!,
           );
     }
+    _cargarRotacion();
+  }
+
+  /// Rotación de la sede y ventana actuales. Es la única llamada extra de la
+  /// pantalla; si falla, el resto del análisis sigue sirviendo, así que el
+  /// error se traga y la sección simplemente no aparece.
+  Future<void> _cargarRotacion() async {
+    final sedeId = _sedeId;
+    if (sedeId == null) return;
+    setState(() => _cargandoRotacion = true);
+    try {
+      final resp = await _dio.get(
+        '/productos/${widget.productoId}/variantes/rotacion',
+        queryParameters: {'sedeId': sedeId, 'dias': _dias},
+      );
+      final items = (resp.data?['items'] as List<dynamic>? ?? []);
+      final mapa = <String, _Rotacion>{};
+      for (final raw in items) {
+        final m = raw as Map<String, dynamic>;
+        final id = m['varianteId'] as String?;
+        if (id == null) continue;
+        mapa[id] = _Rotacion(
+          cantidad: (m['cantidad'] as num?)?.toDouble() ?? 0,
+          ventas: (m['ventas'] as num?)?.toInt() ?? 0,
+          ultimaVenta: m['ultimaVenta'] != null
+              ? DateTime.tryParse(m['ultimaVenta'] as String)
+              : null,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _rotacion = mapa;
+        _cargandoRotacion = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _cargandoRotacion = false);
+    }
+  }
+
+  /// Cuántos días de venta cubre el stock actual al ritmo de la ventana.
+  /// Null cuando no hubo ventas: no es "cobertura infinita", es que no se sabe.
+  double? _cobertura(ProductoVariante v) {
+    final r = _rotacion[v.id];
+    if (r == null || r.cantidad <= 0) return null;
+    final porDia = r.cantidad / _dias;
+    if (porDia <= 0) return null;
+    return _stock(v) / porDia;
   }
 
   // ---- Lecturas por variante ------------------------------------------------
@@ -255,6 +325,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
               _buildAlertas(todas),
               _buildTabla(todas),
               const SizedBox(height: 12),
+              _buildRotacion(todas),
               ..._graneles(todas).map((g) => _buildFamilia(g, todas)),
               _buildPorSede(todas),
             ],
@@ -279,7 +350,11 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
             (s) => s.id == _sedeId,
             orElse: () => _sedes.first,
           ),
-          onSelected: (id) => setState(() => _sedeId = id),
+          onSelected: (id) {
+            setState(() => _sedeId = id);
+            // La rotación es por sede: cambiarla invalida lo que hay cargado.
+            _cargarRotacion();
+          },
         ),
       ],
     );
@@ -835,6 +910,150 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
           fontSize: 9,
           fontStyle: FontStyle.italic,
           color: Colors.grey.shade700,
+        ),
+      ),
+    );
+  }
+
+  /// Qué se mueve y qué está parado. Sin esto la página solo sabe mirar el
+  /// saldo: una variante con buen margen y cero salida se ve igual de sana que
+  /// una que vuela.
+  Widget _buildRotacion(List<ProductoVariante> todas) {
+    if (_cargandoRotacion) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: SizedBox(
+              width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+    // Primero lo que se está por acabar; después lo que no se movió nunca.
+    final lista = [...todas]..sort((a, b) {
+        final ca = _cobertura(a);
+        final cb = _cobertura(b);
+        if (ca == null && cb == null) return a.nombre.compareTo(b.nombre);
+        if (ca == null) return 1;
+        if (cb == null) return -1;
+        return ca.compareTo(cb);
+      });
+
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(child: AppSubtitle('ROTACIÓN')),
+              _chipDias(30),
+              _chipDias(90),
+              _chipDias(365),
+            ],
+          ),
+          Text(
+            'Últimos $_dias días, en esta sede.',
+            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 8),
+          ...lista.map((v) {
+            final r = _rotacion[v.id];
+            final u = _presentacionDe(v);
+            final cobertura = _cobertura(v);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Text(v.nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 10)),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      r == null || r.cantidad <= 0
+                          ? 'sin ventas'
+                          : 'vendió ${u.cantidadTexto(r.cantidad)}',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: r == null || r.cantidad <= 0
+                            ? Colors.grey.shade500
+                            : Colors.grey.shade800,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      _coberturaTexto(v, cobertura),
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: _colorCobertura(v, cobertura),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  /// "12 d" · "+1 año" · "parado" · "agotada". Un "1890 días" es ruido: a
+  /// partir del año lo único que importa es que sobra.
+  String _coberturaTexto(ProductoVariante v, double? dias) {
+    if (_stock(v) <= 0) return 'agotada';
+    if (dias == null) return 'parado';
+    if (dias > 365) return '+1 año';
+    return '${dias.toStringAsFixed(0)} d';
+  }
+
+  Color _colorCobertura(ProductoVariante v, double? dias) {
+    if (_stock(v) <= 0) return Colors.red.shade700;
+    // Sin ventas y con stock: plata quieta. No es urgente pero es plata.
+    if (dias == null) return Colors.blueGrey;
+    if (dias < 15) return Colors.deepOrange.shade700;
+    if (dias > 365) return Colors.blueGrey;
+    return Colors.green.shade700;
+  }
+
+  Widget _chipDias(int dias) {
+    final activo = _dias == dias;
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: InkWell(
+        onTap: () {
+          setState(() => _dias = dias);
+          _cargarRotacion();
+        },
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: activo ? AppColors.blue1 : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: activo ? AppColors.blue1 : Colors.grey.shade300,
+            ),
+          ),
+          child: Text(
+            dias == 365 ? '1a' : '${dias}d',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: activo ? Colors.white : Colors.grey.shade700,
+            ),
+          ),
         ),
       ),
     );
