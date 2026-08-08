@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/custom_sede_selector.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -18,6 +19,16 @@ import '../bloc/edicion_masiva_stock/edicion_masiva_stock_state.dart';
 /// Grilla tipo excel para editar stock y precios de todas las variantes
 /// de un producto en una sede, en bloque. Cada ajuste de stock genera
 /// movimiento de kardex y cada cambio de precio queda en el historial.
+///
+/// Todo lo que se ve y se escribe está en la unidad en la que se habla: un
+/// granel guardado en gramos se lee y se edita en KILOS. Sin eso la pantalla
+/// era inservible justo para esos productos — mostraba "15000" y "0.01" (un
+/// precio redondeado que no existe) y el campo, de 2 decimales, no dejaba
+/// escribir 0.015. La conversión pasa solo en los bordes: al pintar y al
+/// guardar.
+///
+/// El margen va debajo del nombre y no como columna: en un teléfono no entra
+/// una sexta columna sin dejar el nombre de la variante en dos letras.
 class EdicionMasivaStockPage extends StatelessWidget {
   final String productoId;
   final String productoNombre;
@@ -209,7 +220,10 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
       titulo: 'Aplicar a ${visibles.length} variante(s)',
       content: [
         const Text(
-          'Los campos vacíos no se aplican. Afecta solo a las variantes visibles (según el filtro).',
+          'Los campos vacíos no se aplican. Afecta solo a las variantes '
+          'visibles (según el filtro).\n\n'
+          'Cada valor se toma en la unidad de SU variante: un mismo "15.00" es '
+          'S/15 por kilo en un granel y S/15 por unidad en un saco.',
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 14),
@@ -284,15 +298,20 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
       final fila = _filas[v.id];
       if (fila == null || !fila.tieneCambios) continue;
 
-      final agregar = int.tryParse(fila.stock.text.trim());
-      final precio = double.tryParse(fila.precio.text.trim());
-      final costo = double.tryParse(fila.costo.text.trim());
+      // Lo tecleado viene en unidad de PRESENTACIÓN (kilos); el backend
+      // trabaja en unidad de venta (gramos). La conversión pasa solo acá.
+      final u = _presentacionDe(v);
+      final agregarPres = _parseNum(fila.stock.text);
+      final precioPres = _parseNum(fila.precio.text);
+      final costoPres = _parseNum(fila.costo.text);
 
       final item = BulkEditarItem(
         varianteId: v.id,
-        agregarStock: agregar,
-        precio: precio,
-        precioCosto: costo,
+        // El stock es entero en unidad de venta: 1.5 kg son 1500 g.
+        agregarStock:
+            agregarPres == null ? null : (agregarPres * u.factor).round(),
+        precio: precioPres == null ? null : precioPres / u.factor,
+        precioCosto: costoPres == null ? null : costoPres / u.factor,
       );
       if (item.tieneCambios) items.add(item);
     }
@@ -352,8 +371,56 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
 
   static final _soloEnteroConSigno =
       FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'));
+  /// Con presentación el stock se escribe en kilos y ahí sí hacen falta
+  /// decimales: "1.5" son 1500 g. Sin presentación se sigue exigiendo entero,
+  /// porque medio saco no existe.
+  static final _decimalConSigno =
+      FilteringTextInputFormatter.allow(RegExp(r'^-?\d*[.,]?\d{0,3}'));
   static final _soloDecimal =
-      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'));
+      FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,2}'));
+
+  /// El teclado numérico deja escribir coma: "0,5" tiene que valer lo mismo
+  /// que "0.5" y no caerse a null.
+  static double? _parseNum(String texto) {
+    final t = texto.trim();
+    if (t.isEmpty) return null;
+    return double.tryParse(t.replaceAll(',', '.'));
+  }
+
+  /// En qué unidad se lee y se escribe esta variante.
+  ///
+  /// Presentación propia (el granel: kg ×1000) → esa. Si no, su unidad propia
+  /// (el saco: `und`, factor 1). Si no tiene ninguna de las dos, hereda la del
+  /// producto y esta pantalla no la conoce —el cubit carga variantes, no el
+  /// producto—, así que se muestra el número crudo sin símbolo, igual que
+  /// antes.
+  UnidadPresentacion _presentacionDe(ProductoVariante v) {
+    if (v.tienePresentacionPropia) {
+      return UnidadPresentacion(
+        factor: v.factorPresentacion!,
+        simbolo: v.unidadPresentacionSimbolo,
+      );
+    }
+    return UnidadPresentacion(
+      factor: 1,
+      simbolo: v.unidadMedidaId != null ? v.unidadMedida?.displayCorto : null,
+    );
+  }
+
+  /// Margen sobre costo en %. Es un RATIO, así que da igual en qué unidad
+  /// estén los dos números mientras sea la misma.
+  double? _margenPct(double? precio, double? costo) {
+    if (precio == null || costo == null || costo <= 0) return null;
+    return ((precio - costo) / costo) * 100;
+  }
+
+  /// Rojo bajo cero (se vende perdiendo), ámbar hasta 15% (flaco) y verde
+  /// arriba. Los cortes son para que salte a la vista, no una regla contable.
+  Color _colorMargen(double pct) {
+    if (pct < 0) return Colors.red.shade700;
+    if (pct < 15) return Colors.orange.shade800;
+    return Colors.green.shade700;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -569,6 +636,15 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     final precioActual = stockInfo?.precio;
     final costoActual = stockInfo?.precioCosto;
     final editada = fila.tieneCambios;
+    final u = _presentacionDe(variante);
+
+    // El margen se calcula sobre lo que QUEDARÍA: si ya se tecleó un precio o
+    // un costo nuevo, manda ese. Así se ve el efecto antes de guardar.
+    final precioEfectivo =
+        _parseNum(fila.precio.text) ?? (precioActual != null ? u.precio(precioActual) : null);
+    final costoEfectivo =
+        _parseNum(fila.costo.text) ?? (costoActual != null ? u.precio(costoActual) : null);
+    final margen = _margenPct(precioEfectivo, costoEfectivo);
 
     return Container(
       color: editada
@@ -588,15 +664,35 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
                         fontSize: 11, fontWeight: FontWeight.w500),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis),
-                Text(variante.sku,
-                    style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(variante.sku,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              TextStyle(fontSize: 9, color: Colors.grey[600])),
+                    ),
+                    if (margen != null) ...[
+                      const SizedBox(width: 5),
+                      Text(
+                        '${margen >= 0 ? '+' : ''}${margen.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: _colorMargen(margen),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
           SizedBox(
             width: _wStockActual,
             child: Text(
-              stockActual?.toString() ?? '—',
+              stockActual == null ? '—' : u.cantidadTexto(stockActual),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
@@ -610,7 +706,9 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
             child: _celdaEditable(
               controller: fila.stock,
               hint: '0',
-              formatter: _soloEnteroConSigno,
+              // Con presentación el stock se teclea en kilos y admite
+              // decimales; sin ella sigue siendo entero.
+              formatter: u.activa ? _decimalConSigno : _soloEnteroConSigno,
               signed: true,
             ),
           ),
@@ -618,7 +716,9 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
             width: _wPrecio,
             child: _celdaEditable(
               controller: fila.precio,
-              hint: precioActual?.toStringAsFixed(2) ?? '—',
+              hint: precioActual == null
+                  ? '—'
+                  : u.precio(precioActual).toStringAsFixed(2),
               formatter: _soloDecimal,
             ),
           ),
@@ -626,7 +726,9 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
             width: _wCosto,
             child: _celdaEditable(
               controller: fila.costo,
-              hint: costoActual?.toStringAsFixed(2) ?? '—',
+              hint: costoActual == null
+                  ? '—'
+                  : u.precio(costoActual).toStringAsFixed(2),
               formatter: _soloDecimal,
             ),
           ),

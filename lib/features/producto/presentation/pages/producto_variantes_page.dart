@@ -23,6 +23,7 @@ import '../bloc/precio_nivel/precio_nivel_cubit.dart';
 import '../bloc/variante_atributo/variante_atributo_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/sede_selection/sede_selection_cubit.dart';
+import 'analisis_variantes_page.dart';
 import 'edicion_masiva_stock_page.dart';
 import '../widgets/producto_variante_form_dialog.dart';
 import '../widgets/generar_combinaciones_dialog.dart';
@@ -148,6 +149,20 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Análisis de variantes',
+            icon: const Icon(Icons.insights_outlined, size: 18),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AnalisisVariantesPage(
+                  productoId: widget.productoId,
+                  productoNombre: widget.productoNombre,
+                  sedeIdInicial: _sedeId,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Edición masiva de stock y precios',
             icon: const Icon(Icons.table_chart_outlined, size: 18),
