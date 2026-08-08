@@ -8,6 +8,7 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart' as date_utils;
 import 'package:syncronize/core/utils/resource.dart';
+import 'package:syncronize/core/utils/unidad_presentacion.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
@@ -27,6 +28,33 @@ import '../bloc/configurar_precios/configurar_precios_state.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 
+/// Un bulto cerrado que se abre en la variante que se está tarifando.
+///
+/// El costo del granel no se escribe a mano: lo fija la apertura del saco por
+/// promedio ponderado. Pero para poner el PRECIO DE VENTA hay que saber antes
+/// cuánto va a costar el kilo, y ese dato vive en la variante del SACO — otra
+/// fila, otra pantalla. Sin esto hay que salir del diálogo, anotar el costo del
+/// saco, dividirlo a mano por el rendimiento y volver.
+class CostoDesdeBulto {
+  final String nombre;
+
+  /// Lo que cuesta 1 bulto entero en la sede que se está tarifando.
+  final double costoBulto;
+
+  /// Cuántas unidades de VENTA del destino salen de 1 bulto (15 000 g).
+  final double rendimiento;
+
+  const CostoDesdeBulto({
+    required this.nombre,
+    required this.costoBulto,
+    required this.rendimiento,
+  });
+
+  /// Costo por unidad de venta. Es exactamente lo que la apertura va a dejar
+  /// en el granel mientras su stock esté en cero.
+  double get costoPorUnidadDeVenta => costoBulto / rendimiento;
+}
+
 /// Dialog para configurar precios de un producto en una sede
 class ConfigurarPreciosDialog extends StatefulWidget {
   final ProductoStock stock;
@@ -41,12 +69,17 @@ class ConfigurarPreciosDialog extends StatefulWidget {
   final String? unidadPresentacionSimbolo;
   final double? factorPresentacion;
 
+  /// Bultos que se abren en esta variante. Vacío para todo lo que no sea el
+  /// destino de una apertura, que es el caso de casi todo el catálogo.
+  final List<CostoDesdeBulto> costosDesdeBulto;
+
   const ConfigurarPreciosDialog({
     super.key,
     required this.stock,
     required this.empresaId,
     this.unidadPresentacionSimbolo,
     this.factorPresentacion,
+    this.costosDesdeBulto = const [],
   });
 
   @override
@@ -292,6 +325,123 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       _tienePresentacion && widget.unidadPresentacionSimbolo != null
           ? ' (por ${widget.unidadPresentacionSimbolo})'
           : '';
+
+  /// "SACO 15KG · S/149.00 ÷ 15 kg = S/ 9.93/kg", con un botón que lo escribe
+  /// en el campo de costo. Es la cuenta que había que hacer a mano en la
+  /// calculadora para poder fijar el precio de venta del granel.
+  Widget _buildCostoDesdeBulto() {
+    if (widget.costosDesdeBulto.isEmpty) return const SizedBox.shrink();
+
+    // El mismo traductor que el POS y el ticket: "15 kg", no "15000".
+    final u = UnidadPresentacion(
+      factor: _factorPresentacion,
+      simbolo: widget.unidadPresentacionSimbolo,
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.blue1.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.blue1.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.open_in_full, size: 12, color: AppColors.blue1),
+              const SizedBox(width: 4),
+              Text(
+                'DE DÓNDE SALE ESTE COSTO',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...widget.costosDesdeBulto.map((origen) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          origen.nombre,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'S/${origen.costoBulto.toStringAsFixed(2)} ÷ '
+                          '${u.cantidadTexto(origen.rendimiento)} = '
+                          '${_costoUnitarioTexto(u, origen.costoPorUnidadDeVenta)}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.blue1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _usarCostoDeBulto(origen),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(0, 28),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text(
+                      'Usar',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          Text(
+            'Al abrir un bulto el costo se recalcula solo por promedio '
+            'ponderado. Esto es para poder fijar el precio de venta antes.',
+            style: TextStyle(
+              fontSize: 9,
+              color: Colors.grey.shade700,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Con presentación se habla en kg y dos decimales alcanzan. Sin ella, el
+  /// costo por unidad de venta es sub-céntimo (S/0.009933 el gramo) y
+  /// redondearlo mostraría "S/ 0.01", un número que no existe.
+  String _costoUnitarioTexto(UnidadPresentacion u, double porUnidadDeVenta) {
+    if (_tienePresentacion) return u.precioTexto(porUnidadDeVenta);
+    return 'S/ ${porUnidadDeVenta.toStringAsFixed(6)}';
+  }
+
+  /// Escribe el costo en el campo, ya en unidad de presentación — que es como
+  /// trabaja todo el diálogo. Se redondea a centavos porque el campo es de
+  /// moneda; el valor exacto lo va a fijar la apertura igual.
+  void _usarCostoDeBulto(CostoDesdeBulto origen) {
+    setState(() {
+      _precioCostoController.text =
+          _aPresentacion(origen.costoPorUnidadDeVenta).toStringAsFixed(2);
+    });
+  }
 
   double _calcularPrecioBase(double precioConIGV) =>
       precioConIGV / (1 + _porcentajeIGV / 100);
@@ -573,6 +723,10 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                       if (_precioIncluyeIGV && _desgloseVisible) _buildDesgloseIGV(),
 
                       const SizedBox(height: 12),
+
+                      // De dónde va a salir el costo, cuando esta variante es
+                      // el granel de un bulto que se abre.
+                      _buildCostoDesdeBulto(),
 
                       // Precio de Costo + toggle "Producto en oferta" en una sola fila
                       Row(

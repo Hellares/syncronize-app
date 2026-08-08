@@ -523,8 +523,39 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
     }
   }
 
+  /// Los bultos cerrados que se abren en [destino], con lo que cuesta cada uno
+  /// en la sede actual. El costo del granel sale de ahí, pero vive en la fila
+  /// del SACO: sin traerlo al diálogo hay que salir, anotar el costo del saco
+  /// y dividirlo a mano por el rendimiento para poder fijar el precio.
+  List<CostoDesdeBulto> _costosDesdeBultoDe(ProductoVariante destino) {
+    final sedeId = _sedeId;
+    if (sedeId == null) return const [];
+
+    final origenes = <CostoDesdeBulto>[];
+    final hermanas =
+        _getVariantes(context.read<ProductoVarianteCubit>().state);
+    for (final hermana in hermanas) {
+      if (hermana.varianteAperturaId != destino.id) continue;
+      final rendimiento = hermana.rendimientoApertura ?? 0;
+      final costo = hermana.stockSedeInfo(sedeId)?.precioCosto ?? 0;
+      // Sin costo cargado no hay cuenta que mostrar: ese bulto todavía no se
+      // compró en esta sede.
+      if (rendimiento <= 0 || costo <= 0) continue;
+      origenes.add(CostoDesdeBulto(
+        nombre: hermana.nombre,
+        costoBulto: costo,
+        rendimiento: rendimiento,
+      ));
+    }
+    return origenes;
+  }
+
   Future<void> _handlePrecioTap(ProductoVariante variante) async {
     if (_empresaId == null || _sedeId == null) return;
+
+    // Se arma ANTES del await: después el estado del cubit puede haber
+    // cambiado y leerlo con el context viejo es el camino a un crash.
+    final costosDesdeBulto = _costosDesdeBultoDe(variante);
 
     try {
       final getStockUseCase = locator<GetStockVarianteEnSedeUseCase>();
@@ -555,6 +586,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
               // cobra por kg y guarda por gramo.
               unidadPresentacionSimbolo: variante.unidadPresentacionSimbolo,
               factorPresentacion: variante.factorPresentacion,
+              costosDesdeBulto: costosDesdeBulto,
             ),
           ),
         ).then((result) {
