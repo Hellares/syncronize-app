@@ -15,6 +15,7 @@ import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../producto/domain/services/precio_nivel_cache_service.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 
 /// Sheet de selección de variante POR ATRIBUTO.
 ///
@@ -42,9 +43,12 @@ Future<void> showVarianteSelectorSheet({
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     constraints: BoxConstraints(
-      // Altura fija al 70% de la pantalla (min == max).
-      minHeight: MediaQuery.of(context).size.height * 0.70,
-      maxHeight: MediaQuery.of(context).size.height * 0.70,
+      // Altura fija (min == max). Al 85% y no al 70% porque con el teclado
+      // numérico abierto el sheet descuenta el inset adentro: con 70% el
+      // cuerpo quedaba en una franja de ~30% de pantalla y no se veía ni lo
+      // que se estaba tipeando.
+      minHeight: MediaQuery.of(context).size.height * 0.85,
+      maxHeight: MediaQuery.of(context).size.height * 0.85,
     ),
     builder: (_) => _VarianteSelectorSheet(
       producto: producto,
@@ -111,6 +115,12 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
 
   /// Texto del campo de granel, en unidad de presentación.
   final _cantidadGranelCtrl = TextEditingController();
+
+  /// El campo de kilos arranca con el foco puesto. Antes era `autofocus: true`
+  /// del TextField; `CustomText` no lo expone, así que se pide a mano cada vez
+  /// que el campo aparece — al abrir el sheet en una variante a granel y al
+  /// cambiar de una variante por unidad a una a granel.
+  final _granelFocus = FocusNode();
 
   /// Bulto cerrado con el que se puede reponer el granel que se está
   /// vendiendo. Se consulta UNA sola vez y recién cuando hace falta: es el
@@ -220,11 +230,23 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     }
     // A granel el campo arranca vacío: no tiene sentido proponer "1 g".
     _cantidad = _stockRestante > 0 && !_esGranel ? 1 : 0;
+    _enfocarGranel();
+  }
+
+  /// Pone el foco en el campo de kilos si la variante resuelta es a granel.
+  /// Post-frame porque se llama desde `initState` y desde un `setState`: el
+  /// campo todavía no existe en el árbol cuando esto corre.
+  void _enfocarGranel() {
+    if (!_esGranel) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _esGranel) _granelFocus.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _cantidadGranelCtrl.dispose();
+    _granelFocus.dispose();
     super.dispose();
   }
 
@@ -281,6 +303,22 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     return v == null ? 0 : _stockDisponible(v);
   }
 
+  /// Lo que se está eligiendo, en el mismo orden en que se ven los chips:
+  /// "ADULTO · CARNE · GRANEL". La cabecera muestra el nombre del producto
+  /// BASE, que en un multi-sabor es igual para 24 variantes; sin esto no hay
+  /// forma de saber qué se está por agregar hasta mirar los chips uno por uno.
+  ///
+  /// Va mostrando la selección parcial: con dos de tres atributos elegidos se
+  /// leen esos dos. Vacío mientras no haya nada elegido.
+  String get _combinacionTexto {
+    final partes = <String>[];
+    for (final g in _grupos) {
+      final valor = _seleccion[g.clave];
+      if (valor != null && valor.isNotEmpty) partes.add(valor);
+    }
+    return partes.join(' · ');
+  }
+
   void _seleccionar(String clave, String valor) {
     HapticFeedback.selectionClick();
     setState(() {
@@ -303,6 +341,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       if (_esGranel) {
         _cantidadGranelCtrl.clear();
         _cantidad = 0;
+        _enfocarGranel();
       } else {
         _cantidad = rest > 0 ? _cantidad.clamp(1, rest) : 0;
       }
@@ -518,7 +557,17 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
+      // El teclado numérico tapaba el campo de kilos: el sheet tiene alto fijo
+      // y el input vive en el footer, o sea en la parte que el teclado come.
+      // Descontando el inset acá, el cuerpo —que ya es Flexible + scroll— se
+      // achica y el input queda justo encima del teclado. Animado para que
+      // acompañe la entrada del teclado en vez de saltar.
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: Column(
         // Altura fija: el cuerpo (Flexible) llena y el footer queda abajo.
         mainAxisSize: MainAxisSize.max,
         // stretch: los hijos ocupan todo el ancho → el cuerpo de atributos
@@ -558,9 +607,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             AppSubtitle(
-                              font: AppFont.amazonEmberBold, 
+                              // font: AppFont.amazonEmberBold, 
                               'Elige la variante:',
-                              fontSize: 13,
+                              fontSize: 12,
                             ),
                             InkWell(
                               onTap: _limpiarSeleccion,
@@ -587,7 +636,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         ..._grupos.map(_buildGrupo),
                       ],
                     ),
@@ -596,7 +645,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
           const Divider(height: 1),
           _buildOfrecerAbrir(),
           _buildFooter(resuelta, puedeAgregar),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -617,11 +667,11 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                     borderRadius: BorderRadius.circular(8),
                     child: CachedNetworkImage(
                       imageUrl: imagen,
-                      width: 110,
-                      height: 110,
+                      width: 100,
+                      height: 100,
                       fit: BoxFit.cover,
                       placeholder: (_, __) => Container(
-                          width: 110, height: 110, color: Colors.grey.shade100),
+                          width: 100, height: 100, color: Colors.grey.shade100),
                       errorWidget: (_, __, ___) => _placeholderImg(),
                     ),
                   )
@@ -633,12 +683,38 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppSubtitle(
-                  font: AppFont.amazonEmberBold, 
                   widget.producto.nombre,
-                  fontSize: 13,
+                  fontSize: 12,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (_combinacionTexto.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  // La flechita cuelga la combinación del nombre del producto:
+                  // deja claro de un vistazo que es una rama de lo de arriba y
+                  // no otro dato suelto de la cabecera.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.subdirectory_arrow_right,
+                        size: 14,
+                        color: AppColors.blue1,
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: AppSubtitle(
+                          // font: AppFont.amazonEmberBold,
+                          _combinacionTexto,
+                          fontSize: 10,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          color: AppColors.blue1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 2),
                 if (precioInfo.precio != null)
                   Row(
@@ -678,18 +754,18 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                     children: [
                       Icon(
                         Icons.inventory_2_outlined,
-                        size: 13,
+                        size: 14,
                         color: _stockRestante > 0
                             ? Colors.green.shade600
                             : Colors.red.shade400,
                       ),
                       const SizedBox(width: 4),
                       AppSubtitle(
-                        font: AppFont.amazonEmberMedium,
+                        // font: AppFont.amazonEmberMedium,
                         _stockRestante > 0
                             ? 'Stock disponible: ${_stockTexto(_stockRestante)}'
                             : 'Sin stock',
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _stockRestante > 0
                             ? Colors.green.shade700
@@ -752,9 +828,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
           //   ),
           // ),
           AppSubtitle(
-            font: AppFont.amazonEmberMedium,
             g.nombre.toUpperCase(),
-            fontSize: 11,
+            fontSize: 10,
             color: Colors.grey.shade700,
           ),
           const SizedBox(height: 4),
@@ -788,23 +863,19 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
+          CustomText(
             controller: _cantidadGranelCtrl,
-            autofocus: true,
+            focusNode: _granelFocus,
             enabled: puedeAgregar || restante > 0,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,3}')),
             ],
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-            decoration: InputDecoration(
-              isDense: true,
-              suffixText: p.simbolo,
-              border: const OutlineInputBorder(),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            ),
+            suffixText: p.simbolo,
+            borderColor: AppColors.blue1,
+            textStyle:
+                const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             onChanged: _cantidadDesdeTexto,
           ),
           const SizedBox(height: 2),
@@ -946,8 +1017,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   }
 
   Widget _placeholderImg() => Container(
-        width: 110,
-        height: 110,
+        width: 100,
+        height: 100,
         decoration: BoxDecoration(
           color: AppColors.blue1.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
@@ -1028,10 +1099,10 @@ class _AtributoValorChip extends StatelessWidget {
         onTap: enabled ? onTap : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+          padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
           decoration: BoxDecoration(
             color: selected ? AppColors.blue1.withValues(alpha: 0.06) : Colors.white,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(4),
             border: Border.all(
               color: borderColor,
               width: selected ? 1 : 0.6,
@@ -1062,8 +1133,8 @@ class _AtributoValorChip extends StatelessWidget {
         ? AppColors.blue1
         : (enabled ? Colors.grey.shade400 : Colors.grey.shade300);
     return Container(
-      width: 16,
-      height: 16,
+      width: 14,
+      height: 14,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: color, width: 1.5),
