@@ -1338,13 +1338,19 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                 ),
                 const Expanded(
                   flex: 3,
-                  child: Text('Vendido',
-                      textAlign: TextAlign.right, style: _estiloEncabezado),
+                  child: Text(
+                    'Ritmo',
+                    textAlign: TextAlign.right,
+                    style: _estiloEncabezado,
+                  ),
                 ),
                 const Expanded(
                   flex: 3,
-                  child: Text('Cobertura',
-                      textAlign: TextAlign.right, style: _estiloEncabezado),
+                  child: Text(
+                    'Cobertura',
+                    textAlign: TextAlign.right,
+                    style: _estiloEncabezado,
+                  ),
                 ),
               ],
             ),
@@ -1373,7 +1379,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                     child: Text(
                       r == null || r.cantidad <= 0
                           ? 'sin ventas'
-                          : 'vendió ${u.cantidadTexto(r.cantidad)}',
+                          : _ritmoTexto(u, r.cantidad / _dias),
                       textAlign: TextAlign.right,
                       style: TextStyle(
                         fontSize: 9,
@@ -1402,6 +1408,27 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
         ],
       ),
     );
+  }
+
+  /// "0.2 kg/día" · "1.5 und/día" · "0.0004 kg/día".
+  ///
+  /// Los decimales se ajustan al tamaño del número: con dos fijos, un producto
+  /// de baja rotación se leería "0.00 kg/día" habiendo vendido, que es peor que
+  /// no mostrar nada. Y los ceros sobrantes se recortan para que 0.20 quede en
+  /// 0.2, que es como se dice.
+  String _ritmoTexto(UnidadPresentacion u, double porDiaEnUnidadDeVenta) {
+    final v = u.cantidad(porDiaEnUnidadDeVenta);
+    final decimales = v >= 1
+        ? 2
+        : v >= 0.01
+        ? 2
+        : 4;
+    var n = v.toStringAsFixed(decimales);
+    if (n.contains('.')) {
+      n = n.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+    }
+    final simbolo = u.simboloVisible;
+    return simbolo != null ? '$n $simbolo/día' : '$n /día';
   }
 
   /// "12 d" · "+1 año" · "parado" · "agotada". Un "1890 días" es ruido: a
