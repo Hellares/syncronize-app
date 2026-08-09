@@ -11,6 +11,7 @@ import '../../../../core/utils/busqueda_texto.dart';
 import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../producto/presentation/widgets/abrir_bulto_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_search_field.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
@@ -1016,24 +1017,20 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     if (_variantes.length < 6) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: CustomText(
+      child: CustomSearchField(
         controller: _buscarCtrl,
         hintText: 'Buscar diseño…',
-        height: 38,
-        // Un buscador no valida nada, y el indicador competiría por el ancho
-        // con la X de limpiar en un campo que ya es angosto.
-        showValidationIndicator: false,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-        prefixIcon: Icon(Icons.search, size: 17, color: Colors.grey.shade500),
-        suffixIcon: _query.isEmpty
-            ? null
-            : InkWell(
-                onTap: () {
-                  _buscarCtrl.clear();
-                  setState(() => _query = '');
-                },
-                child: Icon(Icons.close, size: 16, color: Colors.grey.shade500),
-              ),
+        borderColor: AppColors.blue1,
+        height: 36,
+        // Sin debounce, igual que el buscador de productos: acá se filtran
+        // las variantes que el sheet ya tiene en memoria, así que esperar
+        // 500 ms solo agregaría lag.
+        debounceDelay: Duration.zero,
+        // Plano: va dentro del header, que ya es una zona densa; la sombra
+        // neumórfica lo despegaría del bloque de la foto y el precio.
+        showShadow: false,
+        // El botón de limpiar lo pone el widget y al tocarlo dispara
+        // `onChanged('')`, así que no hace falta manejarlo aparte.
         onChanged: (v) => setState(() => _query = v),
       ),
     );
