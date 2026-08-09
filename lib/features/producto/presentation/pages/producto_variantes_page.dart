@@ -7,7 +7,9 @@ import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/confirm_dialog.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/popup_item.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/busqueda_texto.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -87,10 +89,41 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
   String? _sedeId;
   List<ProductoAtributo> _atributosDisponibles = [];
 
+  /// Buscador del listado. Un producto migrado puede tener decenas de
+  /// variantes —EDREDONES tiene 76— y encontrar una para editarle el precio o
+  /// el stock significaba scrollear a ojo.
+  final _buscarCtrl = TextEditingController();
+  String _query = '';
+
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _buscarCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Filtra por nombre, SKU, códigos y **valores de atributo**, con el mismo
+  /// criterio que el resto de la app (sin tildes, por palabras, exigiéndolas
+  /// todas). Incluir los atributos es lo que permite buscar "niña frozen" o
+  /// "invierno 5 piezas" y no solo el nombre completo.
+  List<ProductoVariante> _filtrar(List<ProductoVariante> variantes) {
+    final terminos = terminosBusqueda(_query);
+    if (terminos.isEmpty) return variantes;
+    return variantes.where((v) {
+      final texto = [
+        v.nombre,
+        v.sku,
+        v.codigoEmpresa,
+        v.codigoBarras ?? '',
+        for (final av in v.atributosValores) av.valor,
+      ].join(' ');
+      return coincideTodosLosTerminos(texto, terminos);
+    }).toList();
   }
 
   Future<void> _loadData() async {
@@ -285,27 +318,89 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
               );
             }
 
-            return RefreshIndicator(
-              onRefresh: () async => _loadData(),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: variantes.length,
-                itemBuilder: (context, index) {
-                  final variante = variantes[index];
-                  return _VarianteCard(
-                    variante: variante,
-                    onEdit: () => _showVarianteDialog(variante),
-                    onDelete: () => _confirmDelete(variante),
-                    onUpdateStock: () => _showStockDialog(variante),
-                    onPrecioTap: () => _handlePrecioTap(variante),
-                  );
-                },
-              ),
+            final filtradas = _filtrar(variantes);
+
+            return Column(
+              children: [
+                // El buscador aparece recién cuando hay suficientes como para
+                // que scrollear moleste; con 3 o 4 se ven todas de una.
+                if (variantes.length >= 6)
+                  _buildBuscador(variantes.length, filtradas.length),
+                Expanded(
+                  child: filtradas.isEmpty
+                      ? _buildSinResultados()
+                      : RefreshIndicator(
+                          onRefresh: () async => _loadData(),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: filtradas.length,
+                            itemBuilder: (context, index) {
+                              final variante = filtradas[index];
+                              return _VarianteCard(
+                                variante: variante,
+                                onEdit: () => _showVarianteDialog(variante),
+                                onDelete: () => _confirmDelete(variante),
+                                onUpdateStock: () => _showStockDialog(variante),
+                                onPrecioTap: () => _handlePrecioTap(variante),
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ],
             );
           },
         ),
       ),
       floatingActionButton: _buildFab(),
+    );
+  }
+
+  Widget _buildBuscador(int total, int visibles) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CustomSearchField(
+            controller: _buscarCtrl,
+            hintText: 'Buscar por nombre, atributo o SKU…',
+            // Sin debounce: se filtra la lista que ya está en memoria.
+            debounceDelay: Duration.zero,
+            height: 38,
+            onChanged: (v) => setState(() => _query = v),
+          ),
+          if (_query.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4),
+              child: AppSubtitle(
+                '$visibles de $total',
+                fontSize: 11,
+                color: Colors.grey.shade600,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSinResultados() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            AppSubtitle(
+              'Ninguna variante coincide con "${_query.trim()}"',
+              fontSize: 13,
+              color: Colors.grey.shade600,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
