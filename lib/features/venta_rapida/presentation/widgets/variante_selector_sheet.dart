@@ -161,8 +161,10 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     _enCarrito = Map.of(widget.cantidadesEnCarrito);
     _niveles = Map.of(widget.nivelesVariantes);
     _grupos = _derivarGrupos(_variantes);
-    _autoSeleccionInicial();
-    // Cargar (fresco) los niveles de la variante inicial.
+    _seleccionInicialLimpia();
+    // Cargar (fresco) los niveles de la variante inicial. Con el sheet limpio
+    // no hay ninguna resuelta todavía y esto corta solo; los niveles se piden
+    // al completar la combinación.
     _cargarNivelesResuelta();
   }
 
@@ -215,30 +217,24 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         .toList();
   }
 
-  /// Pre-selecciona la primera variante con stock (o la primera a secas),
-  /// para que el sheet abra con una combinación válida lista, como la imagen.
-  void _autoSeleccionInicial() {
-    final ordenadas = [..._variantes]..sort((a, b) => a.orden.compareTo(b.orden));
-    ProductoVariante? candidata;
-    for (final v in ordenadas) {
-      if (_stockDisponible(v) > 0) {
-        candidata = v;
-        break;
-      }
+  /// El sheet abre LIMPIO: sin ninguna opción marcada.
+  ///
+  /// Antes preseleccionaba la primera variante con stock. Con pocos atributos
+  /// eso ahorraba taps, pero con cinco (tamaño, temporada, piezas, género,
+  /// diseño) proponía una combinación concreta —un diseño puntual entre 37— que
+  /// casi nunca es la que el cliente pide, y encima disimulaba el trabajo que
+  /// falta: parecía listo para agregar cuando en realidad había que revisar los
+  /// cinco grupos. Arrancar vacío hace explícito lo que falta elegir y, con el
+  /// acordeón, abre directo en el primer grupo.
+  ///
+  /// La única excepción es un grupo con UN solo valor posible: ahí no hay nada
+  /// que decidir y pedir el tap sería fricción pura.
+  void _seleccionInicialLimpia() {
+    for (final g in _grupos) {
+      _seleccion[g.clave] = g.valores.length == 1 ? g.valores.first : null;
     }
-    candidata ??= ordenadas.isNotEmpty ? ordenadas.first : null;
-    if (candidata != null) {
-      final esSintetico =
-          _grupos.length == 1 && _grupos.first.clave == _kVarianteClave;
-      if (esSintetico) {
-        _seleccion[_kVarianteClave] = candidata.nombre;
-      } else {
-        for (final av in candidata.atributosValores) {
-          _seleccion[av.atributo.clave] = av.valor;
-        }
-      }
-    }
-    // A granel el campo arranca vacío: no tiene sentido proponer "1 g".
+    // Sin combinación resuelta no hay stock que ofrecer; la cantidad la fija
+    // el primer `_seleccionar` que complete los cinco grupos.
     _cantidad = _stockRestante > 0 && !_esGranel ? 1 : 0;
     _enfocarGranel();
   }
@@ -314,8 +310,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   }
 
   /// Qué grupo va desplegado. Si el usuario tocó uno, ese; si no, el primero
-  /// sin elegir, y si está todo elegido —lo normal, porque
-  /// [_autoSeleccionInicial] preselecciona una combinación entera— el último,
+  /// sin elegir —que al abrir es el primero de todos, porque el sheet arranca
+  /// limpio ([_seleccionInicialLimpia])—; y si ya está todo elegido, el último,
   /// que es el más granular (el diseño) y el que más se cambia en mostrador.
   String get _claveExpandida {
     if (_grupos.isEmpty) return '';
@@ -556,9 +552,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     }
     setState(() {
       _enCarrito.clear();
-      for (final g in _grupos) {
-        _seleccion[g.clave] = null;
-      }
+      // Mismo estado que al abrir, para que "Limpiar" y reabrir el sheet se
+      // vean igual: vacío, salvo los grupos de un solo valor.
+      _seleccionInicialLimpia();
       _cantidad = 0;
       // Sin nada elegido el acordeón vuelve a empezar por el primer grupo:
       // dejarlo fijado en "diseño" obligaría a subir para elegir el tamaño.
