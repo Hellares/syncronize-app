@@ -411,11 +411,14 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     _cargarNivelesResuelta();
   }
 
-  /// Stock de la variante que quedaría al elegir `valor`, pero **solo si con
-  /// eso la combinación queda completa**. Si todavía faltan atributos el número
-  /// sería la suma de varias variantes y prometería un stock que esa
-  /// combinación puntual no tiene, así que en ese caso no se muestra nada.
-  int? _stockSiCompleta(String clave, String valor) {
+  /// Stock de la variante que quedaría al elegir `valor`, **ya formateado en su
+  /// unidad de cobro** y solo si con eso la combinación queda completa. Si
+  /// todavía faltan atributos el número sería la suma de varias variantes y
+  /// prometería un stock que esa combinación puntual no tiene.
+  ///
+  /// Devuelve texto y no un entero porque un granel se guarda en gramos: el
+  /// crudo mostraría "125000" al lado del diseño en vez de "125 kg".
+  String? _stockSiCompleta(String clave, String valor) {
     final tentativa = <String, String?>{};
     for (final g in _grupos) {
       tentativa[g.clave] = g.clave == clave ? valor : _seleccion[g.clave];
@@ -424,7 +427,12 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       if (v == null) return null;
     }
     for (final v in _variantes) {
-      if (_coincide(v, tentativa)) return _stockDisponible(v);
+      if (_coincide(v, tentativa)) {
+        final s = _stockDisponible(v);
+        if (s <= 0) return null;
+        final p = _presentacionDe(v);
+        return p != null ? p.cantidadTexto(s) : '$s';
+      }
     }
     return null;
   }
@@ -532,9 +540,30 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// Null = sin presentación activa; la variante se muestra en su unidad.
   UnidadPresentacion? get _presentacion {
     final v = _varianteResuelta;
-    if (v == null) return null;
+    return v == null ? null : _presentacionDe(v);
+  }
+
+  /// Presentación de UNA variante cualquiera, no solo la resuelta. La necesitan
+  /// el buscador y los chips, que muestran datos de variantes que todavía no se
+  /// eligieron: sin esto un granel se ve "125000" y "S/0.01" —gramos y precio
+  /// por gramo— en vez de "125 kg" y "S/10.00/kg".
+  UnidadPresentacion? _presentacionDe(ProductoVariante v) {
     final pres = widget.producto.presentacionDeVariante(v);
     return pres.activa ? pres : null;
+  }
+
+  /// Stock de `v` en su unidad de cobro: "125 kg" o "7 unidades".
+  String _stockTextoDe(ProductoVariante v, int enUnidadDeVenta) {
+    final p = _presentacionDe(v);
+    if (p != null) return p.cantidadTexto(enUnidadDeVenta);
+    return '$enUnidadDeVenta ${enUnidadDeVenta == 1 ? 'unidad' : 'unidades'}';
+  }
+
+  /// Precio de `v` en su unidad de cobro: "S/ 10.00/kg" o "S/ 75.00".
+  String _precioTextoDe(ProductoVariante v, double porUnidadDeVenta) {
+    final p = _presentacionDe(v);
+    if (p != null) return p.precioTexto(porUnidadDeVenta);
+    return 'S/ ${porUnidadDeVenta.toStringAsFixed(2)}';
   }
 
   /// Lo tecleado (kilos) convertido a unidad atómica (gramos), que es lo que
@@ -962,7 +991,6 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                 // cuando NO hay precio, así que nunca se pisan.
                 if (precioInfo.precio == null)
                   AppSubtitle(
-                    font: AppFont.amazonEmberMedium,
                     'Selecciona una combinación',
                     fontSize: 11,
                     color: Colors.grey.shade500,
@@ -1160,8 +1188,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       child: CustomSearchField(
         controller: _buscarCtrl,
         hintText: 'Buscar diseño…',
-        borderColor: AppColors.blue1,
-        height: 36,
+        // borderColor: AppColors.blue1,
         // Sin debounce, igual que el buscador de productos: acá se filtran
         // las variantes que el sheet ya tiene en memoria, así que esperar
         // 500 ms solo agregaría lag.
@@ -1279,14 +1306,16 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                   if (precio != null)
                     AppSubtitle(
                       font: AppFont.amazonEmberMedium,
-                      _precioTexto(precio),
+                      // Por VARIANTE, no por la resuelta: la tarjeta muestra
+                      // una que todavía no se eligió.
+                      _precioTextoDe(v, precio),
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.blue1,
                     ),
                   const SizedBox(height: 2),
                   AppSubtitle(
-                    '$stock ${stock == 1 ? 'unidad' : 'unidades'}',
+                    _stockTextoDe(v, stock),
                     fontSize: 9,
                     color: Colors.grey.shade600,
                   ),
@@ -1575,10 +1604,11 @@ class _AtributoValorChip extends StatelessWidget {
   final bool selected;
   final bool enabled;
 
-  /// Unidades de la variante que queda al elegir este valor. Solo viene con
-  /// número cuando elegirlo COMPLETA la combinación; si no, `null` y no se
-  /// dibuja, para no prometer un stock que es la suma de varias variantes.
-  final int? stock;
+  /// Stock de la variante que queda al elegir este valor, **ya formateado en su
+  /// unidad de cobro** ("125 kg", "7"). Solo viene con valor cuando elegirlo
+  /// COMPLETA la combinación; si no, `null` y no se dibuja, para no prometer un
+  /// stock que es la suma de varias variantes.
+  final String? stock;
   final VoidCallback onTap;
 
   const _AtributoValorChip({
@@ -1626,10 +1656,12 @@ class _AtributoValorChip extends StatelessWidget {
                 color: textColor,
                 decoration: enabled ? null : TextDecoration.lineThrough,
               ),
-              if (stock != null && stock! > 0) ...[
+              // El filtro de "hay stock" ya lo hizo quien arma el valor: acá
+              // llega null cuando no corresponde mostrarlo.
+              if (stock != null) ...[
                 const SizedBox(width: 5),
                 AppSubtitle(
-                  '$stock',
+                  stock!,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                   color: selected ? AppColors.blue1 : Colors.grey.shade500,
