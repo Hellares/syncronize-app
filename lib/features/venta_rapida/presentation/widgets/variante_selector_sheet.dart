@@ -103,6 +103,10 @@ class _VarianteSelectorSheet extends StatefulWidget {
 /// estructurados: se selecciona la variante por su nombre directamente.
 const String _kVarianteClave = '__variante__';
 
+/// Ancho reservado a la derecha del header para la X y el precio, que flotan
+/// sobre el contenido. Las líneas que quedan a esa altura lo descuentan.
+const double _anchoFranjaDerecha = 78;
+
 class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   late final List<ProductoVariante> _variantes;
   late final List<_AtributoGrupo> _grupos;
@@ -848,7 +852,43 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       // Antes el margen derecho era 8 para dejar lugar al IconButton de la
       // Row; ahora que flota, el header cierra simétrico.
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-      child: Row(
+      child: Stack(
+        children: [
+          // El precio flota a la derecha, en la franja que queda entre la X
+          // (arriba) y el buscador (abajo). `top: 32` lo deja debajo del
+          // nombre —dos líneas de 12— y bien por encima del buscador, que es
+          // el último hijo de la columna. Se posiciona a mano y no centrado
+          // en el header porque centrarlo lo pondría justo sobre el buscador
+          // cuando la columna es corta.
+          if (precioInfo.precio != null)
+            Positioned(
+              top: 25,
+              right: 0,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppSubtitle(
+                    font: AppFont.amazonEmberBold,
+                    _precioTexto(precioInfo.precio!),
+                    fontSize: 15,
+                    color: precioInfo.nivel != null
+                        ? AppColors.blue1
+                        : Colors.grey.shade800,
+                  ),
+                  if (precioInfo.base != null)
+                    Text(
+                      _precioTexto(precioInfo.base!),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          Row(
         children: [
           GestureDetector(
             onLongPress: () => _verImagenCompleta(resuelta, imagen),
@@ -872,11 +912,12 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Solo el nombre esquiva la X flotante: está a su altura. Las
-                // líneas de abajo (combinación, precio, stock, buscador) usan
-                // el ancho completo, que es lo que se ganó al sacarla de la Row.
+                // La franja derecha está ocupada: arriba por la X flotante y
+                // más abajo por el precio. Las tres líneas que quedan a esa
+                // altura la esquivan; el buscador, que va último, usa el ancho
+                // completo.
                 Padding(
-                  padding: const EdgeInsets.only(right: 36),
+                  padding: const EdgeInsets.only(right: _anchoFranjaDerecha),
                   child: AppSubtitle(
                     widget.producto.nombre,
                     fontSize: 12,
@@ -889,85 +930,74 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                   // La flechita cuelga la combinación del nombre del producto:
                   // deja claro de un vistazo que es una rama de lo de arriba y
                   // no otro dato suelto de la cabecera.
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.subdirectory_arrow_right,
-                        size: 14,
-                        color: AppColors.blue1,
-                      ),
-                      const SizedBox(width: 2),
-                      Expanded(
-                        child: AppSubtitle(
-                          // font: AppFont.amazonEmberBold,
-                          _combinacionTexto,
-                          fontSize: 10,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(right: _anchoFranjaDerecha),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.subdirectory_arrow_right,
+                          size: 14,
                           color: AppColors.blue1,
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 2),
-                if (precioInfo.precio != null)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      AppSubtitle(
-                        font: AppFont.amazonEmberBold,
-                        _precioTexto(precioInfo.precio!),
-                        fontSize: 15,
-                        color: precioInfo.nivel != null
-                            ? AppColors.blue1
-                            : Colors.grey.shade800,
-                      ),
-                      if (precioInfo.base != null) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          _precioTexto(precioInfo.base!),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade500,
-                            decoration: TextDecoration.lineThrough,
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: AppSubtitle(
+                            // font: AppFont.amazonEmberBold,
+                            _combinacionTexto,
+                            fontSize: 10,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            color: AppColors.blue1,
                           ),
                         ),
                       ],
-                    ],
-                  )
-                else
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 2),
+                // El precio ya no va acá: flota a la derecha. Queda solo el
+                // texto de "todavía no elegiste", que aparece justamente
+                // cuando NO hay precio, así que nunca se pisan.
+                if (precioInfo.precio == null)
                   AppSubtitle(
-                    font: AppFont.amazonEmberMedium, 
+                    font: AppFont.amazonEmberMedium,
                     'Selecciona una combinación',
                     fontSize: 11,
                     color: Colors.grey.shade500,
                   ),
                 if (resuelta != null) ...[
                   const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.inventory_2_outlined,
-                        size: 14,
-                        color: _stockRestante > 0
-                            ? Colors.green.shade600
-                            : Colors.red.shade400,
-                      ),
-                      const SizedBox(width: 4),
-                      AppSubtitle(
-                        // font: AppFont.amazonEmberMedium,
-                        _stockRestante > 0
-                            ? 'Stock disponible: ${_stockTexto(_stockRestante)}'
-                            : 'Sin stock',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _stockRestante > 0
-                            ? Colors.green.shade700
-                            : Colors.red,
-                      ),
-                    ],
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(right: _anchoFranjaDerecha),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 14,
+                          color: _stockRestante > 0
+                              ? Colors.green.shade600
+                              : Colors.red.shade400,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: AppSubtitle(
+                            _stockRestante > 0
+                                ? 'Stock disponible: ${_stockTexto(_stockRestante)}'
+                                : 'Sin stock',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            color: _stockRestante > 0
+                                ? Colors.green.shade700
+                                : Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 if (resuelta != null) _buildBadges(resuelta),
@@ -978,6 +1008,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                 _buildBuscador(),
               ],
             ),
+          ),
+            ],
           ),
         ],
       ),
