@@ -729,7 +729,6 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildBuscador(),
                         _buildResultados(),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -904,6 +903,11 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                   ),
                 ],
                 if (resuelta != null) _buildBadges(resuelta),
+                // El buscador va acá, pegado al stock: es lo primero que se
+                // mira al abrir el sheet. Los RESULTADOS quedan en el cuerpo
+                // porque el header es fijo y una lista tiene que poder
+                // scrollear.
+                _buildBuscador(),
               ],
             ),
           ),
@@ -1005,14 +1009,31 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
 
   /// Buscador de combinaciones. Solo aparece si hay algo que buscar: con dos o
   /// tres variantes el acordeón ya se ve entero y el campo sería estorbo.
+  ///
+  /// Vive en el header, al lado de la imagen, así que el ancho disponible es
+  /// el del producto menos 100 px de foto: va compacto y con hint corto.
   Widget _buildBuscador() {
     if (_variantes.length < 6) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(top: 8),
       child: CustomText(
         controller: _buscarCtrl,
-        hintText: 'Buscar diseño, tamaño, temporada…',
-        prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey.shade500),
+        hintText: 'Buscar diseño…',
+        height: 38,
+        // Un buscador no valida nada, y el indicador competiría por el ancho
+        // con la X de limpiar en un campo que ya es angosto.
+        showValidationIndicator: false,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        prefixIcon: Icon(Icons.search, size: 17, color: Colors.grey.shade500),
+        suffixIcon: _query.isEmpty
+            ? null
+            : InkWell(
+                onTap: () {
+                  _buscarCtrl.clear();
+                  setState(() => _query = '');
+                },
+                child: Icon(Icons.close, size: 16, color: Colors.grey.shade500),
+              ),
         onChanged: (v) => setState(() => _query = v),
       ),
     );
