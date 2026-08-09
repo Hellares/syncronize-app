@@ -110,6 +110,10 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// Valor elegido por clave de atributo (null = sin elegir).
   final Map<String, String?> _seleccion = {};
 
+  /// Última combinación agregada, ya formateada. Como el sheet ya no se cierra
+  /// al agregar, sin esto no habría ninguna señal de que la acción ocurrió.
+  String? _ultimoAgregado;
+
   /// Texto del buscador de combinaciones. Un mismo diseño vive en varios
   /// bloques a precios distintos —MICKEY está en 4, entre S/50 y S/84— y por
   /// el acordeón habría que recorrerlos a ciegas para descubrirlo. Buscando
@@ -377,6 +381,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   void _elegirVariante(ProductoVariante v) {
     HapticFeedback.selectionClick();
     setState(() {
+      _ultimoAgregado = null;
       if (_grupos.length == 1 && _grupos.first.clave == _kVarianteClave) {
         _seleccion[_kVarianteClave] = v.nombre;
       } else {
@@ -439,6 +444,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   void _seleccionar(String clave, String valor) {
     HapticFeedback.selectionClick();
     setState(() {
+      // Empezó a armar otra combinación: la confirmación de la anterior ya
+      // no corresponde a lo que se ve en pantalla.
+      _ultimoAgregado = null;
       _seleccion[clave] = valor;
       // Avanzar el acordeón al grupo siguiente: elegir tamaño abre piezas,
       // piezas abre género, y así hasta el último. En el último no se mueve,
@@ -622,6 +630,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     }
     setState(() {
       _enCarrito.clear();
+      // Se vació el carrito de este producto: la confirmación de lo agregado
+      // pasaría a mentir.
+      _ultimoAgregado = null;
       // Mismo estado que al abrir, para que "Limpiar" y reabrir el sheet se
       // vean igual: vacío, salvo los grupos de un solo valor.
       _seleccionInicialLimpia();
@@ -632,12 +643,31 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     });
   }
 
+  /// Agrega al carrito y **deja el sheet abierto**.
+  ///
+  /// Con 76 combinaciones el caso normal es llevarse varias: cerrar en cada
+  /// agregado obligaba a reabrir el sheet y volver a buscar desde cero. Ahora
+  /// se cierra solo con la X o tocando afuera.
   void _agregar() {
     final v = _varianteResuelta;
     if (v == null || _cantidad <= 0) return;
     HapticFeedback.mediumImpact();
+    // El resumen se arma ANTES de limpiar: `_stockTexto` y
+    // `_combinacionTexto` dependen de la variante resuelta.
+    final resumen = '${_stockTexto(_cantidad)} · $_combinacionTexto';
     widget.onAgregar(v, _cantidad);
-    Navigator.pop(context);
+    setState(() {
+      // Descontar lo agregado del disponible DEL SHEET. Sin esto se podría
+      // agregar dos veces la misma unidad, porque `_stockDisponible` resta
+      // `_enCarrito` y el sheet ya no se recrea entre agregados.
+      _enCarrito[v.id] = (_enCarrito[v.id] ?? 0) + _cantidad;
+      _ultimoAgregado = resumen;
+      _cantidadGranelCtrl.clear();
+      _buscarCtrl.clear();
+      _query = '';
+      _grupoExpandido = null;
+      _seleccionInicialLimpia();
+    });
   }
 
   // ---- Precio resuelto ------------------------------------------------------
@@ -772,6 +802,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                   ),
           ),
           const Divider(height: 1),
+          _buildUltimoAgregado(),
           _buildOfrecerAbrir(),
           _buildFooter(resuelta, puedeAgregar),
           ],
@@ -999,6 +1030,52 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                 );
               }).toList(),
             ),
+        ],
+      ),
+    );
+  }
+
+  /// Cuántas combinaciones DE ESTE PRODUCTO ya están en el carrito. Se cuentan
+  /// combinaciones y no unidades a propósito: en un producto con granel las
+  /// cantidades están en unidad atómica y sumar 5000 gramos con 2 sacos daría
+  /// un número sin significado.
+  int get _combinacionesEnCarrito {
+    var n = 0;
+    for (final v in _variantes) {
+      if ((_enCarrito[v.id] ?? 0) > 0) n++;
+    }
+    return n;
+  }
+
+  /// Confirmación de lo último agregado. Reemplaza a la señal que antes daba
+  /// el cierre del sheet.
+  Widget _buildUltimoAgregado() {
+    final txt = _ultimoAgregado;
+    if (txt == null) return const SizedBox.shrink();
+    final n = _combinacionesEnCarrito;
+    return Container(
+      width: double.infinity,
+      color: Colors.green.shade50,
+      padding: const EdgeInsets.fromLTRB(16, 7, 16, 7),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, size: 15, color: Colors.green.shade600),
+          const SizedBox(width: 6),
+          Expanded(
+            child: AppSubtitle(
+              txt,
+              fontSize: 11,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              color: Colors.green.shade900,
+            ),
+          ),
+          const SizedBox(width: 8),
+          AppSubtitle(
+            n == 1 ? '1 en el carrito' : '$n en el carrito',
+            fontSize: 10,
+            color: Colors.green.shade700,
+          ),
         ],
       ),
     );
