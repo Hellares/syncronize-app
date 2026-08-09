@@ -1088,7 +1088,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       }
     }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1267,13 +1267,13 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       padding: const EdgeInsets.only(bottom: 6),
       child: InkWell(
         onTap: () => _elegirVariante(v),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          padding: const EdgeInsets.fromLTRB(12, 6, 10, 6),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.grey.shade300, width: 0.8),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.grey.shade300, width: 0.6),
           ),
           child: Row(
             children: [
@@ -1284,8 +1284,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                     AppSubtitle(
                       font: AppFont.amazonEmberMedium,
                       titulo,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                       color: Colors.grey.shade900,
                     ),
                     if (resto.isNotEmpty) ...[
@@ -1309,8 +1309,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                       // Por VARIANTE, no por la resuelta: la tarjeta muestra
                       // una que todavía no se eligió.
                       _precioTextoDe(v, precio),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.blue1,
                     ),
                   const SizedBox(height: 2),
@@ -1321,9 +1321,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                   ),
                 ],
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 10),
               Icon(Icons.add_circle_outline,
-                  size: 20, color: AppColors.blue1),
+                  size: 16, color: AppColors.blue1),
             ],
           ),
         ),
@@ -1365,8 +1365,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                 font: AppFont.amazonEmberMedium,
                 elegido ?? 'Elegir…',
                 fontSize: 11,
-                fontWeight: resuelto ? FontWeight.w700 : FontWeight.w500,
-                color: resuelto ? Colors.grey.shade900 : Colors.grey.shade500,
+                fontWeight: resuelto ? FontWeight.w600 : FontWeight.w500,
+                color: resuelto ? AppColors.blue3 : Colors.grey.shade500,
               ),
             ),
             Icon(
@@ -1634,7 +1634,7 @@ class _AtributoValorChip extends StatelessWidget {
         onTap: enabled ? onTap : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+          padding: const EdgeInsets.fromLTRB(4, 4, 6, 4),
           decoration: BoxDecoration(
             color: selected ? AppColors.blue1.withValues(alpha: 0.06) : Colors.white,
             borderRadius: BorderRadius.circular(4),
@@ -1647,7 +1647,7 @@ class _AtributoValorChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _radio(),
-              const SizedBox(width: 6),
+              const SizedBox(width: 10),
               AppSubtitle(
                 font: AppFont.amazonEmberMedium,
                 label,
@@ -1679,17 +1679,17 @@ class _AtributoValorChip extends StatelessWidget {
         ? AppColors.blue1
         : (enabled ? Colors.grey.shade400 : Colors.grey.shade300);
     return Container(
-      width: 14,
-      height: 14,
+      width: 12,
+      height: 12,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: color, width: 1.5),
+        border: Border.all(color: color, width: 1.2),
       ),
       child: selected
           ? Center(
               child: Container(
-                width: 7,
-                height: 7,
+                width: 6,
+                height: 6,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.blue1,

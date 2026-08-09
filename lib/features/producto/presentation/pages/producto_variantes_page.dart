@@ -365,9 +365,9 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           CustomSearchField(
             controller: _buscarCtrl,
             hintText: 'Buscar por nombre, atributo o SKU…',
+            borderColor: AppColors.blue1,
             // Sin debounce: se filtra la lista que ya está en memoria.
             debounceDelay: Duration.zero,
-            height: 38,
             onChanged: (v) => setState(() => _query = v),
           ),
           if (_query.trim().isNotEmpty)
@@ -395,7 +395,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
             const SizedBox(height: 12),
             AppSubtitle(
               'Ninguna variante coincide con "${_query.trim()}"',
-              fontSize: 13,
+              fontSize: 11,
               color: Colors.grey.shade600,
             ),
           ],
@@ -415,7 +415,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
       icon: const Icon(Icons.add, size: 20),
       label: const Text(
         'Agregar',
-        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
       ),
     );
   }
@@ -975,7 +975,7 @@ class _VarianteCard extends StatelessWidget {
                       children: [
                         Icon(
                           _getStockIcon(),
-                          size: 16,
+                          size: 14,
                           color: _getStockColor(),
                         ),
                         const SizedBox(width: 4),
