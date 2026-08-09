@@ -724,87 +724,115 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         curve: Curves.easeOut,
         padding:
             EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-        child: Column(
-        // Altura fija: el cuerpo (Flexible) llena y el footer queda abajo.
-        mainAxisSize: MainAxisSize.max,
-        // stretch: los hijos ocupan todo el ancho → el cuerpo de atributos
-        // alinea a la izquierda real (antes, con el default center, quedaba
-        // centrado a su ancho intrínseco y parecía tener padding izquierdo).
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 10),
-              width: 30,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+        // `expand` para que la Column siga recibiendo restricciones AJUSTADAS
+        // como antes: con el `fit` suelto por defecto, su
+        // `crossAxisAlignment: stretch` pasaría a medirse contra el hijo más
+        // ancho en vez de contra el ancho del sheet.
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Column(
+            // Altura fija: el cuerpo (Flexible) llena y el footer queda abajo.
+            mainAxisSize: MainAxisSize.max,
+            // stretch: los hijos ocupan todo el ancho → el cuerpo de atributos
+            // alinea a la izquierda real (antes, con el default center, quedaba
+            // centrado a su ancho intrínseco y parecía tener padding izquierdo).
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 30,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
-            ),
-          ),
-          _buildHeader(imagen, precioInfo, resuelta),
-          const Divider(height: 1),
-          // Cuerpo scrolleable: secciones de atributos
-          Flexible(
-            child: _variantes.isEmpty || _grupos.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(25),
-                    child: Text(
-                      'No hay variantes disponibles',
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                    ),
-                  )
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildResultados(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              _buildHeader(imagen, precioInfo, resuelta),
+              const Divider(height: 1),
+              // Cuerpo scrolleable: secciones de atributos
+              Flexible(
+                child: _variantes.isEmpty || _grupos.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(25),
+                        child: Text(
+                          'No hay variantes disponibles',
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            AppSubtitle(
-                              // Con resultados a la vista, el divisor
-                              // "o elegí por atributo" ya hace de título.
-                              _hayResultados ? '' : 'Elige la variante:',
-                              fontSize: 12,
-                            ),
-                            InkWell(
-                              onTap: _limpiarSeleccion,
-                              borderRadius: BorderRadius.circular(6),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.refresh,
-                                        size: 14, color: Colors.grey.shade600),
-                                    const SizedBox(width: 3),
-                                    AppSubtitle(
-                                      font: AppFont.amazonEmberMedium,
-                                      'Limpiar',
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade600,
-                                      ),
-                                  ],
+                            _buildResultados(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                AppSubtitle(
+                                  // Con resultados a la vista, el divisor
+                                  // "o elegí por atributo" ya hace de título.
+                                  _hayResultados ? '' : 'Elige la variante:',
+                                  fontSize: 12,
                                 ),
-                              ),
+                                InkWell(
+                                  onTap: _limpiarSeleccion,
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.refresh,
+                                            size: 14, color: Colors.grey.shade600),
+                                        const SizedBox(width: 3),
+                                        AppSubtitle(
+                                          font: AppFont.amazonEmberMedium,
+                                          'Limpiar',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey.shade600,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 6),
+                            ..._grupos.map(_buildGrupo),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        ..._grupos.map(_buildGrupo),
-                      ],
-                    ),
-                  ),
-          ),
-          const Divider(height: 1),
-          _buildUltimoAgregado(),
-          _buildOfrecerAbrir(),
-          _buildFooter(resuelta, puedeAgregar),
+                      ),
+              ),
+              const Divider(height: 1),
+              _buildUltimoAgregado(),
+              _buildOfrecerAbrir(),
+              _buildFooter(resuelta, puedeAgregar),
+              ],
+            ),
+            // Flotando sobre el contenido, en la esquina: dentro de la Row del
+            // header le comía ancho a la columna del nombre y el precio, que es
+            // justo donde entró el buscador.
+            Positioned(
+              top: 2,
+              right: 2,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, size: 22),
+                color: Colors.grey.shade500,
+                // Área táctil de 48; el ícono es de 22 y sin esto el botón
+                // quedaría más chico que el mínimo tocable.
+                constraints: const BoxConstraints(
+                  minWidth: 48,
+                  minHeight: 48,
+                ),
+                tooltip: 'Cerrar',
+              ),
+            ),
           ],
         ),
       ),
@@ -817,7 +845,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     ProductoVariante? resuelta,
   ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 8, 10),
+      // Antes el margen derecho era 8 para dejar lugar al IconButton de la
+      // Row; ahora que flota, el header cierra simétrico.
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
       child: Row(
         children: [
           GestureDetector(
@@ -842,11 +872,17 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AppSubtitle(
-                  widget.producto.nombre,
-                  fontSize: 12,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                // Solo el nombre esquiva la X flotante: está a su altura. Las
+                // líneas de abajo (combinación, precio, stock, buscador) usan
+                // el ancho completo, que es lo que se ganó al sacarla de la Row.
+                Padding(
+                  padding: const EdgeInsets.only(right: 36),
+                  child: AppSubtitle(
+                    widget.producto.nombre,
+                    fontSize: 12,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 if (_combinacionTexto.isNotEmpty) ...[
                   const SizedBox(height: 2),
@@ -942,11 +978,6 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                 _buildBuscador(),
               ],
             ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close, size: 22),
-            color: Colors.grey.shade500,
           ),
         ],
       ),
