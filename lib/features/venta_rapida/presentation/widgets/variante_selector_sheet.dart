@@ -108,6 +108,16 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// Valor elegido por clave de atributo (null = sin elegir).
   final Map<String, String?> _seleccion = {};
 
+  /// Grupo desplegado en el acordeón. Los demás se muestran colapsados en una
+  /// sola línea con su valor elegido. `null` = usar el default de
+  /// [_claveExpandida].
+  ///
+  /// Con 5 atributos (tamaño, temporada, piezas, género, diseño) y 37 diseños,
+  /// apilar todos los `Wrap` a la vez deja el botón de agregar fuera de
+  /// pantalla y llena el sheet de chips deshabilitados. Colapsar lo ya resuelto
+  /// deja 4 renglones en vez de 4 filas de chips.
+  String? _grupoExpandido;
+
   /// SIEMPRE en unidad atómica (gramos para un granel). Lo que se teclea en
   /// kilos se convierte antes de tocar esta variable, así el resto del sheet
   /// —stock, niveles, carrito— sigue hablando un solo idioma.
@@ -303,6 +313,47 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     return v == null ? 0 : _stockDisponible(v);
   }
 
+  /// Qué grupo va desplegado. Si el usuario tocó uno, ese; si no, el primero
+  /// sin elegir, y si está todo elegido —lo normal, porque
+  /// [_autoSeleccionInicial] preselecciona una combinación entera— el último,
+  /// que es el más granular (el diseño) y el que más se cambia en mostrador.
+  String get _claveExpandida {
+    if (_grupos.isEmpty) return '';
+    final forzado = _grupoExpandido;
+    if (forzado != null) return forzado;
+    for (final g in _grupos) {
+      if (_seleccion[g.clave] == null) return g.clave;
+    }
+    return _grupos.last.clave;
+  }
+
+  /// Cuántos valores del grupo tienen stock con las otras selecciones puestas.
+  int _valoresConStock(_AtributoGrupo g) {
+    var n = 0;
+    for (final valor in g.valores) {
+      if (_valorDisponible(g.clave, valor)) n++;
+    }
+    return n;
+  }
+
+  /// Stock de la variante que quedaría al elegir `valor`, pero **solo si con
+  /// eso la combinación queda completa**. Si todavía faltan atributos el número
+  /// sería la suma de varias variantes y prometería un stock que esa
+  /// combinación puntual no tiene, así que en ese caso no se muestra nada.
+  int? _stockSiCompleta(String clave, String valor) {
+    final tentativa = <String, String?>{};
+    for (final g in _grupos) {
+      tentativa[g.clave] = g.clave == clave ? valor : _seleccion[g.clave];
+    }
+    for (final v in tentativa.values) {
+      if (v == null) return null;
+    }
+    for (final v in _variantes) {
+      if (_coincide(v, tentativa)) return _stockDisponible(v);
+    }
+    return null;
+  }
+
   /// Lo que se está eligiendo, en el mismo orden en que se ven los chips:
   /// "ADULTO · CARNE · GRANEL". La cabecera muestra el nombre del producto
   /// BASE, que en un multi-sabor es igual para 24 variantes; sin esto no hay
@@ -323,6 +374,13 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     HapticFeedback.selectionClick();
     setState(() {
       _seleccion[clave] = valor;
+      // Avanzar el acordeón al grupo siguiente: elegir tamaño abre piezas,
+      // piezas abre género, y así hasta el último. En el último no se mueve,
+      // para poder cambiar de diseño varias veces sin que el panel salte.
+      final i = _grupos.indexWhere((g) => g.clave == clave);
+      if (i >= 0 && i < _grupos.length - 1) {
+        _grupoExpandido = _grupos[i + 1].clave;
+      }
       // Reparar otros atributos cuya selección quedó incompatible con el
       // nuevo valor, eligiendo el primer valor disponible (UX e-commerce:
       // cambiar color a uno sin tu talla reajusta la talla).
@@ -502,6 +560,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         _seleccion[g.clave] = null;
       }
       _cantidad = 0;
+      // Sin nada elegido el acordeón vuelve a empezar por el primer grupo:
+      // dejarlo fijado en "diseño" obligaría a subir para elegir el tamaño.
+      _grupoExpandido = null;
     });
   }
 
@@ -813,24 +874,33 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   }
 
   Widget _buildGrupo(_AtributoGrupo g) {
+    final elegido = _seleccion[g.clave];
+    // Solo se despliega uno a la vez. Los que faltan elegir se ven como
+    // "Elegir…": tras tocar Limpiar quedan los cinco sin valor, y sin esto se
+    // dibujarían los cinco `Wrap` juntos, que es exactamente el muro de chips
+    // que el acordeón viene a sacar.
+    if (g.clave != _claveExpandida) {
+      return _buildGrupoColapsado(g, elegido);
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Text(
-          //   g.nombre.toUpperCase(),
-          //   style: TextStyle(
-          //     fontSize: 11,
-          //     fontWeight: FontWeight.w800,
-          //     color: Colors.grey.shade700,
-          //     letterSpacing: 0.3,
-          //   ),
-          // ),
-          AppSubtitle(
-            g.nombre.toUpperCase(),
-            fontSize: 10,
-            color: Colors.grey.shade700,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              AppSubtitle(
+                g.nombre.toUpperCase(),
+                fontSize: 10,
+                color: Colors.grey.shade700,
+              ),
+              AppSubtitle(
+                '${_valoresConStock(g)} con stock',
+                fontSize: 9,
+                color: Colors.grey.shade500,
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Wrap(
@@ -843,11 +913,61 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                 label: valor,
                 selected: seleccionado,
                 enabled: disponible || seleccionado,
+                stock: _stockSiCompleta(g.clave, valor),
                 onTap: () => _seleccionar(g.clave, valor),
               );
             }).toList(),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Grupo cerrado: un renglón con el valor elegido y un lápiz para reabrirlo,
+  /// o "Elegir…" si todavía no tiene valor. Es lo que evita que 5 atributos
+  /// empujen el botón de agregar fuera de la pantalla.
+  Widget _buildGrupoColapsado(_AtributoGrupo g, String? elegido) {
+    final resuelto = elegido != null;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _grupoExpandido = g.clave);
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            Icon(
+              resuelto ? Icons.check_circle : Icons.radio_button_unchecked,
+              size: 14,
+              color: resuelto ? AppColors.blue1 : Colors.grey.shade400,
+            ),
+            const SizedBox(width: 7),
+            SizedBox(
+              width: 78,
+              child: AppSubtitle(
+                g.nombre.toUpperCase(),
+                fontSize: 9,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            Expanded(
+              child: AppSubtitle(
+                font: AppFont.amazonEmberMedium,
+                elegido ?? 'Elegir…',
+                fontSize: 11,
+                fontWeight: resuelto ? FontWeight.w700 : FontWeight.w500,
+                color: resuelto ? Colors.grey.shade900 : Colors.grey.shade500,
+              ),
+            ),
+            Icon(
+              resuelto ? Icons.edit_outlined : Icons.chevron_right,
+              size: resuelto ? 13 : 16,
+              color: Colors.grey.shade500,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1075,6 +1195,11 @@ class _AtributoValorChip extends StatelessWidget {
   final String label;
   final bool selected;
   final bool enabled;
+
+  /// Unidades de la variante que queda al elegir este valor. Solo viene con
+  /// número cuando elegirlo COMPLETA la combinación; si no, `null` y no se
+  /// dibuja, para no prometer un stock que es la suma de varias variantes.
+  final int? stock;
   final VoidCallback onTap;
 
   const _AtributoValorChip({
@@ -1082,6 +1207,7 @@ class _AtributoValorChip extends StatelessWidget {
     required this.selected,
     required this.enabled,
     required this.onTap,
+    this.stock,
   });
 
   @override
@@ -1121,6 +1247,15 @@ class _AtributoValorChip extends StatelessWidget {
                 color: textColor,
                 decoration: enabled ? null : TextDecoration.lineThrough,
               ),
+              if (stock != null && stock! > 0) ...[
+                const SizedBox(width: 5),
+                AppSubtitle(
+                  '$stock',
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? AppColors.blue1 : Colors.grey.shade500,
+                ),
+              ],
             ],
           ),
         ),
