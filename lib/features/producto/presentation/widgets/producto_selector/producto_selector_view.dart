@@ -751,6 +751,15 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                   }
                   if (items == null) return const SizedBox.shrink();
 
+                  // Este selector es para VENDER: un producto desactivado no
+                  // va nunca, ni en la lista ni en la búsqueda. Se filtra acá,
+                  // al leer, y no confiando en el origen, porque las dos
+                  // fuentes pueden traer datos viejos: el cache de respuesta
+                  // se pidió con isActive:true pero el producto pudo
+                  // desactivarse después, y `vistosCache` es una biblioteca
+                  // persistida en disco de todo lo visto alguna vez.
+                  items = items.where((p) => p.isActive).toList();
+
                   // Fase 0: filtro local sobre los productos cargados.
                   // Combina state actual + biblioteca de vistos (Fase 1.5)
                   // para que una segunda búsqueda del mismo término sea
@@ -781,6 +790,11 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                       ...cubit.vistosCache,
                     };
                     final localFiltrado = combinados.values.where((p) {
+                      // `vistosCache` no pasó por el filtro de arriba: es una
+                      // biblioteca persistida de lo visto alguna vez, así que
+                      // un producto desactivado después sigue ahí hasta que
+                      // alguien la purgue.
+                      if (!p.isActive) return false;
                       final texto = [
                         p.nombre,
                         p.codigoEmpresa,
