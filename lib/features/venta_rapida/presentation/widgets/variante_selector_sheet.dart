@@ -401,15 +401,6 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     _cargarNivelesResuelta();
   }
 
-  /// Cuántos valores del grupo tienen stock con las otras selecciones puestas.
-  int _valoresConStock(_AtributoGrupo g) {
-    var n = 0;
-    for (final valor in g.valores) {
-      if (_valorDisponible(g.clave, valor)) n++;
-    }
-    return n;
-  }
-
   /// Stock de la variante que quedaría al elegir `valor`, pero **solo si con
   /// eso la combinación queda completa**. Si todavía faltan atributos el número
   /// sería la suma de varias variantes y prometería un stock que esa
@@ -959,42 +950,50 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     if (g.clave != _claveExpandida) {
       return _buildGrupoColapsado(g, elegido);
     }
+    // Los valores sin stock NO se dibujan. Tachados ocupaban lo mismo que uno
+    // disponible, y con 45 diseños eso es una pared de opciones que no se
+    // pueden elegir. El único que sobrevive sin stock es el YA ELEGIDO: si se
+    // ocultara, la selección desaparecería de la pantalla sin explicación.
+    final visibles = <String>[];
+    for (final valor in g.valores) {
+      if (_valorDisponible(g.clave, valor) || _seleccion[g.clave] == valor) {
+        visibles.add(valor);
+      }
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              AppSubtitle(
-                g.nombre.toUpperCase(),
-                fontSize: 10,
-                color: Colors.grey.shade700,
-              ),
-              AppSubtitle(
-                '${_valoresConStock(g)} con stock',
-                fontSize: 9,
-                color: Colors.grey.shade500,
-              ),
-            ],
+          AppSubtitle(
+            g.nombre.toUpperCase(),
+            fontSize: 10,
+            color: Colors.grey.shade700,
           ),
           const SizedBox(height: 4),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: g.valores.map((valor) {
-              final disponible = _valorDisponible(g.clave, valor);
-              final seleccionado = _seleccion[g.clave] == valor;
-              return _AtributoValorChip(
-                label: valor,
-                selected: seleccionado,
-                enabled: disponible || seleccionado,
-                stock: _stockSiCompleta(g.clave, valor),
-                onTap: () => _seleccionar(g.clave, valor),
-              );
-            }).toList(),
-          ),
+          if (visibles.isEmpty)
+            AppSubtitle(
+              'Sin stock en esta combinación',
+              fontSize: 11,
+              color: Colors.grey.shade500,
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: visibles.map((valor) {
+                final seleccionado = _seleccion[g.clave] == valor;
+                return _AtributoValorChip(
+                  label: valor,
+                  selected: seleccionado,
+                  // Solo puede venir en false el elegido que se quedó sin
+                  // stock; el resto se filtró arriba.
+                  enabled: _valorDisponible(g.clave, valor) || seleccionado,
+                  stock: _stockSiCompleta(g.clave, valor),
+                  onTap: () => _seleccionar(g.clave, valor),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
