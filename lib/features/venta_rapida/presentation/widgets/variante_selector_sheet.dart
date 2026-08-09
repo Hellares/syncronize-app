@@ -7,6 +7,7 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/busqueda_texto.dart';
 import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../producto/presentation/widgets/abrir_bulto_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -107,6 +108,13 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
 
   /// Valor elegido por clave de atributo (null = sin elegir).
   final Map<String, String?> _seleccion = {};
+
+  /// Texto del buscador de combinaciones. Un mismo diseño vive en varios
+  /// bloques a precios distintos —MICKEY está en 4, entre S/50 y S/84— y por
+  /// el acordeón habría que recorrerlos a ciegas para descubrirlo. Buscando
+  /// se ven los cuatro juntos, con su stock y su precio.
+  final _buscarCtrl = TextEditingController();
+  String _query = '';
 
   /// Grupo desplegado en el acordeón. Los demás se muestran colapsados en una
   /// sola línea con su valor elegido. `null` = usar el default de
@@ -252,6 +260,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   @override
   void dispose() {
     _cantidadGranelCtrl.dispose();
+    _buscarCtrl.dispose();
     _granelFocus.dispose();
     super.dispose();
   }
@@ -321,6 +330,75 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       if (_seleccion[g.clave] == null) return g.clave;
     }
     return _grupos.last.clave;
+  }
+
+  /// Valores de la variante en el orden en que se ven los grupos.
+  List<String> _valoresDe(ProductoVariante v) {
+    final out = <String>[];
+    for (final g in _grupos) {
+      if (g.clave == _kVarianteClave) {
+        out.add(v.nombre);
+        continue;
+      }
+      for (final av in v.atributosValores) {
+        if (av.atributo.clave == g.clave) {
+          out.add(av.valor);
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  /// Combinaciones que matchean el buscador, **solo las que tienen stock**:
+  /// una tarjeta con 0 unidades no se puede vender y es ruido. Ordenadas por
+  /// stock para que lo que más hay quede arriba.
+  ///
+  /// Se busca sobre el nombre de la variante MÁS sus valores de atributo, con
+  /// el mismo criterio que el buscador de productos (sin tildes, por palabras
+  /// y exigiéndolas todas), así "mickey invierno" filtra de una.
+  List<ProductoVariante> get _resultadosBusqueda {
+    final terminos = terminosBusqueda(_query);
+    if (terminos.isEmpty) return const [];
+    final out = <ProductoVariante>[];
+    for (final v in _variantes) {
+      if (_stockDisponible(v) <= 0) continue;
+      final texto = '${v.nombre} ${_valoresDe(v).join(' ')}';
+      if (coincideTodosLosTerminos(texto, terminos)) out.add(v);
+    }
+    out.sort((a, b) => _stockDisponible(b).compareTo(_stockDisponible(a)));
+    return out;
+  }
+
+  /// Elegir una combinación desde el buscador: deja el acordeón como si la
+  /// hubieras armado a mano, así el pie, los niveles de precio y el input de
+  /// granel siguen exactamente el mismo camino que la selección normal.
+  void _elegirVariante(ProductoVariante v) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_grupos.length == 1 && _grupos.first.clave == _kVarianteClave) {
+        _seleccion[_kVarianteClave] = v.nombre;
+      } else {
+        for (final g in _grupos) {
+          _seleccion[g.clave] = null;
+        }
+        for (final av in v.atributosValores) {
+          _seleccion[av.atributo.clave] = av.valor;
+        }
+      }
+      _grupoExpandido = _grupos.isEmpty ? null : _grupos.last.clave;
+      _buscarCtrl.clear();
+      _query = '';
+      final rest = _stockRestante;
+      if (_esGranel) {
+        _cantidadGranelCtrl.clear();
+        _cantidad = 0;
+        _enfocarGranel();
+      } else {
+        _cantidad = rest > 0 ? 1 : 0;
+      }
+    });
+    _cargarNivelesResuelta();
   }
 
   /// Cuántos valores del grupo tienen stock con las otras selecciones puestas.
@@ -660,12 +738,15 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        _buildBuscador(),
+                        _buildResultados(),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             AppSubtitle(
-                              // font: AppFont.amazonEmberBold, 
-                              'Elige la variante:',
+                              // Con resultados a la vista, el divisor
+                              // "o elegí por atributo" ya hace de título.
+                              _hayResultados ? '' : 'Elige la variante:',
                               fontSize: 12,
                             ),
                             InkWell(
@@ -915,6 +996,151 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
             }).toList(),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Hay tarjetas de resultado en pantalla.
+  bool get _hayResultados =>
+      _query.trim().length >= 2 && _resultadosBusqueda.isNotEmpty;
+
+  /// Buscador de combinaciones. Solo aparece si hay algo que buscar: con dos o
+  /// tres variantes el acordeón ya se ve entero y el campo sería estorbo.
+  Widget _buildBuscador() {
+    if (_variantes.length < 6) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: CustomText(
+        controller: _buscarCtrl,
+        hintText: 'Buscar diseño, tamaño, temporada…',
+        prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey.shade500),
+        onChanged: (v) => setState(() => _query = v),
+      ),
+    );
+  }
+
+  /// Resultados del buscador: una tarjeta por combinación CON stock, con su
+  /// precio y sus unidades. Tocarla la elige y el acordeón queda armado.
+  Widget _buildResultados() {
+    if (_query.trim().length < 2) return const SizedBox.shrink();
+    final res = _resultadosBusqueda;
+    if (res.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: AppSubtitle(
+          'Sin combinaciones con stock para "${_query.trim()}"',
+          fontSize: 12,
+          color: Colors.grey.shade600,
+        ),
+      );
+    }
+    final unidades = res.fold<int>(0, (s, v) => s + _stockDisponible(v));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppSubtitle(
+            '${res.length} ${res.length == 1 ? 'combinación' : 'combinaciones'} · $unidades ${unidades == 1 ? 'unidad' : 'unidades'}',
+            fontSize: 10,
+            color: Colors.grey.shade700,
+          ),
+          const SizedBox(height: 6),
+          ...res.map(_buildResultado),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: Divider(color: Colors.grey.shade300, height: 1)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: AppSubtitle(
+                  'o elegí por atributo',
+                  fontSize: 10,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+              Expanded(child: Divider(color: Colors.grey.shade300, height: 1)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResultado(ProductoVariante v) {
+    final valores = _valoresDe(v);
+    // El último grupo es el más granular (el diseño): va como título, y el
+    // resto abajo. No se nombra ningún atributo a mano para que sirva igual
+    // en un producto con otros atributos.
+    final titulo = valores.isEmpty ? v.nombre : valores.last;
+    final resto = valores.length > 1
+        ? valores.sublist(0, valores.length - 1).join(' · ')
+        : '';
+    final stock = _stockDisponible(v);
+    final precio =
+        v.precioEfectivoEnSede(widget.sedeId) ?? v.precioEnSede(widget.sedeId);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: InkWell(
+        onTap: () => _elegirVariante(v),
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.grey.shade300, width: 0.8),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppSubtitle(
+                      font: AppFont.amazonEmberMedium,
+                      titulo,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade900,
+                    ),
+                    if (resto.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      AppSubtitle(
+                        resto,
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (precio != null)
+                    AppSubtitle(
+                      font: AppFont.amazonEmberMedium,
+                      _precioTexto(precio),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue1,
+                    ),
+                  const SizedBox(height: 2),
+                  AppSubtitle(
+                    '$stock ${stock == 1 ? 'unidad' : 'unidades'}',
+                    fontSize: 9,
+                    color: Colors.grey.shade600,
+                  ),
+                ],
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.add_circle_outline,
+                  size: 20, color: AppColors.blue1),
+            ],
+          ),
+        ),
       ),
     );
   }
