@@ -18,22 +18,34 @@ library;
 /// Dart no trae normalización Unicode en el core, así que se mapean a mano
 /// los caracteres que aparecen en catálogos peruanos. Alcanza: `unaccent`
 /// hace lo mismo para este conjunto.
-String normalizarTexto(String texto) {
-  const equivalencias = {
-    'á': 'a', 'à': 'a', 'ä': 'a', 'â': 'a', 'ã': 'a',
-    'é': 'e', 'è': 'e', 'ë': 'e', 'ê': 'e',
-    'í': 'i', 'ì': 'i', 'ï': 'i', 'î': 'i',
-    'ó': 'o', 'ò': 'o', 'ö': 'o', 'ô': 'o', 'õ': 'o',
-    'ú': 'u', 'ù': 'u', 'ü': 'u', 'û': 'u',
-    'ñ': 'n', 'ç': 'c',
-  };
+String normalizarTexto(String texto) =>
+    normalizarConservandoPosiciones(texto)
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
 
+const _equivalencias = {
+  'á': 'a', 'à': 'a', 'ä': 'a', 'â': 'a', 'ã': 'a',
+  'é': 'e', 'è': 'e', 'ë': 'e', 'ê': 'e',
+  'í': 'i', 'ì': 'i', 'ï': 'i', 'î': 'i',
+  'ó': 'o', 'ò': 'o', 'ö': 'o', 'ô': 'o', 'õ': 'o',
+  'ú': 'u', 'ù': 'u', 'ü': 'u', 'û': 'u',
+  'ñ': 'n', 'ç': 'c',
+};
+
+/// Igual que [normalizarTexto] pero **sin colapsar espacios ni recortar**, así
+/// cada carácter del resultado corresponde 1:1 con el de entrada.
+///
+/// Lo usa el resaltado de coincidencias, que necesita mapear la posición de
+/// una palabra encontrada de vuelta al texto ORIGINAL para pintar ese tramo.
+/// Con [normalizarTexto] no se puede: un doble espacio o un espacio al
+/// principio corren todos los índices y el resaltado pintaría corrido.
+String normalizarConservandoPosiciones(String texto) {
   final minuscula = texto.toLowerCase();
   final buffer = StringBuffer();
   for (final char in minuscula.characters()) {
-    buffer.write(equivalencias[char] ?? char);
+    buffer.write(_equivalencias[char] ?? char);
   }
-  return buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  return buffer.toString();
 }
 
 /// Palabras únicas de la consulta, ya normalizadas. Vacío si no hay nada

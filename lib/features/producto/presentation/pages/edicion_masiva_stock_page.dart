@@ -13,6 +13,8 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/bulk_editar_stock_precios.dart';
 import '../../domain/entities/producto_variante.dart';
+import '../../domain/entities/stock_por_sede_info.dart';
+import '../widgets/filtro_variantes.dart';
 import '../bloc/edicion_masiva_stock/edicion_masiva_stock_cubit.dart';
 import '../bloc/edicion_masiva_stock/edicion_masiva_stock_state.dart';
 
@@ -107,6 +109,21 @@ class _FilaEdicion {
   final mayorDesde = TextEditingController();
   final mayorPrecio = TextEditingController();
 
+  /// Un foco por celda editable. Sirve para pintar la celda tocada y, sobre
+  /// todo, la FILA entera: con la columna de nombre congelada, resaltar el
+  /// renglón es lo que dice sobre qué variante se está escribiendo cuando la
+  /// grilla está corrida a la derecha.
+  final fStock = FocusNode();
+  final fPrecio = FocusNode();
+  final fCosto = FocusNode();
+  final fMayorDesde = FocusNode();
+  final fMayorPrecio = FocusNode();
+
+  List<FocusNode> get focos =>
+      [fStock, fPrecio, fCosto, fMayorDesde, fMayorPrecio];
+
+  bool get estaEnfocada => focos.any((f) => f.hasFocus);
+
   bool get tieneCambios =>
       stock.text.trim().isNotEmpty ||
       precio.text.trim().isNotEmpty ||
@@ -128,6 +145,9 @@ class _FilaEdicion {
     costo.dispose();
     mayorDesde.dispose();
     mayorPrecio.dispose();
+    for (final f in focos) {
+      f.dispose();
+    }
   }
 }
 
@@ -136,18 +156,155 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
   String? _sedeId;
   List<dynamic> _sedes = [];
   final Map<String, _FilaEdicion> _filas = {};
-  final _searchController = TextEditingController();
 
-  static const _wStockActual = 52.0;
-  static const _wAgregarStock = 68.0;
-  static const _wPrecio = 78.0;
-  static const _wCosto = 78.0;
-  static const _wMayorDesde = 58.0;
-  static const _wMayorPrecio = 82.0;
+  /// Buscador + filtro numérico. Existe porque el bloque que se quiere editar
+  /// junto casi nunca se puede nombrar: "las de S/83" son 12 variantes de
+  /// cinco diseños distintos, y la de S/112 —la que se vendería bajo costo—
+  /// queda afuera sola. Buscar por texto no puede separarlas.
+  final _filtro = FiltroVariantes();
+
+  /// Total sin filtrar, para el "N de M". Lo setea el build con la lista que
+  /// llega del cubit: el filtro no puede contar lo que ya descartó.
+  int _totalVariantes = 0;
+
+  // ── Cachés ─────────────────────────────────────────────────────────
+  //
+  // Cada tecla en cualquier celda dispara `setState` y reconstruye la página
+  // entera. Sin esto, UNA pulsación recalculaba el problema de mayoreo de las
+  // 91 variantes —la barra inferior las recorre todas para contar las
+  // bloqueantes— más otra vez por cada mitad de cada fila visible.
+  //
+  // Sobreviven entre builds a propósito: al teclear en una fila solo cambia
+  // ESA, así que se invalida esa sola y las otras 90 se reusan.
+  final Map<String, _ProblemaMayor?> _cacheProblema = {};
+  final Map<String, StockPorSedeInfo?> _cacheStock = {};
+
+  /// Identidad de los datos de fondo. Si cambia la sede o llega otra lista de
+  /// variantes (un reload tras guardar), lo cacheado dejó de valer.
+  String? _claveDatos;
+
+  void _revisarCaches(List<ProductoVariante> variantes) {
+    final clave = '${identityHashCode(variantes)}|$_sedeId';
+    if (clave == _claveDatos) return;
+    _claveDatos = clave;
+    _cacheStock.clear();
+    _cacheProblema.clear();
+  }
+
+  /// Lo tecleado en [varianteId] cambió: su problema hay que recalcularlo.
+  /// El stock no, que no depende de lo que se escribe.
+  void _invalidarFila(String varianteId) => _cacheProblema.remove(varianteId);
+
+  /// Fila de stock de la variante en la sede activa.
+  ///
+  /// Va cacheada porque `stockSedeInfo` resuelve con `firstWhere` dentro de un
+  /// try/catch —o sea, **excepción como control de flujo** cada vez que la
+  /// variante no tiene fila en esa sede— y se consultaba hasta cuatro veces
+  /// por fila entre el nombre, los datos y el filtro.
+  StockPorSedeInfo? _stockDe(ProductoVariante v) {
+    if (_sedeId == null) return null;
+    return _cacheStock.putIfAbsent(v.id, () => v.stockSedeInfo(_sedeId!));
+  }
+
+  /// El valor del campo pedido, en unidad de PRESENTACIÓN — la misma en la
+  /// que se ve en la grilla y en la que se teclea el filtro.
+  double? _valorDelCampo(ProductoVariante v, CampoPrecio campo) {
+    final u = _presentacionDe(v);
+    final info = _stockDe(v);
+    switch (campo) {
+      case CampoPrecio.venta:
+        return info?.precio != null ? u.precio(info!.precio!) : null;
+      case CampoPrecio.costo:
+        return info?.precioCosto != null ? u.precio(info!.precioCosto!) : null;
+      case CampoPrecio.mayor:
+        final n = v.nivelPorMayor;
+        return n?.precio != null ? u.precio(n!.precio!) : null;
+    }
+  }
+
+  /// La columna del nombre queda CONGELADA a la izquierda (tipo excel) y solo
+  /// scrollea en horizontal la zona numérica. Con 91 variantes cuyo nombre son
+  /// cinco atributos encadenados, perder de vista cuál se está editando al
+  /// llegar a la columna de mayoreo era el problema real.
+  static const _wNombre = 190.0;
+
+  /// Ancho del numerador dentro de la columna congelada. 20 entra hasta 999
+  /// con la tipografía de 9 y cifras tabulares.
+  static const _wNumero = 18.0;
+  static const _wStockActual = 35.0;
+  static const _wAgregarStock = 60.0;
+  static const _wPrecio = 70.0;
+  static const _wCosto = 70.0;
+  static const _wMayorDesde = 50.0;
+  static const _wMayorPrecio = 70.0;
+
+  static const _anchoDatos = _wStockActual +
+      _wAgregarStock +
+      _wPrecio +
+      _wCosto +
+      _wMayorDesde +
+      _wMayorPrecio +
+      24; // padding horizontal de la fila
+
+  /// Alto fijo de fila. Es lo que hace posible congelar la columna: las dos
+  /// listas (nombres y datos) se sincronizan por OFFSET, así que si una fila
+  /// midiera distinto de un lado que del otro, los renglones se desalinearían
+  /// al scrollear. Con `itemExtent` además el scroll de 91 filas es más barato.
+  static const _hFila = 50.0;
+
+  /// El encabezado también va a alto fijo: son dos Containers distintos (uno
+  /// por mitad) y tienen que arrancar los renglones a la misma altura.
+  static const _hHeader = 30.0;
+
+  /// Alto de la fila de sede + acciones.
+  static const _hBarra = 32.0;
+
+  /// 🔴 En Material 3 `padding: EdgeInsets.zero` + `constraints` NO encogen un
+  /// IconButton: el mínimo de ~48px lo impone el `ButtonStyle` vía
+  /// `tapTargetSize`, y sobra como separación fantasma arriba y abajo del
+  /// selector de sede. La única vía es el estilo.
+  /// El fondo es el MISMO que el del contador al lado del buscador
+  /// (`blue1` al 8%), porque el `filledTonal` de M3 pinta con
+  /// `secondaryContainer` — lavanda con el tema por defecto — y encima le
+  /// mete elevación. Las dos cosas desentonaban en una barra que es toda azul.
+  static ButtonStyle _estiloIcono({required bool activo}) =>
+      IconButton.styleFrom(
+        minimumSize: Size.zero,
+        fixedSize: const Size(_hBarra, _hBarra),
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        // Activo va más saturado: al sacar el `isSelected` de M3, este tinte
+        // es lo único —junto al ícono lleno— que distingue el filtro puesto.
+        backgroundColor: AppColors.blue1.withValues(alpha: activo ? 0.20 : 0.08),
+        foregroundColor: AppColors.blue1,
+        disabledBackgroundColor: Colors.grey.withValues(alpha: 0.08),
+        disabledForegroundColor: Colors.grey.shade400,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+      );
+
+  /// Verticales de la columna congelada y de la zona de datos, mantenidos en
+  /// el mismo offset a mano. El horizontal NO necesita sincronía: el
+  /// encabezado de datos vive dentro del mismo scroll horizontal que las filas.
+  final _vNombres = ScrollController();
+  final _vDatos = ScrollController();
+  bool _sincronizando = false;
+
+  /// Espeja el offset de una lista en la otra. El flag corta el rebote: sin
+  /// él, el jumpTo del destino dispara su propio listener y vuelve al origen.
+  void _sincronizar(ScrollController origen, ScrollController destino) {
+    if (_sincronizando || !destino.hasClients || !origen.hasClients) return;
+    if (destino.offset == origen.offset) return;
+    _sincronizando = true;
+    destino.jumpTo(origen.offset);
+    _sincronizando = false;
+  }
 
   @override
   void initState() {
     super.initState();
+    _vNombres.addListener(() => _sincronizar(_vNombres, _vDatos));
+    _vDatos.addListener(() => _sincronizar(_vDatos, _vNombres));
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is EmpresaContextLoaded) {
       _empresaId = empresaState.context.empresa.id;
@@ -178,12 +335,24 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     for (final fila in _filas.values) {
       fila.dispose();
     }
-    _searchController.dispose();
+    _filtro.dispose();
+    _vNombres.dispose();
+    _vDatos.dispose();
     super.dispose();
   }
 
   _FilaEdicion _filaDe(String varianteId) =>
-      _filas.putIfAbsent(varianteId, () => _FilaEdicion());
+      _filas.putIfAbsent(varianteId, () {
+        final fila = _FilaEdicion();
+        // Repintar al entrar y al salir de una celda. El listener se engancha
+        // una sola vez, acá, porque `_filaDe` se llama en cada build.
+        for (final foco in fila.focos) {
+          foco.addListener(() {
+            if (mounted) setState(() {});
+          });
+        }
+        return fila;
+      });
 
   int get _totalCambios => _filas.values.where((f) => f.tieneCambios).length;
 
@@ -191,7 +360,10 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
   /// PRESENTACIÓN, que es en la que se teclea y en la que se muestra el costo.
   ///
   /// `null` = no hay nada que objetar (o no se tecleó nada).
-  _ProblemaMayor? _problemaMayor(ProductoVariante v) {
+  _ProblemaMayor? _problemaMayor(ProductoVariante v) =>
+      _cacheProblema.putIfAbsent(v.id, () => _calcularProblemaMayor(v));
+
+  _ProblemaMayor? _calcularProblemaMayor(ProductoVariante v) {
     final fila = _filas[v.id];
     if (fila == null) return null;
 
@@ -211,7 +383,7 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     if (precioMayor == null) return _ProblemaMayor.incompleto;
 
     final u = _presentacionDe(v);
-    final stockInfo = _sedeId != null ? v.stockSedeInfo(_sedeId!) : null;
+    final stockInfo = _stockDe(v);
 
     // El costo efectivo es el tecleado en ESTA fila si lo hay; si no, el
     // vigente. Comparar contra el viejo dejaría pasar un mayorista bajo costo
@@ -240,20 +412,63 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     }).toList();
   }
 
-  List<ProductoVariante> _filtrar(List<ProductoVariante> variantes) {
-    final term = _searchController.text.trim().toLowerCase();
-    if (term.isEmpty) return variantes;
-    return variantes
-        .where((v) =>
-            v.nombre.toLowerCase().contains(term) ||
-            v.sku.toLowerCase().contains(term))
-        .toList();
+  /// Cuántas variantes quedan a la vista y cuánto stock suman.
+  ///
+  /// 🔴 El stock solo se suma si TODAS comparten presentación: sumar 5000 g de
+  /// un granel con 2 sacos da un número que no significa nada. Con
+  /// presentaciones mezcladas devuelve el conteo y el stock en null.
+  ({int cantidad, String? stock}) _resumenVisible(List<ProductoVariante> vis) {
+    if (vis.isEmpty) return (cantidad: 0, stock: null);
+
+    final u0 = _presentacionDe(vis.first);
+    var total = 0.0;
+    var mismaUnidad = true;
+
+    for (final v in vis) {
+      final u = _presentacionDe(v);
+      if (u.factor != u0.factor || u.simboloVisible != u0.simboloVisible) {
+        mismaUnidad = false;
+      }
+      final info = _stockDe(v);
+      total += info?.cantidad ?? 0;
+    }
+
+    if (!mismaUnidad) return (cantidad: vis.length, stock: null);
+
+    // Sin presentación `cantidadTexto` devuelve el número pelado; se le agrega
+    // "u" para que no se confunda con el conteo de variantes de arriba.
+    final texto = u0.cantidadTexto(total);
+    return (
+      cantidad: vis.length,
+      stock: u0.simboloVisible == null ? '$texto u' : texto,
+    );
   }
+
+  /// Texto y precio se combinan con Y: "kitty" + "= 112" es una intersección.
+  ///
+  /// Memoización: el build se dispara con CADA tecla de CUALQUIER celda, y sin
+  /// esto se re-normalizaban y re-comparaban las 91 variantes en cada
+  /// pulsación aunque la búsqueda no hubiera cambiado. La clave incluye la
+  /// identidad de la lista, así que un reload post-guardado recalcula.
+  List<ProductoVariante> _filtrar(List<ProductoVariante> variantes) {
+    final clave = '${identityHashCode(variantes)}|$_sedeId|${_filtro.clave}';
+    if (clave == _claveFiltro) return _visiblesCache;
+
+    final resultado = _filtro.filtrar(variantes, _valorDelCampo);
+    _claveFiltro = clave;
+    _visiblesCache = resultado;
+    return resultado;
+  }
+
+  String? _claveFiltro;
+  List<ProductoVariante> _visiblesCache = const [];
 
   void _limpiarEdiciones() {
     for (final fila in _filas.values) {
       fila.limpiar();
     }
+    // Se borró lo tecleado de TODAS, así que no queda ningún problema válido.
+    _cacheProblema.clear();
     setState(() {});
   }
 
@@ -431,6 +646,8 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
           fila.mayorPrecio.text = mayorPrecioCtrl.text.trim();
         }
       }
+      // Se escribió sobre muchas filas de una: se recalculan todas.
+      _cacheProblema.clear();
       setState(() {});
     }
 
@@ -678,7 +895,17 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
           ],
         ),
       ),
-      body: BlocConsumer<EdicionMasivaStockCubit, EdicionMasivaStockState>(
+      // Tocar cualquier lado suelta el foco y baja el teclado. En una grilla
+      // de 30 cajas de texto, sin esto el teclado tapa media pantalla y para
+      // cerrarlo hay que ir al botón de atrás del sistema —que además se lleva
+      // el foco puesto y deja la fila resaltada como si se siguiera editando.
+      //
+      // `translucent` y no `opaque`: así los hijos siguen recibiendo sus taps
+      // normalmente y esto solo engancha lo que caiga en zona muerta.
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: BlocConsumer<EdicionMasivaStockCubit, EdicionMasivaStockState>(
         listener: (context, state) {
           if (state is EdicionMasivaStockSuccess) {
             _limpiarEdiciones();
@@ -743,6 +970,8 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
             EdicionMasivaStockError s => s.variantes,
             _ => <ProductoVariante>[],
           };
+          _revisarCaches(variantes);
+          _totalVariantes = variantes.length;
           final visibles = _filtrar(variantes);
           final guardando = state is EdicionMasivaStockSaving;
 
@@ -751,57 +980,89 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
               _buildBarraSuperior(visibles),
               const Divider(height: 1),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final anchoMinimo = _wStockActual +
-                        _wAgregarStock +
-                        _wPrecio +
-                        _wCosto +
-                        _wMayorDesde +
-                        _wMayorPrecio +
-                        160 + // columna variante
-                        24; // padding
-                    final ancho = constraints.maxWidth < anchoMinimo
-                        ? anchoMinimo
-                        : constraints.maxWidth;
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: ancho,
-                        child: Column(
-                          children: [
-                            _buildHeaderGrilla(),
-                            Expanded(
-                              child: visibles.isEmpty
-                                  ? const Center(
-                                      child: Text('Sin variantes que mostrar'))
-                                  : ListView.builder(
-                                      itemCount: visibles.length,
-                                      itemBuilder: (context, i) =>
-                                          _buildFila(visibles[i], i),
-                                    ),
+                child: visibles.isEmpty
+                    ? const Center(child: Text('Sin variantes que mostrar'))
+                    : Row(
+                        children: [
+                          // ── Columna CONGELADA ────────────────────────────
+                          SizedBox(
+                            width: _wNombre,
+                            child: Column(
+                              children: [
+                                _buildHeaderNombre(),
+                                Expanded(
+                                  child: ListView.builder(
+                                    controller: _vNombres,
+                                    itemExtent: _hFila,
+                                    itemCount: visibles.length,
+                                    itemBuilder: (context, i) =>
+                                        _buildCeldaNombre(visibles[i], i),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          // Sombra al borde del congelado: sin ella no se
+                          // entiende que lo de la derecha se puede correr.
+                          Container(
+                            width: 4,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.12),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                          ),
+                          // ── Zona que scrollea ────────────────────────────
+                          // El encabezado va DENTRO de este scroll horizontal,
+                          // junto con las filas, así que se corren juntos sin
+                          // necesidad de sincronizar nada.
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox(
+                                width: _anchoDatos,
+                                child: Column(
+                                  children: [
+                                    _buildHeaderDatos(),
+                                    Expanded(
+                                      child: ListView.builder(
+                                        controller: _vDatos,
+                                        itemExtent: _hFila,
+                                        itemCount: visibles.length,
+                                        itemBuilder: (context, i) =>
+                                            _buildCeldaDatos(visibles[i], i),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
               ),
               _buildBarraGuardar(variantes, guardando),
             ],
           );
         },
+        ),
       ),
     );
   }
 
   Widget _buildBarraSuperior(List<ProductoVariante> visibles) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: Column(
         children: [
-          Row(
+          // Alto fijo en la FILA, no solo en los hijos: así ningún control que
+          // se agregue después puede volver a estirarla.
+          SizedBox(
+            height: _hBarra,
+            child: Row(
             children: [
               Icon(Icons.store, size: 16, color: Colors.grey[600]),
               const SizedBox(width: 6),
@@ -819,140 +1080,292 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
                   onSelected: _cambiarSede,
                 ),
               const Spacer(),
+              // Sin badge de conteo: el resumen al lado del buscador ya lo
+              // dice, y dos números iguales en la misma pantalla confunden.
+              // Que el ícono esté lleno alcanza para saber que hay filtro.
               IconButton.filledTonal(
+                style: _estiloIcono(activo: _filtro.filtraPrecio),
+                tooltip: _filtro.filtraPrecio
+                    ? '${visibles.length} de $_totalVariantes variantes'
+                    : 'Filtrar por precio',
+                icon: Icon(
+                  _filtro.filtraPrecio
+                      ? Icons.filter_alt
+                      : Icons.filter_alt_outlined,
+                  size: 16,
+                ),
+                onPressed: () => setState(() {
+                  _filtro.abierto = !_filtro.abierto;
+                  // Al cerrarlo se limpia: un filtro activo pero invisible
+                  // haría creer que faltan variantes.
+                  if (!_filtro.abierto) {
+                    _filtro.desde.clear();
+                    _filtro.hasta.clear();
+                  }
+                }),
+              ),
+              const SizedBox(width: 6),
+              IconButton.filledTonal(
+                style: _estiloIcono(activo: false),
                 tooltip: 'Aplicar valor a todas las visibles',
-                icon: const Icon(Icons.copy_all, size: 20),
+                icon: const Icon(Icons.copy_all, size: 16),
                 onPressed:
                     visibles.isEmpty ? null : () => _aplicarATodas(visibles),
               ),
             ],
+            ),
           ),
-          const SizedBox(height: 8),
-          CustomSearchField(
-            controller: _searchController,
-            hintText: 'Buscar por nombre o SKU...',
-            debounceDelay: const Duration(milliseconds: 200),
-            onChanged: (_) => setState(() {}),
-            onClear: () => setState(() {}),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              _buildResumenVisible(visibles),
+              const SizedBox(width: 8),
+              Expanded(
+                child: CustomSearchField(
+                  borderColor: AppColors.blue1Alpha40,
+                  controller: _filtro.busqueda,
+                  hintText: 'Buscar por nombre o SKU...',
+                  debounceDelay: const Duration(milliseconds: 400),
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                ),
+              ),
+            ],
           ),
+          if (_filtro.abierto)
+            FilaFiltroPrecio(
+              filtro: _filtro,
+              alto: _hCampo,
+              onCambio: () => setState(() {}),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderGrilla() {
-    const estilo = TextStyle(fontSize: 11, fontWeight: FontWeight.w600);
+  /// Filtro numérico: campo + comparador + valor(es). Filtrar y después
+  /// "aplicar a todas las visibles" es el flujo que reemplaza cargar 31
+  /// niveles a mano.
+  /// Cuántas variantes se están viendo y cuánto stock suman. Va pegado al
+  /// buscador porque es la respuesta a lo que se acaba de escribir.
+  Widget _buildResumenVisible(List<ProductoVariante> visibles) {
+    final r = _resumenVisible(visibles);
+    return ResumenVariantes(
+      cantidad: r.cantidad,
+      total: _totalVariantes,
+      stock: r.stock,
+      filtrando: _filtro.activo,
+    );
+  }
+
+  static const _estiloHeader =
+      TextStyle(fontSize: 10, fontWeight: FontWeight.w600);
+
+  /// Encabezado de la columna congelada. Va aparte del de datos para que los
+  /// dos midan lo mismo de alto sin depender de un Row compartido.
+  Widget _buildHeaderNombre() {
     return Container(
+      height: _hHeader,
+      alignment: Alignment.centerLeft,
       color: AppColors.blue1.withValues(alpha: 0.08),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(2, 0, 8, 0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _wNumero,
+            child: Text('#',
+                textAlign: TextAlign.right,
+                style: _estiloHeader.copyWith(color: Colors.grey[600])),
+          ),
+          const SizedBox(width: 4),
+          const Text('Variante', style: _estiloHeader),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderDatos() {
+    return Container(
+      height: _hHeader,
+      color: AppColors.blue1.withValues(alpha: 0.08),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: const Row(
         children: [
-          Expanded(child: Text('Variante', style: estilo)),
           SizedBox(
               width: _wStockActual,
-              child: Text('Stock', style: estilo, textAlign: TextAlign.center)),
+              child: Text('Stock',
+                  style: _estiloHeader, textAlign: TextAlign.center)),
           SizedBox(
               width: _wAgregarStock,
-              child:
-                  Text('+ Stock', style: estilo, textAlign: TextAlign.center)),
+              child: Text('+ Stock',
+                  style: _estiloHeader, textAlign: TextAlign.center)),
           SizedBox(
               width: _wPrecio,
-              child: Text('Precio S/',
-                  style: estilo, textAlign: TextAlign.center)),
+              child: Text('P.Venta S/',
+                  style: _estiloHeader, textAlign: TextAlign.center)),
           SizedBox(
               width: _wCosto,
-              child:
-                  Text('Costo S/', style: estilo, textAlign: TextAlign.center)),
+              child: Text('Costo S/',
+                  style: _estiloHeader, textAlign: TextAlign.center)),
           SizedBox(
               width: _wMayorDesde,
-              child: Text('Desde', style: estilo, textAlign: TextAlign.center)),
+              child: Text('Desde',
+                  style: _estiloHeader, textAlign: TextAlign.center)),
           SizedBox(
               width: _wMayorPrecio,
               child: Text('Mayor S/',
-                  style: estilo, textAlign: TextAlign.center)),
+                  style: _estiloHeader, textAlign: TextAlign.center)),
         ],
       ),
     );
   }
 
-  Widget _buildFila(ProductoVariante variante, int index) {
+  /// Fondo de la fila. Lo usan las DOS mitades: si difirieran, las rayas
+  /// dejarían de coincidir a los lados de la línea de congelado.
+  Color _fondoFila(ProductoVariante variante, int index) {
+    final fila = _filas[variante.id];
+    // El foco gana sobre "editada": mientras se escribe, lo que importa es
+    // saber en qué renglón se está parado.
+    if (fila != null && fila.estaEnfocada) {
+      return AppColors.blue1.withValues(alpha: 0.16);
+    }
+    if (fila != null && fila.tieneCambios) {
+      return Colors.amber.withValues(alpha: 0.12);
+    }
+    return index.isEven ? Colors.transparent : Colors.grey.withValues(alpha: 0.05);
+  }
+
+  /// Mitad congelada: nombre, SKU y margen. El motivo del bloqueo va acá
+  /// porque esta columna está SIEMPRE a la vista — con la grilla corrida a la
+  /// derecha, la celda en rojo puede quedar fuera de pantalla.
+  Widget _buildCeldaNombre(ProductoVariante variante, int index) {
     final fila = _filaDe(variante.id);
-    final stockInfo = _sedeId != null ? variante.stockSedeInfo(_sedeId!) : null;
-    final stockActual = stockInfo?.cantidad;
-    final precioActual = stockInfo?.precio;
-    final costoActual = stockInfo?.precioCosto;
-    final editada = fila.tieneCambios;
+    final stockInfo = _stockDe(variante);
     final u = _presentacionDe(variante);
-    final nivel = variante.nivelPorMayor;
     final problema = _problemaMayor(variante);
 
     // El margen se calcula sobre lo que QUEDARÍA: si ya se tecleó un precio o
     // un costo nuevo, manda ese. Así se ve el efecto antes de guardar.
-    final precioEfectivo =
-        _parseNum(fila.precio.text) ?? (precioActual != null ? u.precio(precioActual) : null);
-    final costoEfectivo =
-        _parseNum(fila.costo.text) ?? (costoActual != null ? u.precio(costoActual) : null);
+    final precioEfectivo = _parseNum(fila.precio.text) ??
+        (stockInfo?.precio != null ? u.precio(stockInfo!.precio!) : null);
+    final costoEfectivo = _parseNum(fila.costo.text) ??
+        (stockInfo?.precioCosto != null ? u.precio(stockInfo!.precioCosto!) : null);
     final margen = _margenPct(precioEfectivo, costoEfectivo);
 
+    // Sin `alignment` a propósito: con él el Container afloja las constraints
+    // y el Flexible del sku pasaría a medirse por ancho intrínseco. Así la
+    // Column recibe el alto tight de `itemExtent` y centra sola.
     return Container(
-      color: editada
-          ? Colors.amber.withValues(alpha: 0.12)
-          : index.isEven
-              ? Colors.transparent
-              : Colors.grey.withValues(alpha: 0.05),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      color: _fondoFila(variante, index),
+      padding: const EdgeInsets.fromLTRB(2, 4, 6, 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Numerador. Se numera la POSICIÓN en lo que se está viendo, no un
+          // id fijo: si el buscador dice 32 resultados, la última fila dice 32.
+          // Es la comprobación de que el conteo de arriba no miente.
+          SizedBox(
+            width: _wNumero,
+            child: Text(
+              '${index + 1}',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey[500],
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
           Expanded(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(variante.nombre,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w500),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(variante.sku,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              TextStyle(fontSize: 9, color: Colors.grey[600])),
-                    ),
-                    if (margen != null) ...[
-                      const SizedBox(width: 5),
-                      Text(
-                        '${margen >= 0 ? '+' : ''}${margen.toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: _colorMargen(margen),
-                        ),
+          Text.rich(
+            TextSpan(
+              children: _filtro.resaltar(
+                variante.nombre,
+                const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w500),
+              ),
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          // El motivo REEMPLAZA la línea de sku/margen en vez de sumarse: la
+          // fila es de alto fijo (lo que permite congelar la columna), así que
+          // una tercera línea desbordaría.
+          if (problema != null)
+            Text(
+              problema.mensaje,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: problema.bloquea
+                    ? Colors.red.shade700
+                    : Colors.orange.shade800,
+              ),
+            )
+          else
+            Row(
+              children: [
+                Flexible(
+                  child: Text.rich(
+                    TextSpan(
+                      children: _filtro.resaltar(
+                        variante.sku,
+                        TextStyle(fontSize: 9, color: Colors.grey[600]),
+                        // Con la consulta ENTERA, igual que como se filtra.
+                        // Con las palabras sueltas pintaba el "3" de "3 pzs"
+                        // dentro de VAR-000230, justo el match que no
+                        // queríamos.
+                        esSku: true,
                       ),
-                    ],
-                  ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                // El motivo va debajo del nombre y no como tooltip: con la
-                // grilla scrolleada a la derecha, la celda en rojo puede
-                // quedar fuera de la vista y el usuario no sabría por qué no
-                // lo deja guardar.
-                if (problema != null)
+                if (margen != null) ...[
+                  const SizedBox(width: 5),
                   Text(
-                    problema.mensaje,
-                    maxLines: 2,
+                    '${margen >= 0 ? '+' : ''}${margen.toStringAsFixed(1)}%',
                     style: TextStyle(
                       fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: problema.bloquea
-                          ? Colors.red.shade700
-                          : Colors.orange.shade800,
+                      fontWeight: FontWeight.w800,
+                      color: _colorMargen(margen),
                     ),
                   ),
+                ],
+              ],
+            ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Mitad que scrollea: todo lo numérico.
+  Widget _buildCeldaDatos(ProductoVariante variante, int index) {
+    final fila = _filaDe(variante.id);
+    final stockInfo = _stockDe(variante);
+    final stockActual = stockInfo?.cantidad;
+    final precioActual = stockInfo?.precio;
+    final costoActual = stockInfo?.precioCosto;
+    final u = _presentacionDe(variante);
+    final nivel = variante.nivelPorMayor;
+    final problema = _problemaMayor(variante);
+
+    return Container(
+      color: _fondoFila(variante, index),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
           SizedBox(
             width: _wStockActual,
             child: Text(
@@ -961,14 +1374,16 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: (stockActual ?? 0) == 0 ? Colors.red : Colors.black87,
+                color: (stockActual ?? 0) == 0 ? Colors.red : AppColors.greendark,
               ),
             ),
           ),
           SizedBox(
             width: _wAgregarStock,
             child: _celdaEditable(
+              varianteId: variante.id,
               controller: fila.stock,
+              foco: fila.fStock,
               hint: '0',
               // Con presentación el stock se teclea en kilos y admite
               // decimales; sin ella sigue siendo entero.
@@ -979,7 +1394,9 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
           SizedBox(
             width: _wPrecio,
             child: _celdaEditable(
+              varianteId: variante.id,
               controller: fila.precio,
+              foco: fila.fPrecio,
               hint: precioActual == null
                   ? '—'
                   : u.precio(precioActual).toStringAsFixed(2),
@@ -989,7 +1406,9 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
           SizedBox(
             width: _wCosto,
             child: _celdaEditable(
+              varianteId: variante.id,
               controller: fila.costo,
+              foco: fila.fCosto,
               hint: costoActual == null
                   ? '—'
                   : u.precio(costoActual).toStringAsFixed(2),
@@ -999,7 +1418,9 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
           SizedBox(
             width: _wMayorDesde,
             child: _celdaEditable(
+              varianteId: variante.id,
               controller: fila.mayorDesde,
+              foco: fila.fMayorDesde,
               // El hint muestra el nivel VIGENTE: sin esto no se distingue
               // "no tiene mayorista" de "ya tiene uno y lo estoy pisando".
               hint: nivel == null
@@ -1011,7 +1432,9 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
           SizedBox(
             width: _wMayorPrecio,
             child: _celdaEditable(
+              varianteId: variante.id,
               controller: fila.mayorPrecio,
+              foco: fila.fMayorPrecio,
               hint: nivel?.precio == null
                   ? '—'
                   : u.precio(nivel!.precio!).toStringAsFixed(2),
@@ -1024,30 +1447,57 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     );
   }
 
+  /// Alto del campo dentro de la celda. Tiene que ser FIJO y estar acotado
+  /// por un SizedBox: `CustomText` devuelve una Column (campo + indicador de
+  /// voz + helper + error) con `mainAxisSize.max`, así que si se la deja
+  /// crecer toma todo el alto de la fila y apila desde ARRIBA — el campo
+  /// quedaba pegado al techo con el espacio muerto abajo, no centrado.
+  ///
+  /// 36 y no 34: borde (1.6×2) + padding (8×2) + línea de 11px dan ~35, y con
+  /// 34 la Column desbordaba el SizedBox. En una fila de 54 sigue centrado.
+  static const _hCampo = 32.0;
+
   Widget _celdaEditable({
     required TextEditingController controller,
     required String hint,
     required TextInputFormatter formatter,
+    required String varianteId,
+    FocusNode? foco,
     bool signed = false,
     bool errorColor = false,
   }) {
+    final activa = foco?.hasFocus ?? false;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: CustomText(
-        controller: controller,
-        hintText: hint,
-        onChanged: (_) => setState(() {}),
-        keyboardType: TextInputType.numberWithOptions(
-            signed: signed, decimal: !signed),
-        inputFormatters: [formatter],
-        height: 34,
-        borderColor: errorColor
-            ? Colors.red.shade600
-            : AppColors.blue1.withValues(alpha: 0.3),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        textStyle: const TextStyle(fontSize: 11),
-        hintStyle: TextStyle(fontSize: 10, color: Colors.grey[400]),
-        showValidationIndicator: false,
+      child: Center(
+        child: SizedBox(
+          height: _hCampo,
+          child: CustomText(
+            controller: controller,
+            focusNode: foco,
+            hintText: hint,
+            // Solo se invalida ESTA fila: el problema de mayoreo de las otras
+            // 90 no cambió porque acá se tecleó un dígito.
+            onChanged: (_) => setState(() => _invalidarFila(varianteId)),
+            keyboardType: TextInputType.numberWithOptions(
+                signed: signed, decimal: !signed),
+            inputFormatters: [formatter],
+            height: _hCampo,
+            // La celda tocada se marca con borde lleno; el error manda sobre
+            // el foco, porque un campo en rojo enfocado sigue estando mal.
+            borderColor: errorColor
+                ? Colors.red.shade600
+                : activa
+                    ? AppColors.blue1
+                    : AppColors.blue1Alpha40,
+            borderWidth: activa || errorColor ? 1 : 0.6,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            textStyle: const TextStyle(fontSize: 11),
+            hintStyle: TextStyle(fontSize: 10, color: Colors.grey[400]),
+            showValidationIndicator: false,
+          ),
+        ),
       ),
     );
   }
@@ -1105,6 +1555,16 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
               const SizedBox(width: 8),
             ],
             FilledButton.icon(
+              // Azul de la app en vez del primary del tema (lavanda de M3),
+              // igual que el resto de la barra. Deshabilitado va gris y no
+              // azul apagado: tiene que leerse como "no se puede", no como
+              // "guardá acá".
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.blue1,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey.shade300,
+                disabledForegroundColor: Colors.grey.shade600,
+              ),
               onPressed: cambios == 0 || guardando || bloqueantes > 0
                   ? null
                   : () => _guardar(variantes),
@@ -1112,7 +1572,8 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
                   ? const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.save, size: 18),
               label: Text(

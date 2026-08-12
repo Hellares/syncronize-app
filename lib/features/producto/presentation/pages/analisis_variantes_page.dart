@@ -18,6 +18,9 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../../domain/entities/producto_variante.dart';
+import '../../../../core/widgets/custom_search_field.dart';
+import '../../../../core/utils/busqueda_texto.dart';
+import '../widgets/filtro_variantes.dart';
 import '../../domain/entities/stock_por_sede_info.dart';
 import '../../domain/usecases/get_stock_variante_en_sede_usecase.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
@@ -105,6 +108,11 @@ class _AnalisisVariantesView extends StatefulWidget {
 class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   String? _empresaId;
   String? _sedeId;
+
+  /// Mismo buscador y filtro numérico que la edición masiva: acá sirve para
+  /// aislar el bloque que se quiere mirar (las de S/83, las que todavía no
+  /// tienen precio por mayor) sin scrollear 91 filas.
+  final _filtro = FiltroVariantes();
   List<dynamic> _sedes = [];
   _Orden _orden = _Orden.margen;
 
@@ -115,6 +123,12 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   int _dias = 90;
   Map<String, _Rotacion> _rotacion = {};
   bool _cargandoRotacion = false;
+
+  @override
+  void dispose() {
+    _filtro.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -475,6 +489,147 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   double? _precio(ProductoVariante v) =>
       _sedeId == null ? null : v.stockSedeInfo(_sedeId!)?.precio;
 
+  /// Precio por mayor vigente (el nivel de menor cantidad mínima), en unidad
+  /// de VENTA como el resto — la celda lo convierte a presentación.
+  ///
+  /// 🔴 Ojo: `PrecioNivel` no tiene `sedeId`, así que esto NO depende de la
+  /// sede elegida arriba, a diferencia de precio y costo.
+  double? _mayor(ProductoVariante v) => v.nivelPorMayor?.precio;
+
+  /// Sufijo " 3+" con la cantidad desde la que aplica. Sin él la columna dice
+  /// un precio sin decir cuándo entra, que es la mitad del dato.
+  String _desdeMayor(ProductoVariante v) {
+    final n = v.nivelPorMayor;
+    if (n == null) return '';
+    final u = _presentacionDe(v);
+    return ' ${u.cantidadTexto(n.cantidadMinima, conSimbolo: false)}+';
+  }
+
+  /// ¿El nombre de la variante dejó de coincidir con sus atributos?
+  ///
+  /// 🔴 El nombre se arma UNA sola vez al generar (`combo.join(' / ')`) y
+  /// ningún update posterior lo regenera. Corregir el género de una variante
+  /// y no el nombre deja los chips diciendo NIÑA y **la boleta diciendo
+  /// NIÑO** — se imprime el nombre, no los atributos.
+  ///
+  /// Se chequea SIN depender del orden, porque el backend no manda el `orden`
+  /// del atributo en el listado de variantes: que estén todos los valores, y
+  /// que la cantidad de tramos del nombre coincida con la de atributos. No
+  /// detecta un nombre con los valores correctos pero en otro orden, que es
+  /// inofensivo (el orden solo lo fija la generación).
+  bool _nombreDesalineado(ProductoVariante v) {
+    final valores = v.atributosValores;
+    // Sin atributos no hay combinación que contradecir: es una BASE.
+    if (valores.isEmpty) return false;
+
+    final nombre = normalizarTexto(v.nombre);
+    for (final av in valores) {
+      if (!nombre.contains(normalizarTexto(av.valor))) return true;
+    }
+    return v.nombre.split(' / ').length != valores.length;
+  }
+
+  /// Lista las variantes de una alerta con el dato que la explica.
+  ///
+  /// Denunciar "hay 2 con problema" y dejar al usuario buscándolas entre 91
+  /// filas es la mitad del trabajo; acá se ve cuáles y por qué.
+  Future<void> _verVariantes({
+    required String titulo,
+    required String descripcion,
+    required IconData icono,
+    required Color color,
+    required List<ProductoVariante> vs,
+    required String Function(ProductoVariante) detalle,
+    String? comoSeArregla,
+  }) async {
+    await StyledDialog.show<void>(
+      context,
+      accentColor: color,
+      backgroundColor: Colors.white,
+      icon: icono,
+      titulo: titulo,
+      content: [
+        Text(descripcion,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+        const SizedBox(height: 10),
+        ...vs.take(12).map(
+          (v) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(v.nombre,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w700)),
+                Text(detalle(v),
+                    style: TextStyle(fontSize: 10, color: color)),
+                Text(v.sku,
+                    style:
+                        TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+              ],
+            ),
+          ),
+        ),
+        if (vs.length > 12)
+          Text('…y ${vs.length - 12} más.',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+        if (comoSeArregla != null) ...[
+          const SizedBox(height: 6),
+          Text(comoSeArregla,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+        ],
+      ],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Entendido',
+            backgroundColor: color,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Cuántas variantes quedan a la vista y cuánto stock suman.
+  ///
+  /// 🔴 El stock solo se suma si TODAS comparten presentación: sumar 5000 g de
+  /// un granel con 2 sacos da un número que no significa nada.
+  ({int cantidad, String? stock}) _resumenVisible(List<ProductoVariante> vis) {
+    if (vis.isEmpty) return (cantidad: 0, stock: null);
+
+    final u0 = _presentacionDe(vis.first);
+    var total = 0.0;
+    var mismaUnidad = true;
+    for (final v in vis) {
+      final u = _presentacionDe(v);
+      if (u.factor != u0.factor || u.simboloVisible != u0.simboloVisible) {
+        mismaUnidad = false;
+      }
+      total += _stock(v);
+    }
+    if (!mismaUnidad) return (cantidad: vis.length, stock: null);
+
+    final texto = u0.cantidadTexto(total);
+    return (
+      cantidad: vis.length,
+      stock: u0.simboloVisible == null ? '$texto u' : texto,
+    );
+  }
+
+  /// El valor del campo pedido, en unidad de PRESENTACIÓN — la misma en la
+  /// que se ve en la tabla y en la que se teclea el filtro.
+  double? _valorDelCampo(ProductoVariante v, CampoPrecio campo) {
+    final u = _presentacionDe(v);
+    final crudo = switch (campo) {
+      CampoPrecio.venta => _precio(v),
+      CampoPrecio.costo => _costo(v),
+      CampoPrecio.mayor => _mayor(v),
+    };
+    return crudo == null ? null : u.precio(crudo);
+  }
+
   /// Plata inmovilizada en esta variante. En unidad de venta, que es donde
   /// vive el costo: stock × costo unitario.
   double _valor(ProductoVariante v) {
@@ -601,7 +756,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
             return const Center(child: Text('Sin variantes activas'));
           }
           return ListView(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 24),
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 24),
             children: [
               _buildSelectorSede(),
               const SizedBox(height: 10),
@@ -681,6 +836,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
 
     final sinPrecio = todas.where((v) => _precio(v) == null).length;
     final sinStock = todas.where((v) => _stock(v) <= 0).length;
+    final conMayor = todas.where((v) => _mayor(v) != null).length;
 
     return GradientContainer(
       gradient: AppGradients.blueWhiteBlue(),
@@ -716,7 +872,10 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
           Text(
             '${todas.length} variantes activas'
             '${sinPrecio > 0 ? '  ·  $sinPrecio sin precio' : ''}'
-            '${sinStock > 0 ? '  ·  $sinStock sin stock' : ''}',
+            '${sinStock > 0 ? '  ·  $sinStock sin stock' : ''}'
+            // Cobertura del mayoreo: es el número que se mira al terminar de
+            // cargar una lista de precios. Si da 0 sin mayorista, entró todo.
+            '${conMayor > 0 ? '  ·  $conMayor con mayorista' : ''}',
             style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
           ),
         ],
@@ -751,16 +910,18 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   /// Solo lo que se puede calcular con lo que ya está cargado. Nada de
   /// "vendido hace N días": eso necesita backend.
   Widget _buildAlertas(List<ProductoVariante> todas) {
-    final avisos = <({IconData icono, Color color, String texto})>[];
+    final avisos =
+        <({IconData icono, Color color, String texto, VoidCallback? onTap})>[];
 
     void agregar(
       List<ProductoVariante> vs,
       IconData i,
       Color c,
-      String Function(int) t,
-    ) {
+      String Function(int) t, {
+      VoidCallback? onTap,
+    }) {
       if (vs.isEmpty) return;
-      avisos.add((icono: i, color: c, texto: t(vs.length)));
+      avisos.add((icono: i, color: c, texto: t(vs.length), onTap: onTap));
     }
 
     agregar(
@@ -805,6 +966,101 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
       (n) => '$n variante(s) sin stock mínimo: no van a avisar cuando falten',
     );
 
+    // 🔴 La alerta de "bajo costo" de más arriba mira el PRECIO DE LISTA, así
+    // que el mayorista se le escapa entero: es exactamente el caso KITTY
+    // —lista 112 sobre costo 100.50, sano; mayorista 77, S/23.50 de pérdida
+    // por unidad en cuanto alguien se lleva 3—. Y no se nota revisando al
+    // azar, porque en las variantes baratas el nivel ni siquiera aplica.
+    final mayorBajoCosto = todas.where((v) {
+      final m = _mayor(v);
+      final c = _costo(v);
+      return m != null && c != null && m < c;
+    }).toList();
+    agregar(
+      mayorBajoCosto,
+      Icons.production_quantity_limits,
+      Colors.red.shade700,
+      (n) => '$n variante(s) con PRECIO POR MAYOR bajo el costo '
+          '— tocá para ver cuáles',
+      onTap: () => _verVariantes(
+        titulo: 'Mayorista bajo costo',
+        descripcion:
+            'En cuanto un cliente se lleve la cantidad mínima, estas se '
+            'venden perdiendo plata. Un precio por mayor plano sobre '
+            'variantes de costos distintos hunde justo a las caras:',
+        icono: Icons.production_quantity_limits,
+        color: Colors.red.shade700,
+        vs: mayorBajoCosto,
+        detalle: (v) {
+          final u = _presentacionDe(v);
+          final m = u.precio(_mayor(v)!);
+          final c = u.precio(_costo(v)!);
+          return 'mayor ${_plata(m)} vs costo ${_plata(c)} '
+              '→ ${_plata(m - c)} por unidad';
+        },
+        comoSeArregla: 'Se corrige desde la edición masiva, en la columna '
+            'Mayor S/ — ahí el guardado se bloquea si queda bajo costo.',
+      ),
+    );
+
+    // El nivel solo entra si BAJA el precio ("gana el menor"), así que uno por
+    // encima del de lista no hace nada. No es peligroso, pero el cliente cree
+    // que dejó un mayorista cargado y no cobra distinto.
+    final mayorInerte = todas.where((v) {
+      final m = _mayor(v);
+      final p = _precio(v);
+      return m != null && p != null && m >= p;
+    }).toList();
+    agregar(
+      mayorInerte,
+      Icons.do_not_disturb_on_outlined,
+      Colors.orange.shade800,
+      (n) => '$n variante(s) con mayorista que NO baja del precio de lista: '
+          'no se aplica nunca',
+      onTap: () => _verVariantes(
+        titulo: 'Mayorista que no aplica',
+        descripcion:
+            'Gana el menor entre el precio de lista y el nivel, así que un '
+            'mayorista más caro que la lista nunca entra. Se cobra el precio '
+            'normal aunque el cliente lleve la cantidad mínima:',
+        icono: Icons.do_not_disturb_on_outlined,
+        color: Colors.orange.shade800,
+        vs: mayorInerte,
+        detalle: (v) {
+          final u = _presentacionDe(v);
+          return 'mayor ${_plata(u.precio(_mayor(v)!))} '
+              '≥ lista ${_plata(u.precio(_precio(v)!))}';
+        },
+      ),
+    );
+
+    // 🔴 El nombre se arma UNA vez al generar y ningún update lo regenera:
+    // corregir el género de una variante sin corregir el nombre deja la BOLETA
+    // diciendo lo contrario que los chips. No hay ningún otro detector de esto
+    // en la app.
+    final desalineadas = todas.where(_nombreDesalineado).toList();
+    agregar(
+      desalineadas,
+      Icons.label_off_outlined,
+      Colors.red.shade700,
+      (n) => '$n variante(s) con el nombre desalineado de sus atributos '
+          '— tocá para ver cuáles',
+      onTap: () => _verVariantes(
+        titulo: 'Nombre ≠ atributos',
+        descripcion:
+            'El nombre se arma al GENERAR la variante y no se regenera al '
+            'editar un atributo. Estas se imprimirían en la boleta con un '
+            'nombre que ya no describe lo que son:',
+        icono: Icons.label_off_outlined,
+        color: Colors.red.shade700,
+        vs: desalineadas,
+        detalle: (v) =>
+            'atributos: ${v.atributosValores.map((a) => a.valor).join(' / ')}',
+        comoSeArregla: 'Se corrige en Gestión de Variantes editando el nombre '
+            'Y el atributo en el mismo diálogo.',
+      ),
+    );
+
     // El botón acompaña al aviso de "sin mínimo": denunciar el problema sin
     // dar la salida era la mitad del trabajo.
     final faltanMinimos = todas
@@ -818,7 +1074,9 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
       child: Column(
         children: [
           ...avisos.map(
-            (a) => Container(
+            (a) => GestureDetector(
+              onTap: a.onTap,
+              child: Container(
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -840,8 +1098,11 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                       ),
                     ),
                   ),
+                  if (a.onTap != null)
+                    Icon(Icons.chevron_right, size: 15, color: a.color),
                 ],
               ),
+            ),
             ),
           ),
           if (faltanMinimos)
@@ -864,15 +1125,18 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
   // Anchos de la tabla. La suma pasa el ancho de un teléfono a propósito: es
   // una tabla de análisis, se lee de izquierda a derecha desplazándola. Meter
   // seis columnas en 400 px dejaría el nombre de la variante en dos letras.
-  static const _wNombre = 150.0;
-  static const _wStock = 74.0;
+  static const _wNombre = 190.0;
+  static const _wStock = 40.0;
   static const _wCosto = 82.0;
   static const _wPrecio = 82.0;
   static const _wMargen = 62.0;
+  static const _wMayor = 82.0;
   static const _wValor = 82.0;
 
   Widget _buildTabla(List<ProductoVariante> todas) {
-    final lista = _ordenadas(todas);
+    final visibles = _filtro.filtrar(todas, _valorDelCampo);
+    final lista = _ordenadas(visibles);
+    final resumen = _resumenVisible(visibles);
     return GradientContainer(
       borderColor: AppColors.blueborder,
       padding: EdgeInsets.zero,
@@ -886,6 +1150,59 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                 _chipOrden('Margen', _Orden.margen),
                 _chipOrden('Valor', _Orden.valor),
                 _chipOrden('A-Z', _Orden.nombre),
+                const SizedBox(width: 4),
+                IconButton(
+                  style: IconButton.styleFrom(
+                    minimumSize: Size.zero,
+                    fixedSize: const Size(28, 28),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: AppColors.blue1
+                        .withValues(alpha: _filtro.filtraPrecio ? 0.20 : 0.08),
+                    foregroundColor: AppColors.blue1,
+                  ),
+                  tooltip: 'Filtrar por precio',
+                  icon: Icon(
+                    _filtro.filtraPrecio
+                        ? Icons.filter_alt
+                        : Icons.filter_alt_outlined,
+                    size: 15,
+                  ),
+                  onPressed: () => setState(_filtro.alternarPanel),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    ResumenVariantes(
+                      cantidad: resumen.cantidad,
+                      total: todas.length,
+                      stock: resumen.stock,
+                      filtrando: _filtro.activo,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: CustomSearchField(
+                        borderColor: AppColors.blue1Alpha40,
+                        controller: _filtro.busqueda,
+                        hintText: 'Buscar por nombre o SKU...',
+                        debounceDelay: const Duration(milliseconds: 200),
+                        onChanged: (_) => setState(() {}),
+                        onClear: () => setState(() {}),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_filtro.abierto)
+                  FilaFiltroPrecio(
+                    filtro: _filtro,
+                    onCambio: () => setState(() {}),
+                  ),
               ],
             ),
           ),
@@ -924,6 +1241,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
           celda('Costo/u', _wCosto),
           celda('Precio/u', _wPrecio),
           celda('Margen', _wMargen),
+          celda('Mayor', _wMayor),
           celda('Valor', _wValor),
         ],
       ),
@@ -964,6 +1282,7 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
     final costo = _costo(v);
     final precio = _precio(v);
     final margen = _margen(v);
+    final mayor = _mayor(v);
     // El "/kg" va en la celda y no en el encabezado: cada variante habla en su
     // unidad, así que la columna no puede tener un rótulo único.
     final sufijo = u.simboloVisible != null ? '/${u.simboloVisible}' : '';
@@ -994,14 +1313,33 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
           children: [
             SizedBox(
               width: _wNombre,
-              child: Text(
-                v.nombre,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // La etiqueta roja marca en la tabla la misma variante que
+                  // denuncia la alerta: sin esto había que buscarla a ojo
+                  // entre 91 filas.
+                  if (_nombreDesalineado(v)) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1, right: 3),
+                      child: Icon(Icons.label_off_outlined,
+                          size: 11, color: Colors.red.shade700),
+                    ),
+                  ],
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: _filtro.resaltar(
+                          v.nombre,
+                          const TextStyle(
+                              fontSize: 9, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
             num(
@@ -1029,6 +1367,24 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
                   ? Colors.grey.shade500
                   : _colorMargen(margen),
               peso: FontWeight.w800,
+            ),
+            // Precio por mayor vigente. Se pinta ROJO si quedó por debajo del
+            // costo: es el error que ya se coló dos veces con los edredones
+            // —un mayorista plano sobre variantes de costos distintos— y esta
+            // tabla es el único lugar donde se ve el catálogo entero de golpe.
+            num(
+              mayor == null
+                  ? '—'
+                  : '${_plata(u.precio(mayor))}${_desdeMayor(v)}',
+              _wMayor,
+              color: mayor == null
+                  ? Colors.grey.shade400
+                  : (costo != null && mayor < costo)
+                      ? Colors.red.shade700
+                      : Colors.black87,
+              peso: (mayor != null && costo != null && mayor < costo)
+                  ? FontWeight.w800
+                  : null,
             ),
             num(_plata(_valor(v)), _wValor, peso: FontWeight.w700),
           ],

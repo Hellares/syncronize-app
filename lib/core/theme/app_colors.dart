@@ -21,6 +21,7 @@ class AppColors {
   static const Color blueGrey = Color(0xFF607D8B);
   static const Color green = Color.fromARGB(255, 43, 175, 71);
   static const Color greendark = Color(0xFF088A24);
+  static const Color blue1Alpha40 = Color(0x66004A94);
   // static const Color greenContainer = Color(0xFFA5D6A7); //shade 200
   static const Color greenBorder = Color(0xFFA5D6A7);//shade 200
   static const Color greenContainer = Color(0xFFE8F5E9);//shade 50
