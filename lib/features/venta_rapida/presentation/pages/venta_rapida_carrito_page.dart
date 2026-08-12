@@ -1276,10 +1276,11 @@ class _ItemRowState extends State<_ItemRow> {
                     ),
                   ),
                   const SizedBox(width: 2),
-                  // 3 y 2: quince dígitos necesitan más aire que una nota
-                  // corta como "NEGRO 128GB".
+                  // El identificador casi siempre se timbra, así que se lee
+                  // poco: el reparto le da más ancho a la nota, que sí se
+                  // escribe a mano.
                   Expanded(
-                    flex: 3,
+                    flex: 2,
                     child: Center(
                       child: SizedBox(
                         height: _hCampoIdent,
@@ -1328,7 +1329,7 @@ class _ItemRowState extends State<_ItemRow> {
                   // en el texto del comprobante, así el IMEI queda limpio para
                   // buscarlo exacto ante un reclamo de garantía.
                   Expanded(
-                    flex: 2,
+                    flex: 3,
                     child: Center(
                       child: SizedBox(
                         height: _hCampoIdent,
