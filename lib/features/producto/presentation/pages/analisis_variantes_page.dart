@@ -529,6 +529,65 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
     return v.nombre.split(' / ').length != valores.length;
   }
 
+  /// Variantes cuyo COSTO se aparta del de sus hermanas de MISMO precio.
+  ///
+  /// Comparar costos a secas no sirve en este catálogo: dos variantes con
+  /// características distintas cuestan distinto y está bien (un diseño
+  /// licenciado contra uno genérico). Comparar MÁRGENES tampoco — acá van de
+  /// 5% a 35% según el bloque.
+  ///
+  /// Lo que no se explica solo es que dos variantes que se venden **al mismo
+  /// precio** tengan costos muy distintos: o el costo está mal cargado, o el
+  /// precio está mal puesto. Condicionar al precio hace que una variante cara
+  /// nunca se compare contra las baratas.
+  ///
+  /// Contra la MEDIANA y no el promedio: un dedazo grande arrastra el promedio
+  /// y termina tapándose a sí mismo.
+  ///
+  /// [medianas] se llena con la referencia de cada variante marcada, para que
+  /// el detalle pueda mostrar contra qué se la comparó.
+  List<ProductoVariante> _costosAnomalos(
+    List<ProductoVariante> todas,
+    Map<String, double> medianas,
+  ) {
+    const desvioMaximo = 0.10;
+    // Con dos no hay referencia: cualquiera de las dos es "la rara".
+    const minimoGrupo = 3;
+
+    final porPrecio = <String, List<ProductoVariante>>{};
+    for (final v in todas) {
+      final p = _precio(v);
+      final c = _costo(v);
+      if (p == null || c == null || c <= 0) continue;
+      final u = _presentacionDe(v);
+      // La unidad entra en la clave: un granel cotizado por kilo y un producto
+      // por unidad no son hermanos aunque el número coincida.
+      final clave = '${u.simboloVisible}|${u.precio(p).toStringAsFixed(2)}';
+      porPrecio.putIfAbsent(clave, () => []).add(v);
+    }
+
+    final out = <ProductoVariante>[];
+    for (final grupo in porPrecio.values) {
+      if (grupo.length < minimoGrupo) continue;
+
+      final costos = grupo
+          .map((v) => _presentacionDe(v).precio(_costo(v)!))
+          .toList()
+        ..sort();
+      final mediana = costos[costos.length ~/ 2];
+      if (mediana <= 0) continue;
+
+      for (final v in grupo) {
+        final c = _presentacionDe(v).precio(_costo(v)!);
+        if ((c - mediana).abs() / mediana > desvioMaximo) {
+          medianas[v.id] = mediana;
+          out.add(v);
+        }
+      }
+    }
+    return out;
+  }
+
   /// Lista las variantes de una alerta con el dato que la explica.
   ///
   /// Denunciar "hay 2 con problema" y dejar al usuario buscándolas entre 91
@@ -1031,6 +1090,48 @@ class _AnalisisVariantesViewState extends State<_AnalisisVariantesView> {
           return 'mayor ${_plata(u.precio(_mayor(v)!))} '
               '≥ lista ${_plata(u.precio(_precio(v)!))}';
         },
+      ),
+    );
+
+    // Un costo que se aparta del de sus hermanas del MISMO precio: o el costo
+    // está mal cargado, o el precio.
+    //
+    // 🔑 Lo que aporta sobre la alerta de "margen menor al 15%" es el costo
+    // tipeado DE MENOS. Uno de más hunde el margen y la otra alerta lo agarra;
+    // uno de menos lo INFLA —63.61 tipeado 36.61 da 105% de margen— y no
+    // dispara nada, mientras subvalúa el inventario y hace ver rentable algo
+    // que no lo es.
+    //
+    // ⚠️ No agarra el caso KITTY: es la única a S/112, y sin hermanas de su
+    // mismo precio no hay contra qué compararla. Ese lo cubre el margen bajo.
+    final medianas = <String, double>{};
+    final costosRaros = _costosAnomalos(todas, medianas);
+    agregar(
+      costosRaros,
+      Icons.rule,
+      Colors.deepPurple.shade400,
+      (n) => '$n variante(s) con el costo fuera de lo normal para su precio '
+          '— tocá para ver cuáles',
+      onTap: () => _verVariantes(
+        titulo: 'Costo fuera de lo normal',
+        descripcion:
+            'Estas se venden al mismo precio que sus hermanas pero costaron '
+            'bastante distinto. Puede ser correcto, pero es la forma que tiene '
+            'un costo mal tipeado:',
+        icono: Icons.rule,
+        color: Colors.deepPurple.shade400,
+        vs: costosRaros,
+        detalle: (v) {
+          final u = _presentacionDe(v);
+          final c = u.precio(_costo(v)!);
+          final m = medianas[v.id]!;
+          final desvio = ((c - m) / m) * 100;
+          return 'costo ${_plata(c)} vs ${_plata(m)} típico de las de '
+              '${_plata(u.precio(_precio(v)!))} '
+              '(${desvio >= 0 ? '+' : ''}${desvio.toStringAsFixed(0)}%)';
+        },
+        comoSeArregla: 'Se compara contra la MEDIANA de las que comparten '
+            'precio, y solo en grupos de 3 o más.',
       ),
     );
 
