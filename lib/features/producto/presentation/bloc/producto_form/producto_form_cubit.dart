@@ -171,6 +171,13 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           tieneVariantes: controller.tieneVariantes,
           esCombo: controller.esCombo,
           esInsumo: controller.esInsumo,
+          requiereIdentificador: controller.requiereIdentificador,
+          // Vacío se manda como null para que el backend caiga en su default
+          // ("N° de serie") en vez de guardar cadena vacía.
+          etiquetaIdentificador:
+              controller.etiquetaIdentificadorCtrl.text.trim().isEmpty
+                  ? null
+                  : controller.etiquetaIdentificadorCtrl.text.trim(),
           tipoPrecioCombo: controller.esCombo ? controller.tipoPrecioCombo : null,
           imagenesIds: finalImagenesIds.isNotEmpty ? finalImagenesIds : null,
           configuracionPrecioId: controller.selectedConfiguracionPrecioId,
@@ -208,6 +215,13 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           tieneVariantes: controller.tieneVariantes,
           esCombo: controller.esCombo,
           esInsumo: controller.esInsumo,
+          requiereIdentificador: controller.requiereIdentificador,
+          // Vacío se manda como null para que el backend caiga en su default
+          // ("N° de serie") en vez de guardar cadena vacía.
+          etiquetaIdentificador:
+              controller.etiquetaIdentificadorCtrl.text.trim().isEmpty
+                  ? null
+                  : controller.etiquetaIdentificadorCtrl.text.trim(),
           tipoPrecioCombo: controller.esCombo ? controller.tipoPrecioCombo : null,
           imagenesIds: finalImagenesIds.isNotEmpty ? finalImagenesIds : null,
           configuracionPrecioId: controller.selectedConfiguracionPrecioId,

@@ -57,6 +57,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     bool? tieneVariantes,
     bool? esCombo,
     bool? esInsumo,
+    bool? requiereIdentificador,
+    String? etiquetaIdentificador,
     String? tipoPrecioCombo,
     List<String>? imagenesIds,
     String? configuracionPrecioId,
@@ -103,6 +105,10 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
         if (esInsumo != null) 'esInsumo': esInsumo,
+        if (requiereIdentificador != null)
+          'requiereIdentificador': requiereIdentificador,
+        if (etiquetaIdentificador != null)
+          'etiquetaIdentificador': etiquetaIdentificador,
         if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
         if (imagenesIds != null) 'imagenesIds': imagenesIds,
         if (configuracionPrecioId != null)
@@ -225,6 +231,8 @@ class ProductoRepositoryImpl implements ProductoRepository {
     bool? tieneVariantes,
     bool? esCombo,
     bool? esInsumo,
+    bool? requiereIdentificador,
+    String? etiquetaIdentificador,
     String? tipoPrecioCombo,
     List<String>? imagenesIds,
     String? configuracionPrecioId,
@@ -275,6 +283,10 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
         if (esInsumo != null) 'esInsumo': esInsumo,
+        if (requiereIdentificador != null)
+          'requiereIdentificador': requiereIdentificador,
+        if (etiquetaIdentificador != null)
+          'etiquetaIdentificador': etiquetaIdentificador,
         if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
         if (imagenesIds != null) 'imagenesIds': imagenesIds,
         if (configuracionPrecioId != null)

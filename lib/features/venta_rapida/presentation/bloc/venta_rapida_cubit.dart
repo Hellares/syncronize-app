@@ -345,6 +345,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final item = VentaDetalleInput(
       productoId: producto.id,
       descripcion: producto.nombre,
+      // El IMEI/serie se pide en el carrito, no al registrar el producto.
+      requiereIdentificador: producto.requiereIdentificador,
+      etiquetaIdentificador: producto.etiquetaIdentificador,
       cantidad: cantidadInicial,
       precioUnitario: precio,
       precioBase: precio,
@@ -426,6 +429,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       productoId: producto.id,
       varianteId: variante.id,
       descripcion: descripcion,
+      // El flag vive en el PRODUCTO, así que aplica a todas sus variantes.
+      requiereIdentificador: producto.requiereIdentificador,
+      etiquetaIdentificador: producto.etiquetaIdentificador,
       cantidad: cantidad.toDouble(),
       precioUnitario: precio,
       precioBase: precio,
@@ -852,6 +858,27 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       default:
         return '10';
     }
+  }
+
+  /// Identificadores por unidad de una línea (IMEI, N° de serie, placa).
+  ///
+  /// Se guardan tal cual se van tipeando, incluso incompletos: el bloqueo del
+  /// cobro lo hace `identificadoresIncompletos`, no este método. Recortar acá
+  /// haría que el campo se vacíe solo mientras el cajero escribe.
+  void actualizarIdentificadores(int index, List<String> valores) {
+    if (index < 0 || index >= state.items.length) return;
+    final lista = [...state.items];
+    lista[index] = lista[index].copyWith(identificadores: valores);
+    emit(state.copyWith(items: lista, clearError: true));
+  }
+
+  /// Notas por unidad ("NEGRO 128GB"), en el mismo orden que los
+  /// identificadores. Son opcionales: no bloquean el cobro.
+  void actualizarNotasIdentificador(int index, List<String> notas) {
+    if (index < 0 || index >= state.items.length) return;
+    final lista = [...state.items];
+    lista[index] = lista[index].copyWith(notasIdentificador: notas);
+    emit(state.copyWith(items: lista, clearError: true));
   }
 
   void actualizarCantidad(int index, double cantidad) {

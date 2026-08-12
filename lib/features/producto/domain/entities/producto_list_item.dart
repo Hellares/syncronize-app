@@ -17,6 +17,12 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   final bool esCombo;
   final bool esInsumo;
   final bool tieneVariantes;
+
+  /// El producto pide un identificador por unidad al vender (IMEI, serie,
+  /// placa) y con qué rótulo. Viaja en el catálogo local porque el POS lo
+  /// necesita al agregar al carrito, sin ir al servidor.
+  final bool requiereIdentificador;
+  final String? etiquetaIdentificador;
   final List<ProductoVariante>? variantes;
   @override
   final List<StockPorSedeInfo>? stocksPorSede; // Desglose de stock por sede
@@ -59,6 +65,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     this.esCombo = false,
     this.esInsumo = false,
     this.tieneVariantes = false,
+    this.requiereIdentificador = false,
+    this.etiquetaIdentificador,
     this.variantes,
     this.stocksPorSede,
     this.comboReservado = 0,
@@ -221,6 +229,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         esCombo,
         esInsumo,
         tieneVariantes,
+        requiereIdentificador,
+        etiquetaIdentificador,
         variantes,
         stocksPorSede,
         comboReservado,

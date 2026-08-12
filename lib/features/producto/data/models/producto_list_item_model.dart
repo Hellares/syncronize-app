@@ -15,6 +15,8 @@ class ProductoListItemModel extends ProductoListItem {
     super.esCombo,
     super.esInsumo,
     super.tieneVariantes,
+    super.requiereIdentificador,
+    super.etiquetaIdentificador,
     super.variantes,
     super.stocksPorSede,
     super.comboReservado,
@@ -45,6 +47,9 @@ class ProductoListItemModel extends ProductoListItem {
       esCombo: json['esCombo'] as bool? ?? false,
       esInsumo: json['esInsumo'] as bool? ?? false,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
+      requiereIdentificador:
+          json['requiereIdentificador'] as bool? ?? false,
+      etiquetaIdentificador: json['etiquetaIdentificador'] as String?,
       variantes: json['variantes'] != null
           ? (json['variantes'] as List)
               .map((e) => ProductoVarianteModel.fromJson(e as Map<String, dynamic>))
@@ -110,6 +115,11 @@ class ProductoListItemModel extends ProductoListItem {
       'esCombo': esCombo,
       'esInsumo': esInsumo,
       'tieneVariantes': tieneVariantes,
+      // Este modelo es el que persiste el catálogo local del POS: sin estos
+      // campos, al releer de disco no sabría que el producto pide IMEI.
+      'requiereIdentificador': requiereIdentificador,
+      if (etiquetaIdentificador != null)
+        'etiquetaIdentificador': etiquetaIdentificador,
       if (variantes != null)
         'variantes': variantes!
             .map((v) => ProductoVarianteModel.fromEntity(v).toJson())
@@ -180,6 +190,8 @@ class ProductoListItemModel extends ProductoListItem {
       esCombo: entity.esCombo,
       esInsumo: entity.esInsumo,
       tieneVariantes: entity.tieneVariantes,
+      requiereIdentificador: entity.requiereIdentificador,
+      etiquetaIdentificador: entity.etiquetaIdentificador,
       variantes: entity.variantes,
       stocksPorSede: entity.stocksPorSede,
       comboReservado: entity.comboReservado,

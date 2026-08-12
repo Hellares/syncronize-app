@@ -662,6 +662,15 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                       _markAsChanged();
                     });
                   },
+                  requiereIdentificador: _controller.requiereIdentificador,
+                  etiquetaIdentificadorCtrl:
+                      _controller.etiquetaIdentificadorCtrl,
+                  onRequiereIdentificadorChanged: (value) {
+                    setState(() {
+                      _controller.requiereIdentificador = value;
+                      _markAsChanged();
+                    });
+                  },
                 ),
                       const SizedBox(height: 13),
                     ],

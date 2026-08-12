@@ -39,6 +39,8 @@ class ProductoModel extends Producto {
     required super.isActive,
     super.tieneVariantes,
     super.esCombo,
+    super.requiereIdentificador,
+    super.etiquetaIdentificador,
     super.esInsumo,
     super.tipoPrecioCombo,
     super.configuracionPrecioId,
@@ -104,6 +106,9 @@ class ProductoModel extends Producto {
       isActive: json['isActive'] as bool? ?? true,
       tieneVariantes: json['tieneVariantes'] as bool? ?? false,
       esCombo: json['esCombo'] as bool? ?? false,
+      requiereIdentificador:
+          json['requiereIdentificador'] as bool? ?? false,
+      etiquetaIdentificador: json['etiquetaIdentificador'] as String?,
       esInsumo: json['esInsumo'] as bool? ?? false,
       tipoPrecioCombo: json['tipoPrecioCombo'] as String?,
       configuracionPrecioId: json['configuracionPrecioId'] as String?,
@@ -192,6 +197,11 @@ class ProductoModel extends Producto {
       'isActive': isActive,
       'tieneVariantes': tieneVariantes,
       'esCombo': esCombo,
+      // Van SIEMPRE en el toJson: el catálogo local se persiste con esto y si
+      // se omitieran, al releer el POS no sabría que hay que pedir el IMEI.
+      'requiereIdentificador': requiereIdentificador,
+      if (etiquetaIdentificador != null)
+        'etiquetaIdentificador': etiquetaIdentificador,
       'esInsumo': esInsumo,
       if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
       if (configuracionPrecioId != null)
@@ -289,6 +299,8 @@ class ProductoModel extends Producto {
       isActive: entity.isActive,
       tieneVariantes: entity.tieneVariantes,
       esCombo: entity.esCombo,
+      requiereIdentificador: entity.requiereIdentificador,
+      etiquetaIdentificador: entity.etiquetaIdentificador,
       esInsumo: entity.esInsumo,
       tipoPrecioCombo: entity.tipoPrecioCombo,
       configuracionPrecioId: entity.configuracionPrecioId,

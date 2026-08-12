@@ -108,6 +108,33 @@ class VentaDetalleInput {
   /// el cliente por la oferta pública.
   final double? precioAntesOferta;
 
+  /// El producto pide un identificador por unidad (IMEI, N° de serie, placa).
+  /// Viene del producto y es solo capa de vista: sirve para saber que hay que
+  /// pedirlo y con qué rótulo.
+  final bool requiereIdentificador;
+  final String? etiquetaIdentificador;
+
+  /// Un identificador por unidad vendida en esta línea. Cantidad 3 ⇒ tres
+  /// valores. Esto SÍ viaja al backend, que valida que estén completos y los
+  /// sella en la descripción que se imprime y se declara.
+  final List<String> identificadores;
+
+  /// Nota opcional por unidad, en el MISMO orden que [identificadores]
+  /// ("NEGRO 128GB"). Va aparte y no pegada al identificador porque este se
+  /// guarda limpio para poder buscarlo exacto ante un reclamo de garantía; el
+  /// backend la agrega entre paréntesis solo en el texto del comprobante.
+  final List<String> notasIdentificador;
+
+  /// Faltan identificadores para la cantidad que se está vendiendo.
+  /// Bloquea el cobro: el IMEI no se puede completar después, la boleta ya
+  /// salió impresa.
+  bool get identificadoresIncompletos {
+    if (!requiereIdentificador) return false;
+    final cargados =
+        identificadores.where((e) => e.trim().isNotEmpty).length;
+    return cargados != cantidad.round();
+  }
+
   /// Unidad en la que se le habla al cliente cuando la de venta es demasiado
   /// chica: `cantidad` y `precioUnitario` viajan SIEMPRE en unidad de venta
   /// (1500 g a S/0.008) pero se muestran y se capturan en presentación
@@ -164,6 +191,10 @@ class VentaDetalleInput {
     this.enLiquidacion = false,
     this.enOferta = false,
     this.precioAntesOferta,
+    this.requiereIdentificador = false,
+    this.etiquetaIdentificador,
+    this.identificadores = const [],
+    this.notasIdentificador = const [],
     this.factorPresentacion,
     this.unidadPresentacionSimbolo,
     this.vipIntents = const [],
@@ -232,6 +263,18 @@ class VentaDetalleInput {
         'precioIncluyeIgv': precioIncluyeIgv,
         'tipoAfectacion': tipoAfectacion,
         if (icbper > 0) 'icbper': icbper,
+        // El backend valida que estén completos y los sella en la
+        // descripción que se imprime y se declara a SUNAT.
+        if (identificadores.any((e) => e.trim().isNotEmpty)) ...{
+          'identificadores':
+              identificadores.map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+          // Van solo si hay alguna: el orden importa, así que se mandan
+          // completas (con vacíos) para que el índice coincida con el
+          // identificador al que anotan.
+          if (notasIdentificador.any((e) => e.trim().isNotEmpty))
+            'notasIdentificador':
+                notasIdentificador.map((e) => e.trim()).toList(),
+        },
         if (origenComboId != null) 'origenComboId': origenComboId,
         if (origenComboNombre != null) 'origenComboNombre': origenComboNombre,
       };
@@ -252,6 +295,10 @@ class VentaDetalleInput {
     bool? precioIncluyeIgv,
     String? tipoAfectacion,
     double? icbper,
+    bool? requiereIdentificador,
+    String? etiquetaIdentificador,
+    List<String>? identificadores,
+    List<String>? notasIdentificador,
     int? stockDisponible,
     List<PrecioNivel>? niveles,
     double? precioBase,
@@ -309,6 +356,12 @@ class VentaDetalleInput {
       enLiquidacion: enLiquidacion ?? this.enLiquidacion,
       enOferta: enOferta ?? this.enOferta,
       precioAntesOferta: precioAntesOferta ?? this.precioAntesOferta,
+      requiereIdentificador:
+          requiereIdentificador ?? this.requiereIdentificador,
+      etiquetaIdentificador:
+          etiquetaIdentificador ?? this.etiquetaIdentificador,
+      identificadores: identificadores ?? this.identificadores,
+      notasIdentificador: notasIdentificador ?? this.notasIdentificador,
       factorPresentacion: factorPresentacion ?? this.factorPresentacion,
       unidadPresentacionSimbolo:
           unidadPresentacionSimbolo ?? this.unidadPresentacionSimbolo,

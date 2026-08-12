@@ -16,6 +16,9 @@ class ProductoFormController extends ChangeNotifier {
   final nombreController = TextEditingController();
   final descripcionController = TextEditingController();
   final skuController = TextEditingController();
+
+  /// Rótulo del identificador que se pide al vender ("IMEI", "Placa").
+  final etiquetaIdentificadorCtrl = TextEditingController();
   final codigoBarrasController = TextEditingController();
   // precioController se mantiene solo como referencia para PrecioNivelesSection
   final precioController = TextEditingController();
@@ -38,6 +41,7 @@ class ProductoFormController extends ChangeNotifier {
         nombreController,
         descripcionController,
         skuController,
+        etiquetaIdentificadorCtrl,
         codigoBarrasController,
         precioController,
         precioCostoController,
@@ -164,6 +168,14 @@ class ProductoFormController extends ChangeNotifier {
     if (!value) {
       _tipoPrecioCombo = null;
     }
+    markAsChanged();
+    notifyListeners();
+  }
+
+  bool _requiereIdentificador = false;
+  bool get requiereIdentificador => _requiereIdentificador;
+  set requiereIdentificador(bool value) {
+    _requiereIdentificador = value;
     markAsChanged();
     notifyListeners();
   }
@@ -320,6 +332,8 @@ class ProductoFormController extends ChangeNotifier {
     _tieneVariantes = producto.tieneVariantes;
     _esCombo = producto.esCombo;
     _esInsumo = producto.esInsumo;
+    _requiereIdentificador = producto.requiereIdentificador;
+    etiquetaIdentificadorCtrl.text = producto.etiquetaIdentificador ?? '';
     _tipoPrecioCombo = producto.tipoPrecioCombo;
     _productoIsActive = producto.isActive;
 
@@ -380,6 +394,8 @@ class ProductoFormController extends ChangeNotifier {
     _tieneVariantes = false;
     _esCombo = false;
     _esInsumo = false;
+    _requiereIdentificador = false;
+    etiquetaIdentificadorCtrl.clear();
     _tipoPrecioCombo = null;
     _productoIsActive = true;
 

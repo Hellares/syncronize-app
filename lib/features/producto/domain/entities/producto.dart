@@ -71,6 +71,16 @@ class Producto extends Equatable with StockPorSedeMixin {
   final bool isActive;
   final bool tieneVariantes;
   final bool esCombo;
+
+  /// El producto pide un identificador por unidad AL VENDER (IMEI, N° de
+  /// serie, placa). Se registra genérico —"CELULAR REDMI 15 PRO"— y el dato
+  /// de cada aparato se tipea recién en el carrito, porque crear una variante
+  /// por unidad no es algo que nadie vaya a hacer.
+  final bool requiereIdentificador;
+
+  /// Cómo se llama ese dato para este producto: "IMEI", "Placa", "N° de
+  /// serie". Null ⇒ el POS usa "N° de serie".
+  final String? etiquetaIdentificador;
   final bool esInsumo; // Materia prima / insumo (oculto de POS y marketplace)
   final String? tipoPrecioCombo; // FIJO, CALCULADO, CALCULADO_CON_DESCUENTO
   final String? configuracionPrecioId; // ID de la configuración de precios aplicada
@@ -123,6 +133,8 @@ class Producto extends Equatable with StockPorSedeMixin {
     required this.isActive,
     this.tieneVariantes = false,
     this.esCombo = false,
+    this.requiereIdentificador = false,
+    this.etiquetaIdentificador,
     this.esInsumo = false,
     this.tipoPrecioCombo,
     this.configuracionPrecioId,
@@ -217,6 +229,8 @@ class Producto extends Equatable with StockPorSedeMixin {
         isActive,
         tieneVariantes,
         esCombo,
+        requiereIdentificador,
+        etiquetaIdentificador,
         esInsumo,
         tipoPrecioCombo,
         configuracionPrecioId,
