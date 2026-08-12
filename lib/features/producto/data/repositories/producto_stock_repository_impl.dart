@@ -98,6 +98,12 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
                     'agregarStock': item.agregarStock,
                   if (item.precio != null) 'precio': item.precio,
                   if (item.precioCosto != null) 'precioCosto': item.precioCosto,
+                  // La cantidad mínima viaja también al eliminar: es la que
+                  // identifica CUÁL nivel se borra.
+                  if (item.mayorCantidadMinima != null)
+                    'mayorCantidadMinima': item.mayorCantidadMinima,
+                  if (item.mayorPrecio != null) 'mayorPrecio': item.mayorPrecio,
+                  if (item.mayorEliminar) 'mayorEliminar': true,
                 })
             .toList(),
       );
@@ -106,6 +112,8 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         stockAjustado: data['stockAjustado'] as int? ?? 0,
         preciosActualizados: data['preciosActualizados'] as int? ?? 0,
         registrosCreados: data['registrosCreados'] as int? ?? 0,
+        nivelesActualizados: data['nivelesActualizados'] as int? ?? 0,
+        nivelesEliminados: data['nivelesEliminados'] as int? ?? 0,
       ));
     } catch (e) {
       return _errorHandler.handleException(e, context: 'ProductoStock');

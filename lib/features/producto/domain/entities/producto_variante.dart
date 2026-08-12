@@ -4,6 +4,50 @@ import 'stock_por_sede_info.dart';
 import 'stock_por_sede_mixin.dart';
 import '../../../catalogo/domain/entities/unidad_medida.dart';
 
+/// Nivel de precio por volumen de una variante ("Por Mayor 3+").
+///
+/// 🔴 A diferencia de `precio` y `precioCosto`, que viven en ProductoStock y
+/// son POR SEDE, el nivel es GLOBAL: en el backend `PrecioNivel` no tiene
+/// `sedeId`. Editarlo desde una sede lo cambia para todas.
+class PrecioNivelVariante extends Equatable {
+  final String id;
+  final String nombre;
+  final int cantidadMinima;
+  final int? cantidadMaxima;
+
+  /// 'PRECIO_FIJO' o 'PORCENTAJE_DESCUENTO'.
+  final String tipoPrecio;
+
+  /// Precio absoluto si es PRECIO_FIJO.
+  final double? precio;
+
+  /// Descuento 0-100 si es PORCENTAJE_DESCUENTO.
+  final double? porcentajeDesc;
+
+  const PrecioNivelVariante({
+    required this.id,
+    required this.nombre,
+    required this.cantidadMinima,
+    this.cantidadMaxima,
+    required this.tipoPrecio,
+    this.precio,
+    this.porcentajeDesc,
+  });
+
+  bool get esPrecioFijo => tipoPrecio == 'PRECIO_FIJO';
+
+  @override
+  List<Object?> get props => [
+        id,
+        nombre,
+        cantidadMinima,
+        cantidadMaxima,
+        tipoPrecio,
+        precio,
+        porcentajeDesc,
+      ];
+}
+
 /// Entity que representa una variante de producto
 class ProductoVariante extends Equatable with StockPorSedeMixin {
   final String id;
@@ -39,6 +83,11 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
   final int orden;
   final List<ProductoVarianteArchivo>? archivos;
   final EmpresaUnidadMedida? unidadMedida;
+
+  /// Niveles de precio por volumen activos, ordenados por cantidad mínima.
+  /// Vacío = la variante no tiene precio por mayor.
+  final List<PrecioNivelVariante> preciosNivel;
+
   final DateTime creadoEn;
   final DateTime actualizadoEn;
 
@@ -64,9 +113,16 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
     required this.orden,
     this.archivos,
     this.unidadMedida,
+    this.preciosNivel = const [],
     required this.creadoEn,
     required this.actualizadoEn,
   });
+
+  /// El nivel por mayor vigente: el de menor cantidad mínima. La grilla de
+  /// edición masiva maneja UN nivel por variante, así que si hubiera varios
+  /// (cargados desde la pantalla de precios) muestra el primero.
+  PrecioNivelVariante? get nivelPorMayor =>
+      preciosNivel.isEmpty ? null : preciosNivel.first;
 
   /// La variante tiene presentación PROPIA (no la heredada del producto).
   /// El factor tiene que agrupar: con 1 no agruparía nada.
@@ -160,6 +216,7 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
         stocksPorSede,
         peso,
         dimensiones,
+        preciosNivel,
         isActive,
         orden,
         archivos,

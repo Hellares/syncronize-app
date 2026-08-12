@@ -69,27 +69,65 @@ class _EdicionMasivaView extends StatefulWidget {
   State<_EdicionMasivaView> createState() => _EdicionMasivaViewState();
 }
 
+/// Qué tiene de malo el precio por mayor tecleado en una fila.
+///
+/// [bajoCosto] es el que motivó todo esto: un precio por mayor plano aplicado
+/// a variantes de costos distintos deja vendiendo bajo costo justo a las caras,
+/// y no se nota porque en las baratas el nivel ni siquiera llega a aplicar.
+enum _ProblemaMayor {
+  bajoCosto,
+  noBaja,
+  incompleto,
+  cantidadInvalida;
+
+  /// Los que impiden guardar. `noBaja` no bloquea: el nivel es inofensivo
+  /// (gana el menor), solo inútil, y puede ser intencional mientras se ajustan
+  /// los precios de lista.
+  bool get bloquea => this != _ProblemaMayor.noBaja;
+
+  String get mensaje => switch (this) {
+        _ProblemaMayor.bajoCosto => 'El precio por mayor está bajo el costo',
+        _ProblemaMayor.noBaja =>
+          'El precio por mayor no baja del precio de lista: no se aplicaría',
+        _ProblemaMayor.incompleto =>
+          'Faltan la cantidad mínima o el precio por mayor',
+        _ProblemaMayor.cantidadInvalida =>
+          'La cantidad mínima del precio por mayor debe ser al menos 2',
+      };
+}
+
 /// Controllers de una fila de la grilla (una variante).
 class _FilaEdicion {
   final stock = TextEditingController();
   final precio = TextEditingController();
   final costo = TextEditingController();
 
+  /// Cantidad desde la que aplica el precio por mayor, y ese precio.
+  /// El nivel es GLOBAL a la variante (no por sede) — ver el aviso de la barra.
+  final mayorDesde = TextEditingController();
+  final mayorPrecio = TextEditingController();
+
   bool get tieneCambios =>
       stock.text.trim().isNotEmpty ||
       precio.text.trim().isNotEmpty ||
-      costo.text.trim().isNotEmpty;
+      costo.text.trim().isNotEmpty ||
+      mayorDesde.text.trim().isNotEmpty ||
+      mayorPrecio.text.trim().isNotEmpty;
 
   void limpiar() {
     stock.clear();
     precio.clear();
     costo.clear();
+    mayorDesde.clear();
+    mayorPrecio.clear();
   }
 
   void dispose() {
     stock.dispose();
     precio.dispose();
     costo.dispose();
+    mayorDesde.dispose();
+    mayorPrecio.dispose();
   }
 }
 
@@ -104,6 +142,8 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
   static const _wAgregarStock = 68.0;
   static const _wPrecio = 78.0;
   static const _wCosto = 78.0;
+  static const _wMayorDesde = 58.0;
+  static const _wMayorPrecio = 82.0;
 
   @override
   void initState() {
@@ -146,6 +186,59 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
       _filas.putIfAbsent(varianteId, () => _FilaEdicion());
 
   int get _totalCambios => _filas.values.where((f) => f.tieneCambios).length;
+
+  /// Qué le pasa al precio por mayor tecleado en esta fila. Todo en unidad de
+  /// PRESENTACIÓN, que es en la que se teclea y en la que se muestra el costo.
+  ///
+  /// `null` = no hay nada que objetar (o no se tecleó nada).
+  _ProblemaMayor? _problemaMayor(ProductoVariante v) {
+    final fila = _filas[v.id];
+    if (fila == null) return null;
+
+    final desdeTxt = fila.mayorDesde.text.trim();
+    final precioTxt = fila.mayorPrecio.text.trim();
+    if (desdeTxt.isEmpty && precioTxt.isEmpty) return null;
+
+    // Las dos mitades o ninguna: un precio sin cantidad no se sabe desde
+    // cuándo aplica, y una cantidad sin precio no crea ningún nivel.
+    if (desdeTxt.isEmpty || precioTxt.isEmpty) {
+      return _ProblemaMayor.incompleto;
+    }
+
+    final desde = _parseNum(desdeTxt);
+    final precioMayor = _parseNum(precioTxt);
+    if (desde == null || desde < 2) return _ProblemaMayor.cantidadInvalida;
+    if (precioMayor == null) return _ProblemaMayor.incompleto;
+
+    final u = _presentacionDe(v);
+    final stockInfo = _sedeId != null ? v.stockSedeInfo(_sedeId!) : null;
+
+    // El costo efectivo es el tecleado en ESTA fila si lo hay; si no, el
+    // vigente. Comparar contra el viejo dejaría pasar un mayorista bajo costo
+    // cuando se cargan los dos juntos.
+    final costo = _parseNum(fila.costo.text) ??
+        (stockInfo?.precioCosto != null ? u.precio(stockInfo!.precioCosto!) : null);
+    if (costo != null && precioMayor < costo) return _ProblemaMayor.bajoCosto;
+
+    // Un nivel solo entra si BAJA el precio ("gana el menor"), así que uno por
+    // encima del precio de lista no hace absolutamente nada. No es peligroso,
+    // pero el usuario cree que dejó un mayorista cargado.
+    final precioLista = _parseNum(fila.precio.text) ??
+        (stockInfo?.precio != null ? u.precio(stockInfo!.precio!) : null);
+    if (precioLista != null && precioMayor >= precioLista) {
+      return _ProblemaMayor.noBaja;
+    }
+
+    return null;
+  }
+
+  /// Variantes visibles cuyo precio por mayor NO se puede guardar.
+  List<ProductoVariante> _bloqueantes(List<ProductoVariante> variantes) {
+    return variantes.where((v) {
+      final p = _problemaMayor(v);
+      return p != null && p.bloquea;
+    }).toList();
+  }
 
   List<ProductoVariante> _filtrar(List<ProductoVariante> variantes) {
     final term = _searchController.text.trim().toLowerCase();
@@ -211,6 +304,8 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     final stockCtrl = TextEditingController();
     final precioCtrl = TextEditingController();
     final costoCtrl = TextEditingController();
+    final mayorDesdeCtrl = TextEditingController();
+    final mayorPrecioCtrl = TextEditingController();
 
     final aplicar = await StyledDialog.show<bool>(
       context,
@@ -253,6 +348,54 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
           inputFormatters: [_soloDecimal],
           borderColor: AppColors.blue1.withValues(alpha: 0.4),
         ),
+        const SizedBox(height: 14),
+        const Divider(height: 1),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(Icons.public, size: 14, color: Colors.orange.shade800),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Text(
+                'El precio por mayor NO es por sede: se aplica a todas. '
+                'Las variantes cuyo precio quede bajo costo se marcan y no '
+                'dejan guardar.',
+                style: TextStyle(
+                    fontSize: 11, color: Colors.orange.shade900),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: CustomText(
+                controller: mayorDesdeCtrl,
+                label: 'Desde (cant.)',
+                hintText: '3',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [_soloDecimal],
+                borderColor: AppColors.blue1.withValues(alpha: 0.4),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: CustomText(
+                controller: mayorPrecioCtrl,
+                label: 'Precio por mayor (S/)',
+                hintText: '0.00',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [_soloDecimal],
+                borderColor: AppColors.blue1.withValues(alpha: 0.4),
+              ),
+            ),
+          ],
+        ),
       ],
       actions: [
         Expanded(
@@ -281,6 +424,12 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
         if (stockCtrl.text.trim().isNotEmpty) fila.stock.text = stockCtrl.text.trim();
         if (precioCtrl.text.trim().isNotEmpty) fila.precio.text = precioCtrl.text.trim();
         if (costoCtrl.text.trim().isNotEmpty) fila.costo.text = costoCtrl.text.trim();
+        if (mayorDesdeCtrl.text.trim().isNotEmpty) {
+          fila.mayorDesde.text = mayorDesdeCtrl.text.trim();
+        }
+        if (mayorPrecioCtrl.text.trim().isNotEmpty) {
+          fila.mayorPrecio.text = mayorPrecioCtrl.text.trim();
+        }
       }
       setState(() {});
     }
@@ -288,10 +437,51 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     stockCtrl.dispose();
     precioCtrl.dispose();
     costoCtrl.dispose();
+    mayorDesdeCtrl.dispose();
+    mayorPrecioCtrl.dispose();
   }
 
   Future<void> _guardar(List<ProductoVariante> variantes) async {
     if (_sedeId == null || _empresaId == null) return;
+
+    // Nada se guarda si hay un precio por mayor inválido: la transacción del
+    // backend es todo-o-nada, así que dejarlo llegar solo cambia un error de
+    // pantalla por un 400 con las demás filas sin aplicar.
+    final bloqueantes = _bloqueantes(variantes);
+    if (bloqueantes.isNotEmpty) {
+      final detalle = bloqueantes.take(5).map((v) {
+        final p = _problemaMayor(v)!;
+        return '• ${v.nombre}\n   ${p.mensaje}';
+      }).join('\n');
+      final resto = bloqueantes.length > 5
+          ? '\n\n…y ${bloqueantes.length - 5} más.'
+          : '';
+      await StyledDialog.show<void>(
+        context,
+        accentColor: Colors.red.shade700,
+        backgroundColor: Colors.white,
+        icon: Icons.price_check,
+        titulo: 'Revisá el precio por mayor',
+        content: [
+          Text(
+            'No se guardó nada. ${bloqueantes.length} variante(s) tienen un '
+            'precio por mayor que no se puede aplicar:\n\n$detalle$resto',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+        actions: [
+          Expanded(
+            child: CustomButton(
+              text: 'Entendido',
+              backgroundColor: Colors.red.shade700,
+              textColor: Colors.white,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
+      );
+      return;
+    }
 
     final items = <BulkEditarItem>[];
     for (final v in variantes) {
@@ -305,6 +495,12 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
       final precioPres = _parseNum(fila.precio.text);
       final costoPres = _parseNum(fila.costo.text);
 
+      // El precio por mayor sigue la misma regla que el precio de lista, y la
+      // cantidad mínima la del stock: "desde 3 kg" son 3000 g en unidad de
+      // venta, que es contra lo que el backend compara la cantidad vendida.
+      final mayorDesdePres = _parseNum(fila.mayorDesde.text);
+      final mayorPrecioPres = _parseNum(fila.mayorPrecio.text);
+
       final item = BulkEditarItem(
         varianteId: v.id,
         // El stock es entero en unidad de venta: 1.5 kg son 1500 g.
@@ -312,6 +508,10 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
             agregarPres == null ? null : (agregarPres * u.factor).round(),
         precio: precioPres == null ? null : precioPres / u.factor,
         precioCosto: costoPres == null ? null : costoPres / u.factor,
+        mayorCantidadMinima:
+            mayorDesdePres == null ? null : (mayorDesdePres * u.factor).round(),
+        mayorPrecio:
+            mayorPrecioPres == null ? null : mayorPrecioPres / u.factor,
       );
       if (item.tieneCambios) items.add(item);
     }
@@ -335,6 +535,38 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
           'cambios de precio en el historial.',
           style: const TextStyle(fontSize: 13),
         ),
+        // El stock y los precios son por sede; el nivel por mayor NO. Si no se
+        // dice acá, se descubre el día que la empresa abre una segunda sede.
+        if (items.any((i) => i.mayorPrecio != null)) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.public, size: 15, color: Colors.orange.shade800),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'El precio por mayor de '
+                    '${items.where((i) => i.mayorPrecio != null).length} '
+                    'variante(s) se aplica a TODAS las sedes, no solo a '
+                    '"$sedeNombre".',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
       actions: [
         Expanded(
@@ -453,9 +685,14 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
             final r = state.resumen;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                    'Guardado: ${r.stockAjustado} ajuste(s) de stock, '
-                    '${r.preciosActualizados} precio(s) actualizados'),
+                content: Text([
+                  'Guardado: ${r.stockAjustado} ajuste(s) de stock',
+                  '${r.preciosActualizados} precio(s) actualizados',
+                  if (r.nivelesActualizados > 0)
+                    '${r.nivelesActualizados} precio(s) por mayor',
+                  if (r.nivelesEliminados > 0)
+                    '${r.nivelesEliminados} nivel(es) eliminados',
+                ].join(', ')),
                 backgroundColor: Colors.green,
               ),
             );
@@ -520,6 +757,8 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
                         _wAgregarStock +
                         _wPrecio +
                         _wCosto +
+                        _wMayorDesde +
+                        _wMayorPrecio +
                         160 + // columna variante
                         24; // padding
                     final ancho = constraints.maxWidth < anchoMinimo
@@ -624,6 +863,13 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
               width: _wCosto,
               child:
                   Text('Costo S/', style: estilo, textAlign: TextAlign.center)),
+          SizedBox(
+              width: _wMayorDesde,
+              child: Text('Desde', style: estilo, textAlign: TextAlign.center)),
+          SizedBox(
+              width: _wMayorPrecio,
+              child: Text('Mayor S/',
+                  style: estilo, textAlign: TextAlign.center)),
         ],
       ),
     );
@@ -637,6 +883,8 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     final costoActual = stockInfo?.precioCosto;
     final editada = fila.tieneCambios;
     final u = _presentacionDe(variante);
+    final nivel = variante.nivelPorMayor;
+    final problema = _problemaMayor(variante);
 
     // El margen se calcula sobre lo que QUEDARÍA: si ya se tecleó un precio o
     // un costo nuevo, manda ese. Así se ve el efecto antes de guardar.
@@ -686,6 +934,22 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
                     ],
                   ],
                 ),
+                // El motivo va debajo del nombre y no como tooltip: con la
+                // grilla scrolleada a la derecha, la celda en rojo puede
+                // quedar fuera de la vista y el usuario no sabría por qué no
+                // lo deja guardar.
+                if (problema != null)
+                  Text(
+                    problema.mensaje,
+                    maxLines: 2,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: problema.bloquea
+                          ? Colors.red.shade700
+                          : Colors.orange.shade800,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -732,6 +996,29 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
               formatter: _soloDecimal,
             ),
           ),
+          SizedBox(
+            width: _wMayorDesde,
+            child: _celdaEditable(
+              controller: fila.mayorDesde,
+              // El hint muestra el nivel VIGENTE: sin esto no se distingue
+              // "no tiene mayorista" de "ya tiene uno y lo estoy pisando".
+              hint: nivel == null
+                  ? '—'
+                  : u.cantidadTexto(nivel.cantidadMinima).replaceAll(' ', ''),
+              formatter: _soloDecimal,
+            ),
+          ),
+          SizedBox(
+            width: _wMayorPrecio,
+            child: _celdaEditable(
+              controller: fila.mayorPrecio,
+              hint: nivel?.precio == null
+                  ? '—'
+                  : u.precio(nivel!.precio!).toStringAsFixed(2),
+              formatter: _soloDecimal,
+              errorColor: problema != null && problema.bloquea,
+            ),
+          ),
         ],
       ),
     );
@@ -742,6 +1029,7 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
     required String hint,
     required TextInputFormatter formatter,
     bool signed = false,
+    bool errorColor = false,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -753,7 +1041,9 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
             signed: signed, decimal: !signed),
         inputFormatters: [formatter],
         height: 34,
-        borderColor: AppColors.blue1.withValues(alpha: 0.3),
+        borderColor: errorColor
+            ? Colors.red.shade600
+            : AppColors.blue1.withValues(alpha: 0.3),
         contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         textStyle: const TextStyle(fontSize: 11),
         hintStyle: TextStyle(fontSize: 10, color: Colors.grey[400]),
@@ -764,6 +1054,10 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
 
   Widget _buildBarraGuardar(List<ProductoVariante> variantes, bool guardando) {
     final cambios = _totalCambios;
+    // Se cuenta sobre TODAS las variantes, no sobre las visibles: una fila con
+    // problema puede quedar escondida por el filtro y el botón tiene que
+    // seguir explicando por qué no guarda.
+    final bloqueantes = _bloqueantes(variantes).length;
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -786,9 +1080,34 @@ class _EdicionMasivaViewState extends State<_EdicionMasivaView> {
                 label: const Text('Descartar', style: TextStyle(fontSize: 12)),
               ),
             const Spacer(),
+            if (bloqueantes > 0) ...[
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline,
+                        size: 15, color: Colors.red.shade700),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        '$bloqueantes con precio por mayor inválido',
+                        maxLines: 2,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             FilledButton.icon(
-              onPressed:
-                  cambios == 0 || guardando ? null : () => _guardar(variantes),
+              onPressed: cambios == 0 || guardando || bloqueantes > 0
+                  ? null
+                  : () => _guardar(variantes),
               icon: guardando
                   ? const SizedBox(
                       width: 14,

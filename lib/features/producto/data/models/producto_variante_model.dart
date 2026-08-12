@@ -27,6 +27,7 @@ class ProductoVarianteModel extends ProductoVariante {
     required super.orden,
     super.archivos,
     super.unidadMedida,
+    super.preciosNivel,
     required super.creadoEn,
     required super.actualizadoEn,
   });
@@ -90,6 +91,12 @@ class ProductoVarianteModel extends ProductoVariante {
           ? EmpresaUnidadMedidaModel.fromJson(
               json['unidadMedida'] as Map<String, dynamic>)
           : null,
+      preciosNivel: json['preciosNivel'] != null
+          ? (json['preciosNivel'] as List)
+              .map((e) =>
+                  PrecioNivelVarianteModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : const [],
       // Timestamps pueden no venir en variantes anidadas
       creadoEn: json['creadoEn'] != null
           ? DateTime.parse(json['creadoEn'] as String)
@@ -139,6 +146,12 @@ class ProductoVarianteModel extends ProductoVariante {
                   orden: a.orden,
                 ).toJson())
             .toList(),
+      // Va SIEMPRE, aunque esté vacío: el catálogo local se persiste con este
+      // toJson y si acá se omitiera, al releer no habría forma de distinguir
+      // "sin niveles" de "no vino el dato" (ver paridad toJson/fromJson).
+      'preciosNivel': preciosNivel
+          .map((n) => PrecioNivelVarianteModel.fromEntity(n).toJson())
+          .toList(),
       'creadoEn': creadoEn.toIso8601String(),
       'actualizadoEn': actualizadoEn.toIso8601String(),
     };
@@ -169,8 +182,62 @@ class ProductoVarianteModel extends ProductoVariante {
       orden: entity.orden,
       archivos: entity.archivos,
       unidadMedida: entity.unidadMedida,
+      preciosNivel: entity.preciosNivel,
       creadoEn: entity.creadoEn,
       actualizadoEn: entity.actualizadoEn,
+    );
+  }
+}
+
+class PrecioNivelVarianteModel extends PrecioNivelVariante {
+  const PrecioNivelVarianteModel({
+    required super.id,
+    required super.nombre,
+    required super.cantidadMinima,
+    super.cantidadMaxima,
+    required super.tipoPrecio,
+    super.precio,
+    super.porcentajeDesc,
+  });
+
+  factory PrecioNivelVarianteModel.fromJson(Map<String, dynamic> json) {
+    return PrecioNivelVarianteModel(
+      id: json['id'] as String? ?? '',
+      nombre: json['nombre'] as String? ?? 'Por Mayor',
+      cantidadMinima: toSafeInt(json['cantidadMinima']),
+      cantidadMaxima: json['cantidadMaxima'] != null
+          ? toSafeInt(json['cantidadMaxima'])
+          : null,
+      tipoPrecio: json['tipoPrecio'] as String? ?? 'PRECIO_FIJO',
+      // Decimal puede llegar como String desde Prisma.
+      precio: json['precio'] != null ? toSafeDouble(json['precio']) : null,
+      porcentajeDesc: json['porcentajeDesc'] != null
+          ? toSafeDouble(json['porcentajeDesc'])
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nombre': nombre,
+      'cantidadMinima': cantidadMinima,
+      if (cantidadMaxima != null) 'cantidadMaxima': cantidadMaxima,
+      'tipoPrecio': tipoPrecio,
+      if (precio != null) 'precio': precio,
+      if (porcentajeDesc != null) 'porcentajeDesc': porcentajeDesc,
+    };
+  }
+
+  factory PrecioNivelVarianteModel.fromEntity(PrecioNivelVariante e) {
+    return PrecioNivelVarianteModel(
+      id: e.id,
+      nombre: e.nombre,
+      cantidadMinima: e.cantidadMinima,
+      cantidadMaxima: e.cantidadMaxima,
+      tipoPrecio: e.tipoPrecio,
+      precio: e.precio,
+      porcentajeDesc: e.porcentajeDesc,
     );
   }
 }
