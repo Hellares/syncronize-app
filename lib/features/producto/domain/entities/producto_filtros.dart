@@ -44,6 +44,14 @@ class ProductoFiltros extends Equatable {
   final bool? soloEliminados;
   /// Filtrar por estado activo. null = ambos. Independiente de soloEliminados.
   final bool? isActive;
+
+  /// Filtro por valor de atributo: `clave del atributo` → valores elegidos.
+  ///
+  /// Claves distintas se combinan con **Y** y los valores de una misma clave
+  /// con **O**, que es lo que hace el backend. Así se puede pedir "Qualcomm o
+  /// Samsung, y con 8GB de RAM".
+  final Map<String, List<String>> atributos;
+
   final OrdenProducto? orden;
 
   const ProductoFiltros({
@@ -64,6 +72,7 @@ class ProductoFiltros extends Equatable {
     this.esInsumo,
     this.soloEliminados,
     this.isActive,
+    this.atributos = const {},
     this.orden,
   });
 
@@ -86,6 +95,7 @@ class ProductoFiltros extends Equatable {
     bool? soloProductos,
     bool? soloCombos,
     bool? esInsumo,
+    Map<String, List<String>>? atributos,
     OrdenProducto? orden,
     // Flags para resetear valores nullable
     bool clearSearch = false,
@@ -119,6 +129,9 @@ class ProductoFiltros extends Equatable {
       soloProductos: clearSoloProductos ? null : (soloProductos ?? this.soloProductos),
       soloCombos: clearSoloCombos ? null : (soloCombos ?? this.soloCombos),
       esInsumo: clearEsInsumo ? null : (esInsumo ?? this.esInsumo),
+      // Un mapa vacío es un valor legítimo —"saqué todos los filtros"— así que
+      // no alcanza con `??`: eso lo confundiría con "no lo toqué".
+      atributos: atributos ?? this.atributos,
       orden: clearOrden ? null : (orden ?? this.orden),
     );
   }
@@ -185,8 +198,39 @@ class ProductoFiltros extends Equatable {
     if (orden != null) {
       params['orden'] = _ordenToString(orden!);
     }
+    // Se manda como lista de `clave:valor`; Dio la serializa repetida
+    // (atributos=a:b&atributos=a:c), que es como la lee el backend.
+    if (atributos.isNotEmpty) {
+      final entradas = <String>[
+        for (final e in atributos.entries)
+          for (final v in e.value) '${e.key}:$v',
+      ];
+      if (entradas.isNotEmpty) params['atributos'] = entradas;
+    }
 
     return params;
+  }
+
+  /// Cuántos valores hay elegidos en total, para el contador del botón.
+  int get cantidadFiltrosAtributo =>
+      atributos.values.fold(0, (total, v) => total + v.length);
+
+  /// Devuelve una copia con [valor] agregado o sacado de [clave].
+  ///
+  /// Las claves que se quedan sin valores se eliminan del mapa: si no, quedan
+  /// entradas vacías que hacen creer que hay un filtro puesto.
+  Map<String, List<String>> alternarAtributo(String clave, String valor) {
+    final copia = {
+      for (final e in atributos.entries) e.key: List<String>.from(e.value),
+    };
+    final actuales = copia.putIfAbsent(clave, () => <String>[]);
+    if (actuales.contains(valor)) {
+      actuales.remove(valor);
+    } else {
+      actuales.add(valor);
+    }
+    if (actuales.isEmpty) copia.remove(clave);
+    return copia;
   }
 
   String _ordenToString(OrdenProducto orden) {
@@ -229,6 +273,7 @@ class ProductoFiltros extends Equatable {
         esInsumo,
         soloEliminados,
         isActive,
+        atributos,
         orden,
       ];
 }

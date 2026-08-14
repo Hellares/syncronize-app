@@ -345,6 +345,29 @@ class ProductoRemoteDataSource {
         .toList();
   }
 
+  /// Atributos que el buscador puede ofrecer como filtro, con sus opciones.
+  ///
+  /// GET /api/producto-atributos/filtros
+  ///
+  /// Solo devuelve los que se eligen de una lista y están marcados
+  /// `usarParaFiltros`. Vienen con `dependeDeAtributoId` para poder encadenar
+  /// FABRICANTE → FAMILIA → PROCESADOR.
+  Future<List<ProductoAtributoModel>> getAtributosFiltro({
+    String? categoriaId,
+  }) async {
+    final response = await _dioClient.get(
+      '/producto-atributos/filtros',
+      queryParameters: {
+        if (categoriaId != null) 'categoriaId': categoriaId,
+      },
+    );
+
+    final List<dynamic> data = response.data as List<dynamic>;
+    return data
+        .map((e) => ProductoAtributoModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Obtiene atributos por categoría
   ///
   /// GET /api/producto-atributos/categoria/:categoriaId

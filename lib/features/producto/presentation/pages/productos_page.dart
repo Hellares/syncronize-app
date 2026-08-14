@@ -18,7 +18,10 @@ import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../sede/presentation/bloc/sede_list/sede_list_cubit.dart';
+import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/producto_filtros.dart';
+import '../../data/datasources/producto_remote_datasource.dart';
+import '../widgets/filtro_atributos_chips.dart';
 import '../../domain/entities/producto_list_item.dart';
 import '../../domain/entities/producto.dart';
 import '../../domain/entities/producto_stock.dart';
@@ -75,6 +78,12 @@ class _ProductosPageState extends State<ProductosPage>
   /// El backend respeta este flag (independiente de soloEliminados).
   bool? _filtroIsActive;
 
+  /// Atributos filtrables de la empresa, con sus opciones. Se piden una vez.
+  List<ProductoAtributo> _atributosFiltro = const [];
+
+  /// Valores elegidos: clave del atributo → valores. Y entre claves, O dentro.
+  Map<String, List<String>> _filtrosAtributos = const {};
+
   /// Listener al stream de [RealtimeSyncService]. Cuando llega un FCM
   /// (PRECIO_CAMBIADO / STOCK_CAMBIADO / NIVELES_CAMBIADOS / IMAGEN_CAMBIADA
   /// / PRODUCTO_CREADO) refrescamos el catálogo. Debounce 500ms para
@@ -99,6 +108,21 @@ class _ProductosPageState extends State<ProductosPage>
     _scrollController.addListener(_onScroll);
     _suscribirRealtime();
     _loadProductos();
+    _cargarAtributosFiltro();
+  }
+
+  /// Trae los atributos que se pueden usar como filtro. Best-effort: si falla,
+  /// la fila de chips simplemente no aparece y el resto de la pantalla anda
+  /// igual — no vale romper el listado por los filtros.
+  Future<void> _cargarAtributosFiltro() async {
+    try {
+      final atributos =
+          await locator<ProductoRemoteDataSource>().getAtributosFiltro();
+      if (!mounted) return;
+      setState(() => _atributosFiltro = atributos);
+    } catch (_) {
+      // Silencio a propósito.
+    }
   }
 
   void _suscribirRealtime() {
@@ -239,6 +263,9 @@ class _ProductosPageState extends State<ProductosPage>
         esInsumo: filtrosConTab.esInsumo,
         soloEliminados: filtrosConTab.soloEliminados,
         isActive: _filtroIsActive,
+        // 🔴 Este constructor arma el objeto ENTERO: lo que no se liste acá se
+        // pierde en silencio, aunque estuviera puesto más arriba.
+        atributos: _filtrosAtributos,
         orden: filtrosConTab.orden,
       );
 
@@ -845,6 +872,19 @@ class _ProductosPageState extends State<ProductosPage>
                         const SizedBox(height: 12),
                         _buildSearchBar(),
                         const SizedBox(height: 6),
+                        // Filtro por atributo. Solo ocupa lugar si la empresa
+                        // tiene atributos marcados como filtrables.
+                        if (_atributosFiltro.isNotEmpty) ...[
+                          FiltroAtributosChips(
+                            atributos: _atributosFiltro,
+                            seleccion: _filtrosAtributos,
+                            onChanged: (nueva) {
+                              setState(() => _filtrosAtributos = nueva);
+                              _loadProductos();
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                        ],
                         _buildEstadoChips(),
                         const SizedBox(height: 4),
                         Expanded(child: _buildProductList()),
