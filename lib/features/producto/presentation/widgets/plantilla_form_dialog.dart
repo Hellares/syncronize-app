@@ -406,8 +406,18 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
 
   Widget _buildAtributoItem(int index, _AtributoSeleccionado atributo) {
     final tieneValores = atributo.valoresDisponibles.isNotEmpty;
-    final cantidadOverride =
-        atributo.valoresOverride?.length ?? atributo.valoresDisponibles.length;
+    // 🔴 Un override VACÍO significa "sin restricción, valen todos", no "cero
+    // elegidos". El backend guarda `valoresOverride ?? []`, así que una
+    // plantilla creada sin restringir nada llega con `[]` y con `?.length`
+    // mostraba "0/3 val." como si se hubieran perdido los valores.
+    //
+    // Es el mismo criterio de `PlantillaAtributo.valoresActuales`, que sí lo
+    // contempla — por eso crear un producto desde la plantilla funcionaba
+    // bien y solo se veía mal acá.
+    final override = atributo.valoresOverride;
+    final cantidadOverride = (override != null && override.isNotEmpty)
+        ? override.length
+        : atributo.valoresDisponibles.length;
 
     return Padding(
       key: ValueKey(atributo.atributoId),
@@ -746,8 +756,12 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
     int index,
     _AtributoSeleccionado atributo,
   ) {
-    final valoresActuales =
-        atributo.valoresOverride ?? atributo.valoresDisponibles;
+    // Mismo criterio que el contador: sin override —o con uno vacío— están
+    // TODOS marcados, que es lo que la plantilla realmente aplica.
+    final override = atributo.valoresOverride;
+    final valoresActuales = (override != null && override.isNotEmpty)
+        ? override
+        : atributo.valoresDisponibles;
     final valoresSeleccionados = Set<String>.from(valoresActuales);
 
     showDialog(
