@@ -57,6 +57,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     bool? tieneVariantes,
     bool? esCombo,
     bool? esInsumo,
+    List<String>? plantillasAtributosIds,
     bool? requiereIdentificador,
     String? etiquetaIdentificador,
     String? tipoPrecioCombo,
@@ -105,6 +106,10 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
         if (esInsumo != null) 'esInsumo': esInsumo,
+      // Se manda aunque venga vacío: quitar todas las secciones es un cambio
+      // legítimo y con `isNotEmpty` no habría forma de guardarlo.
+      if (plantillasAtributosIds != null)
+        'plantillasAtributosIds': plantillasAtributosIds,
         if (requiereIdentificador != null)
           'requiereIdentificador': requiereIdentificador,
         if (etiquetaIdentificador != null)
@@ -231,6 +236,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     bool? tieneVariantes,
     bool? esCombo,
     bool? esInsumo,
+    List<String>? plantillasAtributosIds,
     bool? requiereIdentificador,
     String? etiquetaIdentificador,
     String? tipoPrecioCombo,
@@ -283,6 +289,10 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (tieneVariantes != null) 'tieneVariantes': tieneVariantes,
         if (esCombo != null) 'esCombo': esCombo,
         if (esInsumo != null) 'esInsumo': esInsumo,
+      // Se manda aunque venga vacío: quitar todas las secciones es un cambio
+      // legítimo y con `isNotEmpty` no habría forma de guardarlo.
+      if (plantillasAtributosIds != null)
+        'plantillasAtributosIds': plantillasAtributosIds,
         if (requiereIdentificador != null)
           'requiereIdentificador': requiereIdentificador,
         if (etiquetaIdentificador != null)

@@ -32,9 +32,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
   /// Valida los atributos requeridos de la plantilla
   /// Retorna el nombre del atributo faltante o null si todo está válido
   String? validarAtributosRequeridos(ProductoFormController controller) {
-    if (controller.selectedPlantilla == null) return null;
+    if (controller.plantillasSeleccionadas.isEmpty) return null;
 
-    for (final plantillaAtributo in controller.selectedPlantilla!.atributos) {
+    for (final plantillaAtributo in controller.atributosAplicados) {
       if (plantillaAtributo.esRequerido) {
         final valor = controller.plantillaAtributosValues[plantillaAtributo.atributo.id];
         if (valor == null || valor.trim().isEmpty) {
@@ -171,6 +171,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           tieneVariantes: controller.tieneVariantes,
           esCombo: controller.esCombo,
           esInsumo: controller.esInsumo,
+          // Las secciones de la ficha técnica. Se guardan para poder volver a
+          // agrupar los atributos al reabrir el producto.
+          plantillasAtributosIds: controller.plantillasIds,
           requiereIdentificador: controller.requiereIdentificador,
           // Vacío se manda como null para que el backend caiga en su default
           // ("N° de serie") en vez de guardar cadena vacía.
@@ -215,6 +218,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           tieneVariantes: controller.tieneVariantes,
           esCombo: controller.esCombo,
           esInsumo: controller.esInsumo,
+          // Las secciones de la ficha técnica. Se guardan para poder volver a
+          // agrupar los atributos al reabrir el producto.
+          plantillasAtributosIds: controller.plantillasIds,
           requiereIdentificador: controller.requiereIdentificador,
           // Vacío se manda como null para que el backend caiga en su default
           // ("N° de serie") en vez de guardar cadena vacía.
@@ -232,7 +238,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
         final producto = result.data;
 
         // Guardar atributos de plantilla si hay (solo para productos simples)
-        if (!controller.tieneVariantes && !controller.esCombo && controller.selectedPlantillaId != null) {
+        if (!controller.tieneVariantes &&
+            !controller.esCombo &&
+            controller.plantillasSeleccionadas.isNotEmpty) {
           await _guardarAtributos(
             productoId: producto.id,
             empresaId: empresaId,

@@ -42,6 +42,7 @@ class ProductoModel extends Producto {
     super.requiereIdentificador,
     super.etiquetaIdentificador,
     super.esInsumo,
+    super.plantillasAtributosIds,
     super.tipoPrecioCombo,
     super.configuracionPrecioId,
     super.deletedAt,
@@ -110,6 +111,10 @@ class ProductoModel extends Producto {
           json['requiereIdentificador'] as bool? ?? false,
       etiquetaIdentificador: json['etiquetaIdentificador'] as String?,
       esInsumo: json['esInsumo'] as bool? ?? false,
+      plantillasAtributosIds: (json['plantillasAtributosIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       tipoPrecioCombo: json['tipoPrecioCombo'] as String?,
       configuracionPrecioId: json['configuracionPrecioId'] as String?,
       deletedAt: json['deletedAt'] != null
@@ -203,6 +208,7 @@ class ProductoModel extends Producto {
       if (etiquetaIdentificador != null)
         'etiquetaIdentificador': etiquetaIdentificador,
       'esInsumo': esInsumo,
+      'plantillasAtributosIds': plantillasAtributosIds,
       if (tipoPrecioCombo != null) 'tipoPrecioCombo': tipoPrecioCombo,
       if (configuracionPrecioId != null)
         'configuracionPrecioId': configuracionPrecioId,
@@ -302,6 +308,7 @@ class ProductoModel extends Producto {
       requiereIdentificador: entity.requiereIdentificador,
       etiquetaIdentificador: entity.etiquetaIdentificador,
       esInsumo: entity.esInsumo,
+      plantillasAtributosIds: entity.plantillasAtributosIds,
       tipoPrecioCombo: entity.tipoPrecioCombo,
       configuracionPrecioId: entity.configuracionPrecioId,
       deletedAt: entity.deletedAt,

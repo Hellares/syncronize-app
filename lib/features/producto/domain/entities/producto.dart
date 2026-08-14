@@ -82,6 +82,12 @@ class Producto extends Equatable with StockPorSedeMixin {
   /// serie". Null ⇒ el POS usa "N° de serie".
   final String? etiquetaIdentificador;
   final bool esInsumo; // Materia prima / insumo (oculto de POS y marketplace)
+
+  /// Plantillas de atributos aplicadas: las SECCIONES de la ficha técnica.
+  ///
+  /// Los valores viven por atributo, así que esto es solo memoria de cómo
+  /// agruparlos al reabrir el producto.
+  final List<String> plantillasAtributosIds;
   final String? tipoPrecioCombo; // FIJO, CALCULADO, CALCULADO_CON_DESCUENTO
   final String? configuracionPrecioId; // ID de la configuración de precios aplicada
   final DateTime? deletedAt;
@@ -136,6 +142,7 @@ class Producto extends Equatable with StockPorSedeMixin {
     this.requiereIdentificador = false,
     this.etiquetaIdentificador,
     this.esInsumo = false,
+    this.plantillasAtributosIds = const [],
     this.tipoPrecioCombo,
     this.configuracionPrecioId,
     this.deletedAt,
@@ -232,6 +239,7 @@ class Producto extends Equatable with StockPorSedeMixin {
         requiereIdentificador,
         etiquetaIdentificador,
         esInsumo,
+        plantillasAtributosIds,
         tipoPrecioCombo,
         configuracionPrecioId,
         deletedAt,

@@ -289,61 +289,67 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     if (!producto.tieneVariantes && !producto.esCombo &&
         producto.atributosValores != null &&
         producto.atributosValores!.isNotEmpty) {
-      _cargarAtributosProducto(producto.atributosValores!);
+      _cargarAtributosProducto(
+        producto.atributosValores!,
+        producto.plantillasAtributosIds,
+      );
     }
 
     setState(() {});
   }
 
   /// Cargar atributos del producto y detectar la plantilla correspondiente
-  void _cargarAtributosProducto(List<AtributoValor> atributosValores) {
+  void _cargarAtributosProducto(
+    List<AtributoValor> atributosValores,
+    List<String> guardadas,
+  ) {
     if (atributosValores.isEmpty) return;
 
     // Obtener los IDs de los atributos del producto
     final atributosIds = atributosValores.map((av) => av.atributoId).toSet();
 
-    // Buscar plantilla que coincida con estos atributos
     final plantillaState = context.read<AtributoPlantillaCubit>().state;
-    if (plantillaState is AtributoPlantillaLoaded) {
-      // Buscar plantilla que contenga exactamente los mismos atributos
-      AtributoPlantilla? plantillaCoincidente;
+    if (plantillaState is! AtributoPlantillaLoaded) return;
 
+    // 1) Las secciones que el producto tiene GUARDADAS. Es la fuente buena:
+    //    dice exactamente cómo agrupar la ficha, sin adivinar.
+    var aplicar = plantillaState.plantillas
+        .where((p) => guardadas.contains(p.id))
+        .toList();
+    // Respetar el orden en que se guardaron.
+    aplicar.sort((a, b) =>
+        guardadas.indexOf(a.id).compareTo(guardadas.indexOf(b.id)));
+
+    // 2) Respaldo para productos viejos, de cuando no se guardaba la plantilla:
+    //    se busca una que contenga todos sus atributos. Es una heurística y por
+    //    eso solo corre si no hay nada guardado.
+    if (aplicar.isEmpty) {
       for (final plantilla in plantillaState.plantillas) {
-        final plantillaAtributosIds = plantilla.atributos.map((pa) => pa.atributo.id).toSet();
-
-        // Verificar si los atributos del producto están contenidos en esta plantilla
-        // (puede que la plantilla tenga más atributos, pero debe tener al menos los del producto)
-        if (atributosIds.every((id) => plantillaAtributosIds.contains(id))) {
-          plantillaCoincidente = plantilla;
+        final ids = plantilla.atributos.map((pa) => pa.atributo.id).toSet();
+        if (atributosIds.every(ids.contains)) {
+          aplicar = [plantilla];
           break;
         }
       }
-
-      if (plantillaCoincidente != null) {
-        // Cargar la plantilla encontrada
-        setState(() {
-          _controller.selectedPlantillaId = plantillaCoincidente!.id;
-          _controller.selectedPlantilla = plantillaCoincidente;
-          _controller.plantillaAtributosValues.clear();
-
-          // Cargar los valores de los atributos
-          for (final atributoValor in atributosValores) {
-            _controller.plantillaAtributosValues[atributoValor.atributoId] = atributoValor.valor;
-          }
-
-          // Inicializar valores vacíos para atributos que no tienen valor
-          for (final atributo in plantillaCoincidente.atributos) {
-            if (!_controller.plantillaAtributosValues.containsKey(atributo.atributo.id)) {
-              _controller.plantillaAtributosValues[atributo.atributo.id] = '';
-            }
-          }
-        });
-      } else {
-        // Si no se encuentra plantilla coincidente, cargar los valores sin plantilla
-        // En este caso, los atributos se asignaron manualmente (sin plantilla)
-        // No hacer nada, ya que la UI solo muestra plantillas
-      }
     }
+
+    if (aplicar.isEmpty) return;
+
+    setState(() {
+      _controller.setPlantillas(aplicar);
+      _controller.plantillaAtributosValues.clear();
+
+      for (final atributoValor in atributosValores) {
+        _controller.plantillaAtributosValues[atributoValor.atributoId] =
+            atributoValor.valor;
+      }
+      // Los atributos de las secciones que todavía no tienen valor arrancan
+      // vacíos, para que el campo se dibuje igual.
+      for (final pa in _controller.atributosAplicados) {
+        _controller.plantillaAtributosValues
+            .putIfAbsent(pa.atributo.id, () => '');
+      }
+    });
   }
 
   @override
@@ -373,36 +379,17 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     context.read<AtributoPlantillaCubit>().loadPlantillas(categoriaId: null);
   }
 
-  void _onPlantillaSelected(String? plantillaId) {
-    if (plantillaId == null) {
-      setState(() {
-        _controller.selectedPlantillaId = null;
-        _controller.selectedPlantilla = null;
-        _controller.plantillaAtributosValues.clear();
-      });
-      return;
-    }
-
-    // Buscar la plantilla en la lista cargada
+  /// Suma una sección más a la ficha técnica.
+  void _onPlantillaAgregada(String? plantillaId) {
+    if (plantillaId == null) return;
     final state = context.read<AtributoPlantillaCubit>().state;
     if (state is AtributoPlantillaLoaded) {
-      AtributoPlantilla? foundPlantilla;
       for (final p in state.plantillas) {
-        if (p.id == plantillaId) {
-          foundPlantilla = p;
-          break;
-        }
-      }
-      if (foundPlantilla != null) {
-        setState(() {
-          _controller.selectedPlantillaId = plantillaId;
-          _controller.selectedPlantilla = foundPlantilla;
-          _controller.plantillaAtributosValues.clear();
-          // Inicializar valores vacíos para cada atributo
-          for (final atributo in foundPlantilla!.atributos) {
-            _controller.plantillaAtributosValues[atributo.atributo.id] = '';
-          }
-        });
+        if (p.id != plantillaId) continue;
+        // El controlador respeta los valores que ya estaban: un atributo que
+        // otra sección trajo no se borra al agregar esta.
+        setState(() => _controller.agregarPlantilla(p));
+        return;
       }
     }
   }
@@ -421,14 +408,22 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   /// Cambiar FABRICANTE invalida lo elegido en FAMILIA, y con eso lo de
   /// PROCESADOR, que cuelga de FAMILIA: quedarían apuntando a una rama que ya
   /// no existe.
+  /// 🔑 Busca entre TODOS los atributos aplicados, sin importar de qué sección
+  /// vino cada uno: una cadena puede quedar repartida entre dos plantillas
+  /// (FABRICANTE en una, PROCESADOR en otra) y mirando solo la propia el hijo
+  /// nunca se enteraría de que su padre cambió.
   void _limpiarAtributosDependientes(String atributoId) {
-    final plantilla = _controller.selectedPlantilla;
-    if (plantilla == null) return;
-    for (final pa in plantilla.atributos) {
+    for (final pa in _controller.atributosAplicados) {
       if (pa.atributo.dependeDeAtributoId != atributoId) continue;
-      _controller.plantillaAtributosValues.remove(pa.atributoId);
-      _limpiarAtributosDependientes(pa.atributoId);
+      _controller.plantillaAtributosValues.remove(pa.atributo.id);
+      _limpiarAtributosDependientes(pa.atributo.id);
     }
+  }
+
+  /// Saca una sección. NO borra los valores cargados: viven por atributo, así
+  /// que si la volvés a agregar siguen ahí.
+  void _onPlantillaQuitada(String plantillaId) {
+    setState(() => _controller.quitarPlantilla(plantillaId));
   }
 
   Future<void> _submit() async {
@@ -835,7 +830,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 !producto.tieneVariantes && !producto.esCombo &&
                 producto.atributosValores != null &&
                 producto.atributosValores!.isNotEmpty) {
-              _cargarAtributosProducto(producto.atributosValores!);
+              _cargarAtributosProducto(
+                producto.atributosValores!,
+                producto.plantillasAtributosIds,
+              );
             }
           }
         },
@@ -1180,51 +1178,95 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     );
                   }
 
-                  // Verificar que el valor seleccionado esté en la lista
-                  // Usar 'none' en lugar de null para evitar problemas con el dropdown
-                  String selectedValue = _controller.selectedPlantillaId ?? 'none';
-                  final plantillaIds = plantillas.map((p) => p.id).toSet();
-                    // Si el valor seleccionado no está en la lista, resetear
-                  if (_controller.selectedPlantillaId != null && !plantillaIds.contains(_controller.selectedPlantillaId)) {
-                    selectedValue = 'none';
-                    // También limpiar la plantilla seleccionada
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        _onPlantillaSelected(null);
-                      }
-                    });
-                  }
-
-                  // Crear items sin duplicados usando Set para eliminar IDs duplicados
+                  // Sin duplicados por id (la lista puede traer repetidos).
                   final uniquePlantillas = <String, AtributoPlantilla>{};
                   for (final plantilla in plantillas) {
                     uniquePlantillas[plantilla.id] = plantilla;
                   }
 
-                  final items = <DropdownItem<String>>[
-                    const DropdownItem(
-                      value: 'none',
-                      label: 'Ninguna (sin plantilla)',
-                    ),
-                    ...uniquePlantillas.values.map((plantilla) {
-                      return DropdownItem(
-                        value: plantilla.id,
-                        label: plantilla.nombre,
-                      );
-                    }),
-                  ];
+                  // Se pueden aplicar VARIAS: cada una es una sección de la
+                  // ficha técnica. El desplegable ofrece las que faltan y las
+                  // aplicadas se muestran como chips que se pueden sacar.
+                  final disponibles = uniquePlantillas.values
+                      .where((p) => !_controller.tienePlantilla(p.id))
+                      .toList();
 
-                  return CustomDropdown<String>(
-                    label: 'Seleccionar Plantilla',
-                    hintText: 'Elige una plantilla de atributos',
-                    borderColor: AppColors.blue1,
-                    prefixIcon: const Icon(Icons.description_outlined, size: 16, color: AppColors.blue1,),
-                    value: selectedValue,
-                    items: items,
-                    onChanged: (value) {
-                      // Convertir 'none' a null antes de pasar a _onPlantillaSelected
-                      _onPlantillaSelected(value == 'none' ? null : value);
-                    },
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (disponibles.isNotEmpty)
+                        CustomDropdown<String>(
+                          label: 'Agregar sección de atributos',
+                          hintText: 'Elegí una plantilla',
+                          borderColor: AppColors.blue1,
+                          prefixIcon: const Icon(
+                            Icons.description_outlined,
+                            size: 16,
+                            color: AppColors.blue1,
+                          ),
+                          value: null,
+                          items: disponibles
+                              .map((p) => DropdownItem(
+                                    value: p.id,
+                                    label: p.nombre,
+                                  ))
+                              .toList(),
+                          onChanged: _onPlantillaAgregada,
+                        )
+                      else
+                        AppSubtitle(
+                          'Ya aplicaste todas las plantillas disponibles.',
+                          fontSize: 9,
+                          color: Colors.grey,
+                        ),
+                      if (_controller.plantillasSeleccionadas.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: _controller.plantillasSeleccionadas
+                              .map(
+                                (p) => Container(
+                                  padding: const EdgeInsets.only(
+                                      left: 8, right: 2, top: 2, bottom: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.blue1
+                                        .withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                        color: AppColors.blue1
+                                            .withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        p.nombre,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.blue1,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.close, size: 12),
+                                        color: AppColors.blue1,
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: const BoxConstraints(
+                                            minWidth: 24, minHeight: 24),
+                                        padding: EdgeInsets.zero,
+                                        tooltip: 'Quitar sección',
+                                        onPressed: () =>
+                                            _onPlantillaQuitada(p.id),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
+                    ],
                   );
                 }
                 if (state is AtributoPlantillaError) {
@@ -1244,44 +1286,17 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 return const SizedBox.shrink();
               },
             ),
-            if (_controller.selectedPlantilla != null) ...[
+            if (_controller.plantillasSeleccionadas.isNotEmpty) ...[
               const SizedBox(height: 8),
               const Divider(),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  AppSubtitle('ATRIBUTOS DE LA PLANTILLA'),
-                  const Spacer(),
-                  InfoChip(icon: Icons.info_outline, text: '${_controller.selectedPlantilla!.atributos.length} atributo(s)'),
-                  if (_controller.selectedPlantilla!.atributos.any((a) => a.esRequerido)) ...[
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Text(
-                        '${_controller.selectedPlantilla!.atributos.where((a) => a.esRequerido).length} requerido(s)',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.red.shade700,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              //const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Icon(Icons.info_outline, color: Colors.amber.shade700, size: 14),
                   const SizedBox(width: 4),
                   Expanded(
                     child: AppSubtitle(
-                      'Completa los valores de los atributos. Los marcados como "Requerido" son obligatorios.',
+                      'Completa los valores. Los marcados como "Requerido" son obligatorios.',
                       fontSize: 9,
                       color: Colors.amber.shade900,
                     ),
@@ -1289,7 +1304,62 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                 ],
               ),
               const SizedBox(height: 6),
-              ..._controller.selectedPlantilla!.atributos.map((plantillaAtributo) {
+              // Una sección por plantilla. Un atributo repetido en dos
+              // plantillas se dibuja UNA sola vez, en la primera que lo trae:
+              // el valor se guarda por atributoId, así que mostrarlo dos veces
+              // serían dos campos editando el mismo dato.
+              ..._controller.plantillasSeleccionadas.expand((plantilla) {
+                final propios =
+                    _controller.atributosDeSeccion(plantilla.id);
+                final requeridos =
+                    propios.where((a) => a.esRequerido).length;
+                return [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder_outlined,
+                            size: 13, color: AppColors.blue1),
+                        const SizedBox(width: 5),
+                        AppSubtitle(plantilla.nombre.toUpperCase()),
+                        const Spacer(),
+                        InfoChip(
+                          icon: Icons.info_outline,
+                          text: '${propios.length} atributo(s)',
+                        ),
+                        if (requeridos > 0) ...[
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Text(
+                              '$requeridos requerido(s)',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (propios.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: AppSubtitle(
+                        'Sus atributos ya se muestran en una sección anterior.',
+                        fontSize: 9,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ...propios.map((plantillaAtributo) {
                 final atributoInfo = plantillaAtributo.atributo;
                 // Convertir PlantillaAtributoInfo a ProductoAtributo
                 // Usar valoresActuales que retorna valoresOverride si existe, sino valores base
@@ -1320,11 +1390,13 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     onChanged: (value) => _onPlantillaAtributoChanged(atributoInfo.id, value),
                   ),
                 );
+                  }),
+                ];
               }),
             ],
           ],
         ),
-      
+
     );
   }
 

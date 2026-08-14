@@ -219,21 +219,83 @@ class ProductoFormController extends ChangeNotifier {
   }
 
   // ============================================================
-  // PLANTILLA DE ATRIBUTOS
+  // PLANTILLAS DE ATRIBUTOS (varias: son SECCIONES de la ficha técnica)
   // ============================================================
-  String? _selectedPlantillaId;
-  String? get selectedPlantillaId => _selectedPlantillaId;
-  set selectedPlantillaId(String? value) {
-    _selectedPlantillaId = value;
+  //
+  // Un celular puede traer PROCESADOR, MEMORIA, PANTALLA y DISEÑO, y ese mismo
+  // DISEÑO lo reusa un peluche sin arrastrar nada de procesador. Con una sola
+  // plantilla por producto habría que crear una por cada tipo repitiendo las
+  // partes comunes.
+  //
+  // 🔑 Los valores viven por ATRIBUTO (`plantillaAtributosValues`), no por
+  // plantilla: quitar una sección no borra lo que ya se cargó.
+
+  final List<AtributoPlantilla> _plantillas = [];
+
+  List<AtributoPlantilla> get plantillasSeleccionadas =>
+      List.unmodifiable(_plantillas);
+
+  List<String> get plantillasIds =>
+      _plantillas.map((p) => p.id).toList(growable: false);
+
+  bool tienePlantilla(String id) => _plantillas.any((p) => p.id == id);
+
+  void agregarPlantilla(AtributoPlantilla plantilla) {
+    if (tienePlantilla(plantilla.id)) return;
+    _plantillas.add(plantilla);
+    // Los atributos nuevos arrancan vacíos; los que ya tenían valor —porque
+    // otra sección los traía— se respetan.
+    for (final pa in plantilla.atributos) {
+      plantillaAtributosValues.putIfAbsent(pa.atributo.id, () => '');
+    }
     markAsChanged();
     notifyListeners();
   }
 
-  AtributoPlantilla? _selectedPlantilla;
-  AtributoPlantilla? get selectedPlantilla => _selectedPlantilla;
-  set selectedPlantilla(AtributoPlantilla? value) {
-    _selectedPlantilla = value;
+  void quitarPlantilla(String plantillaId) {
+    _plantillas.removeWhere((p) => p.id == plantillaId);
+    markAsChanged();
     notifyListeners();
+  }
+
+  void setPlantillas(List<AtributoPlantilla> plantillas) {
+    _plantillas
+      ..clear()
+      ..addAll(plantillas);
+    notifyListeners();
+  }
+
+  /// Los atributos de TODAS las secciones, sin repetir.
+  ///
+  /// Un mismo atributo puede estar en dos plantillas —COLOR en DISEÑO y en
+  /// otra—: el valor no se duplica porque se guarda por `atributoId`, pero sí
+  /// se dibujaría el campo dos veces. Gana la primera sección que lo trae.
+  List<PlantillaAtributo> get atributosAplicados {
+    final vistos = <String>{};
+    final out = <PlantillaAtributo>[];
+    for (final plantilla in _plantillas) {
+      for (final pa in plantilla.atributos) {
+        if (vistos.add(pa.atributo.id)) out.add(pa);
+      }
+    }
+    return out;
+  }
+
+  /// Los atributos de [plantillaId] que le toca dibujar a ESA sección, ya sin
+  /// los que una sección anterior mostró.
+  List<PlantillaAtributo> atributosDeSeccion(String plantillaId) {
+    final vistos = <String>{};
+    for (final plantilla in _plantillas) {
+      final propios = <PlantillaAtributo>[];
+      for (final pa in plantilla.atributos) {
+        if (vistos.add(pa.atributo.id)) propios.add(pa);
+      }
+      if (plantilla.id == plantillaId) {
+        propios.sort((a, b) => a.orden.compareTo(b.orden));
+        return propios;
+      }
+    }
+    return const [];
   }
 
   final Map<String, String> plantillaAtributosValues = {};
@@ -385,8 +447,7 @@ class ProductoFormController extends ChangeNotifier {
     _selectedUnidadPresentacionId = null;
     factorPresentacionController.clear();
     _selectedConfiguracionPrecioId = null;
-    _selectedPlantillaId = null;
-    _selectedPlantilla = null;
+    _plantillas.clear();
     plantillaAtributosValues.clear();
 
     _visibleMarketplace = false;
@@ -412,11 +473,14 @@ class ProductoFormController extends ChangeNotifier {
 
   /// Valida que los atributos requeridos de la plantilla estén completos
   bool validarAtributosRequeridos() {
-    if (_selectedPlantilla == null) return true;
+    if (_plantillas.isEmpty) return true;
 
-    for (final atributo in _selectedPlantilla!.atributos) {
+    for (final atributo in atributosAplicados) {
       if (atributo.esRequerido) {
-        final value = plantillaAtributosValues[atributo.id];
+        // 🔴 La clave del mapa es el id del ATRIBUTO, no el de la fila de la
+        // plantilla. Con `atributo.id` buscaba una clave que nunca existe, así
+        // que un requerido vacío pasaba como completo.
+        final value = plantillaAtributosValues[atributo.atributo.id];
         if (value == null || value.trim().isEmpty) {
           return false;
         }
