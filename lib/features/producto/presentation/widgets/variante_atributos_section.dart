@@ -309,6 +309,13 @@ class VarianteAtributosSection extends StatelessWidget {
                   atributo: selectedAtributo!,
                   valorActual: valor,
                   empresaId: empresaId,
+                  // Para un atributo dependiente, el valor del padre es el que
+                  // la variante YA tiene asignado: primero se agrega
+                  // FABRICANTE y recién después PROCESADOR.
+                  valorDelPadre: _valorAsignado(
+                    currentState.atributoValores,
+                    selectedAtributo!.dependeDeAtributoId,
+                  ),
                   onChanged: (v) => setStateDialog(() => valor = v),
                 ),
               ],
@@ -348,6 +355,18 @@ class VarianteAtributosSection extends StatelessWidget {
     );
   }
 
+  /// El valor que la variante ya tiene guardado para [atributoId].
+  ///
+  /// Es lo que alimenta la cascada: un atributo dependiente necesita saber qué
+  /// se eligió en su padre, y en esta pantalla los atributos se cargan de a uno.
+  String? _valorAsignado(List<AtributoValor> asignados, String? atributoId) {
+    if (atributoId == null) return null;
+    for (final av in asignados) {
+      if (av.atributoId == atributoId) return av.valor;
+    }
+    return null;
+  }
+
   void _showEditAtributoDialog(BuildContext context, AtributoValor atributoValor) {
     final cubit = context.read<VarianteAtributoCubit>();
     // Buscar el ProductoAtributo para ofrecer el dropdown de valores
@@ -382,6 +401,12 @@ class VarianteAtributosSection extends StatelessWidget {
                   atributo: productoAtributo,
                   valorActual: valor,
                   empresaId: empresaId,
+                  valorDelPadre: _valorAsignado(
+                    cubit.state is VarianteAtributoLoaded
+                        ? (cubit.state as VarianteAtributoLoaded).atributoValores
+                        : const [],
+                    productoAtributo.dependeDeAtributoId,
+                  ),
                   onChanged: (v) => setStateDialog(() => valor = v),
                 )
               else

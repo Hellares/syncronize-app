@@ -308,6 +308,7 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
               children: [
                 Text(
                   _getTipoLabel(atributo.tipo),
+                  
                   style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                 ),
                 if (atributo.requerido) ...[
@@ -444,6 +445,14 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
 
   // ── Dialogs ──
 
+  /// Los atributos que la pantalla ya tiene cargados, sacados del estado.
+  List<ProductoAtributo> _atributosCargados() {
+    final estado = context.read<ProductoAtributoCubit>().state;
+    if (estado is ProductoAtributoLoaded) return estado.atributos;
+    if (estado is ProductoAtributoOperationSuccess) return estado.atributos;
+    return const [];
+  }
+
   void _showAtributoDialog({ProductoAtributo? atributo}) {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) return;
@@ -453,6 +462,8 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
       builder: (dialogContext) => _AtributoFormDialog(
         atributo: atributo,
         empresaId: empresaState.context.empresa.id,
+        // Para poder elegir el atributo padre de una cadena dependiente.
+        existentes: _atributosCargados(),
         onSave: (data) {
           if (atributo == null) {
             context.read<ProductoAtributoCubit>().crearAtributo(
@@ -566,10 +577,14 @@ class _AtributoFormDialog extends StatefulWidget {
   final String empresaId;
   final Function(Map<String, dynamic>) onSave;
 
+  /// Los demás atributos de la empresa, para elegir de cuál depende éste.
+  final List<ProductoAtributo> existentes;
+
   const _AtributoFormDialog({
     this.atributo,
     required this.empresaId,
     required this.onSave,
+    this.existentes = const [],
   });
 
   @override
@@ -588,6 +603,14 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
   late bool _mostrarEnMarketplace;
   List<String> _categoriaIds = [];
 
+  /// Atributo padre elegido, cuando el tipo es dependiente.
+  String? _dependeDeId;
+
+  /// Un campo de texto por cada valor del padre: ahí se escriben las opciones
+  /// de esa rama, separadas por coma. Se crean bajo demanda porque la lista de
+  /// ramas cambia al cambiar de padre.
+  final Map<String, TextEditingController> _valoresPorPadre = {};
+
   @override
   void initState() {
     super.initState();
@@ -596,6 +619,7 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
         TextEditingController(text: widget.atributo?.descripcion);
     _valoresController =
         TextEditingController(text: widget.atributo?.valores.join(', '));
+    _dependeDeId = widget.atributo?.dependeDeAtributoId;
     _selectedTipo = widget.atributo?.tipo ?? AtributoTipo.select;
     _requerido = widget.atributo?.requerido ?? false;
     _mostrarEnListado = widget.atributo?.mostrarEnListado ?? true;
@@ -609,7 +633,43 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
     _nombreController.dispose();
     _descripcionController.dispose();
     _valoresController.dispose();
+    for (final c in _valoresPorPadre.values) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  /// Atributos que pueden ser padre: los que se eligen de una lista simple.
+  ///
+  /// Fuera queda el propio atributo (no puede depender de sí mismo) y los de
+  /// selección múltiple, porque con dos valores a la vez no habría forma de
+  /// saber qué rama ofrecer abajo. El backend valida lo mismo.
+  List<ProductoAtributo> get _candidatosPadre => widget.existentes
+      .where((a) =>
+          a.isActive &&
+          a.id != widget.atributo?.id &&
+          (a.tipo == AtributoTipo.select ||
+              a.tipo == AtributoTipo.selectDependiente))
+      .toList();
+
+  ProductoAtributo? get _padreElegido {
+    if (_dependeDeId == null) return null;
+    for (final a in widget.existentes) {
+      if (a.id == _dependeDeId) return a;
+    }
+    return null;
+  }
+
+  /// El campo de texto de una rama, creado la primera vez que se la muestra y
+  /// precargado con las opciones que ya tenía.
+  TextEditingController _controllerDeRama(String valorPadre) {
+    return _valoresPorPadre.putIfAbsent(valorPadre, () {
+      final actuales = (widget.atributo?.opciones ?? const [])
+          .where((o) => o.padreValor == valorPadre)
+          .map((o) => o.valor)
+          .join(', ');
+      return TextEditingController(text: actuales);
+    });
   }
 
   @override
@@ -715,10 +775,82 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
+                // Cadena de dependencia: FABRICANTE → FAMILIA → PROCESADOR.
+                if (_selectedTipo.dependeDeOtro) ...[
+                  if (_candidatosPadre.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Text(
+                        'Primero creá el atributo del que va a depender. Por '
+                        'ejemplo, para PROCESADOR hace falta FABRICANTE, que '
+                        'tiene que ser una Selección simple.',
+                        style: TextStyle(
+                            fontSize: 10, color: Colors.orange.shade900),
+                      ),
+                    )
+                  else
+                    CustomDropdown<String>(
+                      label: 'Depende de *',
+                      hintText: 'Atributo padre',
+                      borderColor: AppColors.blue1,
+                      value: _dependeDeId,
+                      items: _candidatosPadre
+                          .map((a) => DropdownItem(value: a.id, label: a.nombre))
+                          .toList(),
+                      onChanged: (v) => setState(() {
+                        _dependeDeId = v;
+                        // Las ramas son otras: lo escrito para el padre
+                        // anterior ya no significa nada.
+                        for (final c in _valoresPorPadre.values) {
+                          c.dispose();
+                        }
+                        _valoresPorPadre.clear();
+                      }),
+                    ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Un campo por rama del padre. Es lo que reemplaza al campo
+                // único de valores: cargás de una sola vez qué ofrece cada
+                // opción del padre.
+                if (_selectedTipo.dependeDeOtro && _padreElegido != null) ...[
+                  AppLabelText('Valores por cada ${_padreElegido!.nombre}'),
+                  const SizedBox(height: 6),
+                  if (_padreElegido!.valores.isEmpty)
+                    Text(
+                      '"${_padreElegido!.nombre}" todavía no tiene valores cargados.',
+                      style: TextStyle(fontSize: 10, color: Colors.orange.shade800),
+                    )
+                  else
+                    ..._padreElegido!.valores.map(
+                      (valorPadre) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: CustomText(
+                          label: valorPadre,
+                          hintText: 'Opciones para $valorPadre, separadas por coma',
+                          controller: _controllerDeRama(valorPadre),
+                          borderColor: AppColors.blue1,
+                          maxLines: 2,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Al cargar un producto, elegir ${_padreElegido!.nombre} deja '
+                    'a la vista solo las opciones de esa rama.',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 14),
+                ]
                 // Solo los tipos con lista de valores los admiten; el resto los
                 // tiene PROHIBIDOS y el backend devuelve 400. Se oculta en vez
                 // de dejar escribir algo que va a ser rechazado al guardar.
-                if (_selectedTipo.usaListaDeValores) ...[
+                else if (_selectedTipo.usaListaDeValores) ...[
                   CustomText(
                     label: 'Valores (separados por coma) *',
                     hintText: 'Rojo, Azul, Verde, Negro',
@@ -903,16 +1035,42 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final nombre = _nombreController.text.trim();
+    // Un dependiente arma sus opciones rama por rama; el resto, del campo
+    // único. `opciones` es lo que manda: el backend regenera `valores` desde
+    // ahí, así que las dos listas no pueden terminar diciendo cosas distintas.
+    final opciones = <Map<String, dynamic>>[];
+    if (_selectedTipo.dependeDeOtro) {
+      for (final entrada in _valoresPorPadre.entries) {
+        for (final valor in entrada.value.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)) {
+          opciones.add({'valor': valor, 'padreValor': entrada.key});
+        }
+      }
+    }
+
     // Si el tipo no admite lista, lo tipeado se descarta: el campo está oculto
     // y mandarlo daría 400. Pasa al cambiar de Selección a otro tipo con
     // valores ya escritos.
     final valores = !_selectedTipo.usaListaDeValores
         ? <String>[]
-        : _valoresController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
+        : _selectedTipo.dependeDeOtro
+            ? opciones.map((o) => o['valor'] as String).toList()
+            : _valoresController.text
+                .split(',')
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty)
+                .toList();
+
+    if (_selectedTipo.dependeDeOtro && _dependeDeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Elegí de qué atributo depende'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
 
     if (_selectedTipo.usaListaDeValores && valores.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -939,6 +1097,10 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
           ? null
           : _descripcionController.text.trim(),
       'valores': valores,
+      if (_selectedTipo.dependeDeOtro) 'opciones': opciones,
+      // Se manda incluso null: es lo que desarma la cadena si el atributo
+      // dejó de ser dependiente.
+      'dependeDeAtributoId': _selectedTipo.dependeDeOtro ? _dependeDeId : null,
       'requerido': _requerido,
       'mostrarEnListado': _mostrarEnListado,
       'usarParaFiltros': _usarParaFiltros,

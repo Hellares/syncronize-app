@@ -59,6 +59,7 @@ const kTipoDatoLabels = <String, String>{
   // Mismo texto que su equivalente de servicios, distinto nombre interno.
   'SELECT': 'Selección simple',
   'MULTI_SELECT': 'Selección múltiple',
+  'SELECT_DEPENDIENTE': 'Selección dependiente',
   'BOOLEAN': 'Sí/No',
   // Legacy: no son tipos de dato sino nombres de atributo. Fuera del selector,
   // pero siguen acá para que una fila vieja no se muestre con la clave cruda.
@@ -99,6 +100,7 @@ const kTipoDatoLabelsCortos = <String, String>{
 
   'SELECT': 'Selección',
   'MULTI_SELECT': 'Multi-selección',
+  'SELECT_DEPENDIENTE': 'Dependiente',
   'BOOLEAN': 'Sí/No',
   'COLOR': 'Color',
   'TALLA': 'Talla',
@@ -137,6 +139,7 @@ const kTipoDatoIcons = <String, IconData>{
   // Mismos íconos que sus equivalentes de servicios.
   'SELECT': Icons.radio_button_checked,
   'MULTI_SELECT': Icons.checklist,
+  'SELECT_DEPENDIENTE': Icons.account_tree_outlined,
   'BOOLEAN': Icons.check_box,
   'COLOR': Icons.palette,
   'TALLA': Icons.straighten,
@@ -191,6 +194,7 @@ const kTiposAtributoProducto = <String>[
   // Con lista de valores
   'SELECT',
   'MULTI_SELECT',
+  'SELECT_DEPENDIENTE',
   // Dato libre
   'TEXTO',
   'TEXTO_AREA',
@@ -224,7 +228,11 @@ const kTiposAtributoProducto = <String>[
 /// `validateAtributoValues` en el backend) y, por lo mismo, los únicos que el
 /// generador de combinaciones puede usar como eje de variante — que filtra por
 /// `valores.isNotEmpty`, no por el tipo.
-const kTiposAtributoConLista = <String>{'SELECT', 'MULTI_SELECT'};
+const kTiposAtributoConLista = <String>{
+  'SELECT',
+  'MULTI_SELECT',
+  'SELECT_DEPENDIENTE',
+};
 
 /// Legacy fuera del selector. Se siguen mostrando si una fila vieja los trae.
 const kTiposAtributoLegacy = <String>{'COLOR', 'TALLA', 'MATERIAL', 'CAPACIDAD'};

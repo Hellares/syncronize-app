@@ -52,6 +52,13 @@ class AtributoInputWidget extends StatefulWidget {
   /// Solo lo usa `PRODUCTO_CATALOGO`, para tomar el precio de la sede correcta.
   final String? sedeId;
 
+  /// Valor elegido en el atributo PADRE, para los dependientes.
+  ///
+  /// Lo pasa quien tiene el mapa completo de valores del producto: este widget
+  /// ve un atributo por vez y no puede saberlo solo. Sin esto, el desplegable
+  /// queda bloqueado con el aviso de que falta elegir arriba.
+  final String? valorDelPadre;
+
   const AtributoInputWidget({
     super.key,
     required this.atributo,
@@ -59,6 +66,7 @@ class AtributoInputWidget extends StatefulWidget {
     required this.onChanged,
     this.empresaId,
     this.sedeId,
+    this.valorDelPadre,
   });
 
   @override
@@ -167,6 +175,9 @@ class _AtributoInputWidgetState extends State<AtributoInputWidget> {
       case AtributoTipo.capacidad:
         return _buildSelectInput();
 
+      case AtributoTipo.selectDependiente:
+        return _buildSelectDependienteInput();
+
       case AtributoTipo.multiSelect:
         return _buildMultiSelectInput();
 
@@ -250,8 +261,42 @@ class _AtributoInputWidgetState extends State<AtributoInputWidget> {
     }
   }
 
-  Widget _buildSelectInput() {
-    if (widget.atributo.valores.isEmpty) {
+  /// Selección cuya lista sale de la rama del padre.
+  ///
+  /// Mientras el padre no tenga valor no se ofrece nada: la lista plana trae
+  /// los procesadores de TODAS las marcas mezclados, y dejar elegir ahí es
+  /// justamente lo que esta pantalla viene a evitar.
+  Widget _buildSelectDependienteInput() {
+    final padre = widget.valorDelPadre;
+    if (padre == null || padre.isEmpty) {
+      return Row(
+        children: [
+          Icon(Icons.lock_outline, size: 12, color: Colors.grey.shade500),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Elegí primero el atributo del que depende',
+              style: TextStyle(color: Colors.grey[600], fontSize: 10),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final disponibles = widget.atributo.opcionesPara(padre);
+    if (disponibles.isEmpty) {
+      return Text(
+        '"$padre" no tiene opciones cargadas en ${widget.atributo.nombre}',
+        style: TextStyle(color: Colors.orange.shade800, fontSize: 10),
+      );
+    }
+
+    return _buildSelectInput(disponibles);
+  }
+
+  Widget _buildSelectInput([List<String>? opciones]) {
+    final valoresDisponibles = opciones ?? widget.atributo.valores;
+    if (valoresDisponibles.isEmpty) {
       return Text(
         'No hay valores disponibles para este atributo',
         style: TextStyle(color: Colors.grey[600], fontSize: 10),
@@ -262,7 +307,7 @@ class _AtributoInputWidgetState extends State<AtributoInputWidget> {
     final currentValue = widget.valorActual;
     final validValue = (currentValue != null &&
                         currentValue.isNotEmpty &&
-                        widget.atributo.valores.contains(currentValue))
+                        valoresDisponibles.contains(currentValue))
         ? currentValue
         : null;
 
@@ -277,7 +322,7 @@ class _AtributoInputWidgetState extends State<AtributoInputWidget> {
             value: '',
             label: '-- Seleccionar --',
           ),
-        ...widget.atributo.valores.map((valor) {
+        ...valoresDisponibles.map((valor) {
           return DropdownItem(
             value: valor,
             label: widget.atributo.unidad != null ? '$valor ${widget.atributo.unidad}' : valor,

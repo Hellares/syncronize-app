@@ -314,6 +314,13 @@ class _VariantePlantillaAtributosDialogState
             child: AtributoInputWidget(
               atributo: productoAtributo,
               valorActual: valorActual,
+              empresaId: widget.empresaId,
+              // De acá sale la cascada: este diálogo es el único que tiene el
+              // mapa completo, así que es el que puede decirle a un atributo
+              // dependiente qué eligió su padre.
+              valorDelPadre: productoAtributo.dependeDeAtributoId == null
+                  ? null
+                  : _valores[productoAtributo.dependeDeAtributoId],
               onChanged: (valor) {
                 setState(() {
                   _valores[plantillaAtributo.atributoId] = valor;

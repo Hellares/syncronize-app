@@ -35,6 +35,9 @@ enum AtributoTipo {
   // Otros
   inspeccionVisual('INSPECCION_VISUAL'),
   productoCatalogo('PRODUCTO_CATALOGO'),
+  /// Sus opciones dependen del valor elegido en el atributo padre
+  /// (`dependeDeAtributoId`): FABRICANTE → FAMILIA → PROCESADOR.
+  selectDependiente('SELECT_DEPENDIENTE'),
   // Legacy: nombres de atributo disfrazados de tipo. Fuera del selector, se
   // comportan como `select`. Cero filas los usan en beta y en prod.
   color('COLOR'),
@@ -58,7 +61,11 @@ enum AtributoTipo {
   bool get usaListaDeValores =>
       this == AtributoTipo.select ||
       this == AtributoTipo.multiSelect ||
+      this == AtributoTipo.selectDependiente ||
       esLegacy;
+
+  /// Sus opciones se filtran por lo elegido en el atributo padre.
+  bool get dependeDeOtro => this == AtributoTipo.selectDependiente;
 
   /// Los cuatro que quedaron del modelo viejo. Se siguen mostrando si una fila
   /// los trae, pero no se ofrecen al crear.
@@ -67,6 +74,28 @@ enum AtributoTipo {
       this == AtributoTipo.talla ||
       this == AtributoTipo.material ||
       this == AtributoTipo.capacidad;
+}
+
+/// Una opción elegible de un atributo, y de qué opción del padre cuelga.
+///
+/// `padreValor` es el VALOR del padre, no su id: es lo que la pantalla tiene a
+/// mano para filtrar. El id se usa del lado del backend, que es donde importa
+/// que renombrar no huerfanice.
+class OpcionAtributo extends Equatable {
+  final String id;
+  final String valor;
+  final String? padreValor;
+  final int orden;
+
+  const OpcionAtributo({
+    required this.id,
+    required this.valor,
+    this.padreValor,
+    this.orden = 0,
+  });
+
+  @override
+  List<Object?> get props => [id, valor, padreValor, orden];
 }
 
 /// Entity que representa un atributo configurable de producto
@@ -80,7 +109,18 @@ class ProductoAtributo extends Equatable {
   final bool requerido;
   final String? descripcion;
   final String? unidad;
+
+  /// Lista PLANA de todos los valores. En un atributo dependiente están todos
+  /// mezclados (los de Samsung y los de Qualcomm juntos): para mostrar solo la
+  /// rama que corresponde hay que usar [opcionesPara].
   final List<String> valores;
+
+  /// Las opciones con su jerarquía. Vacío en los tipos sin lista.
+  final List<OpcionAtributo> opciones;
+
+  /// Atributo del que dependen estas opciones. Null si es raíz.
+  final String? dependeDeAtributoId;
+
   final int orden;
   final bool mostrarEnListado;
   final bool usarParaFiltros;
@@ -100,6 +140,8 @@ class ProductoAtributo extends Equatable {
     this.descripcion,
     this.unidad,
     required this.valores,
+    this.opciones = const [],
+    this.dependeDeAtributoId,
     required this.orden,
     required this.mostrarEnListado,
     required this.usarParaFiltros,
@@ -108,6 +150,25 @@ class ProductoAtributo extends Equatable {
     required this.creadoEn,
     required this.actualizadoEn,
   });
+
+  /// Las opciones que corresponden a [valorPadre].
+  ///
+  /// En un atributo raíz devuelve todas. En uno dependiente, solo las de esa
+  /// rama; y si el padre todavía no tiene valor, ninguna — es lo que mantiene
+  /// el desplegable bloqueado hasta que se elija arriba.
+  ///
+  /// 🔁 Respaldo: si el atributo es dependiente pero NO llegaron `opciones`
+  /// (app vieja contra backend nuevo, o al revés), devuelve la lista plana en
+  /// vez de dejar la pantalla vacía sin explicación.
+  List<String> opcionesPara(String? valorPadre) {
+    if (!tipo.dependeDeOtro) return valores;
+    if (opciones.isEmpty) return valores;
+    if (valorPadre == null || valorPadre.isEmpty) return const [];
+    return opciones
+        .where((o) => o.padreValor == valorPadre)
+        .map((o) => o.valor)
+        .toList(growable: false);
+  }
 
   /// Crea un ProductoAtributo desde la información de una plantilla.
   /// Usado para renderizar AtributoInputWidget con datos de plantilla.
@@ -168,6 +229,8 @@ class ProductoAtributo extends Equatable {
         descripcion,
         unidad,
         valores,
+        opciones,
+        dependeDeAtributoId,
         orden,
         mostrarEnListado,
         usarParaFiltros,

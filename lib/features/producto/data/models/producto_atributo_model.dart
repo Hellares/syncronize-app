@@ -1,5 +1,40 @@
 import '../../domain/entities/producto_atributo.dart';
 
+/// Una opción con su padre, tal como viaja en el JSON del atributo.
+class OpcionAtributoModel extends OpcionAtributo {
+  const OpcionAtributoModel({
+    required super.id,
+    required super.valor,
+    super.padreValor,
+    super.orden,
+  });
+
+  factory OpcionAtributoModel.fromJson(Map<String, dynamic> json) {
+    return OpcionAtributoModel(
+      id: json['id'] as String? ?? '',
+      valor: json['valor'] as String? ?? '',
+      padreValor: json['padreValor'] as String?,
+      orden: json['orden'] as int? ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'valor': valor,
+        // Se manda SIEMPRE, incluso null: el backend distingue "no vino" de
+        // "es raíz", y omitirlo en un dependiente le hace rechazar la opción.
+        'padreValor': padreValor,
+        'orden': orden,
+      };
+
+  factory OpcionAtributoModel.fromEntity(OpcionAtributo e) => OpcionAtributoModel(
+        id: e.id,
+        valor: e.valor,
+        padreValor: e.padreValor,
+        orden: e.orden,
+      );
+}
+
 class ProductoAtributoModel extends ProductoAtributo {
   const ProductoAtributoModel({
     required super.id,
@@ -12,6 +47,8 @@ class ProductoAtributoModel extends ProductoAtributo {
     super.descripcion,
     super.unidad,
     required super.valores,
+    super.opciones,
+    super.dependeDeAtributoId,
     required super.orden,
     required super.mostrarEnListado,
     required super.usarParaFiltros,
@@ -33,6 +70,11 @@ class ProductoAtributoModel extends ProductoAtributo {
       descripcion: json['descripcion'] as String?,
       unidad: json['unidad'] as String?,
       valores: (json['valores'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      opciones: (json['opciones'] as List?)
+              ?.map((e) => OpcionAtributoModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      dependeDeAtributoId: json['dependeDeAtributoId'] as String?,
       orden: json['orden'] as int? ?? 0,
       mostrarEnListado: json['mostrarEnListado'] as bool? ?? true,
       usarParaFiltros: json['usarParaFiltros'] as bool? ?? true,
@@ -55,6 +97,10 @@ class ProductoAtributoModel extends ProductoAtributo {
       if (descripcion != null) 'descripcion': descripcion,
       if (unidad != null) 'unidad': unidad,
       'valores': valores,
+      'opciones': opciones
+          .map((o) => OpcionAtributoModel.fromEntity(o).toJson())
+          .toList(),
+      'dependeDeAtributoId': dependeDeAtributoId,
       'orden': orden,
       'mostrarEnListado': mostrarEnListado,
       'usarParaFiltros': usarParaFiltros,
@@ -79,6 +125,8 @@ class ProductoAtributoModel extends ProductoAtributo {
       descripcion: entity.descripcion,
       unidad: entity.unidad,
       valores: entity.valores,
+      opciones: entity.opciones,
+      dependeDeAtributoId: entity.dependeDeAtributoId,
       orden: entity.orden,
       mostrarEnListado: entity.mostrarEnListado,
       usarParaFiltros: entity.usarParaFiltros,
