@@ -1087,6 +1087,29 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
       return null;
     }
 
+    /// La cadena entera de [a], de la raíz hasta él: FABRICANTE › FAMILIA ›
+    /// PROCESADOR. Es exactamente lo que se va a agregar si lo elegís.
+    List<String> cadenaDe(ProductoAtributo a) {
+      final nombres = <String>[a.nombre];
+      var padreId = a.dependeDeAtributoId;
+      var saltos = 0;
+      while (padreId != null && saltos++ < 10) {
+        ProductoAtributo? padre;
+        for (final x in atributosDisponibles) {
+          if (x.id == padreId) padre = x;
+        }
+        if (padre == null) break;
+        nombres.insert(0, padre.nombre);
+        padreId = padre.dependeDeAtributoId;
+      }
+      return nombres;
+    }
+
+    /// Nadie depende de él: es la última pata de la cadena, y por eso el que
+    /// conviene elegir — arrastra a todos sus padres de una.
+    bool esUltimoNivel(ProductoAtributo a) =>
+        !atributosDisponibles.any((x) => x.dependeDeAtributoId == a.id);
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1219,35 +1242,89 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
                                                         .shade600,
                                                   ),
                                                 ),
-                                                // Se avisa ANTES de elegir:
-                                                // este atributo no se sostiene
-                                                // solo, arrastra a su padre.
-                                                if (nombreDe(atributo
-                                                        .dependeDeAtributoId) !=
-                                                    null)
-                                                  Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons
-                                                            .account_tree_outlined,
-                                                        size: 10,
-                                                        color: AppColors.blue1,
+                                                // Se avisa ANTES de elegir.
+                                                //
+                                                // En el ÚLTIMO nivel de una
+                                                // cadena el aviso es más
+                                                // fuerte: ese es el que
+                                                // conviene elegir, porque
+                                                // arrastra el bloque entero.
+                                                // En los intermedios alcanza
+                                                // con decir de quién cuelgan.
+                                                if (atributo.dependeDeAtributoId !=
+                                                    null) ...[
+                                                  const SizedBox(height: 3),
+                                                  if (esUltimoNivel(atributo))
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 5,
+                                                          vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: AppColors.blue1
+                                                            .withValues(
+                                                                alpha: 0.10),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(4),
                                                       ),
-                                                      const SizedBox(width: 3),
-                                                      Text(
-                                                        'depende de ${nombreDe(atributo.dependeDeAtributoId)}',
-                                                        style: TextStyle(
-                                                          fontSize: 9,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color:
-                                                              AppColors.blue1,
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons
+                                                                .auto_awesome_motion_outlined,
+                                                            size: 10,
+                                                            color: AppColors
+                                                                .blue1,
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 3),
+                                                          Flexible(
+                                                            child: Text(
+                                                              'agrega el bloque: ${cadenaDe(atributo).join(" › ")}',
+                                                              style: TextStyle(
+                                                                fontSize: 9,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                color:
+                                                                    AppColors
+                                                                        .blue1,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    )
+                                                  else
+                                                    Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Icon(
+                                                          Icons
+                                                              .account_tree_outlined,
+                                                          size: 10,
+                                                          color: Colors
+                                                              .grey.shade600,
                                                         ),
-                                                      ),
-                                                    ],
-                                                  ),
+                                                        const SizedBox(
+                                                            width: 3),
+                                                        Text(
+                                                          'depende de ${nombreDe(atributo.dependeDeAtributoId)}',
+                                                          style: TextStyle(
+                                                            fontSize: 9,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: Colors
+                                                                .grey.shade600,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                ],
                                               ],
                                             ),
                                           ),
