@@ -324,6 +324,7 @@ class _VariantePlantillaAtributosDialogState
               onChanged: (valor) {
                 setState(() {
                   _valores[plantillaAtributo.atributoId] = valor;
+                  _limpiarDependientes(plantillaAtributo.atributoId);
                 });
               },
             ),
@@ -362,6 +363,21 @@ class _VariantePlantillaAtributosDialogState
     );
   }
 
+  /// Vacía los atributos que dependen de [atributoId], en cascada.
+  ///
+  /// Al cambiar FABRICANTE, lo elegido en FAMILIA queda apuntando a una rama
+  /// que ya no existe — y lo de PROCESADOR, que cuelga de FAMILIA, también.
+  /// Por eso baja por toda la cadena y no solo un nivel.
+  void _limpiarDependientes(String atributoId) {
+    final plantilla = _plantillaSeleccionada;
+    if (plantilla == null) return;
+    for (final pa in plantilla.atributos) {
+      if (pa.atributo.dependeDeAtributoId != atributoId) continue;
+      _valores.remove(pa.atributoId);
+      _limpiarDependientes(pa.atributoId);
+    }
+  }
+
   /// Convierte PlantillaAtributoInfo a ProductoAtributo para compatibilidad con el widget
   ProductoAtributo _convertirAtributoInfoAProductoAtributo(
     PlantillaAtributoInfo atributoInfo,
@@ -380,6 +396,10 @@ class _VariantePlantillaAtributosDialogState
       descripcion: atributoInfo.descripcion,
       unidad: atributoInfo.unidad,
       valores: valores,
+      // La jerarquía viaja hasta acá: sin ella, un atributo dependiente dentro
+      // de una plantilla ofrecía la lista plana.
+      opciones: atributoInfo.opciones,
+      dependeDeAtributoId: atributoInfo.dependeDeAtributoId,
       orden: orden,
       mostrarEnListado: true,
       usarParaFiltros: true,

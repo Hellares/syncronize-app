@@ -73,6 +73,12 @@ class PlantillaAtributoInfo extends Equatable {
   final String? unidad;
   final List<String> valores;
 
+  /// Opciones con su jerarquía, para los atributos dependientes.
+  final List<OpcionAtributo> opciones;
+
+  /// Atributo del que dependen esas opciones.
+  final String? dependeDeAtributoId;
+
   const PlantillaAtributoInfo({
     required this.id,
     required this.nombre,
@@ -82,33 +88,21 @@ class PlantillaAtributoInfo extends Equatable {
     this.descripcion,
     this.unidad,
     required this.valores,
+    this.opciones = const [],
+    this.dependeDeAtributoId,
   });
 
-  /// Convertir tipo string a enum
+  /// Convertir tipo string a enum.
+  ///
+  /// Antes era un `switch` a mano que solo conocía nueve tipos: cualquier otro
+  /// —los dieciocho que se sumaron después, incluida la selección
+  /// dependiente— caía en `texto` y el campo se dibujaba mal. Ahora resuelve
+  /// contra el enum, así un tipo nuevo no necesita tocar esto.
   AtributoTipo get tipoEnum {
-    switch (tipo.toLowerCase()) {
-      case 'texto':
-        return AtributoTipo.texto;
-      case 'numero':
-        return AtributoTipo.numero;
-      case 'select':
-        return AtributoTipo.select;
-      case 'boolean':
-        return AtributoTipo.boolean;
-      case 'color':
-        return AtributoTipo.color;
-      case 'talla':
-        return AtributoTipo.talla;
-      case 'material':
-        return AtributoTipo.material;
-      case 'capacidad':
-        return AtributoTipo.capacidad;
-      case 'multiselect':
-      case 'multi_select':
-        return AtributoTipo.multiSelect;
-      default:
-        return AtributoTipo.texto;
-    }
+    final normalizado = tipo.trim().toUpperCase();
+    // Variante histórica sin guion bajo.
+    if (normalizado == 'MULTISELECT') return AtributoTipo.multiSelect;
+    return AtributoTipo.fromString(normalizado);
   }
 
   PlantillaAtributoInfo copyWith({
@@ -120,6 +114,8 @@ class PlantillaAtributoInfo extends Equatable {
     String? descripcion,
     String? unidad,
     List<String>? valores,
+    List<OpcionAtributo>? opciones,
+    String? dependeDeAtributoId,
   }) {
     return PlantillaAtributoInfo(
       id: id ?? this.id,
@@ -130,6 +126,8 @@ class PlantillaAtributoInfo extends Equatable {
       descripcion: descripcion ?? this.descripcion,
       unidad: unidad ?? this.unidad,
       valores: valores ?? this.valores,
+      opciones: opciones ?? this.opciones,
+      dependeDeAtributoId: dependeDeAtributoId ?? this.dependeDeAtributoId,
     );
   }
 
@@ -143,6 +141,8 @@ class PlantillaAtributoInfo extends Equatable {
         descripcion,
         unidad,
         valores,
+        opciones,
+        dependeDeAtributoId,
       ];
 }
 

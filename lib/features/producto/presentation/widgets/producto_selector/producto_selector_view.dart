@@ -18,7 +18,10 @@ import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_cu
 import '../../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../../producto/domain/entities/precio_nivel.dart';
 import '../../../../producto/domain/services/precio_nivel_cache_service.dart';
+import '../../../../producto/data/datasources/producto_remote_datasource.dart';
+import '../../../../producto/domain/entities/producto_atributo.dart';
 import '../../../../producto/domain/entities/producto_filtros.dart';
+import '../filtro_atributos_chips.dart';
 import '../../../../producto/domain/entities/producto_list_item.dart';
 import '../../../../producto/domain/entities/producto_variante.dart';
 import '../../../../venta_rapida/presentation/widgets/variante_selector_sheet.dart';
@@ -135,6 +138,12 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
   final _searchCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
+  /// Atributos filtrables de la empresa, con sus opciones.
+  List<ProductoAtributo> _atributosFiltro = const [];
+
+  /// Valores elegidos en los chips: clave del atributo → valores.
+  Map<String, List<String>> _filtrosAtributos = const {};
+
   /// Último código escaneado por cámara. Cuando llega la respuesta del
   /// backend, si hay coincidencia exacta de 1 producto, se auto-agrega
   /// al carrito y se limpia el search. Patrón típico POS con scanner.
@@ -168,6 +177,39 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
     super.initState();
     _scrollCtrl.addListener(_onScroll);
     _suscribirRealtime();
+    if (kFiltroAtributosHabilitado) _cargarAtributosFiltro();
+  }
+
+  /// Atributos filtrables con sus opciones. Best-effort: si falla, la fila de
+  /// chips no aparece y el POS sigue vendiendo igual.
+  Future<void> _cargarAtributosFiltro() async {
+    try {
+      final atributos =
+          await locator<ProductoRemoteDataSource>().getAtributosFiltro();
+      if (!mounted) return;
+      setState(() => _atributosFiltro = atributos);
+    } catch (_) {
+      // Silencio a propósito: los filtros no pueden romper la venta.
+    }
+  }
+
+  /// Filtrar por atributo va SIEMPRE al servidor.
+  ///
+  /// El catálogo local no trae los valores de atributo de cada producto, así
+  /// que no hay con qué filtrar en el cliente. Se conserva el texto tipeado
+  /// para que combinar buscador y chips no pierda lo uno ni lo otro.
+  void _aplicarFiltroAtributos(Map<String, List<String>> nueva) {
+    setState(() => _filtrosAtributos = nueva);
+    final texto = _searchCtrl.text.trim();
+    context.read<ProductoListCubit>().applyFiltros(
+          ProductoFiltros(
+            search: texto.isEmpty ? null : texto,
+            isActive: true,
+            esInsumo: false,
+            atributos: nueva,
+          ),
+          sedeId: widget.sedeId,
+        );
   }
 
   void _suscribirRealtime() {
@@ -671,6 +713,17 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                 ],
               ),
             ),
+            // Filtro por atributo. 🔴 NO toca las rutas del escáner: un
+            // escaneo tiene que encontrar el producto aunque haya filtros
+            // puestos, así que ahí `atributos` va vacío a propósito.
+            if (kFiltroAtributosHabilitado && _atributosFiltro.isNotEmpty) ...[
+              FiltroAtributosChips(
+                atributos: _atributosFiltro,
+                seleccion: _filtrosAtributos,
+                onChanged: _aplicarFiltroAtributos,
+              ),
+              const SizedBox(height: 4),
+            ],
             // Barra fina de progreso mientras se filtra (no parpadea el grid).
             BlocBuilder<ProductoListCubit, ProductoListState>(
               buildWhen: (a, b) {

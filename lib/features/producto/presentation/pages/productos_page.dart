@@ -78,6 +78,10 @@ class _ProductosPageState extends State<ProductosPage>
   /// El backend respeta este flag (independiente de soloEliminados).
   bool? _filtroIsActive;
 
+  /// La bandera vive en `filtro_atributos_chips.dart`, compartida con Venta
+  /// Rápida y el marketplace: se prenden las tres juntas.
+  bool get _mostrarFiltroAtributos => kFiltroAtributosHabilitado;
+
   /// Atributos filtrables de la empresa, con sus opciones. Se piden una vez.
   List<ProductoAtributo> _atributosFiltro = const [];
 
@@ -108,7 +112,8 @@ class _ProductosPageState extends State<ProductosPage>
     _scrollController.addListener(_onScroll);
     _suscribirRealtime();
     _loadProductos();
-    _cargarAtributosFiltro();
+    // Sin chips no hace falta pagar el request de las facetas en cada apertura.
+    if (_mostrarFiltroAtributos) _cargarAtributosFiltro();
   }
 
   /// Trae los atributos que se pueden usar como filtro. Best-effort: si falla,
@@ -874,7 +879,8 @@ class _ProductosPageState extends State<ProductosPage>
                         const SizedBox(height: 6),
                         // Filtro por atributo. Solo ocupa lugar si la empresa
                         // tiene atributos marcados como filtrables.
-                        if (_atributosFiltro.isNotEmpty) ...[
+                        if (_mostrarFiltroAtributos &&
+                            _atributosFiltro.isNotEmpty) ...[
                           FiltroAtributosChips(
                             atributos: _atributosFiltro,
                             seleccion: _filtrosAtributos,

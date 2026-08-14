@@ -1,4 +1,5 @@
 import '../../domain/entities/atributo_plantilla.dart';
+import 'producto_atributo_model.dart';
 
 /// Model para PlantillaAtributo
 class PlantillaAtributoModel extends PlantillaAtributo {
@@ -48,6 +49,8 @@ class PlantillaAtributoInfoModel extends PlantillaAtributoInfo {
     super.descripcion,
     super.unidad,
     required super.valores,
+    super.opciones,
+    super.dependeDeAtributoId,
   });
 
   factory PlantillaAtributoInfoModel.fromJson(Map<String, dynamic> json) {
@@ -63,6 +66,14 @@ class PlantillaAtributoInfoModel extends PlantillaAtributoInfo {
               ?.map((e) => e as String)
               .toList() ??
           [],
+      // Sin esto, un atributo dependiente dentro de una plantilla mostraba la
+      // lista plana: los procesadores de todas las marcas mezclados.
+      opciones: (json['opciones'] as List<dynamic>?)
+              ?.map((e) =>
+                  OpcionAtributoModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      dependeDeAtributoId: json['dependeDeAtributoId'] as String?,
     );
   }
 
@@ -76,6 +87,10 @@ class PlantillaAtributoInfoModel extends PlantillaAtributoInfo {
       if (descripcion != null) 'descripcion': descripcion,
       if (unidad != null) 'unidad': unidad,
       'valores': valores,
+      'opciones': opciones
+          .map((o) => OpcionAtributoModel.fromEntity(o).toJson())
+          .toList(),
+      'dependeDeAtributoId': dependeDeAtributoId,
     };
   }
 }

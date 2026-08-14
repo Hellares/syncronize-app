@@ -3,6 +3,20 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/producto_atributo.dart';
 
+/// Interruptor ÚNICO de los chips de filtro por atributo.
+///
+/// Apagado por pedido del user (14-08): se muestran recién cuando estén en las
+/// tres pantallas —listado de productos, Venta Rápida y marketplace—, para no
+/// dejar el filtro a medias según dónde estés parado.
+///
+/// Poniéndolo en `true` aparecen en las tres de una sola vez. Todo el camino
+/// que está detrás ya funciona: las facetas de `/producto-atributos/filtros`,
+/// `ProductoFiltros.atributos` y el filtro del backend.
+///
+/// Es `final` y no `const` a propósito: con una constante el analyzer marca
+/// como código muerto todo lo que cuelga de la bandera.
+final bool kFiltroAtributosHabilitado = false;
+
 /// Fila de chips para filtrar productos por valor de atributo.
 ///
 /// La comparten el listado de productos, Venta Rápida y el marketplace: las
