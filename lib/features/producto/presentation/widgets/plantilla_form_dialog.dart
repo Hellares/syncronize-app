@@ -66,6 +66,7 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
                 requeridoOverride: pa.requeridoOverride,
                 valoresOverride: pa.valoresOverride,
                 valoresDisponibles: pa.atributo.valores,
+                dependeDeAtributoId: pa.atributo.dependeDeAtributoId,
               ))
           .toList();
     }
@@ -499,6 +500,31 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
                           style: TextStyle(
                             fontSize: 10,
                             color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                      // 🔴 Su padre no está en esta plantilla: el desplegable
+                      // va a quedar bloqueado. Pasa al sacar el padre después
+                      // de haberlo agregado, o en plantillas de antes de que
+                      // los padres se arrastraran solos.
+                      if (_lePaltaElPadre(atributo)) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(4),
+                            border:
+                                Border.all(color: Colors.orange.shade300),
+                          ),
+                          child: Text(
+                            'falta su padre',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.orange.shade800,
+                            ),
                           ),
                         ),
                       ],
@@ -985,6 +1011,64 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
     );
   }
 
+  /// Depende de otro atributo que NO está en esta plantilla.
+  bool _lePaltaElPadre(_AtributoSeleccionado a) {
+    final padre = a.dependeDeAtributoId;
+    if (padre == null) return false;
+    return !_atributosSeleccionados.any((s) => s.atributoId == padre);
+  }
+
+  _AtributoSeleccionado _aSeleccionado(ProductoAtributo a, int orden) {
+    return _AtributoSeleccionado(
+      atributoId: a.id,
+      nombre: a.nombre,
+      clave: a.clave,
+      tipo: a.tipo.value,
+      orden: orden,
+      requeridoOverride: a.requerido,
+      valoresDisponibles: a.valores,
+      dependeDeAtributoId: a.dependeDeAtributoId,
+    );
+  }
+
+  /// Agrega un atributo y, si depende de otro, TAMBIÉN su cadena de padres.
+  ///
+  /// 🔴 Sin esto se podía armar una plantilla con PROCESADOR y sin FABRICANTE:
+  /// el desplegable quedaba bloqueado para siempre porque su padre nunca
+  /// aparecía en el formulario. Los padres se insertan ANTES que el hijo, que
+  /// además es el orden en que hay que llenarlos.
+  ///
+  /// Devuelve los nombres agregados de arriba, para poder avisarlo.
+  List<String> _agregarConSusPadres(
+    ProductoAtributo atributo,
+    List<ProductoAtributo> catalogo,
+  ) {
+    // Subir hasta la raíz juntando los que falten.
+    final faltantes = <ProductoAtributo>[];
+    var padreId = atributo.dependeDeAtributoId;
+    var saltos = 0;
+    while (padreId != null && saltos++ < 10) {
+      final yaEsta =
+          _atributosSeleccionados.any((s) => s.atributoId == padreId);
+      ProductoAtributo? padre;
+      for (final a in catalogo) {
+        if (a.id == padreId) padre = a;
+      }
+      if (padre == null) break;
+      if (!yaEsta) faltantes.insert(0, padre);
+      padreId = padre.dependeDeAtributoId;
+    }
+
+    for (final p in faltantes) {
+      _atributosSeleccionados
+          .add(_aSeleccionado(p, _atributosSeleccionados.length));
+    }
+    _atributosSeleccionados
+        .add(_aSeleccionado(atributo, _atributosSeleccionados.length));
+
+    return faltantes.map((p) => p.nombre).toList();
+  }
+
   void _mostrarSelectorAtributos(
     BuildContext context,
     List<ProductoAtributo> atributosDisponibles,
@@ -993,6 +1077,15 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
         .where((a) =>
             !_atributosSeleccionados.any((s) => s.atributoId == a.id))
         .toList();
+
+    // Para poder mostrar "depende de X" con el NOMBRE y no con el id.
+    String? nombreDe(String? id) {
+      if (id == null) return null;
+      for (final a in atributosDisponibles) {
+        if (a.id == id) return a.nombre;
+      }
+      return null;
+    }
 
     showDialog(
       context: context,
@@ -1042,24 +1135,28 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
                           children: atributosNoSeleccionados
                               .map((atributo) => InkWell(
                                     onTap: () {
+                                      List<String> agregados = const [];
                                       setState(() {
-                                        _atributosSeleccionados.add(
-                                          _AtributoSeleccionado(
-                                            atributoId: atributo.id,
-                                            nombre: atributo.nombre,
-                                            clave: atributo.clave,
-                                            tipo: atributo.tipo.value,
-                                            orden:
-                                                _atributosSeleccionados
-                                                    .length,
-                                            requeridoOverride:
-                                                atributo.requerido,
-                                            valoresDisponibles:
-                                                atributo.valores,
-                                          ),
+                                        agregados = _agregarConSusPadres(
+                                          atributo,
+                                          atributosDisponibles,
                                         );
                                       });
                                       Navigator.pop(context);
+                                      if (agregados.isNotEmpty) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Se agregó también ${agregados.join(", ")}: '
+                                              '${atributo.nombre} depende de ${agregados.last}.',
+                                            ),
+                                            backgroundColor: AppColors.blue1,
+                                            duration:
+                                                const Duration(seconds: 3),
+                                          ),
+                                        );
+                                      }
                                     },
                                     borderRadius:
                                         BorderRadius.circular(8),
@@ -1122,6 +1219,35 @@ class _PlantillaFormDialogState extends State<PlantillaFormDialog> {
                                                         .shade600,
                                                   ),
                                                 ),
+                                                // Se avisa ANTES de elegir:
+                                                // este atributo no se sostiene
+                                                // solo, arrastra a su padre.
+                                                if (nombreDe(atributo
+                                                        .dependeDeAtributoId) !=
+                                                    null)
+                                                  Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons
+                                                            .account_tree_outlined,
+                                                        size: 10,
+                                                        color: AppColors.blue1,
+                                                      ),
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        'depende de ${nombreDe(atributo.dependeDeAtributoId)}',
+                                                        style: TextStyle(
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color:
+                                                              AppColors.blue1,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                               ],
                                             ),
                                           ),
@@ -1252,6 +1378,10 @@ class _AtributoSeleccionado {
   final List<String>? valoresOverride;
   final List<String> valoresDisponibles;
 
+  /// Atributo del que depende. Si no está también en la plantilla, el campo
+  /// queda inservible: el desplegable no tiene contra qué filtrarse.
+  final String? dependeDeAtributoId;
+
   _AtributoSeleccionado({
     required this.atributoId,
     required this.nombre,
@@ -1261,6 +1391,7 @@ class _AtributoSeleccionado {
     this.requeridoOverride,
     this.valoresOverride,
     required this.valoresDisponibles,
+    this.dependeDeAtributoId,
   });
 
   _AtributoSeleccionado copyWith({
@@ -1272,6 +1403,7 @@ class _AtributoSeleccionado {
     bool? requeridoOverride,
     List<String>? valoresOverride,
     List<String>? valoresDisponibles,
+    String? dependeDeAtributoId,
   }) {
     return _AtributoSeleccionado(
       atributoId: atributoId ?? this.atributoId,
@@ -1283,6 +1415,7 @@ class _AtributoSeleccionado {
       valoresOverride: valoresOverride ?? this.valoresOverride,
       valoresDisponibles:
           valoresDisponibles ?? this.valoresDisponibles,
+      dependeDeAtributoId: dependeDeAtributoId,
     );
   }
 }
