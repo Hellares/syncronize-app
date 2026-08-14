@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_atributo.dart';
@@ -59,103 +61,88 @@ class _VariantePlantillaAtributosDialogState
     }
 
     // Si ya hay plantilla, mostrar formulario de atributos
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(),
-            Expanded(child: _buildAtributosForm()),
-            _buildFooter(),
-          ],
+    return StyledDialog(
+      accentColor: AppColors.blue1,
+      icon: Icons.tune,
+      titulo: 'Atributos · ${widget.nombre}',
+      content: _buildAtributosForm(),
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            backgroundColor: AppColors.white,
+            borderColor: Colors.grey.shade400,
+            textColor: Colors.grey.shade700,
+            onPressed:
+                _isLoading ? null : () => Navigator.of(context).pop(),
+          ),
         ),
-      ),
+        Expanded(
+          flex: 2,
+          child: CustomButton(
+            text: 'Guardar',
+            isLoading: _isLoading,
+            onPressed: _guardar,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildPlantillaSelector() {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildSelectorHeader(),
-            Expanded(child: _buildPlantillasList()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSelectorHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.list_alt, color: Colors.blue.shade700, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Seleccionar Plantilla',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Elige una plantilla para ${widget.nombre}',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
+    return StyledDialog(
+      accentColor: AppColors.blue1,
+      icon: Icons.list_alt,
+      titulo: 'Plantilla para ${widget.nombre}',
+      content: [_buildPlantillasList()],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            backgroundColor: AppColors.white,
+            borderColor: Colors.grey.shade400,
+            textColor: Colors.grey.shade700,
             onPressed: () => Navigator.of(context).pop(),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildPlantillasList() {
     return BlocBuilder<AtributoPlantillaCubit, AtributoPlantillaState>(
       builder: (context, state) {
+        // 🔴 Todos los estados van con alto ACOTADO: adentro del
+        // SingleChildScrollView de StyledDialog, un Center con un Column de
+        // `mainAxisSize.max` no tiene contra qué medirse y revienta.
         if (state is AtributoPlantillaLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 28),
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
 
         if (state is AtributoPlantillaError) {
-          return Center(
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text(state.message),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    context.read<AtributoPlantillaCubit>().loadPlantillas();
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Reintentar'),
+                Icon(Icons.error_outline, size: 32, color: Colors.red.shade400),
+                const SizedBox(height: 8),
+                Text(
+                  state.message,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                CustomButton(
+                  text: 'Reintentar',
+                  backgroundColor: AppColors.white,
+                  borderColor: AppColors.blue1,
+                  textColor: AppColors.blue1,
+                  onPressed: () =>
+                      context.read<AtributoPlantillaCubit>().loadPlantillas(),
                 ),
               ],
             ),
@@ -164,17 +151,25 @@ class _VariantePlantillaAtributosDialogState
 
         if (state is AtributoPlantillaLoaded) {
           if (state.plantillas.isEmpty) {
-            return Center(
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  const Text('No hay plantillas disponibles'),
+                  Icon(Icons.inventory_2_outlined,
+                      size: 36, color: Colors.grey.shade400),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Crea plantillas en la sección de configuración',
-                    style: TextStyle(fontSize: 14),
+                  Text(
+                    'No hay plantillas disponibles',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Creá plantillas desde la configuración de atributos',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -182,27 +177,60 @@ class _VariantePlantillaAtributosDialogState
             );
           }
 
+          // `shrinkWrap` + sin física propia: el scroll lo pone StyledDialog.
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
             itemCount: state.plantillas.length,
             itemBuilder: (context, index) {
               final plantilla = state.plantillas[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: plantilla.icono != null
-                      ? Text(plantilla.icono!, style: const TextStyle(fontSize: 24))
-                      : const Icon(Icons.list_alt),
-                  title: Text(plantilla.nombre),
-                  subtitle: Text(
-                    '${plantilla.cantidadAtributos} atributos • ${plantilla.cantidadRequeridos} requeridos',
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: InkWell(
+                  onTap: () =>
+                      setState(() => _plantillaSeleccionada = plantilla),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        plantilla.icono != null
+                            ? Text(plantilla.icono!,
+                                style: const TextStyle(fontSize: 16))
+                            : Icon(Icons.list_alt,
+                                size: 16, color: AppColors.blue1),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                plantilla.nombre,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                '${plantilla.cantidadAtributos} atributos · ${plantilla.cantidadRequeridos} requeridos',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right,
+                            size: 16, color: Colors.grey.shade500),
+                      ],
+                    ),
                   ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    setState(() {
-                      _plantillaSeleccionada = plantilla;
-                    });
-                  },
                 ),
               );
             },
@@ -214,93 +242,64 @@ class _VariantePlantillaAtributosDialogState
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.tune, color: Colors.blue.shade700, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
+  // El header y el footer los pone StyledDialog —título con ícono acentuado y
+  // fila de acciones—, así que los que había armados a mano se borraron.
+
+  /// Devuelve la LISTA de widgets, no un scroll propio: `StyledDialog` ya
+  /// scrollea su contenido y anidar dos scrolls rompe el alto.
+  List<Widget> _buildAtributosForm() {
+    if (_plantillaSeleccionada!.atributos.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 28),
+          child: Center(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                Icon(Icons.inventory_2_outlined,
+                    size: 40, color: Colors.grey.shade400),
+                const SizedBox(height: 10),
                 Text(
-                  'Atributos - ${widget.nombre}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Plantilla: ${_plantillaSeleccionada!.nombre}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
+                  'La plantilla no tiene atributos',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-            tooltip: 'Cerrar',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAtributosForm() {
-    if (_plantillaSeleccionada!.atributos.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'La plantilla no tiene atributos',
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-              ),
-            ],
-          ),
         ),
-      );
+      ];
     }
 
     // Ordenar atributos por orden
     final atributosOrdenados = List.from(_plantillaSeleccionada!.atributos)
       ..sort((a, b) => a.orden.compareTo(b.orden));
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Text(
-          'Completa los atributos de esta variante',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
-          ),
+    return [
+      // Chip con la plantilla en uso: el título ya dice de qué producto es.
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.blue1.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(6),
         ),
-        const SizedBox(height: 16),
-        ...atributosOrdenados.map((plantillaAtributo) {
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.list_alt, size: 12, color: AppColors.blue1),
+            const SizedBox(width: 4),
+            Text(
+              _plantillaSeleccionada!.nombre,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.blue1,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      ...atributosOrdenados.map((plantillaAtributo) {
           final valorActual = _valores[plantillaAtributo.atributoId];
           // Convertir PlantillaAtributoInfo a ProductoAtributo
           final productoAtributo = _convertirAtributoInfoAProductoAtributo(
@@ -329,38 +328,8 @@ class _VariantePlantillaAtributosDialogState
               },
             ),
           );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border(top: BorderSide(color: Colors.grey[300]!)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: CustomButton(
-              text: 'Guardar Atributos',
-              isLoading: _isLoading,
-              onPressed: _guardar,
-            ),
-          ),
-        ],
-      ),
-    );
+      }),
+    ];
   }
 
   /// Vacía los atributos que dependen de [atributoId], en cascada.
