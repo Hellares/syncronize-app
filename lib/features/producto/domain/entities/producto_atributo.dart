@@ -1,16 +1,46 @@
 import 'package:equatable/equatable.dart';
 
-/// Tipos de atributos disponibles
+/// Tipos de atributos disponibles.
+///
+/// Comparte vocabulario con los tipos de campo de las plantillas de servicio:
+/// las etiquetas y los íconos de los dos salen de `core/constants/tipos_dato`.
+/// Qué tipos ofrece el selector, y en qué orden, lo define
+/// `kTiposAtributoProducto` — este enum es solo lo que el backend acepta.
 enum AtributoTipo {
+  // Con lista de valores predefinidos
+  select('SELECT'),
+  multiSelect('MULTI_SELECT'),
+  // Dato libre
+  texto('TEXTO'),
+  textoArea('TEXTO_AREA'),
+  numero('NUMERO'),
+  moneda('MONEDA'),
+  boolean('BOOLEAN'),
+  fecha('FECHA'),
+  hora('HORA'),
+  email('EMAIL'),
+  telefono('TELEFONO'),
+  url('URL'),
+  // Códigos e identificación
+  codigoBarras('CODIGO_BARRAS'),
+  pinClave('PIN_CLAVE'),
+  patronDesbloqueo('PATRON_DESBLOQUEO'),
+  documentoIdentidad('DOCUMENTO_IDENTIDAD'),
+  placaVehiculo('PLACA_VEHICULO'),
+  licenciaConducir('LICENCIA_CONDUCIR'),
+  // Archivos: el valor guardado es la URL del storage
+  foto('FOTO'),
+  firma('FIRMA'),
+  archivo('ARCHIVO'),
+  // Otros
+  inspeccionVisual('INSPECCION_VISUAL'),
+  productoCatalogo('PRODUCTO_CATALOGO'),
+  // Legacy: nombres de atributo disfrazados de tipo. Fuera del selector, se
+  // comportan como `select`. Cero filas los usan en beta y en prod.
   color('COLOR'),
   talla('TALLA'),
   material('MATERIAL'),
-  capacidad('CAPACIDAD'),
-  select('SELECT'),
-  multiSelect('MULTI_SELECT'),
-  boolean('BOOLEAN'),
-  numero('NUMERO'),
-  texto('TEXTO');
+  capacidad('CAPACIDAD');
 
   final String value;
   const AtributoTipo(this.value);
@@ -21,6 +51,22 @@ enum AtributoTipo {
       orElse: () => AtributoTipo.texto,
     );
   }
+
+  /// Se llena eligiendo de una lista. Son los únicos que EXIGEN `valores` y,
+  /// por eso, los únicos que el generador de combinaciones puede usar como eje
+  /// de variante — que filtra por `valores.isNotEmpty`, no por el tipo.
+  bool get usaListaDeValores =>
+      this == AtributoTipo.select ||
+      this == AtributoTipo.multiSelect ||
+      esLegacy;
+
+  /// Los cuatro que quedaron del modelo viejo. Se siguen mostrando si una fila
+  /// los trae, pero no se ofrecen al crear.
+  bool get esLegacy =>
+      this == AtributoTipo.color ||
+      this == AtributoTipo.talla ||
+      this == AtributoTipo.material ||
+      this == AtributoTipo.capacidad;
 }
 
 /// Entity que representa un atributo configurable de producto

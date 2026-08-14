@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/constants/tipos_dato.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -280,19 +281,20 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
   }
 
   Widget _buildAtributoCard(ProductoAtributo atributo) {
-    final color = _getTipoColor(atributo.tipo);
+    const color = AppColors.blue1;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6),
       child: GradientContainer(
-        gradient: AppGradients.blueWhiteBlue(),
+        gradient: AppGradients.sinfondo,
         borderColor: AppColors.blueborder,
         shadowStyle: ShadowStyle.colorful,
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
+            dense: true,
             tilePadding: const EdgeInsets.symmetric(horizontal: 14),
             childrenPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
             leading: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
@@ -301,7 +303,7 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
               ),
               child: Icon(_getTipoIcon(atributo.tipo), color: color, size: 16),
             ),
-            title: AppSubtitle(atributo.nombre, fontSize: 12),
+            title: AppSubtitle(atributo.nombre, fontSize: 11),
             subtitle: Row(
               children: [
                 Text(
@@ -429,47 +431,16 @@ class _ProductoAtributosPageState extends State<ProductoAtributosPage> {
 
   // ── Helpers ──
 
-  IconData _getTipoIcon(AtributoTipo tipo) {
-    switch (tipo) {
-      case AtributoTipo.color: return Icons.palette;
-      case AtributoTipo.talla: return Icons.straighten;
-      case AtributoTipo.material: return Icons.category;
-      case AtributoTipo.capacidad: return Icons.storage;
-      case AtributoTipo.select: return Icons.list;
-      case AtributoTipo.multiSelect: return Icons.checklist;
-      case AtributoTipo.boolean: return Icons.toggle_on;
-      case AtributoTipo.numero: return Icons.numbers;
-      case AtributoTipo.texto: return Icons.text_fields;
-    }
-  }
+  // Etiqueta e ícono salen del catálogo compartido con las plantillas de
+  // servicio (core/constants/tipos_dato.dart). Antes esta pantalla tenía su
+  // propio switch y `plantillas_atributos_page` otro distinto: el mismo tipo
+  // se pintaba con dos íconos según dónde se lo mirara.
+  //
+  // El color por tipo se jubiló: con 23 tipos era ruido, y servicios ya usa un
+  // solo acento para todos.
+  IconData _getTipoIcon(AtributoTipo tipo) => tipoDatoIcono(tipo.value);
 
-  Color _getTipoColor(AtributoTipo tipo) {
-    switch (tipo) {
-      case AtributoTipo.color: return Colors.purple;
-      case AtributoTipo.talla: return Colors.blue;
-      case AtributoTipo.material: return Colors.brown;
-      case AtributoTipo.capacidad: return Colors.orange;
-      case AtributoTipo.select: return Colors.green;
-      case AtributoTipo.multiSelect: return Colors.lightGreen;
-      case AtributoTipo.boolean: return Colors.teal;
-      case AtributoTipo.numero: return Colors.indigo;
-      case AtributoTipo.texto: return Colors.cyan;
-    }
-  }
-
-  String _getTipoLabel(AtributoTipo tipo) {
-    switch (tipo) {
-      case AtributoTipo.color: return 'Color';
-      case AtributoTipo.talla: return 'Talla';
-      case AtributoTipo.material: return 'Material';
-      case AtributoTipo.capacidad: return 'Capacidad';
-      case AtributoTipo.select: return 'Selección';
-      case AtributoTipo.multiSelect: return 'Selección múltiple';
-      case AtributoTipo.boolean: return 'Sí/No';
-      case AtributoTipo.numero: return 'Número';
-      case AtributoTipo.texto: return 'Texto';
-    }
-  }
+  String _getTipoLabel(AtributoTipo tipo) => tipoDatoLabel(tipo.value);
 
   // ── Dialogs ──
 
@@ -716,11 +687,19 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
                 const SizedBox(height: 12),
 
                 CustomDropdown<AtributoTipo>(
-                  label: 'Tipo de Atributo',
+                  label: 'Tipo de dato',
                   borderColor: AppColors.blue1,
                   value: _selectedTipo,
-                  items: AtributoTipo.values
-                      .map((t) => DropdownItem(value: t, label: _getTipoLabel(t)))
+                  items: _tiposOfrecidos
+                      .map((t) => DropdownItem(
+                            value: t,
+                            label: _getTipoLabel(t),
+                            leading: Icon(
+                              tipoDatoIcono(t.value),
+                              size: 16,
+                              color: AppColors.blue1,
+                            ),
+                          ))
                       .toList(),
                   onChanged: (v) {
                     if (v != null) setState(() => _selectedTipo = v);
@@ -736,13 +715,29 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                CustomText(
-                  label: 'Valores (separados por coma)',
-                  hintText: 'Rojo, Azul, Verde, Negro',
-                  controller: _valoresController,
-                  borderColor: AppColors.blue1,
-                  maxLines: 2,
-                ),
+                // Solo los tipos con lista de valores los admiten; el resto los
+                // tiene PROHIBIDOS y el backend devuelve 400. Se oculta en vez
+                // de dejar escribir algo que va a ser rechazado al guardar.
+                if (_selectedTipo.usaListaDeValores) ...[
+                  CustomText(
+                    label: 'Valores (separados por coma) *',
+                    hintText: 'Rojo, Azul, Verde, Negro',
+                    controller: _valoresController,
+                    borderColor: AppColors.blue1,
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Son las opciones entre las que se elige, y las únicas que '
+                    'pueden generar variantes.',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                ] else
+                  Text(
+                    '${_getTipoLabel(_selectedTipo)} se tipea al editar cada '
+                    'producto, así que no lleva lista de valores.',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
                 const SizedBox(height: 14),
 
                 AppLabelText('Configuración'),
@@ -895,19 +890,31 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
     );
   }
 
+  /// Tipos que ofrece el selector: el catálogo compartido con las plantillas
+  /// de servicio, más —solo al editar— el tipo que ya tiene el atributo si es
+  /// uno de los legacy. Sin eso, abrir un atributo viejo dejaba el desplegable
+  /// con un valor que no está entre sus opciones.
+  List<AtributoTipo> get _tiposOfrecidos {
+    final tipos = kTiposAtributoProducto.map(AtributoTipo.fromString).toList();
+    if (!tipos.contains(_selectedTipo)) tipos.add(_selectedTipo);
+    return tipos;
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final nombre = _nombreController.text.trim();
-    final valores = _valoresController.text
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    // Si el tipo no admite lista, lo tipeado se descarta: el campo está oculto
+    // y mandarlo daría 400. Pasa al cambiar de Selección a otro tipo con
+    // valores ya escritos.
+    final valores = !_selectedTipo.usaListaDeValores
+        ? <String>[]
+        : _valoresController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
 
-    final requiresValues = [AtributoTipo.select, AtributoTipo.multiSelect];
-    final forbidsValues = [AtributoTipo.texto, AtributoTipo.numero, AtributoTipo.boolean];
-
-    if (requiresValues.contains(_selectedTipo) && valores.isEmpty) {
+    if (_selectedTipo.usaListaDeValores && valores.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
@@ -916,15 +923,8 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
       );
       return;
     }
-    if (forbidsValues.contains(_selectedTipo) && valores.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                '${_getTipoLabel(_selectedTipo)} no admite valores predefinidos'),
-            backgroundColor: Colors.red),
-      );
-      return;
-    }
+    // El caso contrario —tipo sin lista con valores cargados— ya no puede
+    // pasar: el campo está oculto y `valores` sale vacío por construcción.
 
     String clave = nombre.toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
@@ -948,17 +948,6 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
     Navigator.pop(context);
   }
 
-  String _getTipoLabel(AtributoTipo tipo) {
-    switch (tipo) {
-      case AtributoTipo.color: return 'Color';
-      case AtributoTipo.talla: return 'Talla';
-      case AtributoTipo.material: return 'Material';
-      case AtributoTipo.capacidad: return 'Capacidad';
-      case AtributoTipo.select: return 'Selección';
-      case AtributoTipo.multiSelect: return 'Selección múltiple';
-      case AtributoTipo.boolean: return 'Sí/No';
-      case AtributoTipo.numero: return 'Número';
-      case AtributoTipo.texto: return 'Texto';
-    }
-  }
+  // Era la SÉPTIMA copia de este mapa en la app. Ahora sale del catálogo.
+  String _getTipoLabel(AtributoTipo tipo) => tipoDatoLabel(tipo.value);
 }

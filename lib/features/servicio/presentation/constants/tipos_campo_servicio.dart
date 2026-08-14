@@ -1,5 +1,10 @@
-/// Fuente ÚNICA de verdad para presentar los tipos de campo de las
-/// plantillas de servicio (etiquetas, íconos, categorías).
+/// Cómo se presentan los tipos de campo de las plantillas de servicio, y todo
+/// lo específico de servicios: consultas externas, columnas de TABLA y anchos.
+///
+/// 📍 **Las etiquetas y los íconos ya NO viven acá**: se mudaron a
+/// `core/constants/tipos_dato.dart`, que es el catálogo compartido con los
+/// atributos de producto. Acá quedó la lista de qué tipos ofrece servicios
+/// ([kTiposCampoServicio], reexportada) y los helpers de siempre.
 ///
 /// Antes esto vivía duplicado en cuatro pantallas —`configuracion_campos_page`,
 /// `plantillas_servicio_page`, `servicio_form_page` y `catalogo_plantillas_page`—
@@ -7,7 +12,7 @@
 /// al fallar dos el tipo quedó invisible en el selector que la gente usaba.
 ///
 /// **Para agregar un tipo de campo hay que tocar exactamente 3 lugares:**
-///  1. este archivo,
+///  1. el catálogo de `core/constants/tipos_dato.dart` + la lista de servicios,
 ///  2. el `case` en `dynamic_form_renderer.dart` (cómo se captura el dato),
 ///  3. el enum `TipoCampoServicio` del backend + su migración.
 ///
@@ -15,36 +20,16 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/constants/tipos_dato.dart';
 
-/// Etiqueta completa: selectores y formularios, donde hay ancho.
-const kTipoCampoLabels = <String, String>{
-  'TEXTO': 'Texto',
-  'NUMERO': 'Número',
-  'EMAIL': 'Email',
-  'FECHA': 'Fecha',
-  'HORA': 'Hora',
-  'TEXTO_AREA': 'Texto largo',
-  'OPCION_SIMPLES': 'Selección simple',
-  'OPCION_MULTIPLE': 'Selección múltiple',
-  'CHECKBOX': 'Checkbox',
-  'CHECKBOX_MULTIPLE': 'Checkbox múltiple',
-  'ARCHIVO': 'Archivo',
-  'TELEFONO': 'Teléfono',
-  'URL': 'URL',
-  'OBJETO': 'Objeto (sub-campos)',
-  'PATRON_DESBLOQUEO': 'Patrón desbloqueo',
-  'INSPECCION_VISUAL': 'Inspección visual',
-  'CODIGO_BARRAS': 'Código de barras (IMEI, serie)',
-  'PIN_CLAVE': 'PIN / clave de desbloqueo',
-  'MONEDA': 'Monto (S/)',
-  'FIRMA': 'Firma del cliente',
-  'DOCUMENTO_IDENTIDAD': 'DNI / RUC (con autocompletado)',
-  'TABLA': 'Tabla (columnas y filas)',
-  'PLACA_VEHICULO': 'Placa (con autocompletado)',
-  'LICENCIA_CONDUCIR': 'Licencia de conducir',
-  'FOTO': 'Foto',
-  'PRODUCTO_CATALOGO': 'Producto del catálogo',
-};
+// El catálogo compartido se reexporta para que las pantallas de servicio
+// sigan importando un solo archivo.
+export 'package:syncronize/core/constants/tipos_dato.dart'
+    show
+        kTiposCampoServicio,
+        kTipoDatoLabels,
+        kTipoDatoLabelsCortos,
+        kTipoDatoIcons;
 
 /// Datos que trae cada tipo con consulta externa, y el nombre sugerido de la
 /// columna que los recibe. El ORDEN importa: así se crean las acompañantes.
@@ -153,65 +138,6 @@ Map<String, String> columnasPorDato(
           c['dato'] as String: c['nombre'] as String,
     };
 
-/// Etiqueta corta: chips del catálogo de plantillas, donde no entra la larga.
-const kTipoCampoLabelsCortos = <String, String>{
-  'TEXTO': 'Texto',
-  'NUMERO': 'Número',
-  'EMAIL': 'Email',
-  'TELEFONO': 'Teléfono',
-  'URL': 'URL',
-  'TEXTO_AREA': 'Texto largo',
-  'OPCION_SIMPLES': 'Selección',
-  'OPCION_MULTIPLE': 'Multi-selección',
-  'CHECKBOX': 'Sí/No',
-  'CHECKBOX_MULTIPLE': 'Checks múltiple',
-  'FECHA': 'Fecha',
-  'HORA': 'Hora',
-  'ARCHIVO': 'Archivo',
-  'OBJETO': 'Objeto',
-  'PATRON_DESBLOQUEO': 'Patrón',
-  'INSPECCION_VISUAL': 'Inspección',
-  'CODIGO_BARRAS': 'Código de barras',
-  'PIN_CLAVE': 'PIN / clave',
-  'MONEDA': 'Monto',
-  'FIRMA': 'Firma',
-  'DOCUMENTO_IDENTIDAD': 'DNI / RUC',
-  'TABLA': 'Tabla',
-  'PLACA_VEHICULO': 'Placa',
-  'LICENCIA_CONDUCIR': 'Licencia',
-  'FOTO': 'Foto',
-  'PRODUCTO_CATALOGO': 'Producto',
-};
-
-const kTipoCampoIcons = <String, IconData>{
-  'TEXTO': Icons.text_fields,
-  'NUMERO': Icons.pin,
-  'EMAIL': Icons.email,
-  'FECHA': Icons.calendar_today,
-  'HORA': Icons.access_time,
-  'TEXTO_AREA': Icons.notes,
-  'OPCION_SIMPLES': Icons.radio_button_checked,
-  'OPCION_MULTIPLE': Icons.checklist,
-  'CHECKBOX': Icons.check_box,
-  'CHECKBOX_MULTIPLE': Icons.playlist_add_check,
-  'ARCHIVO': Icons.attach_file,
-  'TELEFONO': Icons.phone,
-  'URL': Icons.link,
-  'OBJETO': Icons.account_tree_outlined,
-  'PATRON_DESBLOQUEO': Icons.pattern,
-  'INSPECCION_VISUAL': Icons.car_crash_outlined,
-  'CODIGO_BARRAS': Icons.barcode_reader,
-  'PIN_CLAVE': Icons.lock_outline,
-  'MONEDA': Icons.payments_outlined,
-  'FIRMA': Icons.draw_outlined,
-  'DOCUMENTO_IDENTIDAD': Icons.badge_outlined,
-  'TABLA': Icons.table_chart_outlined,
-  'PLACA_VEHICULO': Icons.directions_car_outlined,
-  'LICENCIA_CONDUCIR': Icons.card_membership_outlined,
-  'FOTO': Icons.photo_camera_outlined,
-  'PRODUCTO_CATALOGO': Icons.inventory_2_outlined,
-};
-
 /// Tipos admitidos DENTRO de un campo OBJETO. Es un subconjunto a propósito:
 /// el renderer de sub-campos solo sabe pintar estos.
 const kSubCampoTipos = <String, String>{
@@ -295,13 +221,14 @@ const kCategoriaLabels = <String, String>{
 
 /// Los helpers caen al valor crudo del enum si llega un tipo que esta versión
 /// de la app no conoce (backend más nuevo), en vez de mostrar vacío.
-String tipoCampoLabel(String tipo) => kTipoCampoLabels[tipo] ?? tipo;
+///
+/// Delegan en el catálogo compartido; se conservan con este nombre porque los
+/// usan las cuatro pantallas de servicio.
+String tipoCampoLabel(String tipo) => tipoDatoLabel(tipo);
 
-String tipoCampoLabelCorto(String tipo) =>
-    kTipoCampoLabelsCortos[tipo] ?? kTipoCampoLabels[tipo] ?? tipo;
+String tipoCampoLabelCorto(String tipo) => tipoDatoLabelCorto(tipo);
 
-IconData tipoCampoIcon(String tipo) =>
-    kTipoCampoIcons[tipo] ?? Icons.text_fields;
+IconData tipoCampoIcon(String tipo) => tipoDatoIcono(tipo);
 
 String categoriaLabel(String categoria) =>
     kCategoriaLabels[categoria] ?? categoria;

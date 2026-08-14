@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/constants/tipos_dato.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
@@ -264,26 +265,7 @@ class PlantillaCard extends StatelessWidget {
     );
   }
 
-  IconData _getIconForTipo(AtributoTipo tipo) {
-    switch (tipo) {
-      case AtributoTipo.texto:
-        return Icons.text_fields;
-      case AtributoTipo.numero:
-        return Icons.numbers;
-      case AtributoTipo.select:
-        return Icons.arrow_drop_down_circle_outlined;
-      case AtributoTipo.boolean:
-        return Icons.toggle_on_outlined;
-      case AtributoTipo.color:
-        return Icons.palette_outlined;
-      case AtributoTipo.talla:
-        return Icons.straighten;
-      case AtributoTipo.material:
-        return Icons.layers_outlined;
-      case AtributoTipo.capacidad:
-        return Icons.inventory_2_outlined;
-      case AtributoTipo.multiSelect:
-        return Icons.checklist;
-    }
-  }
+  // Copia idéntica de la de `plantillas_atributos_page`: las dos salen ahora
+  // del catálogo compartido (core/constants/tipos_dato.dart).
+  IconData _getIconForTipo(AtributoTipo tipo) => tipoDatoIcono(tipo.value);
 }

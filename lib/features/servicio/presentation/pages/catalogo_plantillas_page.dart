@@ -342,7 +342,7 @@ class _CatalogoPlantillaCardState extends State<_CatalogoPlantillaCard> {
   /// Fallback propio: en el catálogo un tipo desconocido debe cantar, no
   /// disfrazarse de texto.
   IconData _iconForTipo(String tipo) =>
-      kTipoCampoIcons[tipo] ?? Icons.help_outline;
+      kTipoDatoIcons[tipo] ?? Icons.help_outline;
 
   /// Etiqueta CORTA: estos van en chips angostos.
   String _tipoLabel(String tipo) => tipoCampoLabelCorto(tipo);

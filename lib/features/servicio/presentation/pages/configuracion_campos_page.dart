@@ -14,12 +14,6 @@ class ConfiguracionCamposPage extends StatelessWidget {
   const ConfiguracionCamposPage({super.key});
 
   // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
-  static const _tipoCampoLabels = kTipoCampoLabels;
-
-  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
-  static const _tipoCampoIcons = kTipoCampoIcons;
-
-  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
   static const _categoriaLabels = kCategoriaLabels;
 
   @override
@@ -99,13 +93,13 @@ class ConfiguracionCamposPage extends StatelessWidget {
                   key: ValueKey(campo.id),
                   child: ListTile(
                     leading: Icon(
-                      _tipoCampoIcons[campo.tipoCampo] ?? Icons.text_fields,
+                      tipoCampoIcon(campo.tipoCampo),
                       color: Theme.of(context).primaryColor,
                     ),
                     title: Text(campo.nombre),
                     subtitle: Text(
                       [
-                        _tipoCampoLabels[campo.tipoCampo] ?? campo.tipoCampo,
+                        tipoCampoLabel(campo.tipoCampo),
                         if (campo.categoria != null)
                           _categoriaLabels[campo.categoria] ?? campo.categoria!,
                       ].join(' · '),
@@ -169,8 +163,9 @@ class ConfiguracionCamposPage extends StatelessWidget {
                   DropdownButtonFormField<String>(
                     initialValue: selectedTipoCampo,
                     decoration: const InputDecoration(labelText: 'Tipo de campo'),
-                    items: _tipoCampoLabels.entries
-                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    items: kTiposCampoServicio
+                        .map((t) => DropdownMenuItem(
+                            value: t, child: Text(tipoCampoLabel(t))))
                         .toList(),
                     onChanged: (v) => setState(() {
                       selectedTipoCampo = v!;

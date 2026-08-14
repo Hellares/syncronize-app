@@ -497,7 +497,7 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _tipoCampoIcons[c.tipoCampo] ?? Icons.text_fields,
+                          tipoCampoIcon(c.tipoCampo),
                           size: 10,
                           color: AppColors.blue1,
                         ),
@@ -532,12 +532,6 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
       ),
     );
   }
-
-  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
-  static const _tipoCampoIcons = kTipoCampoIcons;
-
-  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
-  static const _tipoCampoLabels = kTipoCampoLabels;
 
   // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
   static const _subCampoTipos = kSubCampoTipos;
@@ -632,8 +626,7 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                               ),
                               const SizedBox(width: 8),
                               Icon(
-                                _tipoCampoIcons[c.tipoCampo] ??
-                                    Icons.text_fields,
+                                tipoCampoIcon(c.tipoCampo),
                                 size: 13,
                                 color: AppColors.blue1,
                               ),
@@ -834,12 +827,12 @@ class _ServicioFormPageState extends State<ServicioFormPage> {
                       label: 'Tipo de campo',
                       hintText: 'Selecciona un tipo',
                       value: tipoCampo,
-                      items: _tipoCampoLabels.entries
-                          .map((e) => DropdownItem(
-                                value: e.key,
-                                label: e.value,
+                      items: kTiposCampoServicio
+                          .map((t) => DropdownItem(
+                                value: t,
+                                label: tipoCampoLabel(t),
                                 leading: Icon(
-                                  _tipoCampoIcons[e.key] ?? Icons.text_fields,
+                                  tipoCampoIcon(t),
                                   size: 16,
                                   color: AppColors.blue1,
                                 ),

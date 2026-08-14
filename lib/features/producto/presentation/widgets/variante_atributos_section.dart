@@ -308,6 +308,7 @@ class VarianteAtributosSection extends StatelessWidget {
                   key: ValueKey(selectedAtributo!.id),
                   atributo: selectedAtributo!,
                   valorActual: valor,
+                  empresaId: empresaId,
                   onChanged: (v) => setStateDialog(() => valor = v),
                 ),
               ],
@@ -380,6 +381,7 @@ class VarianteAtributosSection extends StatelessWidget {
                 AtributoInputWidget(
                   atributo: productoAtributo,
                   valorActual: valor,
+                  empresaId: empresaId,
                   onChanged: (v) => setStateDialog(() => valor = v),
                 )
               else

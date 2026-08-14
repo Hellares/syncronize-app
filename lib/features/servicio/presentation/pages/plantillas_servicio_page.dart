@@ -478,12 +478,12 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
                       label: 'Tipo de campo',
                       hintText: 'Selecciona un tipo',
                       value: tipoCampo,
-                      items: _tipoCampoLabels.entries
-                          .map((e) => DropdownItem(
-                                value: e.key,
-                                label: e.value,
+                      items: kTiposCampoServicio
+                          .map((t) => DropdownItem(
+                                value: t,
+                                label: tipoCampoLabel(t),
                                 leading: Icon(
-                                  _tipoCampoIcons[e.key] ?? Icons.text_fields,
+                                  tipoCampoIcon(t),
                                   size: 16,
                                   color: AppColors.blue1,
                                 ),
@@ -765,13 +765,7 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
   }
 
   // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
-  static const _tipoCampoLabels = kTipoCampoLabels;
-
-  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
   static const _subCampoTipos = kSubCampoTipos;
-
-  // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
-  static const _tipoCampoIcons = kTipoCampoIcons;
 
   // Definicion compartida: presentation/constants/tipos_campo_servicio.dart
   static const _categoriaLabels = kCategoriaLabels;
@@ -910,7 +904,7 @@ class _PlantillaListTile extends StatelessWidget {
       spacing: 6,
       runSpacing: 4,
       children: plantilla.campos.take(5).map((c) {
-        final icon = _PlantillasServicioPageState._tipoCampoIcons[c.tipoCampo] ?? Icons.text_fields;
+        final icon = tipoCampoIcon(c.tipoCampo);
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           decoration: BoxDecoration(

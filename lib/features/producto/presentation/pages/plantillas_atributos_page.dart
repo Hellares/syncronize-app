@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/constants/tipos_dato.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
@@ -746,28 +747,10 @@ class _PlantillasAtributosViewState extends State<_PlantillasAtributosView> {
     );
   }
 
-  IconData _getIconForTipo(AtributoTipo tipo) {
-    switch (tipo) {
-      case AtributoTipo.texto:
-        return Icons.text_fields;
-      case AtributoTipo.numero:
-        return Icons.numbers;
-      case AtributoTipo.select:
-        return Icons.arrow_drop_down_circle_outlined;
-      case AtributoTipo.boolean:
-        return Icons.toggle_on_outlined;
-      case AtributoTipo.color:
-        return Icons.palette_outlined;
-      case AtributoTipo.talla:
-        return Icons.straighten;
-      case AtributoTipo.material:
-        return Icons.layers_outlined;
-      case AtributoTipo.capacidad:
-        return Icons.inventory_2_outlined;
-      case AtributoTipo.multiSelect:
-        return Icons.checklist;
-    }
-  }
+  // Este mapa no coincidía con el de `producto_atributos_page`: SELECT se
+  // pintaba acá con `arrow_drop_down_circle_outlined` y allá con `Icons.list`.
+  // Ahora los dos salen del catálogo compartido.
+  IconData _getIconForTipo(AtributoTipo tipo) => tipoDatoIcono(tipo.value);
 
   void _confirmarEliminar(
       BuildContext context, AtributoPlantilla plantilla) {
