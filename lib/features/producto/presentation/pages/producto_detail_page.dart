@@ -17,7 +17,9 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/precio_nivel.dart';
+import '../../domain/repositories/plantilla_repository.dart';
 import '../../domain/repositories/precio_nivel_repository.dart';
 import '../../domain/repositories/producto_repository.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -50,9 +52,20 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   ProductoVariante? _selectedVariante;
   bool _productoWasEdited = false; // Flag para saber si se editó el producto
 
+  /// Plantillas de la empresa, para agrupar las características en las mismas
+  /// secciones con las que se cargaron (PROCESADOR, MEMORIA, PANTALLA…).
+  ///
+  /// El producto guarda los IDs en `plantillasAtributosIds`, pero no los
+  /// nombres ni qué atributo trae cada una: eso vive en la plantilla.
+  List<AtributoPlantilla> _plantillas = const [];
+
+  /// El detalle abre con la primera sección; las demás se despliegan a pedido.
+  bool _verTodasLasCaracteristicas = false;
+
   @override
   void initState() {
     super.initState();
+    _cargarPlantillas();
 
     // Si ya tenemos los datos del producto, cargarlos directamente (evita petición duplicada)
     if (widget.productoData != null) {
@@ -1106,38 +1119,117 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is! EmpresaContextLoaded) return const SizedBox.shrink();
 
+    Future<void> abrirEditor() async {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (context) => VariantePlantillaAtributosDialog(
+          empresaId: empresaState.context.empresa.id,
+          productoId: producto.id,
+          nombre: producto.nombre,
+        ),
+      );
+
+      if (result == true && mounted) {
+        _loadProducto(); // Recargar para ver cambios
+      }
+    }
+
     return GradientContainer(
       // color: tieneAtributos ? null : Colors.orange.shade50,
       borderRadius: BorderRadius.all(Radius.circular(8)),
       borderColor: AppColors.blueborder,
       gradient: AppGradients.blueWhiteBlue(),
       shadowStyle: ShadowStyle.colorful,
-      child: InkWell(
-        onTap: () async {
-          final result = await showDialog<bool>(
-            context: context,
-            builder: (context) => VariantePlantillaAtributosDialog(
-              empresaId: empresaState.context.empresa.id,
-              productoId: producto.id,
-              nombre: producto.nombre,
+      // 🔴 La tarjeta YA NO es tocable entera: el editor se abre solo desde el
+      // lápiz. Con toda la card tocable, desplegar "N características más" o
+      // simplemente leer la ficha abría el diálogo sin querer.
+      //
+      // El estado vacío sí sigue siendo tocable completo: ahí no hay lápiz y
+      // toda la tarjeta ES la invitación a cargar atributos.
+      child: tieneAtributos
+          ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: _buildAtributosContent(
+                producto.atributosValores!,
+                (producto.plantillasAtributosIds as List?)
+                        ?.map((e) => e.toString())
+                        .toList() ??
+                    const <String>[],
+                abrirEditor,
+              ),
+            )
+          : InkWell(
+              onTap: abrirEditor,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: _buildNoAtributosContent(),
+              ),
             ),
-          );
-
-          if (result == true && mounted) {
-            _loadProducto(); // Recargar para ver cambios
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 6),
-          child: tieneAtributos
-              ? _buildAtributosContent(producto.atributosValores!)
-              : _buildNoAtributosContent(),
-        ),
-      ),
     );
   }
 
-  Widget _buildAtributosContent(List atributosValores) {
+  /// Trae las plantillas para poder agrupar. Best-effort: si falla, el detalle
+  /// muestra las características en una sola lista, como antes.
+  Future<void> _cargarPlantillas() async {
+    try {
+      final res = await locator<PlantillaRepository>().getPlantillas();
+      if (!mounted) return;
+      if (res is Success<List<AtributoPlantilla>>) {
+        setState(() => _plantillas = res.data);
+      }
+    } catch (_) {
+      // Silencio a propósito: agrupar es un lujo, ver el producto no.
+    }
+  }
+
+  /// Reparte las características en las secciones con las que se cargaron.
+  ///
+  /// Devuelve pares (nombre de sección, valores) más los SUELTOS: atributos que
+  /// el producto tiene pero que ninguna plantilla aplicada reclama —cargados a
+  /// mano, o de una plantilla que después se borró—. Esos no se pueden
+  /// esconder: son datos del producto igual.
+  (List<(String, List<dynamic>)>, List<dynamic>) _agruparPorSeccion(
+    List atributosValores,
+    List<String> plantillasIds,
+  ) {
+    final porAtributo = <String, dynamic>{
+      for (final av in atributosValores) av.atributoId as String: av,
+    };
+    final usados = <String>{};
+    final secciones = <(String, List<dynamic>)>[];
+
+    for (final id in plantillasIds) {
+      AtributoPlantilla? plantilla;
+      for (final p in _plantillas) {
+        if (p.id == id) plantilla = p;
+      }
+      if (plantilla == null) continue;
+
+      final propios = <dynamic>[];
+      for (final pa in plantilla.atributos) {
+        final av = porAtributo[pa.atributo.id];
+        // `usados` evita repetir un atributo que está en dos plantillas.
+        if (av != null && usados.add(pa.atributo.id)) propios.add(av);
+      }
+      if (propios.isNotEmpty) secciones.add((plantilla.nombre, propios));
+    }
+
+    final sueltos = [
+      for (final av in atributosValores)
+        if (!usados.contains(av.atributoId)) av,
+    ];
+    return (secciones, sueltos);
+  }
+
+  Widget _buildAtributosContent(
+    List atributosValores,
+    List<String> plantillasIds,
+    VoidCallback onEditar,
+  ) {
+    final (secciones, sueltos) =
+        _agruparPorSeccion(atributosValores, plantillasIds);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1155,18 +1247,183 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             const Expanded(
               child: AppSubtitle('Caracteristicas del Producto'),
             ),
-            Icon(Icons.edit, size: 16, color: Colors.grey[600]),
+            // Único punto que abre el editor. Con área de toque de 32px: el
+            // ícono solo son 16 y quedaba difícil de pegarle.
+            InkWell(
+              onTap: onEditar,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(Icons.edit, size: 16, color: Colors.grey[600]),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: atributosValores.map((atributoValor) {
-            return InfoChip(icon: Icons.label, text: '${atributoValor.atributo.nombre} : ${atributoValor.valor}' , font: AppFont.oxygenBold, borderRadius: 4, fontSize: 10,);
-          }).toList(),
+        // Sin secciones —plantillas todavía cargando, o producto viejo sin
+        // ellas— se muestra una sola tabla, sin encabezados.
+        if (secciones.isEmpty)
+          _buildTablaAtributos(atributosValores)
+        else ...[
+          // Se abre con la PRIMERA sección nada más. Un celular con cuatro
+          // plantillas llenaba la pantalla de tablas y empujaba el precio y el
+          // stock fuera de vista; el resto se despliega a pedido.
+          _buildTituloSeccion(secciones.first.$1),
+          const SizedBox(height: 5),
+          _buildTablaAtributos(secciones.first.$2),
+          if (_ocultasCount(secciones, sueltos) > 0) ...[
+            if (_verTodasLasCaracteristicas) ...[
+              const SizedBox(height: 12),
+              for (final (nombre, valores) in secciones.skip(1)) ...[
+                _buildTituloSeccion(nombre),
+                const SizedBox(height: 5),
+                _buildTablaAtributos(valores),
+                const SizedBox(height: 12),
+              ],
+              if (sueltos.isNotEmpty) ...[
+                _buildTituloSeccion('Otras'),
+                const SizedBox(height: 5),
+                _buildTablaAtributos(sueltos),
+              ],
+            ],
+            const SizedBox(height: 6),
+            _buildVerMas(_ocultasCount(secciones, sueltos)),
+          ],
+        ],
+      ],
+    );
+  }
+
+  /// Cuántas características quedan fuera de la primera sección.
+  int _ocultasCount(
+    List<(String, List<dynamic>)> secciones,
+    List<dynamic> sueltos,
+  ) {
+    var total = sueltos.length;
+    for (final (_, valores) in secciones.skip(1)) {
+      total += valores.length;
+    }
+    return total;
+  }
+
+  /// El desplegable de "más características".
+  ///
+  /// Va en su propio InkWell porque toda la tarjeta ya es tocable —abre el
+  /// diálogo de editar atributos—: sin esto, desplegar significaba abrir el
+  /// editor. El de adentro gana el tap.
+  Widget _buildVerMas(int ocultas) {
+    return InkWell(
+      onTap: () => setState(
+          () => _verTodasLasCaracteristicas = !_verTodasLasCaracteristicas),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _verTodasLasCaracteristicas
+                  ? Icons.expand_less
+                  : Icons.expand_more,
+              size: 14,
+              color: AppColors.blue1,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _verTodasLasCaracteristicas
+                  ? 'Ver menos'
+                  : '$ocultas característica${ocultas == 1 ? '' : 's'} más',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.blue1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTituloSeccion(String nombre) {
+    return Row(
+      children: [
+        Icon(Icons.folder_outlined, size: 12, color: AppColors.blue1),
+        const SizedBox(width: 4),
+        Text(
+          nombre.toUpperCase(),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: AppColors.blue1,
+            letterSpacing: 0.3,
+          ),
         ),
       ],
+    );
+  }
+
+  /// Ficha técnica en filas `nombre | valor`, igual que el detalle del
+  /// marketplace: cebra en las pares y un divisor fino entre filas.
+  ///
+  /// Reemplaza a los chips sueltos, que con muchas características se leían
+  /// como una bolsa: el fabricante del procesador al lado del color de la
+  /// carcasa, sin alineación entre nombre y valor.
+  Widget _buildTablaAtributos(List atributosValores) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < atributosValores.length; i++)
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: i.isEven ? Colors.grey.shade50 : Colors.white,
+                border: i == 0
+                    ? null
+                    : Border(
+                        top: BorderSide(
+                            color: Colors.grey.shade200, width: 0.5),
+                      ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Dos tercios para el valor, como en el marketplace: los
+                  // nombres son cortos y los valores se van largos.
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      atributosValores[i].atributo.nombre,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      '${atributosValores[i].valor}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
