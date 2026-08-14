@@ -651,9 +651,17 @@ class VarianteAtributosSection extends StatelessWidget {
   }
 
   void _showPlantillaAtributosForm(BuildContext context, plantilla.AtributoPlantilla plantillaSeleccionada) {
-    final Map<String, String> valores = {};
     // Capturar el cubit ANTES de abrir el dialog
     final cubit = context.read<VarianteAtributoCubit>();
+
+    // Arranca con lo que la variante YA tiene. Si no, un atributo que la
+    // plantilla también incluye —y que el usuario no toca— se guardaba vacío,
+    // pisando el valor que ya estaba cargado.
+    final estado = cubit.state;
+    final Map<String, String> valores = {
+      if (estado is VarianteAtributoLoaded)
+        for (final av in estado.atributoValores) av.atributoId: av.valor,
+    };
 
     showDialog(
       context: context,

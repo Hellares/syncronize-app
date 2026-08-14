@@ -56,7 +56,28 @@ class VarianteAtributoCubit extends Cubit<VarianteAtributoState> {
       );
     }).toList();
 
-    emit(VarianteAtributoLoaded(atributoValores: atributoValores));
+    // 🔴 Aplicar una plantilla AGREGA, no reemplaza.
+    //
+    // Antes se emitía solo lo de la plantilla y el guardado —que hace
+    // deleteMany + createMany— borraba el resto: una variante generada por
+    // COLOR = AZUL perdía el azul apenas le aplicabas la plantilla de
+    // procesador, y quedaba con tres atributos que no la identifican.
+    //
+    // Se conservan los que la plantilla NO trae; los que sí trae los pisa
+    // ella, que es lo que el usuario acaba de completar.
+    final estadoActual = state;
+    final previos = estadoActual is VarianteAtributoLoaded
+        ? estadoActual.atributoValores
+        : const <AtributoValor>[];
+    final idsDeLaPlantilla =
+        plantillaAtributos.map((pa) => pa.atributoId).toSet();
+    final conservados = previos
+        .where((av) => !idsDeLaPlantilla.contains(av.atributoId))
+        .toList();
+
+    emit(VarianteAtributoLoaded(
+      atributoValores: [...conservados, ...atributoValores],
+    ));
     return null;
   }
 

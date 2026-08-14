@@ -16,10 +16,18 @@ class _AtributoParaCombinar {
   final String nombre;
   final List<String> valores;
 
+  /// Atributo del que dependen sus valores (null = raíz).
+  final String? dependeDeAtributoId;
+
+  /// Valor → valor del padre del que cuelga. Vacío en los atributos raíz.
+  final Map<String, String?> padreDeValor;
+
   _AtributoParaCombinar({
     required this.atributoId,
     required this.nombre,
     required this.valores,
+    this.dependeDeAtributoId,
+    this.padreDeValor = const {},
   });
 }
 
@@ -71,6 +79,10 @@ class _GenerarCombinacionesDialogState
               atributoId: a.id,
               nombre: a.nombre,
               valores: a.valores,
+              dependeDeAtributoId: a.dependeDeAtributoId,
+              padreDeValor: {
+                for (final o in a.opciones) o.valor: o.padreValor,
+              },
             ))
         .toList();
   }
@@ -92,7 +104,48 @@ class _GenerarCombinacionesDialogState
         .map((a) => _selectedValues[a.atributoId]!.toList())
         .toList();
 
-    return _cartesianProduct(arrays);
+    return _podarImposibles(_cartesianProduct(arrays), atributos);
+  }
+
+  /// Saca del producto cartesiano las combinaciones que no existen.
+  ///
+  /// 🔴 Sin esto, FABRICANTE(3) × FAMILIA(6) × PROCESADOR(12) da 216 variantes
+  /// de las cuales solo 12 son reales: SAMSUNG + Snapdragon 8 Gen no existe.
+  /// Es exactamente el problema por el que las cadenas dependientes valían la
+  /// pena, y el generador era el único lugar donde faltaba aplicarlas.
+  ///
+  /// Un hijo solo se compara si su PADRE también entró a la generación: si no
+  /// está, no hay contra qué validar y se deja pasar en vez de descartar todo.
+  List<List<String>> _podarImposibles(
+    List<List<String>> combos,
+    List<_AtributoParaCombinar> atributos,
+  ) {
+    // Posición de cada atributo dentro de la tupla.
+    final indice = <String, int>{
+      for (var i = 0; i < atributos.length; i++) atributos[i].atributoId: i,
+    };
+
+    // Pares (hijo, padre) que sí se pueden verificar.
+    final verificables = <(int, int, Map<String, String?>)>[];
+    for (var i = 0; i < atributos.length; i++) {
+      final a = atributos[i];
+      final padreId = a.dependeDeAtributoId;
+      if (padreId == null || a.padreDeValor.isEmpty) continue;
+      final iPadre = indice[padreId];
+      if (iPadre == null) continue;
+      verificables.add((i, iPadre, a.padreDeValor));
+    }
+    if (verificables.isEmpty) return combos;
+
+    return combos.where((combo) {
+      for (final (iHijo, iPadre, padreDe) in verificables) {
+        final esperado = padreDe[combo[iHijo]];
+        // Opción sin padre declarado: no se puede afirmar que sea imposible.
+        if (esperado == null) continue;
+        if (esperado != combo[iPadre]) return false;
+      }
+      return true;
+    }).toList();
   }
 
   /// Genera el nombre descriptivo de una combinación: "RAM 4 / Color Rojo"
@@ -131,6 +184,12 @@ class _GenerarCombinacionesDialogState
                 atributoId: pa.atributoId,
                 nombre: pa.atributo.nombre,
                 valores: pa.valoresActuales,
+                // La jerarquía viaja también por este camino: si no, generar
+                // desde una plantilla volvía a producir el cartesiano entero.
+                dependeDeAtributoId: pa.atributo.dependeDeAtributoId,
+                padreDeValor: {
+                  for (final o in pa.atributo.opciones) o.valor: o.padreValor,
+                },
               ))
           .toList();
     });
