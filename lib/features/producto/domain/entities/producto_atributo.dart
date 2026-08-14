@@ -183,6 +183,11 @@ class ProductoAtributo extends Equatable {
     required List<String> valores,
     required int orden,
     String empresaId = '',
+    // 🔴 Sin estos dos, un atributo dependiente creado desde una plantilla
+    // nace sin jerarquía: el desplegable queda bloqueado para siempre porque
+    // nunca sabe de qué cuelga. Es lo que pasaba en el form de producto.
+    List<OpcionAtributo> opciones = const [],
+    String? dependeDeAtributoId,
   }) {
     return ProductoAtributo(
       id: atributoId,
@@ -195,6 +200,8 @@ class ProductoAtributo extends Equatable {
       descripcion: descripcion,
       unidad: unidad,
       valores: valores,
+      opciones: opciones,
+      dependeDeAtributoId: dependeDeAtributoId,
       orden: orden,
       mostrarEnListado: true,
       usarParaFiltros: true,

@@ -410,8 +410,25 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   void _onPlantillaAtributoChanged(String atributoId, String value) {
     setState(() {
       _controller.plantillaAtributosValues[atributoId] = value;
+      _limpiarAtributosDependientes(atributoId);
       _markAsChanged();
     });
+  }
+
+  /// Vacía, en cascada, lo elegido en los atributos que dependen de
+  /// [atributoId].
+  ///
+  /// Cambiar FABRICANTE invalida lo elegido en FAMILIA, y con eso lo de
+  /// PROCESADOR, que cuelga de FAMILIA: quedarían apuntando a una rama que ya
+  /// no existe.
+  void _limpiarAtributosDependientes(String atributoId) {
+    final plantilla = _controller.selectedPlantilla;
+    if (plantilla == null) return;
+    for (final pa in plantilla.atributos) {
+      if (pa.atributo.dependeDeAtributoId != atributoId) continue;
+      _controller.plantillaAtributosValues.remove(pa.atributoId);
+      _limpiarAtributosDependientes(pa.atributoId);
+    }
   }
 
   Future<void> _submit() async {
@@ -1286,12 +1303,20 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                   unidad: atributoInfo.unidad,
                   valores: plantillaAtributo.valoresActuales,
                   orden: plantillaAtributo.orden,
+                  opciones: atributoInfo.opciones,
+                  dependeDeAtributoId: atributoInfo.dependeDeAtributoId,
                 );
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: AtributoInputWidget(
                     atributo: productoAtributo,
                     valorActual: _controller.plantillaAtributosValues[atributoInfo.id] ?? '',
+                    // Lo elegido en el atributo padre. Sin esto, PROCESADOR
+                    // queda bloqueado aunque ya hayas elegido FABRICANTE.
+                    valorDelPadre: atributoInfo.dependeDeAtributoId == null
+                        ? null
+                        : _controller.plantillaAtributosValues[
+                            atributoInfo.dependeDeAtributoId],
                     onChanged: (value) => _onPlantillaAtributoChanged(atributoInfo.id, value),
                   ),
                 );

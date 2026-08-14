@@ -355,6 +355,22 @@ class VarianteAtributosSection extends StatelessWidget {
     );
   }
 
+  /// Vacía, en cascada, los atributos que dependen de [atributoId].
+  ///
+  /// Cambiar FABRICANTE invalida lo elegido en FAMILIA, y con eso lo de
+  /// PROCESADOR, que cuelga de FAMILIA. Por eso baja por toda la cadena.
+  void _limpiarDependientesEnMapa(
+    List<plantilla.PlantillaAtributo> atributos,
+    String atributoId,
+    Map<String, String> valores,
+  ) {
+    for (final pa in atributos) {
+      if (pa.atributo.dependeDeAtributoId != atributoId) continue;
+      valores.remove(pa.atributoId);
+      _limpiarDependientesEnMapa(atributos, pa.atributoId, valores);
+    }
+  }
+
   /// El valor que la variante ya tiene guardado para [atributoId].
   ///
   /// Es lo que alimenta la cascada: un atributo dependiente necesita saber qué
@@ -671,9 +687,21 @@ class VarianteAtributosSection extends StatelessWidget {
                       child: AtributoInputWidget(
                         atributo: productoAtributo,
                         valorActual: valores[plantillaAtributo.atributoId],
+                        empresaId: empresaId,
+                        valorDelPadre:
+                            productoAtributo.dependeDeAtributoId == null
+                                ? null
+                                : valores[productoAtributo.dependeDeAtributoId],
                         onChanged: (valor) {
                           setState(() {
                             valores[plantillaAtributo.atributoId] = valor;
+                            // Cambiar el padre deja a los hijos apuntando a
+                            // una rama que ya no existe.
+                            _limpiarDependientesEnMapa(
+                              plantillaSeleccionada.atributos,
+                              plantillaAtributo.atributoId,
+                              valores,
+                            );
                           });
                         },
                       ),
@@ -749,6 +777,10 @@ class VarianteAtributosSection extends StatelessWidget {
       valores: valores,
       orden: orden,
       empresaId: empresaId ?? '',
+      // La jerarquía tiene que viajar: sin ella el desplegable de un
+      // dependiente queda bloqueado para siempre.
+      opciones: atributoInfo.opciones,
+      dependeDeAtributoId: atributoInfo.dependeDeAtributoId,
     );
   }
 }
