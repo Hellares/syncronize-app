@@ -276,12 +276,18 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
   }) async {
     if (valores.isEmpty) return;
 
+    // Los vacíos NO viajan: el backend rechaza un `valor` en blanco (400) y,
+    // como el endpoint reemplaza la ficha entera, dejarlos afuera es
+    // justamente lo que borra un atributo que el usuario vació.
     final atributos = valores.entries
+        .where((e) => e.value.trim().isNotEmpty)
         .map((e) => VarianteAtributoDto(
               atributoId: e.key,
               valor: e.value,
             ))
         .toList();
+
+    if (atributos.isEmpty) return;
 
     await _productoRepository.setProductoAtributos(
       productoId: productoId,

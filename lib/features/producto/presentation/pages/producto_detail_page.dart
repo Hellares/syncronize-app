@@ -1120,12 +1120,23 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     if (empresaState is! EmpresaContextLoaded) return const SizedBox.shrink();
 
     Future<void> abrirEditor() async {
+      // 🔴 Va TODA la ficha que el producto ya tiene, no solo lo que la
+      // plantilla que se elija vaya a mostrar: el endpoint reemplaza los
+      // atributos completos, así que lo que no viaje se borra. Sin esto,
+      // aplicar una plantilla desde el detalle dejaba al producto con los
+      // atributos de esa plantilla y nada más.
+      final valoresActuales = <String, String>{
+        for (final av in (producto.atributosValores ?? const []))
+          av.atributoId as String: av.valor as String,
+      };
+
       final result = await showDialog<bool>(
         context: context,
         builder: (context) => VariantePlantillaAtributosDialog(
           empresaId: empresaState.context.empresa.id,
           productoId: producto.id,
           nombre: producto.nombre,
+          valoresIniciales: valoresActuales,
         ),
       );
 

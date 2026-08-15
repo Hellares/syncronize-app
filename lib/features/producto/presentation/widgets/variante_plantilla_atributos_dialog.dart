@@ -19,6 +19,13 @@ class VariantePlantillaAtributosDialog extends StatefulWidget {
   final String? varianteId;
   final String nombre;
   final AtributoPlantilla? plantilla; // Ahora es opcional
+
+  /// Lo que el producto/variante YA tiene cargado, por `atributoId`.
+  ///
+  /// 🔴 No es solo para precargar los campos: el endpoint REEMPLAZA la ficha
+  /// completa, así que lo que no esté acá se borra. Abrir este diálogo sin
+  /// pasarlo y guardar dejaba al producto únicamente con los atributos de la
+  /// plantilla elegida.
   final Map<String, String> valoresIniciales;
 
   const VariantePlantillaAtributosDialog({
@@ -426,7 +433,14 @@ class _VariantePlantillaAtributosDialogState
         await dataSource.setProductoAtributos(
           productoId: widget.productoId!,
           empresaId: widget.empresaId,
-          data: {'atributos': atributos.map((a) => a.toJson()).toList()},
+          data: {
+            'atributos': atributos.map((a) => a.toJson()).toList(),
+            // De qué sección salieron estos valores. El backend la SUMA a las
+            // que el producto ya tenía. Sin esto, cargar atributos desde el
+            // detalle guardaba los datos "sueltos" y la pantalla de edición
+            // después no sabía qué campos dibujar.
+            'plantillasAtributosIds': [_plantillaSeleccionada!.id],
+          },
         );
       }
 

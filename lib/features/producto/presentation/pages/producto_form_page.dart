@@ -132,6 +132,13 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   /// si quiere configurar plantilla, peso o dimensiones.
   bool _caracteristicasExpanded = false;
 
+  /// Los valores guardados ya se volcaron al formulario.
+  ///
+  /// La precarga la disparan DOS listeners (el del producto y el de las
+  /// plantillas, que llegan en cualquier orden), así que sin esta bandera la
+  /// segunda pasada pisaba lo que el usuario venía tipeando.
+  bool _atributosPrecargados = false;
+
   @override
   void initState() {
     super.initState();
@@ -305,10 +312,31 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
   ) {
     if (atributosValores.isEmpty) return;
 
+    // 🔴 Los VALORES se vuelcan SIEMPRE, antes que nada y sin depender de que
+    // se pueda deducir la sección.
+    //
+    // Antes vivían dentro del `setState` de más abajo: si el producto tenía
+    // atributos pero ninguna plantilla que los reclamara —lo normal cuando se
+    // cargaron desde el detalle— la función se iba en el `return` y los
+    // valores nunca llegaban al formulario. Después uno agregaba la sección a
+    // mano y los campos salían VACÍOS aunque el dato estaba guardado, y al
+    // grabar se lo llevaba puesto.
+    if (!_atributosPrecargados) {
+      _atributosPrecargados = true;
+      setState(() {
+        for (final atributoValor in atributosValores) {
+          _controller.plantillaAtributosValues[atributoValor.atributoId] =
+              atributoValor.valor;
+        }
+      });
+    }
+
     // Obtener los IDs de los atributos del producto
     final atributosIds = atributosValores.map((av) => av.atributoId).toSet();
 
     final plantillaState = context.read<AtributoPlantillaCubit>().state;
+    // Las plantillas todavía no llegaron: los valores ya quedaron cargados y
+    // el otro listener vuelve a pasar por acá cuando estén.
     if (plantillaState is! AtributoPlantillaLoaded) return;
 
     // 1) Las secciones que el producto tiene GUARDADAS. Es la fuente buena:
@@ -337,12 +365,10 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
 
     setState(() {
       _controller.setPlantillas(aplicar);
-      _controller.plantillaAtributosValues.clear();
-
-      for (final atributoValor in atributosValores) {
-        _controller.plantillaAtributosValues[atributoValor.atributoId] =
-            atributoValor.valor;
-      }
+      // Los valores ya están cargados arriba: acá NO se limpia el mapa. Un
+      // `clear()` en este punto borraba los atributos que el producto tiene
+      // fuera de las secciones detectadas, y al guardar se perdían.
+      //
       // Los atributos de las secciones que todavía no tienen valor arrancan
       // vacíos, para que el campo se dibuje igual.
       for (final pa in _controller.atributosAplicados) {

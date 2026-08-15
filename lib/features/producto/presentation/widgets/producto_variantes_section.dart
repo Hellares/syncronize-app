@@ -406,6 +406,12 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
         varianteId: variante.id,
         nombre: variante.nombre,
         // No se pasa plantilla - el diálogo mostrará el selector
+        // 🔴 Los atributos que la variante YA tiene: el endpoint reemplaza la
+        // ficha entera, así que sin esto aplicar una plantilla acá borraba lo
+        // que la variante traía de antes.
+        valoresIniciales: {
+          for (final av in variante.atributosValores) av.atributoId: av.valor,
+        },
       ),
     );
 
