@@ -24,7 +24,10 @@ import '../models/producto_variante_model.dart';
 ///    `PRODUCTO_ACTUALIZADO` (lo dispara RealtimeSyncService).
 @lazySingleton
 class VarianteImagenesLocalStore {
-  static const int currentVersion = 1;
+  /// v2 (15-08): las variantes ahora persisten su `unidadMedida` propia. Sin
+  /// bumpear, lo ya guardado seguía dando "46 G" en vez de "46 und" hasta que
+  /// venciera el TTL.
+  static const int currentVersion = 2;
   static const Duration ttl = Duration(hours: 24);
 
   Directory? _baseDir;

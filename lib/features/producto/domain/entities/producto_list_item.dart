@@ -154,9 +154,15 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     // Se compara por SÍMBOLO porque el list item no baja el id de la unidad
     // del producto. Para decidir cómo mostrar un número alcanza; dos unidades
     // distintas con el mismo símbolo serían indistinguibles en pantalla igual.
+    //
+    // 🔴 Que el objeto `unidadMedida` no haya venido NO significa que la
+    // variante use la unidad del producto: el primer payload trae el
+    // `unidadMedidaId` pero no siempre el objeto anidado. Exigirlo hacía que
+    // un SACO heredara la unidad del producto y se mostrara "46 G" hasta que
+    // uno refrescaba y aparecía "46 und". Sin el objeto, `unidadDisplay` ya
+    // devuelve "und", que es neutro y no miente sobre la magnitud.
     final tieneUnidadPropia = v.unidadMedidaId != null &&
-        v.unidadMedida != null &&
-        v.unidadDisplay != unidadMedidaSimbolo;
+        (v.unidadMedida == null || v.unidadDisplay != unidadMedidaSimbolo);
     if (tieneUnidadPropia) {
       return UnidadPresentacion(factor: 1, simbolo: v.unidadDisplay);
     }
@@ -172,6 +178,27 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   ///
   /// Devuelve null cuando todas las variantes comparten unidad (colores,
   /// tallas) y el consolidado de siempre alcanza.
+  /// Lo mismo que [stockPorVarianteEnSede] pero CONSOLIDADO —todas las sedes—,
+  /// para el listado de productos, que no filtra por sede: "655 kg · 46 und".
+  ///
+  /// Sin esto el badge sumaba los gramos del granel con los sacos cerrados y
+  /// mostraba "655046 G": ni gramos ni sacos.
+  String? get stockPorVarianteTexto {
+    if (!variantesEnUnidadesDistintas) return null;
+    final porUnidad = <String, double>{};
+    for (final v in variantes!) {
+      final stock = v.stockTotal;
+      if (stock <= 0) continue;
+      final pres = presentacionDeVariante(v);
+      final simbolo = pres.simboloVisible ?? v.unidadDisplay;
+      porUnidad[simbolo] = (porUnidad[simbolo] ?? 0) + pres.cantidad(stock);
+    }
+    if (porUnidad.isEmpty) return null;
+    return porUnidad.entries
+        .map((e) => '${_sinCerosSobrantes(e.value)} ${e.key}')
+        .join(' · ');
+  }
+
   String? stockPorVarianteEnSede(String sedeId) {
     if (!variantesEnUnidadesDistintas) return null;
     // LinkedHashMap: conserva el orden de aparición de las variantes, así el

@@ -135,6 +135,13 @@ class ProductoVarianteModel extends ProductoVariante {
             .toList(),
       if (peso != null) 'peso': peso,
       if (dimensiones != null) 'dimensiones': dimensiones,
+      // 🔴 La unidad PROPIA de la variante tiene que persistirse: `fromJson` la
+      // lee pero acá no se escribía, así que el catálogo local la perdía. Al
+      // releerlo, un SACO se quedaba sin unidad y heredaba la del producto:
+      // "46 G" en vez de "46 und", hasta que un refresh traía el JSON de red.
+      if (unidadMedida != null)
+        'unidadMedida':
+            EmpresaUnidadMedidaModel.fromEntity(unidadMedida!).toJson(),
       'isActive': isActive,
       'orden': orden,
       if (archivos != null)

@@ -6,7 +6,6 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
-import 'package:syncronize/core/utils/unidad_presentacion.dart';
 import '../../domain/entities/producto_list_item.dart';
 
 class ProductoListTile extends StatelessWidget {
@@ -760,37 +759,6 @@ class ProductoListTile extends StatelessWidget {
     );
   }
 
-  /// La presentación con la que hablarle al usuario en el badge de stock, o
-  /// `null` cuando no hay UNA sola que describa el total.
-  ///
-  /// 🔴 En un producto con variantes no sirve la del producto: la presentación
-  /// se configura POR VARIANTE. Y si las variantes no coinciden —un SACO de
-  /// 25 kg junto al GRANEL que se guarda en gramos— el total ya es una suma de
-  /// cosas distintas: 655 046 no son gramos ni sacos. Ponerle un símbolo
-  /// termina de convertirlo en mentira.
-  ///
-  /// Es la misma regla del análisis de variantes: sacos y gramos no se suman.
-  UnidadPresentacion? get _presentacionDelBadge {
-    final variantes = producto.variantes;
-    if (!producto.tieneVariantes || variantes == null || variantes.isEmpty) {
-      return producto.presentacion;
-    }
-
-    final primera = variantes.first;
-    for (final v in variantes) {
-      if (v.factorPresentacion != primera.factorPresentacion ||
-          v.unidadPresentacionSimbolo != primera.unidadPresentacionSimbolo) {
-        return null; // Unidades mezcladas: no hay total que mostrar.
-      }
-    }
-
-    return UnidadPresentacion(
-      factor: primera.factorPresentacion ?? 1,
-      simbolo: primera.unidadPresentacionSimbolo,
-      simboloVenta: producto.unidadMedidaSimbolo,
-    );
-  }
-
   Widget _buildStockBadge() {
     // Para combos mostrar la cantidad reservada; para productos con variantes el stock consolidado; para productos normales el stock total
     final int stockToShow = producto.esCombo
@@ -807,19 +775,22 @@ class ProductoListTile extends StatelessWidget {
     // presentación (22 kg). Al vender 1.5 kg salen 1500 g y el badge pasa
     // solo a 20.5 kg. Sin presentación configurada muestra el número crudo,
     // igual que siempre.
-    final presBadge = _presentacionDelBadge;
-
-    // Variantes con unidades distintas: no se muestra un total que no
-    // significa nada. El desglose real está en el detalle del producto.
-    if (presBadge == null) {
-      final n = producto.variantes!.length;
-      badgeColor = hasStock ? Colors.green : Colors.red;
-      icon = Icons.category_outlined;
-      badgeText = '$n variante${n == 1 ? '' : 's'}';
-      return _badgeContainer(badgeColor, icon, badgeText, false);
+    // 🔴 Saco cerrado + granel: cada unidad por su lado ("655 kg · 46 und").
+    //
+    // El consolidado sumaba los gramos del granel con los sacos y le pegaba el
+    // símbolo de la unidad de venta: "655046 G", que no son gramos ni sacos.
+    // Es el mismo desglose que muestran las tarjetas de Venta Rápida.
+    final porUnidad = producto.stockPorVarianteTexto;
+    if (porUnidad != null) {
+      return _badgeContainer(
+        hasStock ? Colors.green : Colors.red,
+        hasStock ? Icons.check_circle_outline : Icons.remove_circle_outline,
+        'Stock: $porUnidad',
+        false,
+      );
     }
 
-    final pres = presBadge;
+    final pres = producto.presentacion;
     final stockTexto = pres.cantidadTexto(stockToShow);
 
     if (!hasStock) {

@@ -22,7 +22,16 @@ class CatalogoLocalSnapshot {
   /// pintaba el producto a granel en crudo —"Stock: 20500" y "S/ 0.01"— y
   /// recién se corregía al refrescar, porque el snapshot en disco no traía
   /// los campos y sin ellos la conversión a kilos no se aplica.
-  static const int currentVersion = 2;
+  ///
+  /// v3 (15-08): la unidad PROPIA de cada variante (`unidadMedida`), que el
+  /// `toJson` de la variante no escribía. Sin ella, al releer el snapshot un
+  /// SACO se quedaba sin unidad y heredaba la del producto: "46 G" en vez de
+  /// "46 und", hasta que un refresh traía el JSON de red.
+  ///
+  /// 🔴 El delta-sync solo reemplaza productos que CAMBIARON, así que una
+  /// entrada vieja de un producto que nadie tocó sobrevive para siempre. Este
+  /// número es la única forma de forzar que se rearme el snapshot entero.
+  static const int currentVersion = 3;
 
   final int version;
   final List<ProductoListItem> productos;
