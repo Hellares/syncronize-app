@@ -11,6 +11,7 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -36,10 +37,14 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   bool _saving = false;
   String? _error;
 
-  /// Cuánto se pide por vez. Una sede real tiene cientos de filas de stock
-  /// (cada variante es una), así que el default de 50 del backend deja fuera
-  /// justo a las que hay que configurar.
-  static const int _limitePorPagina = 300;
+  /// Cuánto se pide por vez.
+  ///
+  /// 🔴 La pantalla NO trae la sede entera: no carga nada hasta que se busca.
+  /// Traer las cientos de filas de una sede para después filtrar era lento y
+  /// además inútil — se viene acá a tocar un producto puntual, no a leer el
+  /// inventario. Con búsqueda, 100 filas sobran: son las variantes de un
+  /// producto, no el catálogo.
+  static const int _limitePorPagina = 100;
 
   /// Total en el servidor, para poder avisar cuando quedó gente afuera.
   int? _total;
@@ -90,6 +95,20 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   }
 
   Future<void> _loadProductos(String sedeId) async {
+    // Sin término no se pide nada: la pantalla arranca vacía invitando a
+    // buscar. Es la diferencia entre una consulta de 100 filas y una de la
+    // sede entera cada vez que se elige sede.
+    if (_busqueda.isEmpty) {
+      setState(() {
+        _productos = [];
+        _total = null;
+        _loading = false;
+        _error = null;
+        _modified.clear();
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _productos = [];
@@ -340,7 +359,35 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
     });
   }
 
+  /// Las filas de la sede, agrupadas por PRODUCTO.
+  ///
+  /// 🔴 Una fila de stock es un producto simple O una variante, nunca las dos
+  /// (XOR del modelo), y las de variante no traen `productoId`: el dueño llega
+  /// por `variante.producto`. Sin agrupar, los 12 graneles de un producto se
+  /// leían como 12 items sueltos sin decir de qué producto eran.
+  List<_BloqueProducto> get _bloques {
+    final porProducto = <String, _BloqueProducto>{};
+    for (final fila in _productos) {
+      final prod = fila['producto'] is Map ? fila['producto'] as Map : null;
+      final variante =
+          fila['variante'] is Map ? fila['variante'] as Map : null;
+      final duenio =
+          variante?['producto'] is Map ? variante!['producto'] as Map : null;
+
+      final id = (prod?['id'] ?? duenio?['id'] ?? 'sin-producto').toString();
+      final nombre =
+          (prod?['nombre'] ?? duenio?['nombre'] ?? 'Sin nombre').toString();
+
+      porProducto
+          .putIfAbsent(id, () => _BloqueProducto(id: id, nombre: nombre))
+          .filas
+          .add(fila);
+    }
+    return porProducto.values.toList();
+  }
+
   Widget _buildProductosList() {
+    final bloques = _bloques;
     return RefreshIndicator(
       onRefresh: () async {
         if (_selectedSedeId != null) {
@@ -349,26 +396,165 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
       },
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: _productos.length,
-        itemBuilder: (context, index) {
-          return _buildProductoCard(_productos[index]);
-        },
+        itemCount: bloques.length,
+        itemBuilder: (context, index) => _buildBloque(bloques[index]),
       ),
     );
   }
 
-  Widget _buildProductoCard(Map<String, dynamic> p) {
+  Widget _buildBloque(_BloqueProducto bloque) {
+    final varias = bloque.filas.length > 1;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Encabezado del producto
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+            decoration: BoxDecoration(
+              color: AppColors.blue1.withValues(alpha: 0.06),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(10),
+                topRight: Radius.circular(10),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.inventory_2, size: 16, color: AppColors.blue1),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    bloque.nombre,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                // Con una sola fila no tiene sentido: "aplicar a todas" es
+                // para los 12 graneles de un multi-sabor.
+                if (varias)
+                  TextButton.icon(
+                    onPressed: () => _aplicarATodas(bloque),
+                    icon: const Icon(Icons.playlist_add_check, size: 14),
+                    label: Text('Todas (${bloque.filas.length})',
+                        style: const TextStyle(fontSize: 10)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.blue1,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          ...bloque.filas.map(_buildFila),
+        ],
+      ),
+    );
+  }
+
+  /// Escribe el mismo mínimo y máximo en TODAS las filas del producto.
+  ///
+  /// Es el gesto que justifica agrupar: un multi-sabor tiene 12 graneles que
+  /// llevan el mismo mínimo, y cargarlos de a uno es donde la gente abandona.
+  ///
+  /// Deja los campos en blanco sin tocar, así se puede aplicar solo el mínimo.
+  Future<void> _aplicarATodas(_BloqueProducto bloque) async {
+    final minCtrl = TextEditingController();
+    final maxCtrl = TextEditingController();
+
+    final aplicar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StyledDialog(
+        accentColor: AppColors.blue1,
+        icon: Icons.playlist_add_check,
+        titulo: bloque.nombre,
+        content: [
+          Text(
+            'Se escribe en las ${bloque.filas.length} filas de este producto. '
+            'Lo que dejes vacío no se toca.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: CustomText(
+                  label: 'Mínimo',
+                  controller: minCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CustomText(
+                  label: 'Máximo',
+                  controller: maxCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+              ),
+            ],
+          ),
+        ],
+        actions: [
+          Expanded(
+            child: CustomButton(
+              text: 'Cancelar',
+              backgroundColor: AppColors.white,
+              borderColor: Colors.grey.shade400,
+              textColor: Colors.grey.shade700,
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: CustomButton(
+              text: 'Aplicar',
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final min = minCtrl.text.trim();
+    final max = maxCtrl.text.trim();
+    minCtrl.dispose();
+    maxCtrl.dispose();
+
+    if (aplicar != true || (min.isEmpty && max.isEmpty)) return;
+
+    setState(() {
+      for (final fila in bloque.filas) {
+        final id = (fila['id'] ?? fila['_id'] ?? '').toString();
+        if (id.isEmpty) continue;
+        if (min.isNotEmpty) _minControllers[id]?.text = min;
+        if (max.isNotEmpty) _maxControllers[id]?.text = max;
+        _modified.add(id);
+      }
+    });
+  }
+
+  /// Una fila = un `ProductoStock`: el stock actual y los dos campos.
+  ///
+  /// En un producto sin variantes la fila ES el producto, así que no tiene
+  /// nombre propio que mostrar: alcanza el del encabezado del bloque.
+  Widget _buildFila(Map<String, dynamic> p) {
     final id = (p['id'] ?? p['_id'] ?? '').toString();
-    // Las filas de VARIANTE tienen `producto` en null (el XOR del modelo), así
-    // que mirando solo ahí salían todas como "Sin nombre" — y son justamente
-    // las que hay que configurar en un producto con saco cerrado y granel.
-    final prod = p['producto'] is Map ? p['producto'] as Map : null;
     final variante = p['variante'] is Map ? p['variante'] as Map : null;
-    final partes = [
-      p['nombre'] as String? ?? prod?['nombre'] as String?,
-      variante?['nombre'] as String?,
-    ].whereType<String>().where((s) => s.isNotEmpty);
-    final nombre = partes.isEmpty ? 'Sin nombre' : partes.join(' · ');
+    final etiqueta = (variante?['nombre'] as String?)?.trim();
     final stockActual = p['stockActual'] ?? p['stock'] ?? 0;
 
     final minController = _minControllers[id];
@@ -378,96 +564,63 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: _modified.contains(id)
-              ? AppColors.blue1.withValues(alpha: 0.5)
-              : Colors.grey.shade200,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: _modified.contains(id)
+            ? AppColors.blue1.withValues(alpha: 0.04)
+            : null,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product name and stock
           Row(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.blue1.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.inventory_2,
-                    size: 18, color: AppColors.blue1),
-              ),
-              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  nombre,
-                  style: const TextStyle(
-                    fontSize: 13,
+                  etiqueta == null || etiqueta.isEmpty
+                      ? 'Producto base'
+                      : etiqueta,
+                  style: TextStyle(
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: Colors.grey.shade800,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.blue1.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Stock: $stockActual',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.blue1,
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                'Stock: $stockActual',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          // Min/Max fields
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
                 child: CustomText(
-                  label: 'Stock Minimo',
+                  label: 'Mínimo',
                   controller: minController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (_) {
-                    setState(() => _modified.add(id));
-                  },
+                  onChanged: (_) => setState(() => _modified.add(id)),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: CustomText(
-                  label: 'Stock Maximo',
+                  label: 'Máximo',
                   controller: maxController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (_) {
-                    setState(() => _modified.add(id));
-                  },
+                  onChanged: (_) => setState(() => _modified.add(id)),
                 ),
               ),
             ],
@@ -477,26 +630,54 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
     );
   }
 
+
+  /// Dos vacíos distintos: "todavía no buscaste" y "buscaste y no hay".
+  /// Mostrar el mismo cartel para los dos hace pensar que la sede está vacía.
   Widget _buildEmptyState() {
+    final sinBuscar = _busqueda.isEmpty;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.tune, size: 48, color: Colors.grey.shade400),
+            Icon(sinBuscar ? Icons.search : Icons.search_off,
+                size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
-            const Text(
-              'No hay productos en esta sede',
-              style: TextStyle(
-                fontSize: 14,
+            Text(
+              sinBuscar
+                  ? 'Buscá un producto para configurar su stock mínimo y máximo'
+                  : 'Nada que coincida con "$_busqueda" en esta sede',
+              style: const TextStyle(
+                fontSize: 13,
                 color: AppColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
+            if (sinBuscar) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Se cargan solo las filas que busques: la sede entera son cientos.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+/// Un producto y las filas de stock que le pertenecen.
+///
+/// En un producto simple es una sola fila (la del producto); en uno con
+/// variantes, una por variante. Agrupar es lo que permite el "aplicar a
+/// todas" y lo que hace legible una sede con cientos de filas.
+class _BloqueProducto {
+  final String id;
+  final String nombre;
+  final List<Map<String, dynamic>> filas = [];
+
+  _BloqueProducto({required this.id, required this.nombre});
 }
