@@ -7,7 +7,9 @@ import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/barcode_scanner_button.dart';
+import '../../data/datasources/producto_remote_datasource.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/producto_variante.dart';
@@ -66,11 +68,48 @@ class _ProductoVarianteFormDialogState
   bool _isActive = true;
   int _orden = 0;
 
+  /// Mientras se pide el nombre rearmado al backend.
+  bool _regenerando = false;
+
   /// Unidad de VENTA propia. null = hereda la del producto, que es el caso de
   /// casi todas las variantes (colores, tallas).
   String? _unidadMedidaId;
   String? _unidadPresentacionId;
   String? _varianteAperturaId;
+
+  /// Pide al backend el nombre armado desde los atributos de la variante y lo
+  /// escribe en el campo.
+  ///
+  /// Solo toca el CAMPO: recién se persiste al guardar el diálogo, así que si
+  /// el resultado no gusta alcanza con cancelar. El endpoint igual lo guarda
+  /// del lado del servidor, pero el usuario ve el cambio antes de aceptarlo.
+  Future<void> _regenerarNombre() async {
+    final variante = widget.variante;
+    if (variante == null) return;
+
+    setState(() => _regenerando = true);
+    try {
+      final data = await locator<ProductoRemoteDataSource>()
+          .regenerarNombreVariante(varianteId: variante.id);
+      final nombre = data['nombre'] as String?;
+      if (!mounted) return;
+      if (nombre != null && nombre.isNotEmpty) {
+        _nombreController.text = nombre;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo rearmar el nombre. ¿La variante tiene atributos cargados?',
+          ),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _regenerando = false);
+    }
+  }
 
   @override
   void initState() {
@@ -250,6 +289,30 @@ class _ProductoVarianteFormDialogState
                       label: 'Nombre de la variante *',
                       hintText: 'Ej: Teclado Lenovo Rojo USB',
                       prefixIcon: Icon(Icons.label),
+                      // Rearma el nombre desde los atributos de la variante.
+                      // Va acá y no en el menú de la tarjeta porque ese admite
+                      // cuatro ítems como máximo —lo assertea `popup_item`— y
+                      // porque al lado del campo es donde uno lo busca.
+                      //
+                      // Solo al EDITAR: una variante nueva todavía no tiene
+                      // atributos con los que armar nada.
+                      suffixIcon: widget.variante == null
+                          ? null
+                          : IconButton(
+                              icon: _regenerando
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.auto_fix_high_outlined,
+                                      size: 18),
+                              color: AppColors.blue1,
+                              tooltip: 'Rearmar desde los atributos',
+                              onPressed:
+                                  _regenerando ? null : _regenerarNombre,
+                            ),
                       validator: (value){
                         if (value == null || value.trim().isEmpty) {
                           return 'El nombre es requerido';

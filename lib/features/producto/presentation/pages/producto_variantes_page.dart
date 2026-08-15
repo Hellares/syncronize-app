@@ -660,6 +660,11 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
     return origenes;
   }
 
+  // Rearmar el nombre vive DENTRO del diálogo de editar, al lado del campo de
+  // nombre (`producto_variante_form_dialog.dart`): el menú de la tarjeta
+  // admite cuatro ítems como máximo —lo assertea `popup_item.dart`— y un
+  // quinto tiraba la pantalla roja.
+
   Future<void> _handlePrecioTap(ProductoVariante variante) async {
     if (_empresaId == null || _sedeId == null) return;
 
@@ -837,6 +842,10 @@ class _VarianteCard extends StatelessWidget {
                       icon: Icons.inventory,
                       color: AppColors.green,
                     ),
+                    // 🔴 El menú admite CUATRO ítems como máximo
+                    // (`popup_item.dart` lo asserta). Renombrar vive dentro
+                    // del diálogo de editar, al lado del campo de nombre, que
+                    // además es donde uno lo busca.
                     ActionMenuItem(
                       type: ActionMenuType.delete,
                       label: 'Eliminar',
