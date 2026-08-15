@@ -10,6 +10,7 @@ import 'package:syncronize/core/widgets/popup_item.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/busqueda_texto.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -915,7 +916,7 @@ class _VarianteCard extends StatelessWidget {
                           Row(
                             children: [
                               Text(
-                                'S/${(stockInfo?.precioEfectivo ?? 0.0).toStringAsFixed(2)}',
+                                _precioTexto(stockInfo?.precioEfectivo ?? 0.0),
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: enLiq
@@ -964,7 +965,7 @@ class _VarianteCard extends StatelessWidget {
                           ),
                           if (enLiq || enOferta)
                             Text(
-                              'Base: S/${(stockInfo?.precio ?? 0.0).toStringAsFixed(2)}',
+                              'Base: ${_precioTexto(stockInfo?.precio ?? 0.0)}',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.grey.shade500,
@@ -989,7 +990,7 @@ class _VarianteCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${variante.stockTotal}',
+                          _stockTexto(variante.stockTotal),
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: _getStockColor(),
@@ -1006,6 +1007,31 @@ class _VarianteCard extends StatelessWidget {
       ),
     );
   }
+  /// La presentación de esta variante, si vende agrupado (gramos → kg).
+  ///
+  /// 🔴 Sin esto la card mentía dos veces en un granel: el precio se guarda POR
+  /// UNIDAD DE VENTA —S/0.008 el gramo— y salía "S/0.01", un precio que no
+  /// existe y encima redondeado; y el stock salía "22000" en vez de "22 kg".
+  /// El mismo formateador que ya usan el sheet de venta y la card del producto.
+  UnidadPresentacion get _presentacion => UnidadPresentacion(
+        factor: variante.factorPresentacion ?? 1,
+        simbolo: variante.unidadPresentacionSimbolo,
+      );
+
+  /// "S/ 8.00/kg" en granel, "S/ 75.00" en lo que se vende por unidad.
+  String _precioTexto(double porUnidadDeVenta) {
+    final p = _presentacion;
+    if (!p.activa) return 'S/${porUnidadDeVenta.toStringAsFixed(2)}';
+    return p.precioTexto(porUnidadDeVenta);
+  }
+
+  /// "22 kg" en granel, "22" en lo que se vende por unidad.
+  String _stockTexto(int enUnidadDeVenta) {
+    final p = _presentacion;
+    if (!p.activa) return '$enUnidadDeVenta';
+    return p.cantidadTexto(enUnidadDeVenta);
+  }
+
   IconData _getStockIcon() {
     if (variante.stockTotal == 0) return Icons.remove_circle;
     return Icons.check_circle;
