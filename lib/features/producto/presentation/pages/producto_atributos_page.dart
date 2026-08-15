@@ -600,6 +600,7 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
   late bool _requerido;
   late bool _mostrarEnListado;
   late bool _usarParaFiltros;
+  late bool _usarEnNombreVariante;
   late bool _mostrarEnMarketplace;
   List<String> _categoriaIds = [];
 
@@ -624,6 +625,7 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
     _requerido = widget.atributo?.requerido ?? false;
     _mostrarEnListado = widget.atributo?.mostrarEnListado ?? true;
     _usarParaFiltros = widget.atributo?.usarParaFiltros ?? true;
+    _usarEnNombreVariante = widget.atributo?.usarEnNombreVariante ?? true;
     _mostrarEnMarketplace = widget.atributo?.mostrarEnMarketplace ?? true;
     _categoriaIds = List<String>.from(widget.atributo?.categoriaIds ?? []);
   }
@@ -892,6 +894,20 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
                   onChanged: (v) => setState(() => _usarParaFiltros = v),
                   padding: EdgeInsets.zero,
                 ),
+                // Solo tiene sentido en los que se eligen de una lista: el
+                // nombre de una variante se arma con esos valores.
+                if (_selectedTipo.usaListaDeValores)
+                  CustomSwitchTile(
+                    title: 'Usar en el nombre de la variante',
+                    subtitle: _usarEnNombreVariante
+                        ? 'Su valor aparece en el nombre'
+                        : 'Queda fuera del nombre, como FABRICANTE cuando ya '
+                            'está el procesador',
+                    value: _usarEnNombreVariante,
+                    onChanged: (v) =>
+                        setState(() => _usarEnNombreVariante = v),
+                    padding: EdgeInsets.zero,
+                  ),
                 CustomSwitchTile(
                   title: 'Mostrar en marketplace',
                   value: _mostrarEnMarketplace,
@@ -1104,6 +1120,7 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
       'requerido': _requerido,
       'mostrarEnListado': _mostrarEnListado,
       'usarParaFiltros': _usarParaFiltros,
+      'usarEnNombreVariante': _usarEnNombreVariante,
       'mostrarEnMarketplace': _mostrarEnMarketplace,
       'categoriaIds': _categoriaIds,
     });

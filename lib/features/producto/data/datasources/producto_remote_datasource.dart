@@ -345,6 +345,21 @@ class ProductoRemoteDataSource {
         .toList();
   }
 
+  /// Rearma el nombre de una variante desde sus atributos.
+  ///
+  /// POST /api/productos/variantes/:varianteId/regenerar-nombre
+  ///
+  /// Pisa el nombre actual, sea autogenerado o escrito a mano: se llama desde
+  /// un botón, así que la intención es explícita.
+  Future<Map<String, dynamic>> regenerarNombreVariante({
+    required String varianteId,
+  }) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.productos}/variantes/$varianteId/regenerar-nombre',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Atributos que el buscador puede ofrecer como filtro, con sus opciones.
   ///
   /// GET /api/producto-atributos/filtros

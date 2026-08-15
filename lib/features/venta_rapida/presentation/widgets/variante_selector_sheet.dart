@@ -1176,13 +1176,18 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   bool get _hayResultados =>
       _query.trim().length >= 2 && _resultadosBusqueda.isNotEmpty;
 
-  /// Buscador de combinaciones. Solo aparece si hay algo que buscar: con dos o
-  /// tres variantes el acordeón ya se ve entero y el campo sería estorbo.
+  /// Buscador de combinaciones. Aparece desde DOS variantes.
+  ///
+  /// Antes el umbral eran seis, con la idea de que con dos o tres el acordeón
+  /// ya se ve entero y el campo sería estorbo. En el mostrador resultó al
+  /// revés (decisión del user, 14-08): el campo no quita alto real y tipear
+  /// es más rápido que abrir el acordeón y recorrerlo, aunque haya pocas.
   ///
   /// Vive en el header, al lado de la imagen, así que el ancho disponible es
   /// el del producto menos 100 px de foto: va compacto y con hint corto.
   Widget _buildBuscador() {
-    if (_variantes.length < 6) return const SizedBox.shrink();
+    // Con una sola variante no hay nada entre qué elegir.
+    if (_variantes.length < 2) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: CustomSearchField(

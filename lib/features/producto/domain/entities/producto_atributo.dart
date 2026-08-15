@@ -124,6 +124,13 @@ class ProductoAtributo extends Equatable {
   final int orden;
   final bool mostrarEnListado;
   final bool usarParaFiltros;
+
+  /// Su valor entra en el NOMBRE de la variante.
+  ///
+  /// Sirve para dejar fuera lo que ya está implícito: con FABRICANTE → FAMILIA
+  /// → PROCESADOR alcanza con el procesador, y "AZUL / 860" se lee mejor que
+  /// "AZUL / QUALQON / SNAPDRAGON 8XX / 860" en un ticket de 58 mm.
+  final bool usarEnNombreVariante;
   final bool mostrarEnMarketplace;
   final bool isActive;
   final DateTime creadoEn;
@@ -145,6 +152,7 @@ class ProductoAtributo extends Equatable {
     required this.orden,
     required this.mostrarEnListado,
     required this.usarParaFiltros,
+    this.usarEnNombreVariante = true,
     required this.mostrarEnMarketplace,
     required this.isActive,
     required this.creadoEn,
@@ -241,6 +249,7 @@ class ProductoAtributo extends Equatable {
         orden,
         mostrarEnListado,
         usarParaFiltros,
+        usarEnNombreVariante,
         mostrarEnMarketplace,
         isActive,
         creadoEn,

@@ -191,6 +191,22 @@ class VarianteAtributoCubit extends Cubit<VarianteAtributoState> {
     emit(VarianteAtributoLoaded(atributoValores: updatedList));
   }
 
+  /// Rearma el nombre de la variante desde sus atributos.
+  ///
+  /// Devuelve el nombre nuevo, o null si falló. A diferencia del rearmado
+  /// automático que corre al guardar atributos, éste pisa el nombre aunque lo
+  /// haya escrito una persona: se llama desde un botón.
+  Future<String?> regenerarNombre({required String varianteId}) async {
+    try {
+      final data = await _remoteDataSource.regenerarNombreVariante(
+        varianteId: varianteId,
+      );
+      return data['nombre'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Guarda todos los atributos en el backend
   Future<void> saveAtributos({
     required String varianteId,
