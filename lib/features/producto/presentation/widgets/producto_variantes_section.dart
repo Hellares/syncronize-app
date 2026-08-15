@@ -6,9 +6,11 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/utils/unidad_presentacion.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import '../../data/cache/variante_imagenes_local_store.dart';
 import '../../data/datasources/producto_remote_datasource.dart';
+import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_variante.dart';
 import 'variante_detail_dialog.dart';
 import 'variante_plantilla_atributos_dialog.dart';
@@ -21,6 +23,14 @@ class ProductoVariantesSection extends StatefulWidget {
   final String productoId;
   final VoidCallback? onAtributosChanged;
 
+  /// Las secciones que tiene guardadas el PRODUCTO. Se usan para agrupar la
+  /// ficha en el diálogo de detalle: una variante no guarda las suyas.
+  final List<String> plantillasAtributosIds;
+
+  /// El catálogo de plantillas que la pantalla ya cargó. Se lo pasamos al
+  /// diálogo para que no lo tenga que pedir de nuevo a la red.
+  final List<AtributoPlantilla> plantillas;
+
   const ProductoVariantesSection({
     super.key,
     required this.variantes,
@@ -29,6 +39,8 @@ class ProductoVariantesSection extends StatefulWidget {
     required this.empresaId,
     required this.productoId,
     this.onAtributosChanged,
+    this.plantillasAtributosIds = const [],
+    this.plantillas = const [],
   });
 
   @override
@@ -45,6 +57,35 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
     super.initState();
     _selectedVariante = widget.selectedVariante ?? widget.variantes.firstOrNull;
     _fetchVariantesCompletas();
+  }
+
+  /// 🔴 La selección se elegía SOLO en `initState`, y este widget se reusa
+  /// entre productos: al entrar a otro producto Flutter reciclaba el State y
+  /// los chips seguían mostrando la variante del producto ANTERIOR —el detalle
+  /// del alimento para ratón con los atributos del Redmi— hasta que uno
+  /// refrescaba. `_variantesCompletas` arrastraba lo mismo.
+  ///
+  /// Se re-sincroniza cuando cambia el producto, y también cuando la variante
+  /// elegida deja de existir en la lista (la borraron desde otra pantalla).
+  @override
+  void didUpdateWidget(ProductoVariantesSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.productoId != widget.productoId) {
+      _variantesCompletas = {};
+      _selectedVariante =
+          widget.selectedVariante ?? widget.variantes.firstOrNull;
+      _fetchVariantesCompletas();
+      return;
+    }
+
+    final sigueViva = _selectedVariante != null &&
+        widget.variantes.any((v) => v.id == _selectedVariante!.id);
+    if (!sigueViva) {
+      // Sin `setState`: `didUpdateWidget` corre justo antes del build.
+      _selectedVariante =
+          widget.selectedVariante ?? widget.variantes.firstOrNull;
+    }
   }
 
   Future<void> _fetchVariantesCompletas() async {
@@ -113,7 +154,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
       shadowStyle: ShadowStyle.colorful,
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.only(left: 10, right: 10, top: 10, bottom: 8),
+        padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -188,6 +229,33 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
 
 
 
+  /// La presentación de esta variante, si vende agrupado (gramos → kg).
+  ///
+  /// 🔴 Sin esto la tarjeta miente dos veces en un granel: el precio se guarda
+  /// POR UNIDAD DE VENTA —S/0.008 el gramo— y salía "S/0.01", un precio que no
+  /// existe y encima redondeado; y el stock salía "9000" en vez de "9 kg". Es
+  /// el mismo formateador que ya usan el sheet de venta y la gestión de
+  /// variantes; se resuelve POR VARIANTE, no por producto.
+  UnidadPresentacion _presentacion(ProductoVariante variante) =>
+      UnidadPresentacion(
+        factor: variante.factorPresentacion ?? 1,
+        simbolo: variante.unidadPresentacionSimbolo,
+      );
+
+  /// "S/8.00/kg" en granel, "S/75.00" en lo que se vende por unidad.
+  String _precioTexto(ProductoVariante variante, double porUnidadDeVenta) {
+    final p = _presentacion(variante);
+    if (!p.activa) return 'S/${porUnidadDeVenta.toStringAsFixed(2)}';
+    return p.precioTexto(porUnidadDeVenta);
+  }
+
+  /// "9 kg" en granel, "9" en lo que se vende por unidad.
+  String _stockTexto(ProductoVariante variante, int enUnidadDeVenta) {
+    final p = _presentacion(variante);
+    if (!p.activa) return '$enUnidadDeVenta';
+    return p.cantidadTexto(enUnidadDeVenta);
+  }
+
   Widget _buildVarianteCard(ProductoVariante variante, bool isSelected) {
     // Obtener precio desde stocksPorSede (sistema multi-sede)
     final stocks = variante.stocksPorSede;
@@ -209,16 +277,18 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
       onLongPress: () => showVarianteDetailDialog(
         context: context,
         variante: _getVarianteCompleta(variante),
+        plantillasIds: widget.plantillasAtributosIds,
+        plantillas: widget.plantillas,
       ),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.only(left: 8, right: 8, bottom: 10),
+        padding: const EdgeInsets.only(left: 8, right: 8, bottom: 5, top: 5),
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.shade50 : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: isSelected ? Colors.blue.shade400 : Colors.grey.shade300,
-            width: isSelected ? 0.7 : 0.5,
+            width: isSelected ? 0.6 : 0.5,
           ),
         ),
         child: Column(
@@ -250,7 +320,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                 ],
 
                 // Información de la variante
@@ -258,42 +328,58 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppSubtitle(
-                              variante.nombre,
-                              font: AppFont.amazonEmberMedium,
-                              fontSize: 10,
-                              color: isSelected
-                                  ? Colors.blue.shade900
-                                  : Colors.black87,
+                      // 🔴 Alto FIJO en la fila, no solo en el botón: en M3 el
+                      // IconButton reserva su tap target (~48px) aunque le des
+                      // `constraints: BoxConstraints()`, y era eso lo que
+                      // empujaba el SKU tan abajo del nombre. Con el alto acá
+                      // ningún control que se agregue después la vuelve a
+                      // estirar.
+                      SizedBox(
+                        height: 22,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: AppSubtitle(
+                                variante.nombre,
+                                font: AppFont.amazonEmberMedium,
+                                fontSize: 10,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                color: isSelected
+                                    ? Colors.blue.shade900
+                                    : Colors.black87,
+                              ),
                             ),
-                          ),
-                          // Botón para gestionar atributos
-                          IconButton(
-                            icon: Icon(
-                              Icons.tune,
-                              size: 18,
-                              color: variante.atributosValores.isEmpty
-                                  ? Colors.orange
-                                  : Colors.blue,
+                            // Botón para gestionar atributos
+                            IconButton(
+                              icon: Icon(
+                                Icons.tune,
+                                size: 16,
+                                color: variante.atributosValores.isEmpty
+                                    ? Colors.orange
+                                    : Colors.blue,
+                              ),
+                              tooltip: 'Gestionar atributos',
+                              onPressed: () =>
+                                  _mostrarGestionAtributos(variante),
+                              style: IconButton.styleFrom(
+                                minimumSize: Size.zero,
+                                fixedSize: const Size(22, 22),
+                                padding: EdgeInsets.zero,
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
                             ),
-                            tooltip: 'Gestionar atributos',
-                            onPressed: () => _mostrarGestionAtributos(variante),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                          // const SizedBox(width: 4),
-                          if (isSelected)
-                            Icon(
-                              Icons.check_circle,
-                              color: Colors.blue.shade600,
-                              size: 18,
-                            ),
-                        ],
+                            if (isSelected)
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.blue.shade600,
+                                size: 16,
+                              ),
+                          ],
+                        ),
                       ),
-                       AppSubtitle(
+                      AppSubtitle(
                         'SKU: ${variante.sku}',
                         fontSize: 10,
                         color: Colors.grey[600],
@@ -304,7 +390,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
               ],
             ),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
 
             // Precio y stock
             Row(
@@ -312,7 +398,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
               children: [
                 // Precio (desde stocksPorSede)
                 Text(
-                  'S/${precioEfectivoDisplay.toStringAsFixed(2)}',
+                  _precioTexto(variante, precioEfectivoDisplay),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -339,7 +425,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Stock: ${variante.stockTotal}',
+                        'Stock: ${_stockTexto(variante, variante.stockTotal)}',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,

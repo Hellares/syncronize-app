@@ -27,6 +27,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import '../bloc/producto_detail/producto_detail_cubit.dart';
 import '../bloc/producto_detail/producto_detail_state.dart';
 import '../bloc/producto_list/producto_list_cubit.dart';
+import '../widgets/ficha_atributos.dart';
 import '../widgets/producto_variantes_section.dart';
 import '../widgets/variante_plantilla_atributos_dialog.dart';
 import '../widgets/oferta_countdown_timer.dart';
@@ -322,10 +323,23 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                                 producto.variantes != null &&
                                 producto.variantes!.isNotEmpty) ...[
                               ProductoVariantesSection(
+                                // Atado al producto: cambiar de producto monta
+                                // una sección NUEVA en vez de reciclar la que
+                                // ya tenía una variante seleccionada y sus
+                                // imágenes cacheadas.
+                                key: ValueKey(producto.id),
                                 variantes: producto.variantes!,
                                 selectedVariante: selectedVariante,
                                 empresaId: empresaId,
                                 productoId: producto.id,
+                                // Para agrupar la ficha de cada variante con
+                                // las mismas secciones que el producto. El
+                                // catálogo ya lo cargó esta pantalla: pasarlo
+                                // le ahorra al diálogo ir a la red y evita que
+                                // la ficha aparezca plana y salte a agrupada.
+                                plantillasAtributosIds:
+                                    producto.plantillasAtributosIds,
+                                plantillas: _plantillas,
                                 onVarianteSelected: (variante) {
                                   setState(() {
                                     _selectedVariante = variante;
@@ -1194,52 +1208,18 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     }
   }
 
-  /// Reparte las características en las secciones con las que se cargaron.
-  ///
-  /// Devuelve pares (nombre de sección, valores) más los SUELTOS: atributos que
-  /// el producto tiene pero que ninguna plantilla aplicada reclama —cargados a
-  /// mano, o de una plantilla que después se borró—. Esos no se pueden
-  /// esconder: son datos del producto igual.
-  (List<(String, List<dynamic>)>, List<dynamic>) _agruparPorSeccion(
-    List atributosValores,
-    List<String> plantillasIds,
-  ) {
-    final porAtributo = <String, dynamic>{
-      for (final av in atributosValores) av.atributoId as String: av,
-    };
-    final usados = <String>{};
-    final secciones = <(String, List<dynamic>)>[];
-
-    for (final id in plantillasIds) {
-      AtributoPlantilla? plantilla;
-      for (final p in _plantillas) {
-        if (p.id == id) plantilla = p;
-      }
-      if (plantilla == null) continue;
-
-      final propios = <dynamic>[];
-      for (final pa in plantilla.atributos) {
-        final av = porAtributo[pa.atributo.id];
-        // `usados` evita repetir un atributo que está en dos plantillas.
-        if (av != null && usados.add(pa.atributo.id)) propios.add(av);
-      }
-      if (propios.isNotEmpty) secciones.add((plantilla.nombre, propios));
-    }
-
-    final sueltos = [
-      for (final av in atributosValores)
-        if (!usados.contains(av.atributoId)) av,
-    ];
-    return (secciones, sueltos);
-  }
-
   Widget _buildAtributosContent(
     List atributosValores,
     List<String> plantillasIds,
     VoidCallback onEditar,
   ) {
-    final (secciones, sueltos) =
-        _agruparPorSeccion(atributosValores, plantillasIds);
+    // El agrupado y la tabla viven en `ficha_atributos.dart`: el diálogo de
+    // detalle de una variante muestra exactamente la misma ficha.
+    final (secciones, sueltos) = agruparAtributosPorSeccion(
+      atributosValores: atributosValores,
+      plantillasIds: plantillasIds,
+      plantillas: _plantillas,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1274,28 +1254,25 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
         // Sin secciones —plantillas todavía cargando, o producto viejo sin
         // ellas— se muestra una sola tabla, sin encabezados.
         if (secciones.isEmpty)
-          _buildTablaAtributos(atributosValores)
+          TablaAtributos(atributosValores)
         else ...[
           // Se abre con la PRIMERA sección nada más. Un celular con cuatro
           // plantillas llenaba la pantalla de tablas y empujaba el precio y el
           // stock fuera de vista; el resto se despliega a pedido.
-          _buildTituloSeccion(secciones.first.$1),
+          TituloSeccionAtributos(secciones.first.$1),
           const SizedBox(height: 5),
-          _buildTablaAtributos(secciones.first.$2),
+          TablaAtributos(secciones.first.$2),
           if (_ocultasCount(secciones, sueltos) > 0) ...[
             if (_verTodasLasCaracteristicas) ...[
               const SizedBox(height: 12),
               for (final (nombre, valores) in secciones.skip(1)) ...[
-                _buildTituloSeccion(nombre),
+                TituloSeccionAtributos(nombre),
                 const SizedBox(height: 5),
-                _buildTablaAtributos(valores),
+                TablaAtributos(valores),
                 const SizedBox(height: 12),
               ],
-              if (sueltos.isNotEmpty) ...[
-                _buildTituloSeccion('Otras'),
-                const SizedBox(height: 5),
-                _buildTablaAtributos(sueltos),
-              ],
+              // Los sueltos van uno por uno, titulados con su propio nombre.
+              ...seccionesDeAtributosSueltos(sueltos),
             ],
             const SizedBox(height: 6),
             _buildVerMas(_ocultasCount(secciones, sueltos)),
@@ -1352,88 +1329,6 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTituloSeccion(String nombre) {
-    return Row(
-      children: [
-        Icon(Icons.folder_outlined, size: 12, color: AppColors.blue1),
-        const SizedBox(width: 4),
-        Text(
-          nombre.toUpperCase(),
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            color: AppColors.blue1,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Ficha técnica en filas `nombre | valor`, igual que el detalle del
-  /// marketplace: cebra en las pares y un divisor fino entre filas.
-  ///
-  /// Reemplaza a los chips sueltos, que con muchas características se leían
-  /// como una bolsa: el fabricante del procesador al lado del color de la
-  /// carcasa, sin alineación entre nombre y valor.
-  Widget _buildTablaAtributos(List atributosValores) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < atributosValores.length; i++)
-            Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                color: i.isEven ? Colors.grey.shade50 : Colors.white,
-                border: i == 0
-                    ? null
-                    : Border(
-                        top: BorderSide(
-                            color: Colors.grey.shade200, width: 0.5),
-                      ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Dos tercios para el valor, como en el marketplace: los
-                  // nombres son cortos y los valores se van largos.
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      atributosValores[i].atributo.nombre,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      '${atributosValores[i].valor}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
       ),
     );
   }

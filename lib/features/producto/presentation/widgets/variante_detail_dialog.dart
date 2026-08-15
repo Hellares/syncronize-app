@@ -1,63 +1,79 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
+import 'package:syncronize/core/utils/resource.dart';
+import 'package:syncronize/core/utils/unidad_presentacion.dart';
+import 'package:syncronize/core/widgets/info_chip.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_variante.dart';
+import '../../domain/repositories/plantilla_repository.dart';
+import 'ficha_atributos.dart';
 
 /// Muestra un diálogo con los detalles completos de una variante de producto.
+///
+/// Va sobre `StyledDialog` como el resto de los diálogos del app: antes era un
+/// `showGeneralDialog` con su propio Container, su sombra y su botón de cerrar
+/// armados a mano, y se notaba al lado de los demás.
+///
+/// [plantillasIds] son las secciones que tiene guardadas el PRODUCTO. Una
+/// variante no guarda las suyas, así que si no se pasan, la ficha se agrupa
+/// recorriendo las plantillas y viendo cuál reclama cada atributo.
+///
+/// [plantillas] son el catálogo YA cargado. Pasarlo evita el parpadeo: sin
+/// ellas el diálogo tiene que ir a la red y hasta que vuelve muestra la ficha
+/// sin agrupar. Quien abre el diálogo casi siempre las tiene a mano.
 void showVarianteDetailDialog({
   required BuildContext context,
   required ProductoVariante variante,
+  List<String> plantillasIds = const [],
+  List<AtributoPlantilla> plantillas = const [],
 }) {
-  final screenSize = MediaQuery.of(context).size;
-
-  showGeneralDialog(
+  showDialog<void>(
     context: context,
-    barrierDismissible: true,
-    barrierLabel: 'Detalle variante',
-    barrierColor: Colors.black54,
-    transitionDuration: const Duration(milliseconds: 250),
-    transitionBuilder: (context, animation, secondaryAnimation, child) {
-      return ScaleTransition(
-        scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-        child: FadeTransition(opacity: animation, child: child),
-      );
-    },
-    pageBuilder: (context, animation, secondaryAnimation) {
-      return Center(
-        child: Container(
-          width: screenSize.width * 0.88,
-          constraints: BoxConstraints(
-            maxHeight: screenSize.height * 0.75,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.scaffoldBackground,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            clipBehavior: Clip.antiAlias,
-            child: _VarianteDetailContent(variante: variante),
+    builder: (dialogContext) => StyledDialog(
+      accentColor: AppColors.blue1,
+      icon: Icons.inventory_2_outlined,
+      titulo: variante.nombre,
+      // 🔴 El contenido NO trae scroll propio: StyledDialog ya scrollea, y dos
+      // scrolls anidados rompen el alto.
+      content: [
+        _VarianteDetailContent(
+          variante: variante,
+          plantillasIds: plantillasIds,
+          plantillas: plantillas,
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cerrar',
+            backgroundColor: AppColors.white,
+            borderColor: Colors.grey.shade400,
+            textColor: Colors.grey.shade700,
+            onPressed: () => Navigator.of(dialogContext).pop(),
           ),
         ),
-      );
-    },
+      ],
+    ),
   );
 }
 
 class _VarianteDetailContent extends StatefulWidget {
   final ProductoVariante variante;
+  final List<String> plantillasIds;
+  final List<AtributoPlantilla> plantillas;
 
-  const _VarianteDetailContent({required this.variante});
+  const _VarianteDetailContent({
+    required this.variante,
+    required this.plantillasIds,
+    required this.plantillas,
+  });
 
   @override
   State<_VarianteDetailContent> createState() => _VarianteDetailContentState();
@@ -66,6 +82,19 @@ class _VarianteDetailContent extends StatefulWidget {
 class _VarianteDetailContentState extends State<_VarianteDetailContent> {
   int _currentImageIndex = 0;
   late final PageController _pageController;
+
+  /// Para agrupar la ficha. Best-effort: si no llegan, los atributos se
+  /// muestran en una sola tabla, que es como se veían antes.
+  List<AtributoPlantilla> _plantillas = const [];
+
+  /// Ya sabemos si hay plantillas o no (llegaron, o el intento falló).
+  ///
+  /// 🔴 Sin esto la ficha se dibujaba PLANA y un instante después saltaba a
+  /// agrupada: el `getPlantillas` va a la red en cada apertura —el repositorio
+  /// no cachea— y el primer frame sale con la lista vacía. Mientras no esté
+  /// resuelto no se dibuja nada: mostrar el agrupado equivocado y corregirlo a
+  /// la vista es peor que esperar dos frames.
+  bool _resuelto = false;
 
   List<ProductoVarianteArchivo> get _archivosImagenes {
     final archivos = widget.variante.archivos;
@@ -77,6 +106,33 @@ class _VarianteDetailContentState extends State<_VarianteDetailContent> {
   void initState() {
     super.initState();
     _pageController = PageController();
+
+    // Si quien abrió el diálogo ya tenía el catálogo, se usa y listo: ni red
+    // ni parpadeo.
+    if (widget.plantillas.isNotEmpty) {
+      _plantillas = widget.plantillas;
+      _resuelto = true;
+    } else if (widget.variante.atributosValores.isNotEmpty) {
+      _cargarPlantillas();
+    } else {
+      _resuelto = true;
+    }
+  }
+
+  Future<void> _cargarPlantillas() async {
+    try {
+      final res = await locator<PlantillaRepository>().getPlantillas();
+      if (!mounted) return;
+      if (res is Success<List<AtributoPlantilla>>) {
+        setState(() => _plantillas = res.data);
+      }
+    } catch (_) {
+      // Silencio a propósito: agrupar es un lujo, ver la variante no.
+    } finally {
+      // Pase lo que pase se destraba: si falló, la ficha se muestra plana,
+      // que es como se veía antes de agrupar.
+      if (mounted) setState(() => _resuelto = true);
+    }
   }
 
   @override
@@ -93,223 +149,196 @@ class _VarianteDetailContentState extends State<_VarianteDetailContent> {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Carrusel de imágenes
-        if (imagenes.isNotEmpty)
+        if (imagenes.isNotEmpty) ...[
           _buildImageCarousel(imagenes),
+          const SizedBox(height: 12),
+        ],
 
-        // Contenido scrollable
-        Flexible(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Nombre + Estado
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        variante.nombre,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                        ),
-                      ),
+        // El nombre ya está en el título del diálogo: acá solo va el aviso de
+        // que la variante no se puede vender.
+        if (!variante.isActive) ...[
+          InfoChip(
+            icon: Icons.block,
+            text: 'INACTIVA',
+            fontSize: 9,
+            iconSize: 11,
+            borderRadius: 4,
+            textColor: AppColors.red,
+            backgroundColor: Colors.red.shade50,
+            borderColor: Colors.red.shade200,
+            borderWidth: 0.6,
+          ),
+          const SizedBox(height: 10),
+        ],
+
+        // Códigos
+        _buildDetailRow(Icons.tag, 'Código', variante.codigoEmpresa),
+        _buildDetailRow(Icons.qr_code, 'SKU', variante.sku),
+        if (variante.codigoBarras != null && variante.codigoBarras!.isNotEmpty)
+          _buildDetailRow(
+              Icons.qr_code_scanner, 'Código de barras', variante.codigoBarras!),
+
+        // Unidad de medida
+        if (variante.unidadMedida != null)
+          _buildDetailRow(
+              Icons.straighten, 'Unidad', variante.unidadDisplayCompleto),
+
+        // Peso
+        if (variante.peso != null)
+          _buildDetailRow(Icons.scale, 'Peso', '${variante.peso} kg'),
+
+        // Dimensiones
+        if (variante.dimensiones != null && variante.dimensiones!.isNotEmpty)
+          _buildDetailRow(Icons.aspect_ratio, 'Dimensiones',
+              _formatDimensiones(variante.dimensiones!)),
+
+        // Atributos, agrupados en las mismas secciones que el detalle del
+        // producto y con la misma tabla.
+        if (variante.atributosValores.isNotEmpty) ..._buildFichaAtributos(),
+
+        // Stock por sede
+        if (stocks != null && stocks.isNotEmpty) ...[
+          _buildSeccion('STOCK POR SEDE'),
+          ...stocks.map(
+            (stock) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.store, size: 13, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: AppText(
+                      stock.sedeNombre,
+                      size: 11,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (!variante.isActive)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          'INACTIVO',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red[700],
-                          ),
-                        ),
-                      ),
+                  ),
+                  InfoChip(
+                    text: _stockTexto(stock.cantidad),
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    borderRadius: 4,
+                    textColor: stock.cantidad > 0 ? Colors.green : AppColors.red,
+                    backgroundColor:
+                        (stock.cantidad > 0 ? Colors.green : AppColors.red)
+                            .withValues(alpha: 0.1),
+                  ),
+                  if (stock.precioConfigurado && stock.precio != null) ...[
+                    const SizedBox(width: 8),
+                    AppText(
+                      _precioTexto(stock.precioEfectivo ?? stock.precio!),
+                      size: 11,
+                      fontWeight: FontWeight.bold,
+                      color: stock.isOfertaActiva
+                          ? Colors.green
+                          : AppColors.textPrimary,
+                    ),
                   ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Códigos
-                _buildDetailRow(Icons.tag, 'Código', variante.codigoEmpresa),
-                _buildDetailRow(Icons.qr_code, 'SKU', variante.sku),
-                if (variante.codigoBarras != null && variante.codigoBarras!.isNotEmpty)
-                  _buildDetailRow(Icons.qr_code_scanner, 'Código de barras', variante.codigoBarras!),
-
-                // Unidad de medida
-                if (variante.unidadMedida != null)
-                  _buildDetailRow(Icons.straighten, 'Unidad', variante.unidadDisplayCompleto),
-
-                // Peso
-                if (variante.peso != null)
-                  _buildDetailRow(Icons.scale, 'Peso', '${variante.peso} kg'),
-
-                // Dimensiones
-                if (variante.dimensiones != null && variante.dimensiones!.isNotEmpty)
-                  _buildDetailRow(Icons.aspect_ratio, 'Dimensiones', _formatDimensiones(variante.dimensiones!)),
-
-                // Atributos
-                if (variante.atributosValores.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    'Atributos',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                      fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...variante.atributosValores.map((av) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.blue1.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            av.atributo.nombre,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.blue1,
-                              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            av.valor,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[800],
-                              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
                 ],
-
-                // Stock por sede
-                if (stocks != null && stocks.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    'Stock por sede',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                      fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...stocks.map((stock) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Icon(Icons.store, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            stock.sedeNombre,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: (stock.cantidad > 0 ? Colors.green : Colors.red).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '${stock.cantidad}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: stock.cantidad > 0 ? Colors.green : Colors.red,
-                            ),
-                          ),
-                        ),
-                        if (stock.precioConfigurado && stock.precio != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            'S/ ${stock.precioEfectivo?.toStringAsFixed(2) ?? stock.precio!.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: stock.isOfertaActiva ? Colors.green : AppColors.textPrimary,
-                              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  )),
-                ],
-
-                // Fechas
-                const SizedBox(height: 12),
-                Container(
-                  height: 1,
-                  color: Colors.grey[300],
-                ),
-                const SizedBox(height: 8),
-                _buildDetailRow(Icons.calendar_today, 'Creado', DateFormatter.formatDateTime(variante.creadoEn)),
-                _buildDetailRow(Icons.update, 'Actualizado', DateFormatter.formatDateTime(variante.actualizadoEn)),
-              ],
-            ),
-          ),
-        ),
-
-        // Botón cerrar
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                backgroundColor: AppColors.blue1.withValues(alpha: 0.1),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Cerrar'),
             ),
           ),
-        ),
+        ],
+
+        // Fechas
+        const SizedBox(height: 10),
+        const Divider(height: 1),
+        const SizedBox(height: 8),
+        _buildDetailRow(Icons.calendar_today, 'Creado',
+            DateFormatter.formatDateTime(variante.creadoEn)),
+        _buildDetailRow(Icons.update, 'Actualizado',
+            DateFormatter.formatDateTime(variante.actualizadoEn)),
       ],
     );
   }
 
+  /// La ficha de la variante, con las mismas secciones y la misma tabla que el
+  /// detalle del producto.
+  ///
+  /// A diferencia del detalle, acá NO se colapsa a la primera sección: el
+  /// diálogo se abre justamente para ver todo, y ya scrollea.
+  List<Widget> _buildFichaAtributos() {
+    // Todavía no sabemos cómo agrupar: no se dibuja nada. Dibujar la ficha
+    // plana acá es justamente el parpadeo que se quiere evitar.
+    if (!_resuelto) return const [];
+
+    final (secciones, sueltos) = agruparAtributosPorSeccion(
+      atributosValores: widget.variante.atributosValores,
+      plantillasIds: widget.plantillasIds,
+      plantillas: _plantillas,
+    );
+
+    // Sin secciones —plantillas todavía cargando, o atributos que ninguna
+    // reclama— va una sola tabla, sin encabezados.
+    if (secciones.isEmpty) {
+      return [
+        _buildSeccion('ATRIBUTOS'),
+        TablaAtributos(widget.variante.atributosValores),
+      ];
+    }
+
+    // 🔴 El título va con `TituloSeccionAtributos`, el MISMO del detalle del
+    // producto: acá había un encabezado propio que no pasaba el nombre a
+    // mayúsculas, y al lado de plantillas escritas en mayúsculas el rótulo
+    // salía desalineado del resto.
+    return [
+      for (final (nombre, valores) in secciones) ...[
+        const SizedBox(height: 4),
+        TituloSeccionAtributos(nombre),
+        const SizedBox(height: 5),
+        TablaAtributos(valores),
+      ],
+      // Los sueltos van uno por uno, titulados con su propio nombre.
+      ...seccionesDeAtributosSueltos(sueltos),
+    ];
+  }
+
+  /// La presentación de la variante, si vende agrupado (gramos → kg).
+  ///
+  /// 🔴 En un granel el precio se guarda POR UNIDAD DE VENTA —S/0.008 el
+  /// gramo— y sin esto salía "S/0.01", un precio que no existe; y el stock
+  /// salía "9000" en vez de "9 kg".
+  UnidadPresentacion get _presentacion => UnidadPresentacion(
+        factor: widget.variante.factorPresentacion ?? 1,
+        simbolo: widget.variante.unidadPresentacionSimbolo,
+      );
+
+  String _precioTexto(double porUnidadDeVenta) {
+    final p = _presentacion;
+    if (!p.activa) return 'S/ ${porUnidadDeVenta.toStringAsFixed(2)}';
+    return p.precioTexto(porUnidadDeVenta);
+  }
+
+  String _stockTexto(int enUnidadDeVenta) {
+    final p = _presentacion;
+    if (!p.activa) return '$enUnidadDeVenta';
+    return p.cantidadTexto(enUnidadDeVenta);
+  }
+
+  Widget _buildSeccion(String titulo) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: AppSubtitle(
+        titulo,
+        font: AppFont.amazonEmberMedium,
+        fontSize: 10,
+        color: AppColors.blue1,
+      ),
+    );
+  }
+
   Widget _buildImageCarousel(List<ProductoVarianteArchivo> imagenes) {
+    // Adentro del StyledDialog la imagen ya no toca los bordes del diálogo:
+    // se redondea por los cuatro lados, no solo arriba.
     if (imagenes.length == 1) {
       return ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
+        borderRadius: BorderRadius.circular(8),
         child: CachedNetworkImage(
           imageUrl: imagenes.first.url,
-          height: 180,
+          height: 170,
           width: double.infinity,
           fit: BoxFit.contain,
           placeholder: (_, __) => Container(
@@ -319,7 +348,8 @@ class _VarianteDetailContentState extends State<_VarianteDetailContent> {
           errorWidget: (context, url, error) => Container(
             height: 100,
             color: Colors.grey[200],
-            child: Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[400]),
+            child: Icon(Icons.inventory_2_outlined,
+                size: 48, color: Colors.grey[400]),
           ),
         ),
       );
@@ -328,12 +358,9 @@ class _VarianteDetailContentState extends State<_VarianteDetailContent> {
     return Column(
       children: [
         ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(8),
-            topRight: Radius.circular(8),
-          ),
+          borderRadius: BorderRadius.circular(8),
           child: SizedBox(
-            height: 180,
+            height: 170,
             child: PageView.builder(
               controller: _pageController,
               itemCount: imagenes.length,
@@ -348,7 +375,8 @@ class _VarianteDetailContentState extends State<_VarianteDetailContent> {
                   placeholder: (_, __) => Container(color: Colors.grey[200]),
                   errorWidget: (context, url, error) => Container(
                     color: Colors.grey[200],
-                    child: Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[400]),
+                    child: Icon(Icons.inventory_2_outlined,
+                        size: 48, color: Colors.grey[400]),
                   ),
                 );
               },
@@ -379,29 +407,22 @@ class _VarianteDetailContentState extends State<_VarianteDetailContent> {
 
 Widget _buildDetailRow(IconData icon, String label, String value) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.only(bottom: 7),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Colors.grey[600]),
-        const SizedBox(width: 8),
-        Text(
+        Icon(icon, size: 14, color: Colors.grey[600]),
+        const SizedBox(width: 6),
+        AppText(
           '$label: ',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-            fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-          ),
+          size: 11,
+          color: Colors.grey[600],
         ),
         Expanded(
-          child: Text(
+          child: AppText(
             value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[800],
-              fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
-            ),
+            size: 11,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],

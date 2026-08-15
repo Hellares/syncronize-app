@@ -739,6 +739,7 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
                 const SizedBox(height: 12),
 
                 CustomText(
+                  textCase: TextCase.upper,
                   label: 'Nombre *',
                   hintText: 'Ej: Color, Talla, Material',
                   controller: _nombreController,
@@ -769,13 +770,13 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                CustomText(
-                  label: 'Descripción (opcional)',
-                  controller: _descripcionController,
-                  borderColor: AppColors.blue1,
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
+                // CustomText(
+                //   label: 'Descripción (opcional)',
+                //   controller: _descripcionController,
+                //   borderColor: AppColors.blue1,
+                //   maxLines: 2,
+                // ),
+                // const SizedBox(height: 12),
 
                 // Cadena de dependencia: FABRICANTE → FAMILIA → PROCESADOR.
                 if (_selectedTipo.dependeDeOtro) ...[
@@ -838,6 +839,7 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
                           controller: _controllerDeRama(valorPadre),
                           borderColor: AppColors.blue1,
                           maxLines: 2,
+                          textCase: TextCase.upper,
                         ),
                       ),
                     ),
@@ -856,6 +858,7 @@ class _AtributoFormDialogState extends State<_AtributoFormDialog> {
                   CustomText(
                     label: 'Valores (separados por coma) *',
                     hintText: 'Rojo, Azul, Verde, Negro',
+                    textCase: TextCase.upper,
                     controller: _valoresController,
                     borderColor: AppColors.blue1,
                     maxLines: 2,
