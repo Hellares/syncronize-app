@@ -17,6 +17,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../domain/repositories/plantilla_repository.dart';
@@ -473,6 +474,35 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     );
   }
 
+  /// La presentación de lo que se está mostrando —producto o variante—, si
+  /// vende agrupado (gramos → kg).
+  ///
+  /// 🔴 Sin esto la tarjeta de precio y stock miente dos veces en un granel: el
+  /// precio se guarda POR UNIDAD DE VENTA —S/0.008 el gramo— y salía "S/0.01",
+  /// un precio que no existe y encima redondeado; y el stock salía "9000" en
+  /// vez de "9 kg".
+  ///
+  /// Se leen los campos sueltos y no el getter `presentacion` porque acá
+  /// `producto` puede ser un `Producto` o un `ProductoVariante`.
+  UnidadPresentacion _presentacionDe(dynamic producto) => UnidadPresentacion(
+        factor: producto.factorPresentacion ?? 1,
+        simbolo: producto.unidadPresentacionSimbolo,
+      );
+
+  /// "S/8.00/kg" en granel, "S/75.00" en lo que se vende por unidad.
+  String _precioTexto(dynamic producto, double porUnidadDeVenta) {
+    final p = _presentacionDe(producto);
+    if (!p.activa) return 'S/${porUnidadDeVenta.toStringAsFixed(2)}';
+    return p.precioTexto(porUnidadDeVenta);
+  }
+
+  /// "9 kg" en granel, "9" en lo que se vende por unidad.
+  String _stockTexto(dynamic producto, int enUnidadDeVenta) {
+    final p = _presentacionDe(producto);
+    if (!p.activa) return '$enUnidadDeVenta';
+    return p.cantidadTexto(enUnidadDeVenta);
+  }
+
   Widget _buildPriceSection(dynamic producto) {
     // Precios y stock se obtienen desde stocksPorSede (sistema multi-sede)
     double precioMostrar = 0.0;
@@ -617,7 +647,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
           ] else if (tieneDescuento) ...[
             // Precio base tachado
             Text(
-              'S/${precioMostrar.toStringAsFixed(2)}',
+              _precioTexto(producto, precioMostrar),
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],
@@ -631,7 +661,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  'S/${precioEfectivoMostrar.toStringAsFixed(2)}',
+                  _precioTexto(producto, precioEfectivoMostrar),
                   style: TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.bold,
@@ -671,7 +701,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             ),
           ] else
             Text(
-              'S/${precioEfectivoMostrar.toStringAsFixed(2)}',
+              _precioTexto(producto, precioEfectivoMostrar),
               style: TextStyle(
                 fontSize: 23,
                 fontWeight: FontWeight.bold,
@@ -800,7 +830,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
             runSpacing: 8,
             children: [
               InfoChip(
-                text: 'Stock: $stockMostrar',
+                text: 'Stock: ${_stockTexto(producto, stockMostrar)}',
                 icon: hasStock ? Icons.check_circle : Icons.cancel,
                 textColor: hasStock ? AppColors.blue1 : AppColors.red,
                 iconSize: 14,
@@ -949,13 +979,13 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                     Row(
                       children: [
                         AppText(
-                          '${stockSede.cantidad}',
-                          color: stockSede.esCritico ? AppColors.red : stockSede.esBajoMinimo ? AppColors.amberText : AppColors.blue1, 
+                          _stockTexto(producto, stockSede.cantidad ?? 0),
+                          color: stockSede.esCritico ? AppColors.red : stockSede.esBajoMinimo ? AppColors.amberText : AppColors.blue1,
                           fontWeight: FontWeight.bold,
                         ),
                         if (stockSede.stockMinimo != null) ...[
                           Text(
-                            ' / ${stockSede.stockMinimo}',
+                            ' / ${_stockTexto(producto, stockSede.stockMinimo)}',
                             style: const TextStyle(
                               fontSize: 11,
                               color: AppColors.grey,

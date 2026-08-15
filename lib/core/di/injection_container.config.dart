@@ -2636,13 +2636,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i490.ErrorHandlerService>(),
       ),
     );
-    gh.lazySingleton<_i1006.PlantillaRepository>(
-      () => _i364.PlantillaRepositoryImpl(
-        gh<_i902.PlantillaRemoteDataSource>(),
-        gh<_i932.NetworkInfo>(),
-        gh<_i490.ErrorHandlerService>(),
-      ),
-    );
     gh.factory<_i78.ActivarCategoriaUseCase>(
       () => _i78.ActivarCategoriaUseCase(gh<_i736.CatalogoRepository>()),
     );
@@ -3079,6 +3072,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i435.DashboardRrhhRemoteDataSource>(),
         gh<_i932.NetworkInfo>(),
         gh<_i490.ErrorHandlerService>(),
+      ),
+    );
+    gh.lazySingleton<_i1006.PlantillaRepository>(
+      () => _i364.PlantillaRepositoryImpl(
+        gh<_i902.PlantillaRemoteDataSource>(),
+        gh<_i932.NetworkInfo>(),
+        gh<_i490.ErrorHandlerService>(),
+        gh<_i321.LocalStorageService>(),
       ),
     );
     gh.factory<_i135.EmpresaContextCubit>(
