@@ -386,80 +386,135 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
     return porProducto.values.toList();
   }
 
+  // Medidas de la grilla, tomadas de la edición masiva para que las dos
+  // pantallas se sientan iguales. Acá son TRES columnas, así que entran sin
+  // scroll horizontal: no hace falta la columna congelada de allá.
+  static const double _hHeader = 28;
+  static const double _hCampo = 32;
+  static const double _wStock = 52;
+  static const double _wCampo = 74;
+  static const TextStyle _estiloHeader =
+      TextStyle(fontSize: 10, fontWeight: FontWeight.w600);
+
   Widget _buildProductosList() {
     final bloques = _bloques;
-    return RefreshIndicator(
-      onRefresh: () async {
-        if (_selectedSedeId != null) {
-          await _loadProductos(_selectedSedeId!);
-        }
-      },
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: bloques.length,
-        itemBuilder: (context, index) => _buildBloque(bloques[index]),
+    return Column(
+      children: [
+        _buildHeaderGrilla(),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              if (_selectedSedeId != null) {
+                await _loadProductos(_selectedSedeId!);
+              }
+            },
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: bloques.length,
+              itemBuilder: (context, index) => _buildBloque(bloques[index]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Encabezado fijo de la grilla. Fuera del scroll: con 28 filas, saber qué
+  /// columna es cuál a mitad de camino importa más que ganar 28 píxeles.
+  Widget _buildHeaderGrilla() {
+    return Container(
+      height: _hHeader,
+      color: AppColors.blue1.withValues(alpha: 0.08),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: const Row(
+        children: [
+          Expanded(child: Text('Variante', style: _estiloHeader)),
+          SizedBox(
+            width: _wStock,
+            child: Text('Stock',
+                style: _estiloHeader, textAlign: TextAlign.center),
+          ),
+          SizedBox(
+            width: _wCampo,
+            child: Text('Mínimo',
+                style: _estiloHeader, textAlign: TextAlign.center),
+          ),
+          SizedBox(
+            width: _wCampo,
+            child: Text('Máximo',
+                style: _estiloHeader, textAlign: TextAlign.center),
+          ),
+        ],
       ),
     );
   }
 
+  /// Fila que separa un producto del siguiente, al estilo de un subtotal de
+  /// planilla: ocupa el ancho entero y ahí vive el "aplicar a todas".
   Widget _buildBloque(_BloqueProducto bloque) {
     final varias = bloque.filas.length > 1;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Encabezado del producto
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-            decoration: BoxDecoration(
-              color: AppColors.blue1.withValues(alpha: 0.06),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.inventory_2, size: 16, color: AppColors.blue1),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    bloque.nombre,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.blue3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                // Con una sola fila no tiene sentido: "aplicar a todas" es
-                // para los 12 graneles de un multi-sabor.
-                if (varias)
-                  TextButton.icon(
-                    onPressed: () => _aplicarATodas(bloque),
-                    icon: const Icon(Icons.playlist_add_check, size: 14),
-                    label: Text('Todas (${bloque.filas.length})',
-                        style: const TextStyle(fontSize: 10)),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.blue1,
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                  ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+          decoration: BoxDecoration(
+            color: AppColors.blue1.withValues(alpha: 0.05),
+            border: Border(
+              top: BorderSide(color: AppColors.blue1.withValues(alpha: 0.25)),
+              bottom: BorderSide(color: Colors.grey.shade300),
             ),
           ),
-          ...bloque.filas.map(_buildFila),
-        ],
-      ),
+          child: Row(
+            children: [
+              const Icon(Icons.inventory_2, size: 13, color: AppColors.blue1),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  bloque.nombre,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Con una sola fila no tiene sentido: "aplicar a todas" es para
+              // los 12 graneles de un multi-sabor.
+              if (varias)
+                InkWell(
+                  onTap: () => _aplicarATodas(bloque),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.playlist_add_check,
+                            size: 13, color: AppColors.blue1),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Todas (${bloque.filas.length})',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.blue1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        for (var i = 0; i < bloque.filas.length; i++)
+          _buildFila(bloque.filas[i], i),
+      ],
     );
   }
 
@@ -551,7 +606,7 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   ///
   /// En un producto sin variantes la fila ES el producto, así que no tiene
   /// nombre propio que mostrar: alcanza el del encabezado del bloque.
-  Widget _buildFila(Map<String, dynamic> p) {
+  Widget _buildFila(Map<String, dynamic> p, int index) {
     final id = (p['id'] ?? p['_id'] ?? '').toString();
     final variante = p['variante'] is Map ? p['variante'] as Map : null;
     final etiqueta = (variante?['nombre'] as String?)?.trim();
@@ -563,73 +618,78 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
       return const SizedBox.shrink();
     }
 
+    // La fila tocada gana sobre la cebra: mientras se edita, lo que importa
+    // es ver qué renglones quedaron pendientes de guardar.
+    final tocada = _modified.contains(id);
+    final fondo = tocada
+        ? Colors.amber.withValues(alpha: 0.12)
+        : (index.isEven
+            ? Colors.transparent
+            : Colors.grey.withValues(alpha: 0.05));
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      decoration: BoxDecoration(
-        color: _modified.contains(id)
-            ? AppColors.blue1.withValues(alpha: 0.04)
-            : null,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      color: fondo,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  etiqueta == null || etiqueta.isEmpty
-                      ? 'Producto base'
-                      : etiqueta,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+          Expanded(
+            child: Text(
+              etiqueta == null || etiqueta.isEmpty ? 'Producto base' : etiqueta,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade800,
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Stock: $stockActual',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.blue1,
-                ),
-              ),
-            ],
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: CustomText(
-                  label: 'Mínimo',
-                  controller: minController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (_) => setState(() => _modified.add(id)),
-                ),
+          SizedBox(
+            width: _wStock,
+            child: Text(
+              '$stockActual',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.blue1,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: CustomText(
-                  label: 'Máximo',
-                  controller: maxController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: (_) => setState(() => _modified.add(id)),
-                ),
-              ),
-            ],
+            ),
           ),
+          _celda(minController, id),
+          _celda(maxController, id),
         ],
       ),
     );
   }
 
+  /// Celda editable de la grilla: compacta y sin `label`, porque el nombre de
+  /// la columna ya está en el encabezado. Con label, cada fila repetía
+  /// "Mínimo/Máximo" y la tabla dejaba de leerse como tabla.
+  Widget _celda(TextEditingController controller, String id) {
+    return SizedBox(
+      width: _wCampo,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: SizedBox(
+          height: _hCampo,
+          child: CustomText(
+            controller: controller,
+            height: _hCampo,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (_) => setState(() => _modified.add(id)),
+            borderColor: AppColors.blue1Alpha40,
+            borderWidth: 0.6,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            textStyle: const TextStyle(fontSize: 11),
+            showValidationIndicator: false,
+          ),
+        ),
+      ),
+    );
+  }
 
   /// Dos vacíos distintos: "todavía no buscaste" y "buscaste y no hay".
   /// Mostrar el mismo cartel para los dos hace pensar que la sede está vacía.
