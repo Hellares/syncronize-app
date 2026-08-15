@@ -55,6 +55,10 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   final TextEditingController _busquedaCtrl = TextEditingController();
   Timer? _debounce;
 
+  /// Número de la búsqueda en curso: una respuesta vieja que llega tarde se
+  /// descarta en vez de pisar a la nueva.
+  int _reqSeq = 0;
+
   /// Controllers for min/max fields indexed by productoStock id
   final Map<String, TextEditingController> _minControllers = {};
   final Map<String, TextEditingController> _maxControllers = {};
@@ -72,12 +76,7 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   void dispose() {
     _debounce?.cancel();
     _busquedaCtrl.dispose();
-    for (final c in _minControllers.values) {
-      c.dispose();
-    }
-    for (final c in _maxControllers.values) {
-      c.dispose();
-    }
+    _descartarControllers();
     super.dispose();
   }
 
@@ -105,26 +104,24 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
         _loading = false;
         _error = null;
         _modified.clear();
+        _descartarControllers();
       });
       return;
     }
 
+    // 🔴 Cada búsqueda se numera. Con 400 ms de rebote pueden quedar dos
+    // pedidos en vuelo, y el de la palabra CORTA —que trae más filas— suele
+    // volver después: sin esto pisaba al bueno y la pantalla terminaba
+    // mostrando el resultado de lo que ya no está escrito.
+    final miSeq = ++_reqSeq;
+
+    // Ojo: NO se vacía `_productos` acá. Vaciar y repintar en cada tecleo es
+    // el parpadeo que se ve; lo viejo se reemplaza recién cuando llega lo
+    // nuevo, con una barrita mientras tanto.
     setState(() {
       _loading = true;
-      _productos = [];
       _error = null;
-      _modified.clear();
     });
-
-    // Dispose old controllers
-    for (final c in _minControllers.values) {
-      c.dispose();
-    }
-    for (final c in _maxControllers.values) {
-      c.dispose();
-    }
-    _minControllers.clear();
-    _maxControllers.clear();
 
     try {
       // 🔴 El `limit` va EXPLÍCITO: sin él el backend manda 50, y una sede con
@@ -153,30 +150,52 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
         productos = [];
       }
 
-      // Initialize controllers
+      // Llegó tarde: ya hay una búsqueda más nueva. Se descarta sin tocar la
+      // pantalla ni los controllers.
+      if (!mounted || miSeq != _reqSeq) return;
+
+      // Los controllers nuevos se arman APARTE y recién después se cambian por
+      // los viejos, que se liberan ahí. Crearlos sobre el mapa en uso dejaba
+      // huérfanos los de las filas que ya no están —fuga— y, peor, si la
+      // respuesta llegaba a destiempo pisaba lo que el usuario venía tecleando.
+      final nuevosMin = <String, TextEditingController>{};
+      final nuevosMax = <String, TextEditingController>{};
       for (final p in productos) {
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
-        final minVal = p['stockMinimo'] ?? 0;
-        final maxVal = p['stockMaximo'] ?? 0;
-        _minControllers[id] = TextEditingController(text: '$minVal');
-        _maxControllers[id] = TextEditingController(text: '$maxVal');
+        nuevosMin[id] = TextEditingController(text: '${p['stockMinimo'] ?? 0}');
+        nuevosMax[id] = TextEditingController(text: '${p['stockMaximo'] ?? 0}');
       }
 
-      if (mounted) {
-        setState(() {
-          _productos = productos;
-          _loading = false;
-        });
-      }
+      setState(() {
+        _descartarControllers();
+        _minControllers.addAll(nuevosMin);
+        _maxControllers.addAll(nuevosMax);
+        // Los pendientes de guardar eran de la búsqueda anterior: sus campos
+        // ya no están en pantalla, así que no se pueden guardar a ciegas.
+        _modified.clear();
+        _productos = productos;
+        _loading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = 'Error al cargar productos';
-          _loading = false;
-        });
-      }
+      if (!mounted || miSeq != _reqSeq) return;
+      setState(() {
+        _error = 'Error al cargar productos';
+        _loading = false;
+      });
     }
+  }
+
+  /// Libera y vacía los controllers de la tanda anterior.
+  void _descartarControllers() {
+    for (final c in _minControllers.values) {
+      c.dispose();
+    }
+    for (final c in _maxControllers.values) {
+      c.dispose();
+    }
+    _minControllers.clear();
+    _maxControllers.clear();
   }
 
   Future<void> _guardarCambios() async {
@@ -232,21 +251,36 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
             ),
             const SizedBox(height: 12),
 
-            // Content
+            // Contenido.
+            //
+            // 🔴 Mientras se busca de nuevo NO se vacía la lista: se deja lo
+            // anterior con una barrita arriba. Antes cada tecleo la borraba y
+            // volvía a pintarla, y eso era el "se muestra y se barre".
             Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(
-                          child: Text(
-                            _error!,
-                            style: const TextStyle(
-                                color: Colors.red, fontSize: 14),
-                          ),
-                        )
-                      : _productos.isEmpty && _selectedSedeId != null
-                          ? _buildEmptyState()
-                          : _buildProductosList(),
+              child: _error != null
+                  ? Center(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                            color: Colors.red, fontSize: 14),
+                      ),
+                    )
+                  : _productos.isEmpty
+                      ? (_loading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _buildEmptyState())
+                      : Column(
+                          children: [
+                            SizedBox(
+                              height: 2,
+                              child: _loading
+                                  ? const LinearProgressIndicator(
+                                      minHeight: 2)
+                                  : null,
+                            ),
+                            Expanded(child: _buildProductosList()),
+                          ],
+                        ),
             ),
 
             // Save button
@@ -474,7 +508,7 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
                 child: Text(
                   bloque.nombre,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: AppColors.blue3,
                   ),
