@@ -252,7 +252,40 @@ class ProductoFormController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Los atributos que SOLO trae [plantillaId].
+  ///
+  /// Son los que se van si se quita la sección. Un COLOR que otra sección
+  /// aplicada también usa NO está acá: sigue teniendo dónde vivir.
+  List<PlantillaAtributo> atributosExclusivosDe(String plantillaId) {
+    final deOtras = <String>{};
+    for (final p in _plantillas) {
+      if (p.id == plantillaId) continue;
+      for (final pa in p.atributos) {
+        deOtras.add(pa.atributo.id);
+      }
+    }
+
+    final out = <PlantillaAtributo>[];
+    for (final p in _plantillas) {
+      if (p.id != plantillaId) continue;
+      for (final pa in p.atributos) {
+        if (!deOtras.contains(pa.atributo.id)) out.add(pa);
+      }
+    }
+    return out;
+  }
+
+  /// Saca una sección y, con ella, los valores de los atributos que solo esa
+  /// sección traía.
+  ///
+  /// 🔴 Antes solo desagrupaba: los valores quedaban guardados y reaparecían
+  /// en el detalle como características SUELTAS. Uno quitaba la plantilla,
+  /// guardaba, y las mismas características seguían ahí bajo "Otras" sin que
+  /// nada explicara por qué.
   void quitarPlantilla(String plantillaId) {
+    for (final pa in atributosExclusivosDe(plantillaId)) {
+      plantillaAtributosValues.remove(pa.atributo.id);
+    }
     _plantillas.removeWhere((p) => p.id == plantillaId);
     markAsChanged();
     notifyListeners();
@@ -299,6 +332,14 @@ class ProductoFormController extends ChangeNotifier {
   }
 
   final Map<String, String> plantillaAtributosValues = {};
+
+  /// El producto YA traía atributos guardados cuando se abrió el formulario.
+  ///
+  /// Hace falta para poder VACIAR la ficha: si se quitan todas las secciones,
+  /// el guardado tiene que salir igual —con la lista corta o vacía— para que
+  /// el backend borre lo que quedó afuera. Sin esta marca, un producto que
+  /// nunca tuvo atributos se comería un guardado inútil cada vez.
+  bool teniaAtributos = false;
 
   void setPlantillaAtributoValue(String atributoId, String value) {
     plantillaAtributosValues[atributoId] = value;

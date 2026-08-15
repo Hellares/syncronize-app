@@ -324,6 +324,7 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     if (!_atributosPrecargados) {
       _atributosPrecargados = true;
       setState(() {
+        _controller.teniaAtributos = true;
         for (final atributoValor in atributosValores) {
           _controller.plantillaAtributosValues[atributoValor.atributoId] =
               atributoValor.valor;
@@ -446,9 +447,37 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
     }
   }
 
-  /// Saca una sección. NO borra los valores cargados: viven por atributo, así
-  /// que si la volvés a agregar siguen ahí.
-  void _onPlantillaQuitada(String plantillaId) {
+  /// Saca una sección y lo que esa sección cargó.
+  ///
+  /// Los atributos que otra sección aplicada también use se quedan; los que
+  /// solo traía ésta se van con ella. Si hay algo cargado se pregunta antes:
+  /// borrar datos no puede pasar de callado por tocar una "x".
+  Future<void> _onPlantillaQuitada(String plantillaId) async {
+    final conValor = _controller
+        .atributosExclusivosDe(plantillaId)
+        .where((pa) =>
+            (_controller.plantillaAtributosValues[pa.atributo.id] ?? '')
+                .trim()
+                .isNotEmpty)
+        .toList();
+
+    if (conValor.isNotEmpty) {
+      final nombres =
+          conValor.map((pa) => pa.atributo.nombre).take(6).join(', ');
+      final resto = conValor.length > 6 ? ' y ${conValor.length - 6} más' : '';
+      final confirmado = await ConfirmDialog.show(
+        context: context,
+        type: ConfirmDialogType.warning,
+        title: 'Quitar sección',
+        message:
+            'Se van a borrar ${conValor.length} característica(s) cargada(s): '
+            '$nombres$resto.\n\n'
+            'Las que otra sección también use se conservan.',
+        confirmText: 'Quitar',
+      );
+      if (confirmado != true || !mounted) return;
+    }
+
     setState(() => _controller.quitarPlantilla(plantillaId));
   }
 

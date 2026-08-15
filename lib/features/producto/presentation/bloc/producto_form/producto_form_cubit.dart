@@ -238,13 +238,21 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
         final producto = result.data;
 
         // Guardar atributos de plantilla si hay (solo para productos simples)
+        //
+        // También sale cuando ya NO queda ninguna sección: si el producto
+        // tenía atributos y se quitaron todas, hay que mandar el guardado
+        // igual para que el backend borre lo que quedó afuera. Sin eso,
+        // quitar la sección solo la desagrupaba y las características
+        // reaparecían sueltas en el detalle.
         if (!controller.tieneVariantes &&
             !controller.esCombo &&
-            controller.plantillasSeleccionadas.isNotEmpty) {
+            (controller.plantillasSeleccionadas.isNotEmpty ||
+                controller.teniaAtributos)) {
           await _guardarAtributos(
             productoId: producto.id,
             empresaId: empresaId,
             valores: controller.plantillaAtributosValues,
+            permitirVaciar: controller.teniaAtributos,
           );
         }
 
@@ -269,12 +277,16 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
   }
 
   /// Guarda los atributos de un producto a través del Repository
+  /// [permitirVaciar] deja mandar la ficha VACÍA, que es como se borra todo.
+  /// Solo lo habilita quien sabe que el producto tenía atributos: para uno que
+  /// nunca los usó, un guardado vacío no borra nada y sobra.
   Future<void> _guardarAtributos({
     required String productoId,
     required String empresaId,
     required Map<String, String> valores,
+    bool permitirVaciar = false,
   }) async {
-    if (valores.isEmpty) return;
+    if (valores.isEmpty && !permitirVaciar) return;
 
     // Los vacíos NO viajan: el backend rechaza un `valor` en blanco (400) y,
     // como el endpoint reemplaza la ficha entera, dejarlos afuera es
@@ -287,7 +299,7 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
             ))
         .toList();
 
-    if (atributos.isEmpty) return;
+    if (atributos.isEmpty && !permitirVaciar) return;
 
     await _productoRepository.setProductoAtributos(
       productoId: productoId,
