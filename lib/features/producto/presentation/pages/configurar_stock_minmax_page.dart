@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -34,6 +36,20 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   bool _saving = false;
   String? _error;
 
+  /// Cuánto se pide por vez. Una sede real tiene cientos de filas de stock
+  /// (cada variante es una), así que el default de 50 del backend deja fuera
+  /// justo a las que hay que configurar.
+  static const int _limitePorPagina = 300;
+
+  /// Total en el servidor, para poder avisar cuando quedó gente afuera.
+  int? _total;
+
+  /// Lo tecleado en el buscador. Viaja al SERVIDOR: filtrar local solo
+  /// revolvería las filas ya traídas.
+  String _busqueda = '';
+  final TextEditingController _busquedaCtrl = TextEditingController();
+  Timer? _debounce;
+
   /// Controllers for min/max fields indexed by productoStock id
   final Map<String, TextEditingController> _minControllers = {};
   final Map<String, TextEditingController> _maxControllers = {};
@@ -49,6 +65,8 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _busquedaCtrl.dispose();
     for (final c in _minControllers.values) {
       c.dispose();
     }
@@ -90,8 +108,23 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
     _maxControllers.clear();
 
     try {
-      final response = await _dio.get('/producto-stock/sede/$sedeId');
+      // 🔴 El `limit` va EXPLÍCITO: sin él el backend manda 50, y una sede con
+      // 687 filas de stock mostraba las primeras 50 nada más. Los graneles de
+      // un producto con variantes caen mucho más abajo, así que no aparecían
+      // nunca y parecía que la pantalla filtraba las variantes.
+      //
+      // El resto se alcanza con el buscador, que pregunta al SERVIDOR: filtrar
+      // local solo revolvería las que ya se trajeron.
+      final response = await _dio.get(
+        '/producto-stock/sede/$sedeId',
+        queryParameters: {
+          'limit': _limitePorPagina,
+          if (_busqueda.isNotEmpty) 'search': _busqueda,
+        },
+      );
       final data = response.data;
+      final meta = data is Map ? data['meta'] : null;
+      _total = meta is Map ? meta['total'] as int? : null;
       final List<Map<String, dynamic>> productos;
       if (data is List) {
         productos = data.cast<Map<String, dynamic>>();
@@ -268,9 +301,43 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
               }
             },
           ),
+          if (_selectedSedeId != null) ...[
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _busquedaCtrl,
+              hintText: 'Buscar producto o variante…',
+              borderColor: AppColors.blue1,
+              prefixIcon: const Icon(Icons.search,
+                  size: 16, color: AppColors.blue1),
+              onChanged: _onBuscar,
+            ),
+            if (_total != null && _total! > _productos.length) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Mostrando ${_productos.length} de $_total. Buscá para llegar al resto.',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
+            ],
+          ],
         ],
       ),
     );
+  }
+
+  /// Rebota el tecleo y consulta al SERVIDOR.
+  ///
+  /// 🔴 Nada de filtrar la lista local: solo tiene las primeras
+  /// [_limitePorPagina] filas, así que buscar ahí adentro daría "no hay
+  /// resultados" para algo que sí existe en la sede.
+  void _onBuscar(String valor) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      final termino = valor.trim();
+      if (termino == _busqueda) return;
+      _busqueda = termino;
+      final sedeId = _selectedSedeId;
+      if (sedeId != null) _loadProductos(sedeId);
+    });
   }
 
   Widget _buildProductosList() {
