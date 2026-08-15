@@ -103,6 +103,13 @@ class _VarianteSelectorSheet extends StatefulWidget {
 /// estructurados: se selecciona la variante por su nombre directamente.
 const String _kVarianteClave = '__variante__';
 
+/// Valor sintético para "esta variante NO declara ese atributo".
+///
+/// Se muestra como "Sin {atributo} asignado" y es elegible: así una variante a
+/// la que le falta un dato que sus hermanas sí tienen sigue siendo alcanzable,
+/// y de paso se ve cuáles del catálogo quedaron incompletas.
+const String _kSinAsignar = '__sin_asignar__';
+
 /// Ancho reservado a la derecha del header para la X y el precio, que flotan
 /// sobre el contenido. Las líneas que quedan a esa altura lo descuentan.
 const double _anchoFranjaDerecha = 78;
@@ -229,10 +236,35 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       }
       return [_AtributoGrupo(_kVarianteClave, 'Variante', nombres)];
     }
+    // 🔴 Si ALGUNAS variantes no declaran el atributo, esa ausencia entra como
+    // un valor más: "Sin tamaño de pantalla asignado".
+    //
+    // Antes esas variantes quedaban inalcanzables —había que elegir un valor
+    // del grupo y ninguno les correspondía, así que el sheet decía "sin stock
+    // en esta combinación" con el stock ahí—. Y tratar la falta como comodín
+    // era peor: dejaba vender "AZUL + 860" contra una variante sin procesador.
+    //
+    // Nombrarla la vuelve elegible y explica el catálogo: se ve cuáles todavía
+    // no tienen ese dato cargado.
+    for (final clave in orden) {
+      final faltaEnAlguna = variantes.any(
+        (v) => !v.atributosValores.any((a) => a.atributo.clave == clave),
+      );
+      if (faltaEnAlguna) {
+        valores[clave]!.add(_kSinAsignar);
+      }
+    }
+
     return orden
         .map((c) => _AtributoGrupo(c, nombre[c] ?? c, valores[c]!))
         .toList();
   }
+
+  /// Etiqueta visible de un valor. Solo el centinela necesita traducción.
+  String _etiquetaValor(_AtributoGrupo g, String valor) =>
+      valor == _kSinAsignar
+          ? 'Sin ${g.nombre.toLowerCase()} asignado'
+          : valor;
 
   /// El sheet abre LIMPIO: sin ninguna opción marcada.
   ///
@@ -283,6 +315,11 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   }
 
   /// ¿La variante satisface todas las claves no-nulas de [sel]?
+  ///
+  /// ESTRICTO a propósito: si la variante no declara un atributo que [sel]
+  /// exige, NO coincide. Tratarlo como comodín dejaba elegir "AZUL + 860" y
+  /// devolvía el stock del azul, que no tiene procesador — peor que el bug
+  /// original, porque miente sobre lo que se está vendiendo.
   bool _coincide(ProductoVariante v, Map<String, String?> sel) {
     for (final entry in sel.entries) {
       final valor = entry.value;
@@ -295,18 +332,51 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       final match = v.atributosValores
           .where((a) => a.atributo.clave == entry.key)
           .map((a) => a.valor);
+      if (valor == _kSinAsignar) {
+        // Se pidió "sin asignar": coinciden justamente las que NO lo declaran.
+        if (match.isNotEmpty) return false;
+        continue;
+      }
       if (match.isEmpty || match.first != valor) return false;
     }
     return true;
   }
 
-  /// Variante resuelta cuando hay un valor elegido por cada atributo.
+  /// Las variantes que siguen en carrera con lo elegido hasta ahora.
+  List<ProductoVariante> get _candidatas =>
+      _variantes.where((v) => _coincide(v, _seleccion)).toList();
+
+  /// ¿Hay que elegir algo en este grupo, con lo que ya está elegido?
+  ///
+  /// 🔴 Acá está la corrección del gotcha. Un atributo que solo tienen ALGUNAS
+  /// variantes no puede ser obligatorio para todas: si a una sola le agregás
+  /// PROCESADOR, el grupo aparece en el acordeón y sus hermanas quedaban
+  /// inalcanzables —"sin stock en esa combinación" con el stock ahí—.
+  ///
+  /// El grupo aplica solo si ALGUNA de las candidatas actuales declara ese
+  /// atributo. Elegido COLOR = AZUL, si ninguna candidata tiene procesador el
+  /// grupo deja de pedirse y la variante se resuelve sola.
+  bool _grupoAplica(_AtributoGrupo g) {
+    if (g.clave == _kVarianteClave) return true;
+    return _candidatas.any(
+      (v) => v.atributosValores.any((a) => a.atributo.clave == g.clave),
+    );
+  }
+
+  /// Variante resuelta cuando ya se eligió todo lo que hacía falta elegir.
   ProductoVariante? get _varianteResuelta {
-    if (_grupos.any((g) => _seleccion[g.clave] == null)) return null;
-    for (final v in _variantes) {
-      if (_coincide(v, _seleccion)) return v;
-    }
-    return null;
+    final pendientes = _grupos
+        .where(_grupoAplica)
+        .where((g) => _seleccion[g.clave] == null);
+    if (pendientes.isNotEmpty) return null;
+
+    final candidatas = _candidatas;
+    if (candidatas.isEmpty) return null;
+    // Con varias en carrera gana la más específica: la que declara más
+    // atributos es la que mejor describe lo elegido.
+    candidatas.sort((a, b) =>
+        b.atributosValores.length.compareTo(a.atributosValores.length));
+    return candidatas.first;
   }
 
   /// Un valor está disponible si, manteniendo las OTRAS selecciones actuales,
@@ -411,13 +481,20 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     _cargarNivelesResuelta();
   }
 
-  /// Stock de la variante que quedaría al elegir `valor`, **ya formateado en su
-  /// unidad de cobro** y solo si con eso la combinación queda completa. Si
-  /// todavía faltan atributos el número sería la suma de varias variantes y
-  /// prometería un stock que esa combinación puntual no tiene.
+  /// Stock que quedaría al elegir `valor`, **solo para lo que se vende por
+  /// peso** y solo si con eso la combinación queda completa.
   ///
-  /// Devuelve texto y no un entero porque un granel se guarda en gramos: el
-  /// crudo mostraría "125000" al lado del diseño en vez de "125 kg".
+  /// 🔑 En lo que se vende por unidad el número se quitó: iba pegado a la
+  /// etiqueta, competía con ella —en una larga como "Sin tamaño de pantalla
+  /// asignado" se leía como parte del texto— y la cabecera ya muestra el stock
+  /// de la combinación resuelta.
+  ///
+  /// En granel sí se queda: "125 kg" al lado del sabor dice de un vistazo
+  /// cuánto queda de ESE, que es lo que se pregunta en mostrador, y al ser
+  /// texto con unidad no se confunde con la etiqueta.
+  ///
+  /// Si todavía faltan atributos devuelve null: el número sería la suma de
+  /// varias variantes y prometería un stock que esa combinación no tiene.
   String? _stockSiCompleta(String clave, String valor) {
     final tentativa = <String, String?>{};
     for (final g in _grupos) {
@@ -431,7 +508,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         final s = _stockDisponible(v);
         if (s <= 0) return null;
         final p = _presentacionDe(v);
-        return p != null ? p.cantidadTexto(s) : '$s';
+        // Sin presentación es venta por unidad: ahí no se muestra.
+        return p?.cantidadTexto(s);
       }
     }
     return null;
@@ -448,7 +526,11 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     final partes = <String>[];
     for (final g in _grupos) {
       final valor = _seleccion[g.clave];
-      if (valor != null && valor.isNotEmpty) partes.add(valor);
+      if (valor == null || valor.isEmpty) continue;
+      // El centinela no suma nada al resumen: "AZUL · sin tamaño de pantalla
+      // asignado" es ruido justo donde hace falta leer rápido qué se agrega.
+      if (valor == _kSinAsignar) continue;
+      partes.add(valor);
     }
     return partes.join(' · ');
   }
@@ -1111,12 +1193,15 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
               children: visibles.map((valor) {
                 final seleccionado = _seleccion[g.clave] == valor;
                 return _AtributoValorChip(
-                  label: valor,
+                  label: _etiquetaValor(g, valor),
                   selected: seleccionado,
                   // Solo puede venir en false el elegido que se quedó sin
                   // stock; el resto se filtró arriba.
                   enabled: _valorDisponible(g.clave, valor) || seleccionado,
-                  stock: _stockSiCompleta(g.clave, valor),
+                  // Nunca en el centinela: su etiqueta ya es una frase larga.
+                  stock: valor == _kSinAsignar
+                      ? null
+                      : _stockSiCompleta(g.clave, valor),
                   onTap: () => _seleccionar(g.clave, valor),
                 );
               }).toList(),
@@ -1609,10 +1694,9 @@ class _AtributoValorChip extends StatelessWidget {
   final bool selected;
   final bool enabled;
 
-  /// Stock de la variante que queda al elegir este valor, **ya formateado en su
-  /// unidad de cobro** ("125 kg", "7"). Solo viene con valor cuando elegirlo
-  /// COMPLETA la combinación; si no, `null` y no se dibuja, para no prometer un
-  /// stock que es la suma de varias variantes.
+  /// Stock formateado CON su unidad ("125 kg"), y solo en lo que se vende por
+  /// peso. En venta por unidad viene null: el número pelado competía con la
+  /// etiqueta y el stock ya se ve en la cabecera.
   final String? stock;
   final VoidCallback onTap;
 
@@ -1661,8 +1745,8 @@ class _AtributoValorChip extends StatelessWidget {
                 color: textColor,
                 decoration: enabled ? null : TextDecoration.lineThrough,
               ),
-              // El filtro de "hay stock" ya lo hizo quien arma el valor: acá
-              // llega null cuando no corresponde mostrarlo.
+              // Solo llega con valor en lo que se vende por peso; el filtro de
+              // "hay stock" ya lo hizo quien lo arma.
               if (stock != null) ...[
                 const SizedBox(width: 5),
                 AppSubtitle(
