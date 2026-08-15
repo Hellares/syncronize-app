@@ -9,6 +9,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
@@ -64,11 +65,18 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   final Map<String, TextEditingController> _minControllers = {};
   final Map<String, TextEditingController> _maxControllers = {};
 
-  /// Lo que hay guardado hoy, por fila. Va como HINT del campo y es lo que se
-  /// manda cuando el usuario tocó solo uno de los dos: sin esto, guardar el
-  /// mínimo pisaría el máximo con un cero.
+  /// Lo que hay guardado hoy, por fila, SIEMPRE en unidad de venta (gramos).
+  /// Va como HINT del campo y es lo que se manda cuando el usuario tocó solo
+  /// uno de los dos: sin esto, guardar el mínimo pisaría el máximo con un cero.
   final Map<String, int> _minActual = {};
   final Map<String, int> _maxActual = {};
+
+  /// La presentación de cada fila (kg ×1000 en un granel).
+  ///
+  /// 🔴 El stock y los mínimos se GUARDAN en unidad de venta —gramos— pero acá
+  /// se muestran y se escriben en la de presentación: nadie configura "avisame
+  /// a los 3000", piensa "a los 3 kg". La conversión de vuelta va al guardar.
+  final Map<String, UnidadPresentacion> _presentaciones = {};
 
   /// Track which items have been modified
   final Set<String> _modified = {};
@@ -173,6 +181,7 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
       final nuevosMax = <String, TextEditingController>{};
       final actualesMin = <String, int>{};
       final actualesMax = <String, int>{};
+      final presentaciones = <String, UnidadPresentacion>{};
       for (final p in productos) {
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
@@ -180,6 +189,7 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
         nuevosMax[id] = TextEditingController();
         actualesMin[id] = (p['stockMinimo'] as num?)?.toInt() ?? 0;
         actualesMax[id] = (p['stockMaximo'] as num?)?.toInt() ?? 0;
+        presentaciones[id] = _presentacionDe(p);
       }
 
       setState(() {
@@ -192,6 +202,9 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
         _maxActual
           ..clear()
           ..addAll(actualesMax);
+        _presentaciones
+          ..clear()
+          ..addAll(presentaciones);
         // Los pendientes de guardar eran de la búsqueda anterior: sus campos
         // ya no están en pantalla, así que no se pueden guardar a ciegas.
         _modified.clear();
@@ -205,6 +218,39 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
         _loading = false;
       });
     }
+  }
+
+  /// La presentación de una fila: la de la variante si la tiene, si no la del
+  /// producto. El backend ya resuelve la herencia y las manda planas.
+  UnidadPresentacion _presentacionDe(Map<String, dynamic> fila) {
+    final variante = fila['variante'] is Map ? fila['variante'] as Map : null;
+    final producto = fila['producto'] is Map ? fila['producto'] as Map : null;
+    final origen = variante ?? producto;
+    final factor = (origen?['factorPresentacion'] as num?)?.toDouble();
+    return UnidadPresentacion(
+      factor: factor ?? 1,
+      simbolo: origen?['unidadPresentacionSimbolo'] as String?,
+    );
+  }
+
+  /// Lo tecleado (kilos) de vuelta a lo que se guarda (gramos), o `null` si el
+  /// campo quedó vacío — que significa "no lo toques".
+  ///
+  /// 🔴 La cantidad se MULTIPLICA por el factor; el precio se divide. Usar el
+  /// método del precio acá convertiría 3 kg en 0.003 g.
+  int? _aUnidadDeVenta(TextEditingController? c, UnidadPresentacion p) {
+    final texto = c?.text.trim() ?? '';
+    if (texto.isEmpty) return null;
+    final valor = double.tryParse(texto);
+    if (valor == null) return null;
+    if (!p.activa) return valor.round();
+    return p.cantidadAUnidadDeVenta(valor).round();
+  }
+
+  /// Un número guardado (gramos) como se le muestra al usuario (kilos).
+  String _enPresentacion(int enUnidadDeVenta, UnidadPresentacion p) {
+    if (!p.activa) return '$enUnidadDeVenta';
+    return UnidadPresentacion.formatearNumero(p.cantidad(enUnidadDeVenta));
   }
 
   /// Libera y vacía los controllers de la tanda anterior.
@@ -228,16 +274,17 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
       final List<Map<String, dynamic>> updates = [];
 
       for (final id in _modified) {
+        final pres = _presentaciones[id] ?? const UnidadPresentacion.ninguna();
         // 🔴 Un campo vacío NO es cero: es "dejalo como está". El endpoint pide
         // los dos valores siempre, así que el que no se tocó viaja con lo que
         // ya tenía. Mandando 0 a ciegas, cargar solo el mínimo borraba el
         // máximo de esa fila.
-        final minText = _minControllers[id]?.text.trim() ?? '';
-        final maxText = _maxControllers[id]?.text.trim() ?? '';
         updates.add({
           'productoStockId': id,
-          'stockMinimo': int.tryParse(minText) ?? _minActual[id] ?? 0,
-          'stockMaximo': int.tryParse(maxText) ?? _maxActual[id] ?? 0,
+          'stockMinimo':
+              _aUnidadDeVenta(_minControllers[id], pres) ?? _minActual[id] ?? 0,
+          'stockMaximo':
+              _aUnidadDeVenta(_maxControllers[id], pres) ?? _maxActual[id] ?? 0,
         });
       }
 
@@ -589,7 +636,9 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
         content: [
           Text(
             'Se escribe en las ${bloque.filas.length} filas de este producto. '
-            'Lo que dejes vacío no se toca.',
+            'Lo que dejes vacío no se toca.\n'
+            'Cada fila lo toma en SU unidad: en un granel "3" son 3 kg; en un '
+            'saco, 3 sacos.',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 12),
@@ -599,8 +648,13 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
                 child: CustomText(
                   label: 'Mínimo',
                   controller: minCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  // Decimales permitidos: en un granel se escribe "0.5" para
+                  // medio kilo. Cada fila lo interpreta en su unidad.
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}')),
+                  ],
                 ),
               ),
               const SizedBox(width: 10),
@@ -608,8 +662,13 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
                 child: CustomText(
                   label: 'Máximo',
                   controller: maxCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  // Decimales permitidos: en un granel se escribe "0.5" para
+                  // medio kilo. Cada fila lo interpreta en su unidad.
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}')),
+                  ],
                 ),
               ),
             ],
@@ -674,6 +733,7 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
 
     // La fila tocada gana sobre la cebra: mientras se edita, lo que importa
     // es ver qué renglones quedaron pendientes de guardar.
+    final pres = _presentaciones[id] ?? const UnidadPresentacion.ninguna();
     final tocada = _modified.contains(id);
     final fondo = tocada
         ? Colors.amber.withValues(alpha: 0.12)
@@ -701,7 +761,14 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
           SizedBox(
             width: _wStock,
             child: Text(
-              '$stockActual',
+              // "9 kg" en un granel, "3" en lo que se vende por unidad.
+              // El valor se normaliza antes: si llegara como String —Prisma
+              // serializa los Decimal así— un cast directo daría pantalla roja.
+              pres.activa
+                  ? pres.cantidadTexto(
+                      num.tryParse('$stockActual') ?? 0,
+                    )
+                  : '$stockActual',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 11,
@@ -710,8 +777,8 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
               ),
             ),
           ),
-          _celda(minController, id, _minActual[id] ?? 0),
-          _celda(maxController, id, _maxActual[id] ?? 0),
+          _celda(minController, id, _minActual[id] ?? 0, pres),
+          _celda(maxController, id, _maxActual[id] ?? 0, pres),
         ],
       ),
     );
@@ -720,7 +787,12 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   /// Celda editable de la grilla: compacta y sin `label`, porque el nombre de
   /// la columna ya está en el encabezado. Con label, cada fila repetía
   /// "Mínimo/Máximo" y la tabla dejaba de leerse como tabla.
-  Widget _celda(TextEditingController controller, String id, int actual) {
+  Widget _celda(
+    TextEditingController controller,
+    String id,
+    int actual,
+    UnidadPresentacion pres,
+  ) {
     // Vacío = no se toca. El hint muestra lo guardado, así se ve el valor sin
     // tener que borrarlo para escribir encima.
     final tocado = controller.text.trim().isNotEmpty;
@@ -733,9 +805,18 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
           child: CustomText(
             controller: controller,
             height: _hCampo,
-            hintText: '$actual',
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            // El hint habla en la unidad del usuario: "3" son 3 kg, no 3 g.
+            hintText: _enPresentacion(actual, pres),
+            // Con presentación se admiten decimales: medio kilo es 0.5, y
+            // forzar enteros obligaría a pensar en gramos justo cuando se
+            // está mostrando en kilos.
+            keyboardType: TextInputType.numberWithOptions(decimal: pres.activa),
+            inputFormatters: [
+              if (pres.activa)
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}'))
+              else
+                FilteringTextInputFormatter.digitsOnly,
+            ],
             onChanged: (_) => setState(() {
               if (controller.text.trim().isEmpty) {
                 // Se borró lo tecleado: vuelve a "no tocar". Si no quedan
