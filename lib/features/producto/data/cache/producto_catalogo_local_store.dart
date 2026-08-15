@@ -28,10 +28,17 @@ class CatalogoLocalSnapshot {
   /// SACO se quedaba sin unidad y heredaba la del producto: "46 G" en vez de
   /// "46 und", hasta que un refresh traía el JSON de red.
   ///
+  /// v4 (15-08): `ProductoListItemModel.fromEntity` —el método con el que se
+  /// PERSISTE— se comía `unidadPresentacionSimbolo` y `factorPresentacion`.
+  /// El `fromJson`/`toJson` los tenían, así que lo escrito en v3 igual salió
+  /// sin presentación: la card pintaba "8300 G" en el primer frame y se
+  /// corregía al revalidar. Sin este bump ese parpadeo pasaría una vez más
+  /// por producto.
+  ///
   /// 🔴 El delta-sync solo reemplaza productos que CAMBIARON, así que una
   /// entrada vieja de un producto que nadie tocó sobrevive para siempre. Este
   /// número es la única forma de forzar que se rearme el snapshot entero.
-  static const int currentVersion = 3;
+  static const int currentVersion = 4;
 
   final int version;
   final List<ProductoListItem> productos;

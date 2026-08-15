@@ -202,6 +202,17 @@ class ProductoListItemModel extends ProductoListItem {
       factorCompra: entity.factorCompra,
       unidadCompraSimbolo: entity.unidadCompraSimbolo,
       unidadMedidaSimbolo: entity.unidadMedidaSimbolo,
+      // 🔴 Estos dos se caían acá, y `fromEntity` es JUSTO lo que se usa para
+      // persistir (snapshot y biblioteca van por `fromEntity(p).toJson()`).
+      // El `fromJson` los leía y el `toJson` los escribía, así que la paridad
+      // se veía bien mirando esos dos: el hueco estaba en el tercer método.
+      //
+      // Efecto: la card pintaba "8.3 kg" mientras el producto venía de la red,
+      // pero al guardarlo perdía la presentación y en la siguiente apertura el
+      // PRIMER frame salía de disco con "8300 G" hasta que llegaba la
+      // revalidación. De ahí el parpadeo.
+      unidadPresentacionSimbolo: entity.unidadPresentacionSimbolo,
+      factorPresentacion: entity.factorPresentacion,
     );
   }
 }
