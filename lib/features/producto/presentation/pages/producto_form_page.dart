@@ -1279,42 +1279,32 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
+                          // Mismo chip que el resto del app. La "x" va DENTRO
+                          // del borde, con su propio toque: la sección se
+                          // quita desde ahí, no tocando el chip entero.
                           children: _controller.plantillasSeleccionadas
                               .map(
-                                (p) => Container(
-                                  padding: const EdgeInsets.only(
-                                      left: 8, right: 2, top: 2, bottom: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.blue1
-                                        .withValues(alpha: 0.10),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                        color: AppColors.blue1
-                                            .withValues(alpha: 0.3)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        p.nombre,
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.blue1,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.close, size: 12),
-                                        color: AppColors.blue1,
-                                        visualDensity: VisualDensity.compact,
-                                        constraints: const BoxConstraints(
-                                            minWidth: 24, minHeight: 24),
-                                        padding: EdgeInsets.zero,
-                                        tooltip: 'Quitar sección',
-                                        onPressed: () =>
-                                            _onPlantillaQuitada(p.id),
-                                      ),
-                                    ],
+                                (p) => InfoChip(
+                                  text: p.nombre,
+                                  icon: Icons.folder_outlined,
+                                  iconSize: 12,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  textColor: AppColors.blue1,
+                                  backgroundColor: AppColors.bluechip,
+                                  borderColor: AppColors.blue1,
+                                  borderWidth: 0.6,
+                                  borderRadius: 4,
+                                  contentPadding: const EdgeInsets.only(
+                                      left: 10, right: 4, top: 4, bottom: 4),
+                                  trailing: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () => _onPlantillaQuitada(p.id),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(3),
+                                      child: Icon(Icons.close,
+                                          size: 12, color: AppColors.blue1),
+                                    ),
                                   ),
                                 ),
                               )

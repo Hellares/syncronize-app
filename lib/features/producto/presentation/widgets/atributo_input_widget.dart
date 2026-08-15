@@ -16,6 +16,7 @@ import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/date/custom_date.dart';
+import '../../../../core/widgets/info_chip.dart';
 import '../../../consultas_externas/domain/entities/consulta_dni.dart';
 import '../../../consultas_externas/domain/entities/consulta_licencia.dart';
 import '../../../consultas_externas/domain/entities/consulta_placa.dart';
@@ -336,16 +337,36 @@ class _AtributoInputWidgetState extends State<AtributoInputWidget> {
   }
 
   Widget _buildMultiSelectInput() {
-    // Para multiselect, mostrar checkboxes
-    final selectedValues = widget.valorActual?.split(',') ?? [];
+    // 🔴 `''.split(',')` devuelve `['']`, no una lista vacía: sin filtrar, el
+    // primer valor que se elegía se guardaba como ",ROJO".
+    final selectedValues = (widget.valorActual ?? '')
+        .split(',')
+        .map((v) => v.trim())
+        .where((v) => v.isNotEmpty)
+        .toList();
 
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 6,
+      runSpacing: 6,
       children: widget.atributo.valores.map((valor) {
         final isSelected = selectedValues.contains(valor);
-        return FilterChip(
-          label: Text(valor),
+        // Mismo chip seleccionable que los filtros del resto del app
+        // (gestión de unidades): borde fino, radio 4 y check al elegir.
+        return InfoChip(
+          text: widget.atributo.unidad != null
+              ? '$valor ${widget.atributo.unidad}'
+              : valor,
+          fontSize: 10,
+          borderRadius: 4,
+          borderColor: AppColors.blue1,
+          borderWidth: 0.6,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          backgroundColor: AppColors.white,
+          selectedBackgroundColor: AppColors.bluechip,
+          selectedTextColor: AppColors.blue1,
+          showCheckmark: true,
+          iconSize: 12,
           selected: isSelected,
           onSelected: (selected) {
             final newValues = List<String>.from(selectedValues);

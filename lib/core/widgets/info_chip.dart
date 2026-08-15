@@ -49,6 +49,10 @@ class InfoChip extends StatelessWidget {
   final EdgeInsets? contentPadding;
   final double? iconSize; // Tamaño explícito para ícono leading y check (opcional)
 
+  /// Widget pegado al final, ADENTRO del chip (típicamente una "x" para
+  /// quitarlo). Va dentro del borde para que se lea como una sola pieza.
+  final Widget? trailing;
+
   const InfoChip({
     super.key,
     this.icon,
@@ -72,6 +76,7 @@ class InfoChip extends StatelessWidget {
     this.showCheckmark = false,
     this.contentPadding,
     this.iconSize,
+    this.trailing,
   });
 
   @override
@@ -120,6 +125,10 @@ class InfoChip extends StatelessWidget {
           if (showCheckmark && selected) ...[
             const SizedBox(width: 6),
             Icon(Icons.check, color: currentText, size: resolvedIconSize + 2),
+          ],
+          if (trailing != null) ...[
+            const SizedBox(width: 4),
+            trailing!,
           ],
         ],
       ),
