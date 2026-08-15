@@ -11,6 +11,7 @@ import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/widgets/snack_bar_helper.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -62,6 +63,12 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   /// Controllers for min/max fields indexed by productoStock id
   final Map<String, TextEditingController> _minControllers = {};
   final Map<String, TextEditingController> _maxControllers = {};
+
+  /// Lo que hay guardado hoy, por fila. Va como HINT del campo y es lo que se
+  /// manda cuando el usuario tocó solo uno de los dos: sin esto, guardar el
+  /// mínimo pisaría el máximo con un cero.
+  final Map<String, int> _minActual = {};
+  final Map<String, int> _maxActual = {};
 
   /// Track which items have been modified
   final Set<String> _modified = {};
@@ -158,19 +165,33 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
       // los viejos, que se liberan ahí. Crearlos sobre el mapa en uso dejaba
       // huérfanos los de las filas que ya no están —fuga— y, peor, si la
       // respuesta llegaba a destiempo pisaba lo que el usuario venía tecleando.
+      // 🔴 Los campos arrancan VACÍOS y el valor guardado va como hint, igual
+      // que en la edición masiva. Con el valor adentro había que borrarlo
+      // antes de escribir, y en una grilla de 28 filas eso es un borrado por
+      // fila. Vacío = "no lo toques"; lo tecleado es el valor nuevo.
       final nuevosMin = <String, TextEditingController>{};
       final nuevosMax = <String, TextEditingController>{};
+      final actualesMin = <String, int>{};
+      final actualesMax = <String, int>{};
       for (final p in productos) {
         final id = (p['id'] ?? p['_id'] ?? '').toString();
         if (id.isEmpty) continue;
-        nuevosMin[id] = TextEditingController(text: '${p['stockMinimo'] ?? 0}');
-        nuevosMax[id] = TextEditingController(text: '${p['stockMaximo'] ?? 0}');
+        nuevosMin[id] = TextEditingController();
+        nuevosMax[id] = TextEditingController();
+        actualesMin[id] = (p['stockMinimo'] as num?)?.toInt() ?? 0;
+        actualesMax[id] = (p['stockMaximo'] as num?)?.toInt() ?? 0;
       }
 
       setState(() {
         _descartarControllers();
         _minControllers.addAll(nuevosMin);
         _maxControllers.addAll(nuevosMax);
+        _minActual
+          ..clear()
+          ..addAll(actualesMin);
+        _maxActual
+          ..clear()
+          ..addAll(actualesMax);
         // Los pendientes de guardar eran de la búsqueda anterior: sus campos
         // ya no están en pantalla, así que no se pueden guardar a ciegas.
         _modified.clear();
@@ -207,12 +228,16 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
       final List<Map<String, dynamic>> updates = [];
 
       for (final id in _modified) {
-        final minText = _minControllers[id]?.text ?? '0';
-        final maxText = _maxControllers[id]?.text ?? '0';
+        // 🔴 Un campo vacío NO es cero: es "dejalo como está". El endpoint pide
+        // los dos valores siempre, así que el que no se tocó viaja con lo que
+        // ya tenía. Mandando 0 a ciegas, cargar solo el mínimo borraba el
+        // máximo de esa fila.
+        final minText = _minControllers[id]?.text.trim() ?? '';
+        final maxText = _maxControllers[id]?.text.trim() ?? '';
         updates.add({
           'productoStockId': id,
-          'stockMinimo': int.tryParse(minText) ?? 0,
-          'stockMaximo': int.tryParse(maxText) ?? 0,
+          'stockMinimo': int.tryParse(minText) ?? _minActual[id] ?? 0,
+          'stockMaximo': int.tryParse(maxText) ?? _maxActual[id] ?? 0,
         });
       }
 
@@ -222,7 +247,19 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
       );
 
       if (mounted) {
-        _modified.clear();
+        // Lo guardado pasa a ser "lo actual": el hint muestra los valores
+        // nuevos y los campos vuelven a quedar vacíos. Sin esto había que
+        // recargar para ver lo que uno mismo acababa de escribir.
+        setState(() {
+          for (final u in updates) {
+            final id = u['productoStockId'] as String;
+            _minActual[id] = u['stockMinimo'] as int;
+            _maxActual[id] = u['stockMaximo'] as int;
+            _minControllers[id]?.clear();
+            _maxControllers[id]?.clear();
+          }
+          _modified.clear();
+        });
         SnackBarHelper.showSuccess(
             context, 'Stock Min/Max actualizado correctamente');
       }
@@ -296,6 +333,8 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
                   16 + MediaQuery.of(context).padding.bottom,
                 ),
                 child: CustomButton(
+                  borderColor: AppColors.blue1,
+                  textColor: AppColors.blue1,
                   text: 'Guardar Cambios (${_modified.length})',
                   isLoading: _saving,
                   onPressed: _saving ? null : _guardarCambios,
@@ -313,45 +352,24 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Seleccionar Sede',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-              color: AppColors.blue3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedSedeId,
-            decoration: InputDecoration(
-              hintText: 'Seleccione una sede',
-              hintStyle: const TextStyle(fontSize: 13),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              isDense: true,
-            ),
-            isExpanded: true,
-            style:
-                const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-            items: _sedes.map((sede) {
-              return DropdownMenuItem<String>(
-                value: sede.id,
-                child:
-                    Text(sede.nombre, style: const TextStyle(fontSize: 13)),
-              );
-            }).toList(),
+          CustomDropdown<String>(
+            label: 'Sede',
+            hintText: 'Seleccione una sede',
+            borderColor: AppColors.blue1,
+            prefixIcon: const Icon(Icons.store_outlined,
+                size: 16, color: AppColors.blue1),
+            value: _selectedSedeId,
+            items: _sedes
+                .map((sede) =>
+                    DropdownItem(value: sede.id, label: sede.nombre))
+                .toList(),
             onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _selectedSedeId = val;
-                  _productos = [];
-                });
-                _loadProductos(val);
-              }
+              if (val == null) return;
+              setState(() {
+                _selectedSedeId = val;
+                _productos = [];
+              });
+              _loadProductos(val);
             },
           ),
           if (_selectedSedeId != null) ...[
@@ -602,7 +620,7 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
             child: CustomButton(
               text: 'Cancelar',
               backgroundColor: AppColors.white,
-              borderColor: Colors.grey.shade400,
+              borderColor: AppColors.blueGrey,
               textColor: Colors.grey.shade700,
               onPressed: () => Navigator.of(dialogContext).pop(false),
             ),
@@ -610,6 +628,8 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
           Expanded(
             flex: 2,
             child: CustomButton(
+              borderColor: AppColors.blue1,
+              textColor: AppColors.blue1,
               text: 'Aplicar',
               onPressed: () => Navigator.of(dialogContext).pop(true),
             ),
@@ -690,8 +710,8 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
               ),
             ),
           ),
-          _celda(minController, id),
-          _celda(maxController, id),
+          _celda(minController, id, _minActual[id] ?? 0),
+          _celda(maxController, id, _maxActual[id] ?? 0),
         ],
       ),
     );
@@ -700,7 +720,10 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
   /// Celda editable de la grilla: compacta y sin `label`, porque el nombre de
   /// la columna ya está en el encabezado. Con label, cada fila repetía
   /// "Mínimo/Máximo" y la tabla dejaba de leerse como tabla.
-  Widget _celda(TextEditingController controller, String id) {
+  Widget _celda(TextEditingController controller, String id, int actual) {
+    // Vacío = no se toca. El hint muestra lo guardado, así se ve el valor sin
+    // tener que borrarlo para escribir encima.
+    final tocado = controller.text.trim().isNotEmpty;
     return SizedBox(
       width: _wCampo,
       child: Padding(
@@ -710,14 +733,31 @@ class _ConfigurarStockMinMaxPageState extends State<ConfigurarStockMinMaxPage> {
           child: CustomText(
             controller: controller,
             height: _hCampo,
+            hintText: '$actual',
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            onChanged: (_) => setState(() => _modified.add(id)),
+            onChanged: (_) => setState(() {
+              if (controller.text.trim().isEmpty) {
+                // Se borró lo tecleado: vuelve a "no tocar". Si no quedan
+                // campos escritos en la fila, deja de contar como pendiente.
+                final min = _minControllers[id]?.text.trim() ?? '';
+                final max = _maxControllers[id]?.text.trim() ?? '';
+                if (min.isEmpty && max.isEmpty) _modified.remove(id);
+              } else {
+                _modified.add(id);
+              }
+            }),
             borderColor: AppColors.blue1Alpha40,
             borderWidth: 0.6,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             textStyle: const TextStyle(fontSize: 11),
+            // El valor guardado se lee más apagado que lo que uno escribe:
+            // es dato, no borrador.
+            hintStyle: TextStyle(
+              fontSize: 11,
+              color: tocado ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
             showValidationIndicator: false,
           ),
         ),
