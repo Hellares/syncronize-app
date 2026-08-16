@@ -65,6 +65,7 @@ import '../../features/gastos_recurrentes/presentation/pages/gastos_recurrentes_
 import '../../features/gastos_recurrentes/presentation/pages/gasto_recurrente_form_page.dart';
 import '../../features/gastos_recurrentes/presentation/pages/gasto_recurrente_detail_page.dart';
 import '../../features/gastos_recurrentes/presentation/pages/gastos_recurrentes_reportes_page.dart';
+import '../../features/balanza/presentation/pages/balanzas_list_page.dart';
 import '../../features/impresoras/presentation/pages/impresoras_list_page.dart';
 import '../../features/impresoras/presentation/pages/impresora_form_page.dart';
 import '../../features/caja_chica/presentation/pages/caja_chica_detail_page.dart';
@@ -1519,6 +1520,13 @@ class AppRouter {
         path: '/empresa/gastos-recurrentes/reportes/general',
         name: 'empresa-gastos-recurrentes-reportes',
         builder: (context, state) => const GastosRecurrentesReportesPage(),
+      ),
+      // Balanzas Bluetooth (config local del dispositivo, como las impresoras:
+      // el equipo es del mostrador donde está el celular, no de la empresa).
+      GoRoute(
+        path: '/empresa/balanzas',
+        name: 'empresa-balanzas',
+        builder: (context, state) => const BalanzasListPage(),
       ),
       // Impresoras térmicas (config local del dispositivo)
       GoRoute(

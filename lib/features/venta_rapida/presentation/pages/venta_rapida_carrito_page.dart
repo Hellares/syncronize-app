@@ -11,6 +11,8 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/widgets/producto_sede_selector/producto_sede_selector.dart';
+import '../../../balanza/presentation/widgets/balanza_boton.dart';
+import '../../../balanza/presentation/widgets/balanza_visor_sheet.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
@@ -1180,7 +1182,14 @@ class _ItemRowState extends State<_ItemRow> {
                         fontWeight: FontWeight.w600,
                       ),
                     )
-                  : SizedBox(
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // `Flexible` y no `SizedBox` a secas: con el ícono de
+                        // la balanza al lado, en pantallas angostas el campo se
+                        // achica en vez de desbordar la fila.
+                        Flexible(
+                          child: SizedBox(
                       width: 70,
                       child: CustomText(
                         controller: _cantCtrl,
@@ -1207,6 +1216,27 @@ class _ItemRowState extends State<_ItemRow> {
                         onSubmitted: (v) => _aplicarCantidad(context, v),
                         onChanged: (v) => _aplicarCantidad(context, v),
                       ),
+                          ),
+                        ),
+                        // Pesar en vez de teclear. Solo en lo que se pesa y
+                        // solo si hay balanza configurada: el botón se esconde
+                        // solo. Escribe en el MISMO campo y pasa por el MISMO
+                        // `_aplicarCantidad`, que es el que convierte a unidad
+                        // de venta.
+                        if (presentacionEsPesable(_pres))
+                          BalanzaBoton(
+                            presentacion: _pres,
+                            iconSize: 15,
+                            boxSize: 26,
+                            onPeso: (kilos) {
+                              final texto = kilos
+                                  .toStringAsFixed(3)
+                                  .replaceFirst(RegExp(r'\.?0+$'), '');
+                              _cantCtrl.text = texto;
+                              _aplicarCantidad(context, texto);
+                            },
+                          ),
+                      ],
                     ),
             ),
           ),

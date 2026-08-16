@@ -10,6 +10,9 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/busqueda_texto.dart';
 import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../producto/presentation/widgets/abrir_bulto_dialog.dart';
+import '../../../balanza/domain/services/balanzas_manager.dart';
+import '../../../balanza/presentation/widgets/balanza_boton.dart';
+import '../../../balanza/presentation/widgets/balanza_visor_sheet.dart';
 import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_search_field.dart';
@@ -314,14 +317,71 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     _enfocarGranel();
   }
 
-  /// Pone el foco en el campo de kilos si la variante resuelta es a granel.
+  /// Última variante para la que ya se abrió el visor solo. Sin esto el visor
+  /// reaparecería en cada toque de chip que vuelve a resolver la misma
+  /// combinación.
+  String? _balanzaAbiertaPara;
+
+  /// Cache de "¿hay alguna balanza configurada?". Se consulta una vez por
+  /// sheet: es una lectura de preferencias, pero se pregunta en cada
+  /// resolución de variante y no tiene sentido repetirla.
+  bool? _hayBalanza;
+
+  Future<bool> _hayBalanzaConfigurada() async {
+    final cache = _hayBalanza;
+    if (cache != null) return cache;
+    final lista = await locator<BalanzasManager>().listar();
+    return _hayBalanza = lista.isNotEmpty;
+  }
+
+  /// Pide la cantidad de un granel: **con balanza abre el visor; sin balanza,
+  /// el teclado**.
+  ///
+  /// 🔑 Con una balanza conectada, poner el foco en el campo es el camino
+  /// equivocado: sube el teclado numérico tapando media pantalla para tipear un
+  /// número que la balanza ya sabe. El visor pasa a ser el gesto por defecto y
+  /// el teclado queda como salida —tocando el campo, o cerrando el visor—.
+  ///
   /// Post-frame porque se llama desde `initState` y desde un `setState`: el
   /// campo todavía no existe en el árbol cuando esto corre.
   void _enfocarGranel() {
     if (!_esGranel) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _esGranel) _granelFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_esGranel) return;
+
+      final v = _varianteResuelta;
+      final p = _presentacion;
+      // Solo con la combinación ya resuelta: a medio elegir todavía no se sabe
+      // qué se está pesando.
+      final puedePesar = v != null &&
+          p != null &&
+          presentacionEsPesable(p) &&
+          _balanzaAbiertaPara != v.id &&
+          await _hayBalanzaConfigurada();
+
+      if (!mounted || !_esGranel) return;
+
+      if (puedePesar) {
+        _balanzaAbiertaPara = v.id;
+        await _pesarConBalanza(p);
+        return;
+      }
+      _granelFocus.requestFocus();
     });
+  }
+
+  /// Abre el visor y vuelca el peso en el campo.
+  ///
+  /// Si se cierra sin tomar peso, recién ahí sube el teclado: cancelar no puede
+  /// dejar al cajero sin ninguna forma de cargar la cantidad.
+  Future<void> _pesarConBalanza(UnidadPresentacion p) async {
+    final kilos = await showBalanzaVisor(context, pres: p);
+    if (!mounted) return;
+    if (kilos != null) {
+      _pesoDesdeBalanza(kilos);
+    } else {
+      _granelFocus.requestFocus();
+    }
   }
 
   @override
@@ -876,6 +936,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// cuando ninguna combinación encaja.
   void _limpiarSeleccion() {
     HapticFeedback.lightImpact();
+    // "Limpiar" es empezar de cero: si se vuelve a armar la misma combinación,
+    // la balanza tiene que volver a ofrecerse.
+    _balanzaAbiertaPara = null;
     // Quitar del carrito cada variante de este producto que tenga unidades.
     if (widget.onQuitarUnidad != null) {
       _enCarrito.forEach((vid, qty) {
@@ -932,6 +995,10 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       _buscarCtrl.clear();
       _query = '';
       _grupoExpandido = null;
+      // Se agregó: la próxima vez que se resuelva esta misma variante hay que
+      // volver a ofrecer la balanza. Pesar dos bolsas seguidas del mismo
+      // producto es el caso normal en mostrador, no la excepción.
+      _balanzaAbiertaPara = null;
       _seleccionInicialLimpia();
     });
   }
@@ -1694,6 +1761,19 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     );
   }
 
+  /// Llega un peso de la balanza, ya en la unidad de cobro.
+  ///
+  /// 🔑 Escribe en el MISMO campo que el teclado y llama al MISMO handler. La
+  /// balanza no abre un camino paralelo: si mañana cambia cómo se valida o se
+  /// convierte la cantidad, cambia en un solo lugar.
+  void _pesoDesdeBalanza(double enUnidadDeCobro) {
+    final texto = enUnidadDeCobro
+        .toStringAsFixed(3)
+        .replaceFirst(RegExp(r'\.?0+$'), '');
+    _cantidadGranelCtrl.text = texto;
+    _cantidadDesdeTexto(texto);
+  }
+
   /// Campo decimal en la unidad de cobro, con el equivalente atómico debajo:
   /// que se vea "= 1500 g" es lo que evita cargar 1.5 creyendo que son gramos.
   Widget _buildInputGranel(bool puedeAgregar) {
@@ -1719,6 +1799,12 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
             textStyle:
                 const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             onChanged: _cantidadDesdeTexto,
+            // La balanza reemplaza al teclado: escribe en ESTE campo y sigue
+            // por el mismo camino. Solo aparece si la presentación se pesa —en
+            // una tela vendida por metro no pinta— y si hay balanza cargada.
+            suffixIcon: presentacionEsPesable(p)
+                ? BalanzaBoton(onPeso: _pesoDesdeBalanza, presentacion: p)
+                : null,
           ),
           const SizedBox(height: 2),
           Text(

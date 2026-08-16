@@ -1138,6 +1138,16 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
         routeMatch: const _RouteMatch.startsWith('/empresa/impresoras'),
         onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/impresoras')),
       ),
+      // Balanzas: mismo caso que las impresoras — periférico del mostrador,
+      // no de la empresa— así que va al lado y con el mismo permiso.
+      tile(
+        title: 'Balanzas',
+        icon: Icons.scale,
+        iconColor: Colors.indigo,
+        visible: can(permissions?.canManageCaja),
+        routeMatch: const _RouteMatch.startsWith('/empresa/balanzas'),
+        onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/balanzas')),
+      ),
     ];
   }
 

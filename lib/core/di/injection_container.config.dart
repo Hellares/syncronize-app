@@ -106,6 +106,9 @@ import '../../features/aviso_mantenimiento/presentation/bloc/aviso_configuracion
     as _i410;
 import '../../features/aviso_mantenimiento/presentation/bloc/aviso_list/aviso_list_cubit.dart'
     as _i96;
+import '../../features/balanza/domain/services/balanzas_manager.dart' as _i1009;
+import '../../features/balanza/presentation/bloc/balanzas_list_cubit.dart'
+    as _i783;
 import '../../features/caja/data/datasources/caja_remote_datasource.dart'
     as _i840;
 import '../../features/caja/data/repositories/caja_repository_impl.dart'
@@ -1636,6 +1639,7 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i864.SharedLocationService(),
       dispose: (i) => i.dispose(),
     );
+    gh.lazySingleton<_i1009.BalanzasManager>(() => _i1009.BalanzasManager());
     gh.lazySingleton<_i559.ProductoCatalogoLocalStore>(
       () => _i559.ProductoCatalogoLocalStore(),
     );
@@ -1651,6 +1655,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i361.Dio>(
       () => registerModule.authDio,
       instanceName: 'authDio',
+    );
+    gh.factory<_i783.BalanzasListCubit>(
+      () => _i783.BalanzasListCubit(gh<_i1009.BalanzasManager>()),
     );
     gh.lazySingleton<_i666.SecureStorageService>(
       () => _i666.SecureStorageService(gh<_i558.FlutterSecureStorage>()),
