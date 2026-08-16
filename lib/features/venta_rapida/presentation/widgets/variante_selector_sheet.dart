@@ -10,6 +10,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/busqueda_texto.dart';
 import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../producto/presentation/widgets/abrir_bulto_dialog.dart';
+import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
@@ -110,6 +111,15 @@ const String _kVarianteClave = '__variante__';
 /// y de paso se ve cuáles del catálogo quedaron incompletas.
 const String _kSinAsignar = '__sin_asignar__';
 
+/// Tipo de atributo que guarda un CÓDIGO de la unidad (`AtributoTipo.
+/// codigoBarras`), no un eje por el que se elige.
+///
+/// 🔴 Se escanea ([_escanearCodigo]) pero NO arma grupo del acordeón. Sus
+/// valores son únicos por variante: el grupo tendría un chip por variante y,
+/// peor, resolver la combinación exigiría elegir un código de una pared de
+/// números — con 91 variantes eso deja el sheet inusable.
+const String _kTipoCodigoBarras = 'CODIGO_BARRAS';
+
 /// Ancho reservado a la derecha del header para la X y el precio, que flotan
 /// sobre el contenido. Las líneas que quedan a esa altura lo descuentan.
 const double _anchoFranjaDerecha = 78;
@@ -131,6 +141,15 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// se ven los cuatro juntos, con su stock y su precio.
   final _buscarCtrl = TextEditingController();
   String _query = '';
+
+  /// Último código escaneado que NO terminó eligiendo una combinación, con el
+  /// motivo ya redactado (`null` = fue ambiguo y lo resuelven las tarjetas).
+  ///
+  /// Vale **mientras el buscador siga teniendo ese código**: así se borra solo
+  /// al tipear otra cosa o al elegir, sin depender del `onChanged` del campo
+  /// —que con `debounceDelay.zero` igual llega por un Timer, o sea DESPUÉS del
+  /// setState que lo escribió—.
+  ({String codigo, String? motivo})? _escaneo;
 
   /// Grupo desplegado en el acordeón. Los demás se muestran colapsados en una
   /// sola línea con su valor elegido. `null` = usar el default de
@@ -215,14 +234,22 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     final valores = <String, List<String>>{};
     for (final v in variantes) {
       for (final av in v.atributosValores) {
+        // Los códigos identifican la unidad, no son una opción entre las que
+        // se elige: quedan fuera del acordeón y se llega a ellos escaneando o
+        // tipeándolos en el buscador. Ver [_kTipoCodigoBarras].
+        if (av.atributo.tipo == _kTipoCodigoBarras) continue;
+        // Un valor vacío no es una opción elegible: sería un chip sin texto.
+        // La variante que lo tenga entra igual, por el centinela ([_valorDe]).
+        final valor = av.valor.trim();
+        if (valor.isEmpty) continue;
         final clave = av.atributo.clave;
         if (!valores.containsKey(clave)) {
           valores[clave] = [];
           nombre[clave] = av.atributo.nombre;
           orden.add(clave);
         }
-        if (!valores[clave]!.contains(av.valor)) {
-          valores[clave]!.add(av.valor);
+        if (!valores[clave]!.contains(valor)) {
+          valores[clave]!.add(valor);
         }
       }
     }
@@ -247,9 +274,8 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     // Nombrarla la vuelve elegible y explica el catálogo: se ve cuáles todavía
     // no tienen ese dato cargado.
     for (final clave in orden) {
-      final faltaEnAlguna = variantes.any(
-        (v) => !v.atributosValores.any((a) => a.atributo.clave == clave),
-      );
+      final faltaEnAlguna =
+          variantes.any((v) => _valorDe(v, clave) == null);
       if (faltaEnAlguna) {
         valores[clave]!.add(_kSinAsignar);
       }
@@ -314,6 +340,24 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     return (real - enCarrito).clamp(0, real);
   }
 
+  /// El valor que la variante declara para [clave], o `null` si no lo declara
+  /// **o si lo declara VACÍO**.
+  ///
+  /// 🔴 Vacío cuenta como NO declarado, y es a propósito: un atributo se puede
+  /// agregar sin valor para llenarlo después (el código de barras es el caso
+  /// que lo trajo). Si contara como declarado, el acordeón dibujaría un chip
+  /// SIN TEXTO y esa variante solo se podría elegir tocando ese chip fantasma.
+  /// Tratándolo como ausente entra por el camino que ya existe y está probado:
+  /// el centinela "Sin X asignado".
+  String? _valorDe(ProductoVariante v, String clave) {
+    for (final av in v.atributosValores) {
+      if (av.atributo.clave != clave) continue;
+      final valor = av.valor.trim();
+      return valor.isEmpty ? null : valor;
+    }
+    return null;
+  }
+
   /// ¿La variante satisface todas las claves no-nulas de [sel]?
   ///
   /// ESTRICTO a propósito: si la variante no declara un atributo que [sel]
@@ -329,15 +373,13 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         if (v.nombre != valor) return false;
         continue;
       }
-      final match = v.atributosValores
-          .where((a) => a.atributo.clave == entry.key)
-          .map((a) => a.valor);
+      final actual = _valorDe(v, entry.key);
       if (valor == _kSinAsignar) {
         // Se pidió "sin asignar": coinciden justamente las que NO lo declaran.
-        if (match.isNotEmpty) return false;
+        if (actual != null) return false;
         continue;
       }
-      if (match.isEmpty || match.first != valor) return false;
+      if (actual != valor) return false;
     }
     return true;
   }
@@ -358,9 +400,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   /// grupo deja de pedirse y la variante se resuelve sola.
   bool _grupoAplica(_AtributoGrupo g) {
     if (g.clave == _kVarianteClave) return true;
-    return _candidatas.any(
-      (v) => v.atributosValores.any((a) => a.atributo.clave == g.clave),
-    );
+    return _candidatas.any((v) => _valorDe(v, g.clave) != null);
   }
 
   /// Variante resuelta cuando ya se eligió todo lo que hacía falta elegir.
@@ -419,30 +459,86 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         out.add(v.nombre);
         continue;
       }
-      for (final av in v.atributosValores) {
-        if (av.atributo.clave == g.clave) {
-          out.add(av.valor);
-          break;
-        }
-      }
+      final valor = _valorDe(v, g.clave);
+      if (valor != null) out.add(valor);
     }
     return out;
+  }
+
+  /// Códigos por los que se puede llegar a una variante escaneando o tipeando.
+  ///
+  /// Son TRES fuentes porque el código pudo cargarse en tres lugares distintos
+  /// y el cajero no tiene por qué saber en cuál está:
+  ///  - un atributo de tipo `CODIGO_BARRAS`, que es lo que se carga desde la
+  ///    ficha técnica de la variante;
+  ///  - el campo `codigoBarras` propio de la variante, el del formulario;
+  ///  - el SKU, que en muchos catálogos es justamente lo que se imprime en la
+  ///    etiqueta.
+  List<String> _codigosDe(ProductoVariante v) {
+    final out = <String>[];
+    void agregar(String? s) {
+      final limpio = s?.trim() ?? '';
+      if (limpio.isNotEmpty) out.add(limpio);
+    }
+
+    agregar(v.codigoBarras);
+    agregar(v.sku);
+    for (final av in v.atributosValores) {
+      if (av.atributo.tipo == _kTipoCodigoBarras) agregar(av.valor);
+    }
+    return out;
+  }
+
+  /// A partir de cuántos caracteres una consulta puede ser un código.
+  static const int _kLargoMinimoCodigo = 6;
+
+  /// ¿El buscador por texto tiene que mirar también los códigos?
+  ///
+  /// 🔴 Con consultas cortas NO: los SKU de este catálogo son `VAR-000238`, así
+  /// que buscar "36" —una talla— traería la 000036, que puede ser de cualquier
+  /// talla. Un código tipeado a mano es largo, y el que viene de un escaneo se
+  /// reconoce por [_escaneo] aunque sea corto.
+  bool get _buscaCodigos {
+    final q = _query.trim();
+    return q.length >= _kLargoMinimoCodigo || q == _escaneo?.codigo;
+  }
+
+  /// Variantes cuyo código coincide EXACTO con lo escaneado.
+  ///
+  /// Exacto y no "contiene": un código identifica una unidad, y que el 7501 de
+  /// una aparezca adentro del código de otra no las hace la misma. El buscador
+  /// por texto sí sigue matcheando por fragmento, que es lo que se quiere al
+  /// tipear a mano media etiqueta.
+  List<ProductoVariante> _porCodigo(String codigo) {
+    final buscado = normalizarTexto(codigo);
+    if (buscado.isEmpty) return const [];
+    return _variantes
+        .where((v) => _codigosDe(v).any((c) => normalizarTexto(c) == buscado))
+        .toList();
   }
 
   /// Combinaciones que matchean el buscador, **solo las que tienen stock**:
   /// una tarjeta con 0 unidades no se puede vender y es ruido. Ordenadas por
   /// stock para que lo que más hay quede arriba.
   ///
-  /// Se busca sobre el nombre de la variante MÁS sus valores de atributo, con
-  /// el mismo criterio que el buscador de productos (sin tildes, por palabras
-  /// y exigiéndolas todas), así "mickey invierno" filtra de una.
+  /// Se busca sobre el nombre de la variante MÁS sus valores de atributo y sus
+  /// códigos, con el mismo criterio que el buscador de productos (sin tildes,
+  /// por palabras y exigiéndolas todas), así "mickey invierno" filtra de una.
+  ///
+  /// Los códigos entran acá además de en [_porCodigo] porque la etiqueta se
+  /// puede tipear a mano cuando el lector no engancha, y porque un escaneo
+  /// ambiguo deja el código en el campo esperando que estas tarjetas lo
+  /// resuelvan.
   List<ProductoVariante> get _resultadosBusqueda {
     final terminos = terminosBusqueda(_query);
     if (terminos.isEmpty) return const [];
+    final conCodigos = _buscaCodigos;
     final out = <ProductoVariante>[];
     for (final v in _variantes) {
       if (_stockDisponible(v) <= 0) continue;
-      final texto = '${v.nombre} ${_valoresDe(v).join(' ')}';
+      final texto = conCodigos
+          ? '${v.nombre} ${_valoresDe(v).join(' ')} ${_codigosDe(v).join(' ')}'
+          : '${v.nombre} ${_valoresDe(v).join(' ')}';
       if (coincideTodosLosTerminos(texto, terminos)) out.add(v);
     }
     out.sort((a, b) => _stockDisponible(b).compareTo(_stockDisponible(a)));
@@ -459,13 +555,22 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       if (_grupos.length == 1 && _grupos.first.clave == _kVarianteClave) {
         _seleccion[_kVarianteClave] = v.nombre;
       } else {
+        // Se recorren los GRUPOS, no los valores de la variante. Dos razones:
+        //
+        // 1. Un atributo que no arma grupo —el código de barras— entraría
+        //    igual a la selección, y como `_coincide` la respeta entera el
+        //    acordeón quedaría filtrando por un código: tocar cualquier otro
+        //    chip no encontraría candidatas y diría "sin stock en esta
+        //    combinación" con el stock ahí.
+        // 2. Un grupo que ESTA variante no declara tiene que quedar en el
+        //    centinela, no en null: null lo deja pendiente —el grupo sigue
+        //    aplicando porque alguna hermana sí lo declara— y la combinación
+        //    no se resuelve hasta marcar "Sin X asignado" a mano.
         for (final g in _grupos) {
-          _seleccion[g.clave] = null;
-        }
-        for (final av in v.atributosValores) {
-          _seleccion[av.atributo.clave] = av.valor;
+          _seleccion[g.clave] = _valorDe(v, g.clave) ?? _kSinAsignar;
         }
       }
+      _escaneo = null;
       _grupoExpandido = _grupos.isEmpty ? null : _grupos.last.clave;
       _buscarCtrl.clear();
       _query = '';
@@ -479,6 +584,52 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
       }
     });
     _cargarNivelesResuelta();
+  }
+
+  /// Abre la cámara y resuelve con lo que se haya leído.
+  Future<void> _abrirEscaner() async {
+    final codigo = await showBarcodeScannerPage(context);
+    if (!mounted || codigo == null) return;
+    _escanearCodigo(codigo);
+  }
+
+  /// Resuelve la combinación a partir de un código leído con la cámara.
+  ///
+  /// Un match exacto CON stock la elige, exactamente igual que tocar su
+  /// tarjeta en el buscador. 🔑 **No agrega al carrito solo**: en granel habría
+  /// que saber el peso, y en mostrador la cantidad la termina de decidir el
+  /// cajero. El escaneo reemplaza al armado del acordeón, no a la confirmación.
+  ///
+  /// Todo lo demás —código desconocido, sin stock, o dos variantes con el
+  /// mismo código— deja el código escrito en el buscador, que es desde donde
+  /// se puede seguir a mano, y explica el motivo arriba de los resultados.
+  void _escanearCodigo(String codigo) {
+    final leido = codigo.trim();
+    if (leido.isEmpty) return;
+    final matches = _porCodigo(leido);
+
+    if (matches.length == 1 && _stockDisponible(matches.first) > 0) {
+      _elegirVariante(matches.first);
+      return;
+    }
+
+    final String? motivo;
+    if (matches.isEmpty) {
+      motivo = 'Código «$leido»: ninguna variante de este producto lo tiene.';
+    } else if (matches.length == 1) {
+      motivo = 'Código «$leido»: es «${matches.first.nombre}», '
+          'pero no queda stock en esta sede.';
+    } else {
+      // Ambiguo: que elija de las tarjetas, que ya salen con precio y stock.
+      motivo = null;
+    }
+
+    setState(() {
+      _ultimoAgregado = null;
+      _buscarCtrl.text = leido;
+      _query = leido;
+      _escaneo = (codigo: leido, motivo: motivo);
+    });
   }
 
   /// Stock que quedaría al elegir `valor`, **solo para lo que se vende por
@@ -882,6 +1033,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            _buildAvisoEscaneo(),
                             _buildResultados(),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1275,20 +1427,89 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     if (_variantes.length < 2) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: CustomSearchField(
-        controller: _buscarCtrl,
-        hintText: 'Buscar diseño…',
-        // borderColor: AppColors.blue1,
-        // Sin debounce, igual que el buscador de productos: acá se filtran
-        // las variantes que el sheet ya tiene en memoria, así que esperar
-        // 500 ms solo agregaría lag.
-        debounceDelay: Duration.zero,
-        // Plano: va dentro del header, que ya es una zona densa; la sombra
-        // neumórfica lo despegaría del bloque de la foto y el precio.
-        showShadow: false,
-        // El botón de limpiar lo pone el widget y al tocarlo dispara
-        // `onChanged('')`, así que no hace falta manejarlo aparte.
-        onChanged: (v) => setState(() => _query = v),
+      child: Row(
+        children: [
+          Expanded(child: _buildCampoBusqueda()),
+          const SizedBox(width: 6),
+          _buildBotonEscaner(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCampoBusqueda() {
+    return CustomSearchField(
+      controller: _buscarCtrl,
+      borderColor: AppColors.blue1,
+      hintText: 'Buscar diseño…',
+      // borderColor: AppColors.blue1,
+      // Sin debounce, igual que el buscador de productos: acá se filtran
+      // las variantes que el sheet ya tiene en memoria, así que esperar
+      // 500 ms solo agregaría lag.
+      debounceDelay: Duration.zero,
+      // Plano: va dentro del header, que ya es una zona densa; la sombra
+      // neumórfica lo despegaría del bloque de la foto y el precio.
+      showShadow: false,
+      // El botón de limpiar lo pone el widget y al tocarlo dispara
+      // `onChanged('')`, así que no hace falta manejarlo aparte.
+      onChanged: (v) => setState(() => _query = v),
+    );
+  }
+
+  /// Botón del escáner, AL LADO del campo y no adentro (decisión del user,
+  /// 16-08): como suffix compartía la esquina con la X de limpiar, que aparece
+  /// en cuanto hay texto, y los dos íconos quedaban pegados en un campo que ya
+  /// es angosto.
+  ///
+  /// Va macizo y no como ícono suelto para que se lea como acción y para que
+  /// el área tocable sea el cuadrado entero: 35 px de alto, los mismos que el
+  /// campo, así los dos apoyan en la misma línea.
+  Widget _buildBotonEscaner() {
+    return Material(
+      color: AppColors.blue1,
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        onTap: _abrirEscaner,
+        borderRadius: BorderRadius.circular(6),
+        child: const SizedBox(
+          width: 38,
+          height: 35,
+          child: Center(
+            child: Icon(Icons.qr_code_scanner, size: 19, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// ¿Hay un motivo del último escaneo que explicar, y sigue correspondiendo a
+  /// lo que hay escrito en el buscador?
+  bool get _mostrandoAvisoEscaneo =>
+      _escaneo?.motivo != null && _escaneo?.codigo == _query.trim();
+
+  /// Por qué el último escaneo no eligió nada. Se borra solo: en cuanto el
+  /// buscador deja de tener ese código —porque se tipeó otra cosa, se limpió o
+  /// se eligió una combinación— la condición deja de cumplirse.
+  Widget _buildAvisoEscaneo() {
+    final motivo = _escaneo?.motivo;
+    if (motivo == null || !_mostrandoAvisoEscaneo) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.qr_code_scanner, size: 14, color: Colors.orange.shade800),
+          const SizedBox(width: 6),
+          Expanded(
+            child: AppSubtitle(
+              motivo,
+              fontSize: 11,
+              color: Colors.orange.shade900,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1299,6 +1520,9 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     if (_query.trim().length < 2) return const SizedBox.shrink();
     final res = _resultadosBusqueda;
     if (res.isEmpty) {
+      // El aviso del escaneo ya dice qué pasó, y con más precisión que el
+      // texto genérico: repetirlo sería decir dos veces lo mismo.
+      if (_mostrandoAvisoEscaneo) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.only(bottom: 14),
         child: AppSubtitle(
@@ -1559,41 +1783,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
           if (_esGranel)
             _buildInputGranel(puedeAgregar)
           else
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _stepBtn(
-                    Icons.remove,
-                    onTap: puedeAgregar && _cantidad > 1
-                        ? () => _cambiarCantidad(-1)
-                        : null,
-                  ),
-                  Container(
-                    constraints: const BoxConstraints(minWidth: 36),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$_cantidad',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  _stepBtn(
-                    Icons.add,
-                    onTap: puedeAgregar && _cantidad < _stockRestante
-                        ? () => _cambiarCantidad(1)
-                        : null,
-                  ),
-                ],
-              ),
-            ),
+            _buildStepper(puedeAgregar),
           const SizedBox(width: 12),
           // Botón agregar (design system)
           Expanded(
@@ -1618,17 +1808,99 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     );
   }
 
+  /// Stepper de cantidad, el que va al lado del botón de agregar.
+  ///
+  /// Píldora de **35 de alto y radio 18**: los mismos que `CustomButton`
+  /// (`CustomButtonConstants.defaultHeight/defaultBorderRadius`), que es lo que
+  /// tiene pegado a la derecha. Antes medía 38 con radio 10 —el alto salía del
+  /// padding del ícono, nunca se fijó— y los dos juntos se veían desalineados,
+  /// uno más alto y con otra forma que el otro.
+  ///
+  /// 🔑 Va en `Material` y no en un `Container`: sobre un fondo opaco el ripple
+  /// del tap se pinta POR DEBAJO y el botón parece muerto. Con `Material` +
+  /// `clipBehavior` la tinta queda arriba y recortada por la píldora.
+  Widget _buildStepper(bool puedeAgregar) {
+    return Material(
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: Colors.grey.shade300, width: 0.8),
+      ),
+      child: SizedBox(
+        height: 35,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _stepBtn(
+              Icons.remove,
+              onTap: puedeAgregar && _cantidad > 1
+                  ? () => _cambiarCantidad(-1)
+                  : null,
+            ),
+            Container(
+              constraints: const BoxConstraints(minWidth: 30),
+              alignment: Alignment.center,
+              child: Text(
+                '$_cantidad',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: puedeAgregar
+                      ? AppColors.green
+                      : Colors.grey.shade400,
+                ),
+              ),
+            ),
+            _stepBtn(
+              Icons.add,
+              onTap: puedeAgregar && _cantidad < _stockRestante
+                  ? () => _cambiarCantidad(1)
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Un extremo del stepper: círculo tintado de 27 con el ícono adentro.
+  ///
+  /// El área tocable es el ALTO ENTERO de la píldora (35) aunque el círculo
+  /// pintado sea más chico: en mostrador se toca rápido y de costado, y perder
+  /// el tap por dos píxeles se siente como que el botón no responde.
+  ///
+  /// Deshabilitado se apaga el círculo y queda solo el ícono gris: así el
+  /// límite —una unidad, o el stock— se ve sin tener que tocarlo para
+  /// descubrirlo.
   Widget _stepBtn(IconData icon, {VoidCallback? onTap}) {
     final enabled = onTap != null;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Icon(
-          icon,
-          size: 18,
-          color: enabled ? AppColors.blue1 : Colors.grey.shade400,
+      customBorder: const CircleBorder(),
+      child: SizedBox(
+        width: 35,
+        height: 35,
+        child: Center(
+          child: Container(
+            width: 27,
+            height: 27,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: enabled
+                  ? AppColors.blue1.withValues(alpha: 0.10)
+                  : Colors.transparent,
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              // shade400 y no más claro: el "−" arranca deshabilitado —el
+              // sheet abre en 1— y con un gris más suave el stepper se ve
+              // roto en vez de tocando el límite.
+              color: enabled ? AppColors.blue1 : Colors.grey.shade400,
+            ),
+          ),
         ),
       ),
     );

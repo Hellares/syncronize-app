@@ -2,6 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../theme/app_colors.dart';
 
+/// Abre el escáner a pantalla completa y devuelve el código leído, o `null` si
+/// se salió sin leer nada.
+///
+/// Es exactamente lo que hace [BarcodeScannerButton] al tocarlo —misma pantalla,
+/// con linterna y cambio de cámara—, expuesto aparte para cuando el disparador
+/// no es el ícono suelto sino un botón propio.
+Future<String?> showBarcodeScannerPage(BuildContext context) {
+  return Navigator.of(context).push<String>(
+    MaterialPageRoute(builder: (_) => const _BarcodeScannerPage()),
+  );
+}
+
 /// Botón reutilizable que abre un escáner de código de barras.
 /// Al detectar un código, lo retorna via [onScanned] y cierra el escáner.
 ///
@@ -47,9 +59,7 @@ class BarcodeScannerButton extends StatelessWidget {
   }
 
   Future<void> _openScanner(BuildContext context) async {
-    final result = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _BarcodeScannerPage()),
-    );
+    final result = await showBarcodeScannerPage(context);
     if (result != null) {
       onScanned(result);
     }
