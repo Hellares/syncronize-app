@@ -6,11 +6,11 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/widgets/floating_button_text.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../data/datasources/producto_remote_datasource.dart';
-import '../../../../core/theme/gradient_container.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/producto_variante.dart';
 import '../bloc/precio_nivel/precio_nivel_cubit.dart';
@@ -234,42 +234,36 @@ class _ProductoVarianteFormDialogState
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-      child: GradientContainer(
-        // constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.only(right: 14, left: 14, top: 4),
-              child: Row(
-                children: [
-                  const Icon(Icons.tune, color: AppColors.blue1, size: 18,),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppSubtitle(widget.variante == null ? 'NUEVA VARIANTE' : 'EDITAR VARIANTE'),
-                        AppText('Producto: ${widget.productoNombre}',)
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.blue1, size: 18,),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-
-            // Form
-            Expanded(
-              child: Form(
+    // El armado del diálogo —marco, encabezado, scroll y barra de acciones—
+    // pasó a ser el compartido (`StyledDialog`). Antes estaba escrito a mano
+    // acá: otro borde, otro encabezado y una barra de botones gris con línea
+    // arriba, que no coincidía con ningún otro diálogo del módulo.
+    //
+    // La X del encabezado se fue con el cambio: `StyledDialog` no la tiene y
+    // no hace falta, porque "Cancelar" queda FIJO abajo (no scrollea) y el
+    // diálogo se cierra tocando afuera.
+    return StyledDialog(
+      accentColor: AppColors.blue1,
+      icon: Icons.tune,
+      titulo: widget.variante == null ? 'NUEVA VARIANTE' : 'EDITAR VARIANTE',
+      tituloSize: 12,
+      subtituloSize: 10,
+      subtitulo: 'Producto: ${widget.productoNombre}',
+      // 10 por lado = 20 px más de ancho que el default (24). Es un formulario
+      // largo, con campos en fila —SKU + generar, factor + unidad—, y cada
+      // píxel que se le saca al margen se lo gana el contenido.
+      margenHorizontal: 16,
+      content: [
+        Form(
                 key: _formKey,
-                child: ListView(
-                  padding: const EdgeInsets.only(right: 10, left: 10),
+                // 🔑 `stretch` y no `start`: el formulario venía de un
+                // `ListView`, que le da a cada hijo el ancho ENTERO del
+                // viewport. En una Column con `start` el ancho pasa a ser
+                // libre y todo lo que no lo fija solo —containers, filas,
+                // botones— se encogería a su contenido.
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Atributos - Sistema unificado para creación y edición
                     VarianteAtributosSection(
@@ -281,7 +275,7 @@ class _ProductoVarianteFormDialogState
 
                     // Información básica
                     AppSubtitle('INFORMACION BASICA'),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
 
                     CustomText(
                       borderColor: AppColors.blue1,
@@ -377,33 +371,23 @@ class _ProductoVarianteFormDialogState
                         )
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 10),
 
                     // Precios y Stock - se gestionan por sede vía ProductoStock
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'El precio se hereda del producto base. El stock se configura desde inventario.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue.shade700, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: AppSubtitle(
+                            'El precio se hereda del producto base. El stock se configura desde inventario.',
+                            
+                            color: AppColors.blueGrey,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 18),
 
                     // ─── Unidad propia de la variante ───────────────
                     // Casi ninguna variante la necesita: un color o una talla
@@ -435,7 +419,7 @@ class _ProductoVarianteFormDialogState
                         );
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
 
                     // Presentación PROPIA de la variante. Se reusa la misma
                     // sección del formulario de producto: la regla es idéntica
@@ -450,7 +434,7 @@ class _ProductoVarianteFormDialogState
                           setState(() => _unidadPresentacionId = v),
                       onChanged: () => setState(() {}),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
 
                     // Vínculo de apertura (saco cerrado → granel).
                     VarianteAperturaSection(
@@ -461,12 +445,12 @@ class _ProductoVarianteFormDialogState
                           setState(() => _varianteAperturaId = v),
                       onChanged: () => setState(() {}),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 15),
 
                     // Niveles de precio (solo en modo edición)
                     if (widget.variante != null) ...[
                       _buildPrecioNivelesSection(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
                     ],
 
                     // Peso
@@ -483,7 +467,7 @@ class _ProductoVarianteFormDialogState
                             RegExp(r'^\d+\.?\d{0,2}')),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 10),
 
                     // Estado
                     CustomSwitchTile(
@@ -543,43 +527,28 @@ class _ProductoVarianteFormDialogState
                       ),
                   ],
                 ),
-              ),
-            ),
-
-            // Actions
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: CustomButton(
-                      text: 'Cancelar',
-                      backgroundColor: AppColors.white,
-                      borderColor: Colors.grey.shade400,
-                      textColor: Colors.grey.shade700,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: CustomButton(
-                      text: 'Guardar',
-                      backgroundColor: AppColors.blue1,
-                      iconColor: AppColors.white,
-                      icon: const Icon(Icons.save, size: 16, color: Colors.white),
-                      onPressed: _save,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
-      ),
+      ],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            backgroundColor: AppColors.white,
+            borderColor: Colors.grey.shade400,
+            textColor: Colors.grey.shade700,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Guardar',
+            backgroundColor: AppColors.blue1,
+            iconColor: AppColors.white,
+            icon: const Icon(Icons.save, size: 16, color: Colors.white),
+            onPressed: _save,
+          ),
+        ),
+      ],
     );
   }
 
@@ -621,6 +590,7 @@ class _ProductoVarianteFormDialogState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No se puede activar una variante cuando el producto padre está inactivo'),
+
           backgroundColor: Colors.red,
         ),
       );

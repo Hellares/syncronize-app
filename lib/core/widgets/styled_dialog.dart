@@ -17,10 +17,20 @@ import '../theme/gradient_container.dart';
 ///   ),
 /// );
 /// ```
+///
+/// Los tamaños del encabezado (`iconSize`, `tituloSize`, `subtituloSize`)
+/// vienen con el default de siempre y se pasan solo cuando un diálogo puntual
+/// necesita otra cosa.
 class StyledDialog extends StatelessWidget {
   final Color accentColor;
   final IconData icon;
   final String titulo;
+
+  /// Segunda línea del encabezado, en gris y chica. Para el contexto que el
+  /// título no puede cargar sin volverse ilegible: de qué producto es la
+  /// variante que se está editando, de qué cliente la deuda, etc.
+  final String? subtitulo;
+
   final List<Widget> content;
   final List<Widget> actions;
   final bool barrierDismissible;
@@ -29,23 +39,62 @@ class StyledDialog extends StatelessWidget {
   /// Null = gradiente default del GradientContainer.
   final Color? backgroundColor;
 
+  /// Tamaños del encabezado. Los defaults son los de siempre; se tocan cuando
+  /// un diálogo puntual lo pide —un título largo que necesita respirar, o uno
+  /// muy corto al que le queda bien más presencia—.
+  ///
+  /// 🔑 La caja tintada del ícono NO se fija: envuelve al ícono con su padding,
+  /// así que crece y se achica sola con [iconSize] y no hay dos números que
+  /// mantener en sincronía.
+  final double iconSize;
+  final double tituloSize;
+  final double subtituloSize;
+
+  /// Ancho fijo del diálogo.
+  ///
+  /// `null` (default) = **lo decide el contenido**: el diálogo se encoge hasta
+  /// el hijo más ancho, que es por lo que a veces sale angosto sin que nadie
+  /// lo haya pedido. Para que ocupe todo lo que da la pantalla:
+  /// `ancho: double.infinity`.
+  ///
+  /// ⚠️ Por debajo de 280 no baja: ese mínimo lo impone el `Dialog` de
+  /// Material, no este widget.
+  final double? ancho;
+
+  /// Cuánto aire queda a cada costado. Es el TECHO real del ancho: bajarlo es
+  /// la forma de ganar pantalla cuando [ancho] queda en null.
+  final double margenHorizontal;
+
   const StyledDialog({
     super.key,
     required this.accentColor,
     required this.icon,
     required this.titulo,
+    this.subtitulo,
     required this.content,
     this.actions = const [],
     this.barrierDismissible = true,
     this.backgroundColor,
+    this.iconSize = 18,
+    this.tituloSize = 13,
+    this.subtituloSize = 11,
+    this.ancho,
+    this.margenHorizontal = 24,
   });
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: GradientContainer(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: margenHorizontal,
+        vertical: 20,
+      ),
+      // Con `ancho` en null el SizedBox deja pasar las restricciones tal cual,
+      // así que no cambia nada de lo que ya existía.
+      child: SizedBox(
+        width: ancho,
+        child: GradientContainer(
         // GradientContainer no acepta color sólido: se simula con un
         // gradiente plano del mismo color.
         gradient: backgroundColor != null
@@ -61,7 +110,7 @@ class StyledDialog extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.only(top: 8, bottom: 15, left: 10, right: 10),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,21 +122,37 @@ class StyledDialog extends StatelessWidget {
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: accentColor, size: 18),
+                  child: Icon(icon, color: accentColor, size: iconSize),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    titulo,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: accentColor,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        titulo,
+                        style: TextStyle(
+                          fontSize: tituloSize,
+                          fontWeight: FontWeight.bold,
+                          color: accentColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (subtitulo != null)
+                        Text(
+                          subtitulo!,
+                          style: TextStyle(
+                            fontSize: subtituloSize,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -116,6 +181,7 @@ class StyledDialog extends StatelessWidget {
             ],
           ],
         ),
+        ),
       ),
     );
   }
@@ -125,10 +191,16 @@ class StyledDialog extends StatelessWidget {
     required Color accentColor,
     required IconData icon,
     required String titulo,
+    String? subtitulo,
     required List<Widget> content,
     List<Widget> actions = const [],
     bool barrierDismissible = true,
     Color? backgroundColor,
+    double iconSize = 18,
+    double tituloSize = 13,
+    double subtituloSize = 11,
+    double? ancho,
+    double margenHorizontal = 24,
   }) {
     return showDialog<T>(
       context: context,
@@ -137,9 +209,15 @@ class StyledDialog extends StatelessWidget {
         accentColor: accentColor,
         icon: icon,
         titulo: titulo,
+        subtitulo: subtitulo,
         content: content,
         actions: actions,
         backgroundColor: backgroundColor,
+        iconSize: iconSize,
+        tituloSize: tituloSize,
+        subtituloSize: subtituloSize,
+        ancho: ancho,
+        margenHorizontal: margenHorizontal,
       ),
     );
   }
