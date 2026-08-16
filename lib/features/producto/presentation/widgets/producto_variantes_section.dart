@@ -183,21 +183,61 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
               // const SizedBox(height: 6),
             ],
 
-            // Lista de variantes
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: widget.variantes.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final variante = widget.variantes[index];
-                final isSelected = _selectedVariante?.id == variante.id;
-
-                return _buildVarianteCard(variante, isSelected);
-              },
-            ),
+            // Lista de variantes.
+            //
+            // 🔴 Con muchas variantes —EDREDONES tiene 62— la tarjeta crecía
+            // hasta empujar el precio, el stock y todo lo de abajo fuera de la
+            // pantalla. Se le pone techo a la ALTURA DE LA LISTA, no de la
+            // sección: los chips de la variante elegida quedan arriba, fijos,
+            // y solo scrollea el listado.
+            //
+            // Con pocas variantes no se acota: una lista de 2 con hueco para 5
+            // se vería como un cajón vacío.
+            _buildListaVariantes(),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Cuántas tarjetas se ven antes de tener que scrollear.
+  static const int _varianteVisibles = 5;
+
+  /// Alto aproximado de una tarjeta con su separador. No hace falta que sea
+  /// exacto: define cuántas se asoman, y que la quinta quede cortada al medio
+  /// es incluso mejor — se ve que hay más abajo.
+  static const double _altoTarjeta = 86;
+
+  Widget _buildListaVariantes() {
+    final conScroll = widget.variantes.length > _varianteVisibles;
+
+    final lista = ListView.separated(
+      // Sin `shrinkWrap` cuando scrollea: con 62 tarjetas, medirlas todas para
+      // saber el alto total es trabajo tirado, y encima las construye a todas.
+      shrinkWrap: !conScroll,
+      physics: conScroll
+          ? const ClampingScrollPhysics()
+          : const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: widget.variantes.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final variante = widget.variantes[index];
+        final isSelected = _selectedVariante?.id == variante.id;
+
+        return _buildVarianteCard(variante, isSelected);
+      },
+    );
+
+    if (!conScroll) return lista;
+
+    return SizedBox(
+      height: _varianteVisibles * _altoTarjeta,
+      child: Scrollbar(
+        // La barrita se queda visible: sin ella, dentro de una página que ya
+        // scrollea no hay nada que anuncie que ESTE bloque también scrollea.
+        thumbVisibility: true,
+        child: lista,
       ),
     );
   }

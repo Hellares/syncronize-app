@@ -127,7 +127,7 @@ class _ProductoUnidadPresentacionSectionState
     return GradientContainer(
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
-      padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 12),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 2, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

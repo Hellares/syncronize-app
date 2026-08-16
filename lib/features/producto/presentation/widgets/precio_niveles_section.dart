@@ -87,7 +87,7 @@ class _PrecioNivelesSectionState extends State<PrecioNivelesSection> {
       shadowStyle: ShadowStyle.neumorphic,
       borderColor: AppColors.blueborder,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
