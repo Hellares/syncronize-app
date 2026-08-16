@@ -235,19 +235,39 @@ class VentaDetalleInput {
 
   double get subtotalBruto => cantidad * precioUnitario - descuento;
 
-  double get subtotal {
-    if (precioIncluyeIgv) {
-      return subtotalBruto / (1 + porcentajeIGV / 100);
-    }
-    return subtotalBruto;
-  }
+  /// Redondeo a centavos.
+  ///
+  /// 🔴 Tiene que dar EXACTAMENTE lo mismo que el `round2` del backend
+  /// (`Math.round(n * 100) / 100`), porque el carrito muestra y cobra un monto
+  /// que el servidor vuelve a calcular: si difieren en un centavo, el pago
+  /// entra corto y la venta queda impaga para siempre. `(v * 100).round()` de
+  /// Dart y `Math.round(v * 100)` de JS coinciden en montos positivos —los dos
+  /// suben el medio centavo—, que es lo único que hay en una línea de venta.
+  double _round2(double v) => (v * 100).round() / 100;
 
-  double get igv => subtotal * (porcentajeIGV / 100);
+  double get _subtotalExacto => precioIncluyeIgv
+      ? subtotalBruto / (1 + porcentajeIGV / 100)
+      : subtotalBruto;
 
-  double get total {
-    final base = precioIncluyeIgv ? subtotalBruto : subtotal + igv;
-    return base + icbper;
-  }
+  double get _totalExacto =>
+      (precioIncluyeIgv
+          ? subtotalBruto
+          : _subtotalExacto * (1 + porcentajeIGV / 100)) +
+      icbper;
+
+  /// 🔑 Los tres van redondeados y CUADRADOS: `subtotal + igv + icbper` da
+  /// `total`, siempre. Antes ninguno se redondeaba, así que una línea a granel
+  /// arrastraba fracciones de centavo (1237 g × 0.015 = 18.555) y el carrito
+  /// terminaba cobrando 192.16 sobre una venta que el backend guardaba en
+  /// 192.17. Ver `montos-linea.util.ts`, que hace esta misma cuenta del otro
+  /// lado.
+  double get total => _round2(_totalExacto);
+
+  double get subtotal => _round2(_subtotalExacto);
+
+  /// Por diferencia, no por porcentaje: es lo que hace que las partes sumen el
+  /// total. El centavo que no entra en ningún lado lo absorbe el IGV.
+  double get igv => _round2(total - icbper - subtotal);
 
   Map<String, dynamic> toMap() => {
         if (productoId != null) 'productoId': productoId,
