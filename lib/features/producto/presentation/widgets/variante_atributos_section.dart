@@ -59,13 +59,7 @@ class VarianteAtributosSection extends StatelessWidget {
       },
       builder: (context, state) {
         if (state is VarianteAtributoLoading) {
-          return const Card(
-            elevation: 2,
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          );
+          return _buildCargando(context);
         }
 
         if (state is VarianteAtributoLoaded || state is VarianteAtributoSaved) {
@@ -76,42 +70,18 @@ class VarianteAtributosSection extends StatelessWidget {
               state is VarianteAtributoLoaded ? state.isLoading : false;
 
           return GradientContainer(
+            borderRadius: BorderRadius.circular(6),
+            gradient: AppGradients.sinfondo,
             borderColor: AppColors.blueborder,
             child: Padding(
-              padding: const EdgeInsets.only(right: 10, left: 10, bottom: 10),
+              padding: const EdgeInsets.only(right: 10, left: 10, bottom: 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.label_outline, size: 16),
-                          const SizedBox(width: 8),
-                          AppSubtitle('Atributos de la Variante')
-                        ],
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (showPlantillaButton && empresaId != null)
-                            TextButton.icon(
-                              onPressed: isLoading ? null : () => _showPlantillaSelector(context),
-                              icon: const Icon(Icons.auto_awesome, size: 16, color: AppColors.blue1,),
-                              label: AppSubtitle('Plantilla')
-                            ),
-                          if (atributoValores.isNotEmpty)
-                            IconButton(
-                              onPressed: isLoading
-                                  ? null
-                                  : () => _showAddAtributoDialog(context),
-                              icon: const Icon(Icons.add,
-                                  size: 18, color: AppColors.blue1),
-                            ),
-                        ],
-                      ),
-                    ],
+                  _buildEncabezado(
+                    context,
+                    habilitado: !isLoading,
+                    mostrarAgregar: atributoValores.isNotEmpty,
                   ),
                   // const SizedBox(height: 10),
                   if (atributoValores.isEmpty) ...[
@@ -191,40 +161,191 @@ class VarianteAtributosSection extends StatelessWidget {
     );
   }
 
+  /// Encabezado de la sección. Lo comparten el estado cargado y el de carga,
+  /// para que al llegar los datos no se mueva ni un píxel.
+  Widget _buildEncabezado(
+    BuildContext context, {
+    required bool habilitado,
+    required bool mostrarAgregar,
+  }) {
+    // 🔴 El aire de más entre el título y el borde de arriba NO era padding:
+    // lo ponían los BOTONES. Un `IconButton` de M3 mide 48 de alto —el piso
+    // sale del `tapTargetSize`— y un `TextButton` 36 más su padding, así que
+    // esta Row medía 48 y el título quedaba centrado contra eso: ~17 px de
+    // vacío arriba y otros tantos abajo, sin que nadie los hubiera escrito.
+    //
+    // Los dos se achican a mano y la fila pasa a medir lo que ocupa el texto.
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.label_outline, size: 16),
+            const SizedBox(width: 8),
+            AppSubtitle('Atributos de la Variante')
+          ],
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showPlantillaButton && empresaId != null)
+              TextButton.icon(
+                onPressed:
+                    habilitado ? () => _showPlantillaSelector(context) : null,
+                style: TextButton.styleFrom(
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.auto_awesome,
+                    size: 16, color: AppColors.blue1),
+                label: AppSubtitle('Plantilla'),
+              ),
+            if (mostrarAgregar)
+              // El mismo botón compacto de 30 que usan las filas de atributo.
+              _accionAtributo(
+                Icons.add,
+                color: AppColors.blue1,
+                onTap:
+                    habilitado ? () => _showAddAtributoDialog(context) : null,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Estado de carga: el MISMO contenedor y encabezado, con dos filas fantasma
+  /// del alto real.
+  ///
+  /// Antes era un `CircularProgressIndicator` centrado que reemplazaba la
+  /// sección entera: el bloque se vaciaba, aparecía la rueda y se volvía a
+  /// llenar, así que además de duro hacía saltar todo lo que tiene debajo en
+  /// el formulario. Acá no se mueve nada — solo se completan los huecos.
+  Widget _buildCargando(BuildContext context) {
+    return GradientContainer(
+      borderColor: AppColors.blueborder,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 10, left: 10, bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildEncabezado(context, habilitado: false, mostrarAgregar: true),
+            const _FilaFantasma(),
+            const _FilaFantasma(),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAtributoCard(
     BuildContext context,
     AtributoValor atributoValor,
     bool isLoading,
   ) {
+    final valor = atributoValor.valor.trim();
+    final vacio = valor.isEmpty;
     return GradientContainer(
       borderColor: AppColors.blueborder,
+      borderRadius: BorderRadius.circular(4),
       gradient: AppGradients.sinfondo,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        visualDensity: VisualDensity.compact,
-        dense: true,
-        leading: Icon(_getAtributoIcon(atributoValor.atributo.clave), size: 16,),
-        title: Text(
-          atributoValor.atributo.nombre,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-        ),
-        subtitle: Text(atributoValor.valor),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit, size: 18),
-              onPressed: isLoading
-                  ? null
-                  : () => _showEditAtributoDialog(context, atributoValor),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(left: 10, top:3, bottom: 3, right: 6),
+      child: Row(
+        children: [
+          Icon(
+            _getAtributoIcon(atributoValor.atributo.clave),
+            size: 13,
+            color: AppColors.blue1,
+          ),
+          const SizedBox(width: 7),
+          // Nombre arriba, valor abajo.
+          //
+          // 🔑 Va en `Expanded` y no en `Flexible`: Expanded se queda con el
+          // ancho sobrante ENTERO, y eso es lo que empuja los íconos contra el
+          // borde derecho. Con Flexible la columna se encoge hasta el texto y
+          // los botones quedan flotando pegados a él, corriéndose de fila en
+          // fila según el largo del valor.
+          //
+          // Las dos líneas NO agrandan la fila: dos renglones de 10 suman ~28
+          // y el alto lo sigue fijando el botón de 30.
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppSubtitle(
+                  atributoValor.atributo.nombre,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                AppSubtitle(
+                  // Un atributo puede estar asignado SIN valor: se agrega
+                  // ahora y se llena después. Sin este texto la fila queda
+                  // muda y parece que algo se rompió.
+                  vacio ? 'Sin cargar' : valor,
+                  fontSize: 9,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  color: vacio ? Colors.orange.shade700 : Colors.grey[700],
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-              onPressed: isLoading
-                  ? null
-                  : () => _confirmRemoveAtributo(context, atributoValor),
+          ),
+          const SizedBox(width: 6),
+          _accionAtributo(
+            Icons.edit,
+            color: AppColors.blue1,
+            onTap: isLoading
+                ? null
+                : () => _showEditAtributoDialog(context, atributoValor),
+          ),
+          _accionAtributo(
+            Icons.delete_outline,
+            color: Colors.red,
+            onTap: isLoading
+                ? null
+                : () => _confirmRemoveAtributo(context, atributoValor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Acción de la fila de un atributo: 30×30.
+  ///
+  /// 🔴 No es un `IconButton`: en M3 su alto mínimo sale del `tapTargetSize`,
+  /// no del padding, así que ni con `visualDensity.compact` bajaba de ~40 y
+  /// era ÉL —no el texto— el que fijaba el alto de la fila. Con 30 la fila
+  /// entera mide 30, y sigue siendo un blanco cómodo dentro de una lista.
+  ///
+  /// El `Material` transparente es para que el ripple se pinte ARRIBA del
+  /// gradiente del contenedor; sin él la tinta queda por debajo y no se ve.
+  Widget _accionAtributo(
+    IconData icon, {
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 15,
+              color: onTap == null ? Colors.grey.shade400 : color,
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -279,8 +400,18 @@ class VarianteAtributosSection extends StatelessWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setStateDialog) {
-          final puedeAgregar =
-              selectedAtributo != null && valor.trim().isNotEmpty;
+          // El valor solo se EXIGE si el atributo está marcado como requerido.
+          //
+          // 🔑 Antes se exigía siempre, y eso obligaba a tener el dato a mano
+          // en el momento de agregar el campo: agregar CÓDIGO DE BARRAS a una
+          // variante no se podía hacer sin el código escaneado ahí mismo.
+          // Ahora el campo se puede dejar vacío y llenarse después, que es
+          // como se trabaja en el mostrador.
+          //
+          // No es una regla nueva: `AtributoInputWidget` ya ofrece la opción
+          // vacía en los SELECT no requeridos. Este gate la contradecía.
+          final puedeAgregar = selectedAtributo != null &&
+              (!selectedAtributo!.requerido || valor.trim().isNotEmpty);
           return StyledDialog(
             accentColor: AppColors.blue1,
             icon: Icons.label_outline,
@@ -447,7 +578,14 @@ class VarianteAtributosSection extends StatelessWidget {
                 child: CustomButton(
                   text: 'Guardar',
                   backgroundColor: AppColors.blue1,
-                  enabled: valor.trim().isNotEmpty,
+                  // Igual que al agregar: vaciar el valor es legítimo mientras
+                  // el atributo no sea requerido —así se borra un código mal
+                  // cargado sin tener que quitar el campo entero—. Si no se
+                  // encontró la definición del atributo se permite: ahí el
+                  // input es texto libre y el backend igual valida.
+                  enabled: productoAtributo == null ||
+                      !productoAtributo.requerido ||
+                      valor.trim().isNotEmpty,
                   icon: const Icon(Icons.check, size: 16, color: Colors.white),
                   onPressed: () {
                     cubit.updateAtributo(
@@ -789,6 +927,76 @@ class VarianteAtributosSection extends StatelessWidget {
       // dependiente queda bloqueado para siempre.
       opciones: atributoInfo.opciones,
       dependeDeAtributoId: atributoInfo.dependeDeAtributoId,
+    );
+  }
+}
+
+/// Fila fantasma del listado de atributos, para mientras cargan.
+///
+/// Es a propósito una silueta y no un spinner: la rueda solo dice "algo está
+/// pasando", la silueta dice ADEMÁS *qué* está por aparecer y dónde. Y como
+/// mide lo mismo que la fila real (30 + 6 de separación), cuando llegan los
+/// datos no salta nada.
+///
+/// El latido es de opacidad y va lento (900 ms, ida y vuelta): lo justo para
+/// que se lea como "cargando" y no como contenido gris roto.
+class _FilaFantasma extends StatefulWidget {
+  const _FilaFantasma();
+
+  @override
+  State<_FilaFantasma> createState() => _FilaFantasmaState();
+}
+
+class _FilaFantasmaState extends State<_FilaFantasma>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.30, end: 0.70).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      ),
+      child: Container(
+        height: 30,
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.only(left: 10),
+        child: Row(
+          children: [
+            _barra(13, 13, redonda: true),
+            const SizedBox(width: 7),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _barra(64, 8),
+                const SizedBox(height: 5),
+                _barra(104, 8),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _barra(double ancho, double alto, {bool redonda = false}) {
+    return Container(
+      width: ancho,
+      height: alto,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(redonda ? alto / 2 : 3),
+      ),
     );
   }
 }

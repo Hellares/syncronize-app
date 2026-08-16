@@ -270,12 +270,18 @@ class VarianteAtributoCubit extends Cubit<VarianteAtributoState> {
 
   /// Obtiene los atributos en formato DTO para enviar al backend.
   /// Solo envía atributoId y valor — nunca envía IDs temporales.
+  ///
+  /// 🔴 Los valores VACÍOS también viajan. Un atributo se puede agregar sin
+  /// valor para llenarlo después —el código de barras es el caso—, y como el
+  /// endpoint REEMPLAZA la ficha entera, filtrarlos acá no era "no mandar un
+  /// dato": era BORRAR el campo. Se agregaba, se veía en la lista, se
+  /// guardaba, y al recargar no estaba. Sin ningún error.
   List<Map<String, dynamic>> getAtributosAsDto() {
     final currentState = state;
     if (currentState is! VarianteAtributoLoaded) return [];
 
     return currentState.atributoValores
-        .where((av) => av.valor.isNotEmpty && av.atributoId.isNotEmpty)
+        .where((av) => av.atributoId.isNotEmpty)
         .map((av) => {
               'atributoId': av.atributoId,
               'valor': av.valor,
