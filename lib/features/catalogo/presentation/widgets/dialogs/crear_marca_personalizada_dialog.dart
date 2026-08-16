@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/custom_button.dart';
+import 'package:syncronize/core/widgets/snack_bar_helper.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../../../../core/utils/resource.dart';
 import '../../bloc/marcas_empresa/marcas_empresa_cubit.dart';
 
-/// Diálogo para crear una marca personalizada
+/// Diálogo para crear una marca personalizada.
+///
+/// Gemelo del de categorías: mismo `StyledDialog`, mismos inputs y el acento
+/// azul de la pantalla a la que pertenece. Antes era un `AlertDialog` pelado
+/// con `TextFormField` de Material y acento violeta.
 class CrearMarcaPersonalizadaDialog extends StatefulWidget {
   final String empresaId;
 
@@ -35,82 +44,56 @@ class _CrearMarcaPersonalizadaDialogState
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Crear Marca Personalizada'),
-      content: SingleChildScrollView(
-        child: Form(
+    return StyledDialog(
+      accentColor: AppColors.blue1,
+      icon: Icons.sell_outlined,
+      titulo: 'Nueva marca',
+      // El "es exclusiva de tu empresa" vivía en un recuadro de cuatro
+      // renglones para decir una línea; como subtítulo dice lo mismo y el
+      // diálogo entra sin scroll.
+      subtitulo: 'Exclusiva de tu empresa',
+      content: [
+        Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Información
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, color: Colors.purple),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Esta marca será exclusiva de tu empresa',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.purple.shade900,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Campo nombre (requerido)
-              TextFormField(
+              CustomText(
                 controller: _nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre *',
-                  hintText: 'Ej: Mi Marca Exclusiva',
-                  border: OutlineInputBorder(),
-                ),
+                borderColor: AppColors.blue1,
+                label: 'Nombre *',
+                hintText: 'Ej: Mi Marca Exclusiva',
+                prefixIcon: const Icon(Icons.label_outline),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'El nombre es requerido';
                   }
+                  // Dos y no tres como en categorías: hay marcas de dos letras
+                  // (3M, LG) y el mínimo de categorías las rechazaría.
                   if (value.trim().length < 2) {
                     return 'El nombre debe tener al menos 2 caracteres';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-
-              // Campo descripción (opcional)
-              TextFormField(
+              const SizedBox(height: 12),
+              CustomText(
                 controller: _descripcionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción (opcional)',
-                  hintText: 'Describe esta marca...',
-                  border: OutlineInputBorder(),
-                ),
+                borderColor: AppColors.blue1,
+                label: 'Descripción (opcional)',
+                hintText: 'Describe esta marca…',
                 maxLines: 3,
                 maxLength: 200,
               ),
-              const SizedBox(height: 16),
-
-              // Campo orden (opcional)
-              TextFormField(
+              const SizedBox(height: 12),
+              CustomText(
                 controller: _ordenController,
-                decoration: const InputDecoration(
-                  labelText: 'Orden de visualización (opcional)',
-                  hintText: 'Ej: 1, 2, 3...',
-                  border: OutlineInputBorder(),
-                  helperText: 'Menor número aparece primero',
-                ),
+                borderColor: AppColors.blue1,
+                label: 'Orden (opcional)',
+                hintText: 'Ej: 1, 2, 3…',
+                helperText: 'El menor número aparece primero',
+                prefixIcon: const Icon(Icons.sort),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value != null && value.isNotEmpty) {
@@ -125,21 +108,26 @@ class _CrearMarcaPersonalizadaDialogState
             ],
           ),
         ),
-      ),
+      ],
       actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            backgroundColor: AppColors.white,
+            borderColor: Colors.grey.shade400,
+            textColor: Colors.grey.shade700,
+            enabled: !_isLoading,
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
         ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _crearMarca,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Crear'),
+        Expanded(
+          child: CustomButton(
+            text: _isLoading ? 'Creando…' : 'Crear',
+            backgroundColor: AppColors.blue1,
+            enabled: !_isLoading,
+            icon: const Icon(Icons.check, size: 16, color: Colors.white),
+            onPressed: _crearMarca,
+          ),
         ),
       ],
     );
@@ -163,20 +151,15 @@ class _CrearMarcaPersonalizadaDialogState
           : null,
     );
 
+    // El `mounted` va ANTES del setState: si se cerró el diálogo mientras se
+    // creaba, el setState corría sobre un widget muerto.
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result is Success) {
-      if (mounted) Navigator.of(context).pop(true);
+      Navigator.of(context).pop(true);
     } else if (result is Error) {
-      final error = result;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${error.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      SnackBarHelper.showError(context, result.message);
     }
   }
 }
