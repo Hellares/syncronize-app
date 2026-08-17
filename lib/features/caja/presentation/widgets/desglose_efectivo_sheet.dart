@@ -3,8 +3,10 @@ import 'package:intl/intl.dart';
 
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/confirm_dialog.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
+import '../../domain/services/conteo_borrador_store.dart';
 
 /// Denominaciones de soles peruanos: billetes (200, 100, 50, 20, 10) y
 /// monedas (5, 2, 1, 0.50, 0.20, 0.10). De mayor a menor para que el
@@ -37,10 +39,14 @@ class DesgloseEfectivoResult {
 /// Bottom sheet para que el cajero ingrese cuantos billetes/monedas de
 /// cada denominacion tiene fisicamente. Calcula subtotal y total en vivo.
 /// `initial`: desglose previo (al editar) para precargar.
+/// `borradorScope`: si se pasa, cada tecla se autoguarda en el dispositivo
+/// (ver [ConteoBorradorStore]) y el sheet pide confirmacion antes de que un
+/// descarte accidental se lleve el conteo.
 Future<DesgloseEfectivoResult?> showDesgloseEfectivoSheet(
   BuildContext context, {
   Map<double, int>? initial,
   double? esperado,
+  String? borradorScope,
 }) async {
   return showModalBottomSheet<DesgloseEfectivoResult>(
     context: context,
@@ -49,7 +55,11 @@ Future<DesgloseEfectivoResult?> showDesgloseEfectivoSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => _DesgloseEfectivoSheet(initial: initial, esperado: esperado),
+    builder: (_) => _DesgloseEfectivoSheet(
+      initial: initial,
+      esperado: esperado,
+      borradorScope: borradorScope,
+    ),
   );
 }
 
@@ -60,7 +70,14 @@ class _DesgloseEfectivoSheet extends StatefulWidget {
   /// el esperado y un indicador en vivo de falta/sobra/cuadra.
   final double? esperado;
 
-  const _DesgloseEfectivoSheet({this.initial, this.esperado});
+  /// Clave del borrador autoguardado. `null` desactiva la persistencia.
+  final String? borradorScope;
+
+  const _DesgloseEfectivoSheet({
+    this.initial,
+    this.esperado,
+    this.borradorScope,
+  });
 
   @override
   State<_DesgloseEfectivoSheet> createState() => _DesgloseEfectivoSheetState();
@@ -68,6 +85,7 @@ class _DesgloseEfectivoSheet extends StatefulWidget {
 
 class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
   final Map<double, TextEditingController> _controllers = {};
+  final _store = const ConteoBorradorStore();
 
   @override
   void initState() {
@@ -110,11 +128,63 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
     return result;
   }
 
+  /// Autoguardado: se llama en CADA tecla. El conteo de una caja es trabajo
+  /// manual de varios minutos con las manos ocupadas — que sobreviva no puede
+  /// depender de que el cajero llegue a tocar "Aplicar".
+  void _guardarBorrador() {
+    final scope = widget.borradorScope;
+    if (scope == null) return;
+    // Sin await: escribir en disco no debe frenar el tipeo. Si el proceso
+    // muere entre la tecla y el flush se pierde ESA tecla, no el conteo.
+    _store.guardarDesglose(scope, _cantidadesNoCero(), _total);
+  }
+
+  /// `true` si lo tecleado difiere del desglose con el que se abrió el sheet.
+  /// Es lo que separa un descarte que no cuesta nada de uno que tira trabajo.
+  bool get _hayCambiosSinAplicar =>
+      !mismoDesglose(_cantidadesNoCero(), widget.initial);
+
+  /// Pregunta antes de tirar el conteo. Devuelve `true` si hay que salir.
+  ///
+  /// 🔑 Al descartar a propósito, el borrador vuelve al desglose YA APLICADO.
+  /// Eso es lo que distingue las dos formas de salir con `null`: si el cajero
+  /// descartó, el borrador queda igual al aplicado y la página no cambia nada;
+  /// si salió de cualquier otra forma, el borrador tiene el conteo fresco y la
+  /// página lo levanta.
+  Future<bool> _confirmarDescarte() async {
+    if (!_hayCambiosSinAplicar) return true;
+    final ok = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.warning,
+      title: 'Descartar el conteo',
+      message:
+          'Se pierden los ${NumberFormat.currency(locale: 'es_PE', symbol: 'S/ ', decimalDigits: 2).format(_total)} que llevás contados '
+          'y hay que empezar de cero. Si solo querés salir un momento, cerrá el '
+          'contador: el conteo queda guardado.',
+      confirmText: 'Descartar',
+      cancelText: 'Seguir contando',
+    );
+    if (ok != true) return false;
+    final scope = widget.borradorScope;
+    if (scope != null) {
+      final previo = widget.initial ?? const <double, int>{};
+      var total = 0.0;
+      previo.forEach((d, c) => total += d * c);
+      await _store.guardarDesglose(scope, previo, total);
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currency =
         NumberFormat.currency(locale: 'es_PE', symbol: 'S/ ', decimalDigits: 2);
 
+    // 🔑 Salir del sheet NO pide permiso ni pierde nada: el conteo ya está
+    // guardado y la página lo levanta sola. Solo "Descartar" pregunta, porque
+    // es la única acción que tira trabajo. Por eso tampoco hace falta trabar
+    // el arrastre hacia abajo.
+    //
     // Tocar cualquier zona vacía del sheet quita el foco de los CustomText
     // y oculta el teclado. behavior: opaque para capturar taps sobre áreas
     // sin otro gesture (los taps en los campos siguen enfocándolos).
@@ -163,6 +233,9 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
                         c.clear();
                       }
                       setState(() {});
+                      // Limpiar es intencional: el borrador se va con él, o
+                      // volvería a aparecer la próxima vez que entre.
+                      _guardarBorrador();
                     },
                     child: const Text(
                       'Limpiar',
@@ -235,8 +308,17 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
                 children: [
                   Expanded(
                     child: CustomButton(
-                      onPressed: () => Navigator.pop(context),
-                      text: 'Cancelar',
+                      onPressed: () async {
+                        // Navigator capturado ANTES del await: el diálogo es
+                        // un async gap y después este `context` no sirve.
+                        final navigator = Navigator.of(context);
+                        if (!await _confirmarDescarte()) return;
+                        navigator.pop();
+                      },
+                      // "Descartar", no "Cancelar": salir por cualquier otro
+                      // lado CONSERVA el conteo, así que este botón es el
+                      // único que lo tira y tiene que decirlo.
+                      text: 'Descartar',
                       textColor: AppColors.red,
                       borderColor: AppColors.red,
                       borderWidth: 0.6,
@@ -384,7 +466,10 @@ class _DesgloseEfectivoSheetState extends State<_DesgloseEfectivoSheet> {
             hintText: '0',
             textStyle: TextStyle(fontSize: 13, color: AppColors.blue1, fontWeight: FontWeight.w600),
             height: 38,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) {
+              setState(() {});
+              _guardarBorrador();
+            },
           ),
         ),
         const SizedBox(width: 8),

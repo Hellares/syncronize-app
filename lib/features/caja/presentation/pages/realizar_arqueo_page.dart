@@ -19,12 +19,14 @@ import '../../domain/entities/arqueo_caja.dart';
 import '../../domain/entities/caja.dart';
 import '../../domain/entities/movimiento_caja.dart';
 import '../../domain/entities/resumen_caja.dart';
+import '../../domain/services/conteo_borrador_store.dart';
 import '../bloc/arqueos_caja_cubit.dart';
 import '../bloc/arqueos_caja_state.dart';
 import '../bloc/caja_movimientos_cubit.dart';
 import '../bloc/caja_movimientos_state.dart';
 import '../services/arqueo_caja_esc_pos_generator.dart';
 import '../services/caja_ticket_data.dart';
+import '../widgets/aviso_conteo_recuperado.dart';
 import '../widgets/desglose_efectivo_sheet.dart';
 
 /// Formulario para crear un arqueo de caja (conteo sin cerrar).
@@ -44,16 +46,77 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
   final Map<MetodoPago, TextEditingController> _conteoControllers = {};
   bool _isCreating = false;
 
+  final _borradorStore = const ConteoBorradorStore();
+
+  /// Borrador que se recuperó al entrar. Mientras no sea `null` la pantalla
+  /// muestra el aviso: el cajero TIENE que saber que esos números vienen de
+  /// antes y no de lo que acaba de contar.
+  ConteoBorrador? _borradorRecuperado;
+
+  String get _borradorScope =>
+      ConteoBorradorStore.scopeArqueo(widget.caja.id);
+
   @override
   void initState() {
     super.initState();
     for (final m in MetodoPago.values) {
       _conteoControllers[m] = TextEditingController();
     }
+    _restaurarBorrador();
     // Cargamos movimientos al entrar para tener resumen actualizado.
     context
         .read<CajaMovimientosCubit>()
         .loadMovimientos(widget.caja.id);
+  }
+
+  /// Devuelve a la pantalla el conteo que quedó a medias. Es lectura SÍNCRONA,
+  /// así que entra acá sin async gap: el formulario se pinta ya con los datos
+  /// puestos, sin el parpadeo de aparecer vacío y llenarse solo.
+  void _restaurarBorrador() {
+    final borrador = _borradorStore.leer(_borradorScope);
+    if (borrador == null) return;
+    _borradorRecuperado = borrador;
+    if (borrador.cantidades.isNotEmpty) {
+      _desgloseEfectivo = borrador.cantidades;
+    }
+    if (borrador.conteoEfectivo != null) {
+      _conteoControllers[MetodoPago.efectivo]?.text =
+          borrador.conteoEfectivo!.toStringAsFixed(2);
+    }
+  }
+
+  /// El sheet se cerró sin "Aplicar". Eso NO significa descartar: cada tecla
+  /// quedó guardada, así que traemos ese conteo a la pantalla en vez de
+  /// dejarlo invisible en disco — que era lo que hacía creer que se perdía.
+  ///
+  /// Descartar a propósito también vuelve con `null`, pero en ese caso el
+  /// sheet dejó el borrador igual al desglose ya aplicado, así que no hay
+  /// nada nuevo que traer y no avisamos.
+  void _recuperarConteoAlSalirSinAplicar(
+      TextEditingController conteoEfectivo) {
+    final borrador = _borradorStore.leer(_borradorScope);
+    final cantidades = borrador?.cantidades ?? const <double, int>{};
+    if (mismoDesglose(cantidades, _desgloseEfectivo)) return;
+
+    setState(() {
+      _borradorRecuperado = null;
+      _desgloseEfectivo = cantidades.isEmpty ? null : cantidades;
+      if (borrador?.conteoEfectivo != null) {
+        conteoEfectivo.text = borrador!.conteoEfectivo!.toStringAsFixed(2);
+      }
+    });
+    SnackBarHelper.showSuccess(
+        context, 'Guardamos tu conteo, podés seguir después');
+  }
+
+  /// Descarta el conteo recuperado y deja el formulario en blanco.
+  void _descartarBorrador() {
+    _borradorStore.borrar(_borradorScope);
+    setState(() {
+      _borradorRecuperado = null;
+      _desgloseEfectivo = null;
+      _conteoControllers[MetodoPago.efectivo]?.clear();
+    });
   }
 
   @override
@@ -76,6 +139,11 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
     return BlocListener<ArqueosCajaCubit, ArqueosCajaState>(
       listener: (context, state) {
         if (state is ArqueosCajaLoaded && state.recienCreado != null) {
+          // 🔴 El arqueo se repite sobre la MISMA caja: si el borrador no se
+          // borra acá, el siguiente arqueo abre precargado con el conteo de
+          // este. Son números plausibles, así que el error no se nota.
+          _borradorStore.borrar(_borradorScope);
+
           _imprimirComprobante(state.recienCreado!);
           SnackBarHelper.showSuccess(context, 'Arqueo registrado');
           Navigator.of(context).pop(state.recienCreado);
@@ -318,6 +386,17 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
             color: AppColors.blue3,
           ),
           const SizedBox(height: 8),
+
+          // Aviso de conteo recuperado. Va ARRIBA de las tarjetas para que se
+          // lea antes que los montos que explica.
+          if (_borradorRecuperado != null) ...[
+            AvisoConteoRecuperado(
+              borrador: _borradorRecuperado!,
+              onDescartar: _descartarBorrador,
+            ),
+            const SizedBox(height: 12),
+          ],
+
           ...MetodoPago.values.map((metodo) {
             final detalle = resumen.detalles
                 .where((d) => d.metodoPago == metodo)
@@ -574,7 +653,17 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
                     ),
                     prefixText: 'S/ ',
                     height: 38,
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (v) {
+                      setState(() {});
+                      // Solo el efectivo: es el único que se cuenta a mano y
+                      // el único que el desglose puede reconstruir.
+                      if (esEfectivo) {
+                        _borradorStore.guardarConteoEfectivo(
+                          _borradorScope,
+                          double.tryParse(v.replaceAll(',', '.')),
+                        );
+                      }
+                    },
                   ),
                 ),
               ],
@@ -626,9 +715,16 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
       context,
       initial: _desgloseEfectivo,
       esperado: esperado,
+      borradorScope: _borradorScope,
     );
-    if (result == null) return;
+    if (result == null) {
+      _recuperarConteoAlSalirSinAplicar(conteoEfectivo);
+      return;
+    }
     setState(() {
+      // Aplicar es una decisión del cajero sobre los números: el aviso de
+      // "recuperado" ya no corresponde.
+      _borradorRecuperado = null;
       if (result.cantidades.isEmpty) {
         _desgloseEfectivo = null;
         return;
@@ -637,6 +733,10 @@ class _RealizarArqueoPageState extends State<RealizarArqueoPage> {
       // Auto-completar el conteo del EFECTIVO con el total del desglose.
       conteoEfectivo.text = result.total.toStringAsFixed(2);
     });
+    // Persistir lo aplicado: el sheet guarda mientras se teclea, pero salir de
+    // ESTA página también destruye el state y hay que poder volver.
+    _borradorStore.guardarDesglose(
+        _borradorScope, result.cantidades, result.total);
   }
 
   Widget _buildResumenDesglose(NumberFormat currency) {
