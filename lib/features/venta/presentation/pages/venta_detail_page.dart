@@ -2483,8 +2483,16 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
 
     if (actions.isEmpty) return null;
 
+    // 🔴 `bottomNavigationBar` aplica el safe area inferior SOLO cuando recibe
+    // widgets Material puntuales (`BottomAppBar`, `NavigationBar`...). Con un
+    // `Container` propio no reserva nada y el botón queda debajo de la barra de
+    // navegación del celular: se ve, pero no se puede tocar.
+    //
+    // El `SafeArea` va ADENTRO del widget y no envolviendo al Scaffold, para
+    // que el fondo blanco y la sombra sigan llegando hasta el borde y solo se
+    // corra el contenido. `top: false` porque acá arriba no hay nada que
+    // esquivar.
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -2495,7 +2503,18 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           ),
         ],
       ),
-      child: Row(children: actions),
+      // 🔑 El `SafeArea` va ADENTRO del Container, envolviendo solo el
+      // contenido: así el blanco y la sombra siguen llegando hasta el borde de
+      // la pantalla y lo único que se corre es el botón. Con el SafeArea por
+      // fuera, la franja de la barra de navegación queda del color del fondo y
+      // se ve como un escalón.
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: actions),
+        ),
+      ),
     );
   }
 
