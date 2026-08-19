@@ -7,6 +7,7 @@ import '../../../features/empresa/presentation/bloc/empresa_context/empresa_cont
 import '../../../features/producto/domain/entities/producto_list_item.dart';
 import '../../../features/producto/domain/entities/producto_variante.dart';
 import '../../di/injection_container.dart';
+import '../../utils/unidad_presentacion.dart';
 import '../../fonts/app_text_widgets.dart';
 import '../../theme/app_colors.dart';
 import '../custom_sede_selector.dart';
@@ -53,6 +54,15 @@ class ProductoSedeSelector extends StatefulWidget {
   /// del catálogo es invisible y el usuario termina creándolo duplicado.
   final bool mostrarTodos;
 
+  /// Esconder las variantes que NO se compran: los GRANEL de un par
+  /// SACO→GRANEL, que entran al stock ABRIENDO un bulto.
+  ///
+  /// Default false: vender, mermar o transferir un granel es de todos los
+  /// dias — lo único que no existe es COMPRARLO, porque su costo lo escribe
+  /// la apertura por promedio ponderado. Solo lo prenden los flujos de
+  /// recepción.
+  final bool soloVariantesComprables;
+
   const ProductoSedeSelector({
     super.key,
     required this.empresaId,
@@ -66,6 +76,7 @@ class ProductoSedeSelector extends StatefulWidget {
     this.labelBuilder,
     this.emptyMessage,
     this.mostrarTodos = false,
+    this.soloVariantesComprables = false,
   });
 
   @override
@@ -477,19 +488,42 @@ class _ProductoSedeSelectorState extends State<ProductoSedeSelector> {
     final stock = sedeId != null
         ? (variante.stockEnSede(sedeId) ?? variante.stockTotal)
         : variante.stockTotal;
-    return '${variante.nombre} | S/ ${precio.toStringAsFixed(2)} | Stock: $stock';
+    // En la unidad en la que se le habla al usuario. Un granel se GUARDA en
+    // gramos, pero "S/ 0.01 | Stock: 125000" no le dice nada a nadie: son
+    // S/ 11.00/kg y 125 kg. La presentacion sale de la VARIANTE, que un saco
+    // no hereda los kilos del producto.
+    //
+    // Sin presentacion configurada el texto sale igual que antes, asi que los
+    // productos de tallas y colores no cambian.
+    final pres = _productoSeleccionado?.presentacionDeVariante(variante) ??
+        const UnidadPresentacion.ninguna();
+    return '${variante.nombre} | ${pres.precioTexto(precio)}'
+        ' | Stock: ${pres.cantidadTexto(stock)}';
   }
 
   Widget _buildVarianteDropdown() {
+    // El set se resuelve UNA vez y no por variante: un producto puede tener 91.
+    final ocultas = widget.soloVariantesComprables
+        ? _productoSeleccionado!.destinosDeApertura
+        : const <String>{};
     final variantesActivas = _productoSeleccionado!.variantes!
-        .where((v) => v.isActive)
+        .where((v) => v.isActive && !ocultas.contains(v.id))
         .toList();
 
     if (variantesActivas.isEmpty) {
+      // Se distingue el caso: si TODAS quedaron escondidas por ser graneles,
+      // decir "no hay variantes activas" manda a revisar un producto que está
+      // perfecto. Pasa cuando alguien configuró los graneles pero todavía no
+      // cargó el saco.
+      final todasSonGraneles = ocultas.isNotEmpty &&
+          _productoSeleccionado!.variantes!.any((v) => v.isActive);
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(
-          'No hay variantes activas para este producto',
+          todasSonGraneles
+              ? 'Este producto solo tiene graneles: entran al abrir un bulto, '
+                  'no se compran'
+              : 'No hay variantes activas para este producto',
           style: TextStyle(color: Colors.grey[500], fontSize: 12),
         ),
       );

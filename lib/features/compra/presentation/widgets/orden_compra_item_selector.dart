@@ -874,6 +874,10 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
           // a una sede: hay que poder elegir los que todavía no viven ahí. El
           // backend le crea el ProductoStock al confirmar la compra.
           mostrarTodos: true,
+          // Los GRANEL ni se listan: no se compran, entran al abrir un bulto.
+          // Mostrarlos y recien avisar al elegirlos es tarde — ya se leyó y se
+          // toco una opcion que nunca fue valida.
+          soloVariantesComprables: true,
           label: 'Selecciona un producto *',
           hintText: 'Buscar producto...',
           labelBuilder: (producto) =>
@@ -917,6 +921,27 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
     ProductoVariante? variante,
     required String sedeId,
   }) {
+    // 🔴 Un GRANEL no se compra: entra al stock ABRIENDO un bulto, que es
+    // la operacion que le calcula el costo por promedio ponderado. Cargarlo
+    // aca mete un costo tecleado en ese promedio (el margen queda mintiendo,
+    // sin sintoma) y suma gramos sin descontar ningun saco, con lo que
+    // "cerrados vs abiertos" deja de cerrar.
+    //
+    // RED, no puerta: el dropdown ya no los lista (`soloVariantesComprables`).
+    // Se deja porque este metodo tambien lo llama la creacion rapida de
+    // producto, y porque el filtro del selector es un flag que se puede
+    // apagar sin darse cuenta.
+    if (variante != null && producto.destinosDeApertura.contains(variante.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '${variante.nombre} entra al abrir un bulto: compra el saco'),
+          backgroundColor: Colors.orange.shade800,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     setState(() {
       _productoSeleccionado = producto;
       _varianteSeleccionada = variante;

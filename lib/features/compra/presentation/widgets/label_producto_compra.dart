@@ -13,6 +13,10 @@ import '../../../producto/domain/entities/stock_por_sede_info.dart';
 ///
 /// Casos:
 /// - `Taladro | Stock: 3` — lo normal.
+/// - `ALIMENTO PARA RATON | Stock: 642 kg · 46 und` — con variantes en
+///   unidades distintas se AGRUPA por unidad. Sumarlas daba "642094": los
+///   gramos del granel apilados sobre los sacos cerrados, un número que no es
+///   ni kilos ni sacos y que asusta en una pantalla de compra.
 /// - `Taladro | Stock: 0 · 5 en Chiclayo` — en esta sede no hay, pero en otra
 ///   sí. Sin ese aviso, un 0 pelado esconde que no hace falta comprar: puede
 ///   alcanzar con una transferencia. El dato ya viene en la respuesta del
@@ -27,7 +31,14 @@ String labelProductoCompra(ProductoListItem producto, String? sedeId) {
 
   final esNuevoAca = !productoEstaEnSede(producto, sedeId);
   final enLaSede = esNuevoAca ? 0 : producto.stockConsolidadoEnSede(sedeId);
-  final estado = esNuevoAca ? 'NUEVO en esta sede' : 'Stock: $enLaSede';
+  // Agrupado por unidad cuando las variantes no comparten unidad ("642 kg · 46
+  // und"). Devuelve null si todas usan la misma —colores, tallas— y ahí el
+  // consolidado de siempre alcanza.
+  final porUnidad =
+      esNuevoAca ? null : producto.stockPorVarianteEnSede(sedeId);
+  final estado = esNuevoAca
+      ? 'NUEVO en esta sede'
+      : 'Stock: ${porUnidad ?? enLaSede}';
 
   // El aviso de otras sedes va SOLO cuando acá no hay nada disponible: es el
   // caso donde el dato cambia la decisión. Con stock en la sede, el label se

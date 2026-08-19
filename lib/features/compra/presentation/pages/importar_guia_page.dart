@@ -179,6 +179,8 @@ class _ImportarGuiaPageState extends State<ImportarGuiaPage> {
             // Mapear la guía del proveedor es parte de la recepción: el
             // producto puede no vivir todavía en esta sede.
             mostrarTodos: true,
+            // Misma regla que la compra: un granel no se recibe del proveedor.
+            soloVariantesComprables: true,
             labelBuilder: (producto) =>
                 labelProductoCompra(producto, widget.sedeId),
             onProductoSeleccionado: ({required producto, required sedeId, variante}) =>

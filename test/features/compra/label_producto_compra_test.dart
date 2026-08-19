@@ -19,7 +19,13 @@ void main() {
         cantidad: cantidad,
       );
 
-  ProductoVariante variante(String id, List<StockPorSedeInfo> stocks) =>
+  ProductoVariante variante(
+    String id,
+    List<StockPorSedeInfo> stocks, {
+    String? unidadMedidaId,
+    String? presentacionSimbolo,
+    double? factorPresentacion,
+  }) =>
       ProductoVariante(
         id: id,
         productoId: 'p1',
@@ -27,6 +33,10 @@ void main() {
         nombre: 'Variante $id',
         sku: id,
         codigoEmpresa: id,
+        unidadMedidaId: unidadMedidaId,
+        unidadPresentacionId: presentacionSimbolo != null ? 'u-pres' : null,
+        unidadPresentacionSimbolo: presentacionSimbolo,
+        factorPresentacion: factorPresentacion,
         atributosValores: const [],
         stocksPorSede: stocks,
         isActive: true,
@@ -38,10 +48,11 @@ void main() {
   ProductoListItem producto({
     List<StockPorSedeInfo>? stocks,
     List<ProductoVariante>? variantes,
+    String nombre = 'Taladro',
   }) =>
       ProductoListItem(
         id: 'p1',
-        nombre: 'Taladro',
+        nombre: nombre,
         codigoEmpresa: 'P-001',
         destacado: false,
         isActive: true,
@@ -158,5 +169,73 @@ void main() {
 
   test('sin sede cae al nombre pelado', () {
     expect(labelProductoCompra(producto(), null), 'Taladro');
+  });
+
+  group('stock agrupado por unidad', () {
+    // ALIMENTO PARA RATON: sacos que se cuentan por unidad y graneles que se
+    // guardan en GRAMOS. Sumarlos daba "642094", que no es ni kilos ni sacos.
+    ProductoListItem alimento() => producto(
+          nombre: 'ALIMENTO PARA RATON',
+          variantes: [
+            variante('saco', [stock(sedeA, 46)], unidadMedidaId: 'u-und'),
+            variante(
+              'granel',
+              [stock(sedeA, 642048)],
+              presentacionSimbolo: 'kg',
+              factorPresentacion: 1000,
+            ),
+          ],
+        );
+
+    test('separa los kilos de los sacos en vez de apilarlos', () {
+      final p = alimento();
+
+      expect(
+        labelProductoCompra(p, sedeA),
+        'ALIMENTO PARA RATON | Stock: 46 und · 642.048 kg',
+      );
+      // Lo que se mostraba antes: gramos y sacos en un solo número.
+      expect(p.stockConsolidadoEnSede(sedeA), 642094);
+    });
+
+    test('un producto con variantes de la MISMA unidad no cambia', () {
+      // Tallas y colores: agrupar por unidad no aporta nada y el consolidado
+      // de siempre es más corto.
+      final p = producto(variantes: [
+        variante('rojo', [stock(sedeA, 3)]),
+        variante('azul', [stock(sedeA, 5)]),
+      ]);
+
+      expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 8');
+    });
+
+    test('un producto sin variantes tampoco cambia', () {
+      final p = producto(stocks: [stock(sedeA, 3)]);
+
+      expect(labelProductoCompra(p, sedeA), 'Taladro | Stock: 3');
+    });
+
+    test('NUEVO en la sede gana sobre el desglose', () {
+      // Sin stock acá no hay nada que desglosar, y el aviso de las otras sedes
+      // es el dato que decide.
+      final p = producto(
+        nombre: 'ALIMENTO PARA RATON',
+        variantes: [
+          variante('saco', [stock(sedeB, 46, nombre: 'Chiclayo')],
+              unidadMedidaId: 'u-und'),
+          variante(
+            'granel',
+            [stock(sedeB, 642048, nombre: 'Chiclayo')],
+            presentacionSimbolo: 'kg',
+            factorPresentacion: 1000,
+          ),
+        ],
+      );
+
+      expect(
+        labelProductoCompra(p, sedeA),
+        contains('NUEVO en esta sede'),
+      );
+    });
   });
 }
