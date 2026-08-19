@@ -110,6 +110,30 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
   /// Recibe el state para reaccionar a cambios (ej. mostrar/ocultar botón).
   final Widget Function(BuildContext, TState)? topExtraBuilder;
 
+  /// Con qué filtros se le pide el catálogo al backend. La vista los vuelve a
+  /// aplicar cada vez que se limpia la búsqueda, se escanea o se tocan los
+  /// chips de atributos, así que si no viajaran acá se perderían solos.
+  ///
+  /// 🔴 Se copian campo por campo y NUNCA con `copyWith`: el de
+  /// `ProductoFiltros` no propaga `isActive`, así que copiar dejaría entrar
+  /// productos DESACTIVADOS al POS.
+  ///
+  /// El default es el de venta: activos y sin insumos.
+  final ProductoFiltros filtrosBase;
+
+  /// La grilla se está usando para COMPRAR, no para vender. Cambia cuatro
+  /// cosas que en una venta están bien y en una compra están al revés:
+  ///
+  /// - El número de la card es el COSTO, no el precio de venta.
+  /// - Un producto sin stock se puede tocar: es justo el que hay que reponer.
+  /// - El stock que se muestra no descuenta lo del carrito (comprar SUMA).
+  /// - Se esconde lo que es de venta: ofertas, liquidación y precios por mayor.
+  final bool modoCompra;
+
+  /// Abre el selector de variantes del flujo. Sin esto se abre el de venta,
+  /// que muestra precios de venta y no sirve para elegir qué reponer.
+  final Future<void> Function(ProductoListItem producto)? onAbrirVariantes;
+
   const ProductoSelectorView({
     super.key,
     required this.sedeId,
@@ -126,6 +150,9 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
     required this.atajoTooltip,
     required this.onAtajo,
     this.topExtraBuilder,
+    this.filtrosBase = const ProductoFiltros(isActive: true, esInsumo: false),
+    this.modoCompra = false,
+    this.onAbrirVariantes,
   });
 
   @override
@@ -198,16 +225,36 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
   /// El catálogo local no trae los valores de atributo de cada producto, así
   /// que no hay con qué filtrar en el cliente. Se conserva el texto tipeado
   /// para que combinar buscador y chips no pierda lo uno ni lo otro.
+  /// Los filtros del flujo con la búsqueda y los atributos del momento.
+  ///
+  /// 🔴 Se arma campo por campo a propósito: `ProductoFiltros.copyWith` NO
+  /// propaga `isActive` (ni `soloEliminados`), así que partir del base con un
+  /// copyWith los dejaría en null —"activos y desactivados"— y el POS
+  /// empezaría a ofrecer productos dados de baja.
+  ProductoFiltros _filtros({
+    String? search,
+    Map<String, List<String>> atributos = const {},
+  }) {
+    final base = widget.filtrosBase;
+    return ProductoFiltros(
+      search: (search != null && search.isNotEmpty) ? search : null,
+      limit: base.limit,
+      isActive: base.isActive,
+      esInsumo: base.esInsumo,
+      mostrarTodos: base.mostrarTodos,
+      soloProductos: base.soloProductos,
+      soloCombos: base.soloCombos,
+      empresaCategoriaId: base.empresaCategoriaId,
+      empresaMarcaId: base.empresaMarcaId,
+      atributos: atributos,
+    );
+  }
+
   void _aplicarFiltroAtributos(Map<String, List<String>> nueva) {
     setState(() => _filtrosAtributos = nueva);
     final texto = _searchCtrl.text.trim();
     context.read<ProductoListCubit>().applyFiltros(
-          ProductoFiltros(
-            search: texto.isEmpty ? null : texto,
-            isActive: true,
-            esInsumo: false,
-            atributos: nueva,
-          ),
+          _filtros(search: texto, atributos: nueva),
           sedeId: widget.sedeId,
         );
   }
@@ -284,10 +331,21 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
   }
 
   Future<void> _onProductoTap(ProductoListItem p) async {
-    if (p.tieneVariantes &&
-        p.variantes != null &&
-        p.variantes!.isNotEmpty &&
-        widget.onAgregarVariante != null) {
+    final tieneVariantesElegibles =
+        p.tieneVariantes && p.variantes != null && p.variantes!.isNotEmpty;
+
+    // El flujo trae su propio selector de variantes (compras muestra costo y
+    // stock, no precios de venta). La guarda de reentrada vale igual: sin ella
+    // un doble toque abre dos sheets encimados.
+    if (tieneVariantesElegibles && widget.onAbrirVariantes != null) {
+      if (_varianteSheetOpen) return;
+      _varianteSheetOpen = true;
+      await widget.onAbrirVariantes!(p);
+      _varianteSheetOpen = false;
+      return;
+    }
+
+    if (tieneVariantesElegibles && widget.onAgregarVariante != null) {
       if (_varianteSheetOpen) return;
       _varianteSheetOpen = true;
 
@@ -367,11 +425,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
     _serverFallbackDebounce?.cancel();
     if (!mounted) return;
     context.read<ProductoListCubit>().applyFiltros(
-          ProductoFiltros(
-            search: codeTrim,
-            isActive: true,
-            esInsumo: false,
-          ),
+          _filtros(search: codeTrim),
         );
   }
 
@@ -403,8 +457,36 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                 v.codigoBarras!.toLowerCase() == code.toLowerCase(),
             orElse: () => null,
           );
+      final modoCompraGranel = widget.modoCompra &&
+          matchVariante != null &&
+          p.destinosDeApertura.contains(matchVariante.id);
       if (matchVariante != null) {
-        final vStock = matchVariante.stockEnSede(widget.sedeId) ?? 0;
+        // 🔴 Comprando, un GRANEL no se compra: entra al stock ABRIENDO un
+        // bulto, que es la operacion que le calcula el costo por promedio
+        // ponderado. El escaneo es la puerta de atras del sheet, asi que la
+        // regla se repite aca o el codigo de barras del granel la saltea y
+        // mete un costo tecleado en ese promedio.
+        if (modoCompraGranel) {
+          _lastScannedCode = null;
+          _searchCtrl.clear();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  '${matchVariante.nombre} entra al abrir un bulto, no se compra'),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          // Se abre el sheet igual: el que escaneo el granel viene a reponer
+          // ese sabor, y lo que tiene que cargar es el saco de al lado.
+          _onProductoTap(p);
+          return;
+        }
+        // Comprando no hay stock que alcance: se escanea el producto que se
+        // está recibiendo, y casi siempre llega porque se acabó.
+        final vStock = widget.modoCompra
+            ? 1
+            : (matchVariante.stockEnSede(widget.sedeId) ?? 0);
         if (vStock <= 0) {
           _lastScannedCode = null;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -420,7 +502,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         _lastScannedCode = null;
         _searchCtrl.clear();
         context.read<ProductoListCubit>().applyFiltros(
-              const ProductoFiltros(isActive: true, esInsumo: false),
+              _filtros(),
               sedeId: widget.sedeId,
             );
         ScaffoldMessenger.of(context).showSnackBar(
@@ -436,14 +518,15 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
       _lastScannedCode = null;
       _searchCtrl.clear();
       context.read<ProductoListCubit>().applyFiltros(
-            const ProductoFiltros(isActive: true, esInsumo: false),
+            _filtros(),
             sedeId: widget.sedeId,
           );
       _onProductoTap(p);
       return;
     }
 
-    final stock = p.stockConsolidadoEnSede(widget.sedeId);
+    final stock =
+        widget.modoCompra ? 1 : p.stockConsolidadoEnSede(widget.sedeId);
     if (stock <= 0) {
       _lastScannedCode = null;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -459,7 +542,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
     _lastScannedCode = null;
     _searchCtrl.clear();
     context.read<ProductoListCubit>().applyFiltros(
-          const ProductoFiltros(isActive: true, esInsumo: false),
+          _filtros(),
           sedeId: widget.sedeId,
         );
     ScaffoldMessenger.of(context).showSnackBar(
@@ -485,7 +568,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         listState.filtros.search != null &&
         listState.filtros.search!.isNotEmpty) {
       context.read<ProductoListCubit>().applyFiltros(
-            const ProductoFiltros(isActive: true, esInsumo: false),
+            _filtros(),
             sedeId: widget.sedeId,
           );
     }
@@ -525,11 +608,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         if (!mounted) return;
         if (_localQuery != value) return; // tipearon otra cosa
         context.read<ProductoListCubit>().applyFiltros(
-              ProductoFiltros(
-                search: value,
-                isActive: true,
-                esInsumo: false,
-              ),
+              _filtros(search: value),
               sedeId: widget.sedeId,
             );
       },
@@ -539,6 +618,9 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
   /// Productos ordenados: con stock disponible primero, agotados al final.
   /// Se hace en cliente para no afectar la query/paginación del backend.
   List<ProductoListItem> _ordenarPorStock(List<ProductoListItem> items) {
+    // Comprando, hundir lo agotado esconde justo lo que hay que reponer: el
+    // catálogo se deja en el orden en que vino.
+    if (widget.modoCompra) return items;
     final sedeId = widget.sedeId;
     final conStock = <ProductoListItem>[];
     final sinStock = <ProductoListItem>[];
@@ -961,6 +1043,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                           onDecrementar: () =>
                               widget.onDecrementarProducto(p.id),
                           onCargarNiveles: widget.onCargarNiveles,
+                          modoCompra: widget.modoCompra,
                         );
                       },
                     ),
@@ -1079,6 +1162,9 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
   final VoidCallback onDecrementar;
   final Future<List<PrecioNivel>> Function(String productoId) onCargarNiveles;
 
+  /// Ver [ProductoSelectorView.modoCompra].
+  final bool modoCompra;
+
   const _ProductoCard({
     required this.producto,
     required this.sedeId,
@@ -1086,6 +1172,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
     required this.onTap,
     required this.onDecrementar,
     required this.onCargarNiveles,
+    this.modoCompra = false,
   });
 
   double _qtyEnCarrito(TState state) {
@@ -1380,9 +1467,21 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
 
   @override
   Widget build(BuildContext context) {
-    final precio = producto.precioEfectivoEnSede(sedeId) ??
-        producto.precioEnSede(sedeId) ??
-        0.0;
+    // 🔴 Comprando, el número de la card es el COSTO: mostrar el precio de
+    // venta invita a cargar la compra a ese número y el costo del producto
+    // saltaría con él.
+    //
+    // Con variantes queda en 0 ("—"): el `stocksPorSede` del padre viene
+    // MEZCLADO desde el backend (la última variante con precio configurado
+    // pisa el costo), así que ese número sería el de alguna variante suelta
+    // haciéndose pasar por el del producto. El costo real se ve por variante.
+    final precio = modoCompra
+        ? (producto.tieneVariantes
+            ? 0.0
+            : (producto.precioCostoEnSede(sedeId) ?? 0.0))
+        : (producto.precioEfectivoEnSede(sedeId) ??
+            producto.precioEnSede(sedeId) ??
+            0.0);
     final stockTotal = producto.stockConsolidadoEnSede(sedeId);
     final imagen = producto.imagenPrincipal;
     // Un producto que se guarda en gramos se muestra en kilos: "S/ 8.00/kg" y
@@ -1417,9 +1516,17 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
         final precioConNivelAplicado = nivelAplicado != null;
         // Stock disponible real (descontando lo que ya está en el carrito).
         // Esto evita que el cajero vea "Stock: 5" cuando ya agregó las 5.
-        final stockDisponible =
-            (stockTotal - cantidadEnCarrito).clamp(0, double.infinity).toInt();
-        final agotado = stockDisponible <= 0;
+        //
+        // Comprando NO se descuenta: agregar al carrito no consume stock, lo
+        // repone. Restarlo mostraría "Stock: 0" por haber pedido 3 unidades.
+        final stockDisponible = modoCompra
+            ? stockTotal
+            : (stockTotal - cantidadEnCarrito)
+                .clamp(0, double.infinity)
+                .toInt();
+        // Comprando, quedarse sin stock no inhabilita nada: es el motivo por el
+        // que se está comprando.
+        final agotado = !modoCompra && stockDisponible <= 0;
 
         return Opacity(
           opacity: agotado && !estaEnCarrito ? 0.55 : 1.0,
@@ -1620,34 +1727,72 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                       child: producto.tieneVariantes &&
                                               producto.variantes != null &&
                                               producto.variantes!.length > 1
-                                          ? Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(Icons.touch_app,
-                                                    size: 10,
-                                                    color: AppColors.blue1),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'Ver variantes',
-                                                  style: TextStyle(
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: AppColors.blue1,
+                                          ? Builder(builder: (_) {
+                                              // El indicador de COMO se compra
+                                              // este producto. Si se repone por
+                                              // bulto cerrado, la card lo dice
+                                              // antes de abrir el sheet y con
+                                              // cuantas variantes se compran de
+                                              // verdad: ALIMENTO PARA RATON
+                                              // tiene 28, pero 12 son graneles
+                                              // que entran al ABRIR un saco, y
+                                              // anunciar 28 promete elegir algo
+                                              // que despues aparece bloqueado.
+                                              final porBulto = modoCompra &&
+                                                  producto.seCompraPorBulto;
+                                              // El set se resuelve UNA vez: la
+                                              // card se reconstruye scrolleando.
+                                              final destinos = porBulto
+                                                  ? producto.destinosDeApertura
+                                                  : const <String>{};
+                                              final bultos = producto.variantes!
+                                                  .where((v) =>
+                                                      v.isActive &&
+                                                      !destinos.contains(v.id))
+                                                  .length;
+                                              return Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                      porBulto
+                                                          ? Icons
+                                                              .inventory_2_outlined
+                                                          : Icons.touch_app,
+                                                      size: 10,
+                                                      color: AppColors.blue1),
+                                                  const SizedBox(width: 4),
+                                                  Flexible(
+                                                    child: Text(
+                                                      porBulto
+                                                          ? 'Ver bultos ($bultos)'
+                                                          : 'Ver variantes',
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow
+                                                          .ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 9,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: AppColors.blue1,
+                                                      ),
+                                                    ),
                                                   ),
-                                                ),
-                                              ],
-                                            )
+                                                ],
+                                              );
+                                            })
                                           : Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.spaceBetween,
                                               children: [
                                                 Flexible(
                                                   child: Text(
-                                                    precioConNivelAplicado
-                                                        ? nivelAplicado
-                                                            .toUpperCase()
-                                                        : 'UND',
+                                                    modoCompra
+                                                        ? 'COSTO'
+                                                        : precioConNivelAplicado
+                                                            ? nivelAplicado
+                                                                .toUpperCase()
+                                                            : 'UND',
                                                     maxLines: 1,
                                                     overflow:
                                                         TextOverflow.ellipsis,
@@ -1665,8 +1810,15 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                                   ),
                                                 ),
                                                 Text(
-                                                  pres.precioTexto(
-                                                      precioMostrado),
+                                                  // Sin costo se dice, no se
+                                                  // inventa un 0.00: es un
+                                                  // producto que nunca se
+                                                  // compró en esta sede.
+                                                  modoCompra &&
+                                                          precioMostrado <= 0
+                                                      ? '—'
+                                                      : pres.precioTexto(
+                                                          precioMostrado),
                                                   style: TextStyle(
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w700,
@@ -1693,8 +1845,9 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                   // - Combos: abre la lista de COMPONENTES del combo.
                   // - Producto simple: abre los precios por mayor (niveles).
                   // Oculto para productos con variantes — los niveles se
-                  // muestran en el selector de variantes directamente.
-                  if (!producto.tieneVariantes)
+                  // muestran en el selector de variantes directamente— y
+                  // comprando, porque los precios por mayor son de VENTA.
+                  if (!producto.tieneVariantes && !modoCompra)
                   Positioned(
                     bottom: 4,
                     left: 4,
@@ -1723,7 +1876,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                   // Badge OFERTA (top-left) cuando tiene oferta activa sin
                   // liquidación. Si hay liquidación activa, se muestra el
                   // badge de liquidación en su lugar (tiene prioridad).
-                  if (producto.tieneOfertaActivaEnSede(sedeId))
+                  if (producto.tieneOfertaActivaEnSede(sedeId) && !modoCompra)
                     Builder(builder: (_) {
                       final stockInfo = producto.stockSedeInfo(sedeId);
                       final inicio = stockInfo?.fechaInicioOferta;
@@ -1774,7 +1927,8 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
 
                   // Badge LIQUIDACIÓN (top-left) cuando el producto está en
                   // liquidación activa en la sede.
-                  if (producto.tieneLiquidacionActivaEnSede(sedeId))
+                  if (producto.tieneLiquidacionActivaEnSede(sedeId) &&
+                      !modoCompra)
                     Positioned(
                       top: 33,
                       left: 6,

@@ -470,6 +470,32 @@ class _OrdenCompraItemSelectorState extends State<OrdenCompraItemSelector> {
         item['unidadPresentacionSimbolo'] = _presentacionLinea.simbolo;
       }
 
+      // Contexto de la sede para poder REABRIR esta línea en el editor de la
+      // tabla y seguir viendo costo proyectado, margen y el aviso de vender
+      // bajo costo. Sin esto, una línea cargada por acá se edita a ciegas.
+      // El backend ignora estas claves: arma el payload con una lista
+      // explícita de campos.
+      if (_productoSoportaUnidadCompra) {
+        // Va aunque el toggle esté apagado (la página solo manda el empaque al
+        // backend con `usaUnidadCompra` prendido): sin él, el editor no
+        // ofrecería comprar por saco.
+        item['factorCompra'] ??= _factorEfectivo;
+        item['unidadCompraSimbolo'] ??=
+            _productoSeleccionado!.unidadCompraSimbolo;
+      }
+      if (_simboloUnidadVenta != null) {
+        item['unidadVentaSimbolo'] = _simboloUnidadVenta;
+      }
+      if (_costoActualSede != null) {
+        item['costoActualSede'] = _costoActualSede;
+      }
+      if (_precioVentaActualSede != null) {
+        item['precioVentaActualSede'] = _precioVentaActualSede;
+      }
+      if (_stockActualSede != null) {
+        item['stockActualSede'] = _stockActualSede;
+      }
+
       // Si el usuario seteó un nuevo precio de venta distinto al
       // actual, se aplica al confirmar la compra (mismo tx que el
       // costo). Si el field está vacío o coincide con el actual, no

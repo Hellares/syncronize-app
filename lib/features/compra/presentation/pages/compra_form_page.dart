@@ -11,17 +11,21 @@ import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/core/widgets/date/custom_date.dart' hide DateFormatter;
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
+import '../../domain/entities/linea_compra_draft.dart';
 import '../../domain/entities/orden_compra.dart';
 import '../bloc/compra_form/compra_form_cubit.dart';
 import '../bloc/compra_form/compra_form_state.dart';
 import '../../../../core/widgets/custom_proveedor_selector.dart';
 import '../widgets/orden_compra_item_selector.dart';
 import '../widgets/credito_selector.dart';
+import '../widgets/linea_compra_editor_sheet.dart';
+import 'compra_productos_page.dart';
 import 'importar_guia_page.dart';
 
 class CompraFormPage extends StatelessWidget {
@@ -146,6 +150,53 @@ class _CompraFormViewState extends State<_CompraFormView> {
     });
   }
 
+  /// Elegir varios productos de una pasada en la grilla, como en Venta Rápida.
+  /// Vuelve con las líneas ya precargadas con el costo actual de la sede.
+  Future<void> _abrirGrilla() async {
+    final sedeId = _sedeId;
+    if (sedeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona una sede primero'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    final items = await Navigator.of(context).push<List<Map<String, dynamic>>>(
+      MaterialPageRoute(
+        builder: (_) => CompraProductosPage(
+          empresaId: widget.empresaId,
+          sedeId: sedeId,
+        ),
+      ),
+    );
+    if (items == null || items.isEmpty || !mounted) return;
+    setState(() => _detalles.addAll(items));
+  }
+
+  /// Abre el editor de una línea (cantidad, precio, empaque, precio de venta e
+  /// historial). Los ítems personalizados no pasan por acá: son texto libre,
+  /// sin costo ni stock que proyectar.
+  Future<void> _editarLinea(int index) async {
+    final linea = LineaCompraDraft.desdeItemMap(_detalles[index]);
+    if (linea == null) return;
+    final editada = await showLineaCompraEditorSheet(
+      context: context,
+      linea: linea,
+      empresaId: widget.empresaId,
+    );
+    if (editada == null || !mounted) return;
+    setState(() => _detalles[index] = editada.toItemMap());
+  }
+
+  /// Líneas que todavía no tienen precio de compra. Pasa con un producto que
+  /// nunca se compró en esta sede: entra desde la grilla sin costo y hay que
+  /// completarlo antes de registrar la compra.
+  int get _lineasSinCosto => _detalles
+      .where((d) => ((d['precioUnitario'] as num?)?.toDouble() ?? 0) <= 0)
+      .length;
+
   Future<void> _importarDeGuia() async {
     final items = await Navigator.of(context).push<List<dynamic>>(
       MaterialPageRoute(
@@ -188,6 +239,23 @@ class _CompraFormViewState extends State<_CompraFormView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Agrega al menos un producto'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Una línea en cero no es una compra gratis: es un costo que falta. Si
+    // pasara, el backend guardaría ese cero como costo del producto y el margen
+    // quedaría inventado hasta la próxima compra.
+    if (_lineasSinCosto > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _lineasSinCosto == 1
+                ? 'Hay 1 línea sin precio de compra: tocá el lápiz para completarla'
+                : 'Hay $_lineasSinCosto líneas sin precio de compra: tocá el lápiz para completarlas',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -525,6 +593,23 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       if (!_isFromOc) const SizedBox(height: 16),
                       if (_isFromOc) const SizedBox(height: 4),
 
+                      // Carga rápida: elegir varios productos en grilla, con
+                      // buscador y escáner. El formulario de abajo sigue ahí
+                      // para la línea que necesita algo puntual.
+                      if (!_isFromOc) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: CustomButton(
+                            text: 'Elegir varios en grilla',
+                            backgroundColor: AppColors.blue1,
+                            icon: const Icon(Icons.grid_view_rounded,
+                                size: 16, color: Colors.white),
+                            onPressed: _abrirGrilla,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
                       // Importar ítems desde una guía SUNAT del proveedor (mapea
                       // sus nombres a tu catálogo). Requiere proveedor elegido.
                       if (!_isFromOc && _proveedorId != null) ...[
@@ -674,6 +759,10 @@ class _CompraFormViewState extends State<_CompraFormView> {
     final cellStyle = TextStyle(fontSize: 9.5, color: Colors.grey.shade800);
     final cellBold = TextStyle(
         fontSize: 9.5, color: Colors.grey.shade900, fontWeight: FontWeight.w700);
+    // Una línea sin costo no se disfraza de "0.00": ese cero se guardaría como
+    // costo del producto y el margen quedaría inventado.
+    final cellFalta = TextStyle(
+        fontSize: 9, color: Colors.orange.shade800, fontWeight: FontWeight.w700);
 
     Widget celda(String text, TextStyle style,
         {TextAlign align = TextAlign.left, int? maxLines}) {
@@ -728,25 +817,50 @@ class _CompraFormViewState extends State<_CompraFormView> {
       final tienePres =
           factorPres != null && factorPres > 1 && simboloPres != null;
 
+      // Un granel se LEE en kilos: la columna dice "15 kg" y el P.Unit "8.00",
+      // aunque adentro sean 15000 g a S/0.006727. Mostrar lo guardado obliga a
+      // dividir mentalmente por mil en cada fila.
+      final presLinea = UnidadPresentacion(
+        factor: factorPres ?? 1,
+        simbolo: simboloPres,
+      );
       final cantTxt = usaUC && simboloUC != null
           ? '${_fmtCant(cantidadNum)} $simboloUC'
-          : _fmtCant(cantidadNum);
+          : (tienePres
+              ? presLinea.cantidadTexto(cantidadNum)
+              : _fmtCant(cantidadNum));
+      final precioTxt = !usaUC && tienePres
+          ? presLinea.precio(precioNum).toStringAsFixed(2)
+          : _fmtPrecioUnit(precioNum);
 
       return TableRow(
         decoration: BoxDecoration(
           color: index.isOdd ? Colors.grey.withValues(alpha: 0.04) : Colors.white,
         ),
         children: [
-          // Descripción + dual-view (= u @ S//u) + descuento
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(descripcion,
-                    style: cellBold,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
+          // Descripción + dual-view (= u @ S//u) + descuento.
+          // Tocarla abre el editor de la línea: cantidad, precio, empaque,
+          // ajuste del precio de venta e historial del proveedor.
+          InkWell(
+            onTap: d['productoId'] != null ? () => _editarLinea(index) : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(descripcion,
+                          style: cellBold,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    if (d['productoId'] != null)
+                      Icon(Icons.edit_outlined,
+                          size: 12, color: AppColors.blue1),
+                  ],
+                ),
                 if (usaUC && cantAtomica != null && precioAtomico != null)
                   Text(
                     tienePres
@@ -762,13 +876,16 @@ class _CompraFormViewState extends State<_CompraFormView> {
                   Text('desc. -${descuento.toStringAsFixed(2)}',
                       style:
                           TextStyle(fontSize: 8, color: Colors.red.shade400)),
-              ],
+                ],
+              ),
             ),
           ),
           celda(cantTxt, cellStyle, align: TextAlign.right, maxLines: 1),
-          celda(_fmtPrecioUnit(precioNum), cellStyle,
+          celda(precioNum <= 0 ? 'falta' : precioTxt,
+              precioNum <= 0 ? cellFalta : cellStyle,
               align: TextAlign.right, maxLines: 1),
-          celda(subtotal.toStringAsFixed(2), cellBold,
+          celda(precioNum <= 0 ? '—' : subtotal.toStringAsFixed(2),
+              precioNum <= 0 ? cellFalta : cellBold,
               align: TextAlign.right, maxLines: 1),
           // Eliminar fila
           InkWell(
@@ -919,18 +1036,45 @@ class _CompraFormViewState extends State<_CompraFormView> {
 
     return Padding(
       padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          AppSubtitle('Subtotal:', fontSize: 12, color: Colors.grey),
-          const SizedBox(width: 8),
-          Text(
-            '$_moneda ${total.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.blue1,
+          if (_lineasSinCosto > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      size: 13, color: Colors.orange.shade800),
+                  const SizedBox(width: 4),
+                  Text(
+                    _lineasSinCosto == 1
+                        ? '1 línea sin precio de compra'
+                        : '$_lineasSinCosto líneas sin precio de compra',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
             ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              AppSubtitle('Subtotal:', fontSize: 12, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text(
+                '$_moneda ${total.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.blue1,
+                ),
+              ),
+            ],
           ),
         ],
       ),
