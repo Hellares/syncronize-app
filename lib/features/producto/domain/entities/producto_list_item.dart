@@ -138,6 +138,39 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         v.factorPresentacion != primera.factorPresentacion);
   }
 
+  /// Ids de las variantes a las que se llega ABRIENDO un bulto: los GRANEL de
+  /// un par SACO→GRANEL.
+  ///
+  /// 🔴 Esas NO se compran. Su stock entra por la apertura, que además es la
+  /// que escribe su costo por promedio ponderado (un saco de S/160 que rinde
+  /// 15 000 g ⇒ 0.010667/g). Comprar un granel a mano mete un costo tecleado
+  /// en ese promedio y el margen queda mintiendo, sin ningún síntoma; y el
+  /// stock entra sin pasar por abrir un saco, con lo que "5 cerrados / 5
+  /// abiertos" deja de significar algo.
+  ///
+  /// Si el payload llegara sin los sacos, el granel no se reconoce y queda
+  /// comprable: falla hacia el lado que no traba a nadie.
+  Set<String> get destinosDeApertura {
+    final vs = variantes;
+    if (vs == null || vs.isEmpty) return const <String>{};
+    return vs
+        .where((v) => v.sePuedeAbrir)
+        .map((v) => v.varianteAperturaId!)
+        .toSet();
+  }
+
+  /// Esta variante se COMPRA. Un producto sin apertura configurada las tiene
+  /// todas comprables, que es el caso de casi todo el catálogo.
+  ///
+  /// Recorre las variantes en cada llamada: para un chequeo suelto va bien,
+  /// pero una lista larga conviene que resuelva [destinosDeApertura] UNA vez.
+  bool esVarianteComprable(ProductoVariante v) =>
+      !destinosDeApertura.contains(v.id);
+
+  /// El producto se repone por BULTO CERRADO: alguna de sus variantes es un
+  /// saco que se abre. Es el "cómo se compra esto" que muestra la grilla.
+  bool get seCompraPorBulto => variantes?.any((v) => v.sePuedeAbrir) ?? false;
+
   /// En qué unidad se MUESTRA una variante.
   ///
   /// Si trae presentación propia, esa. Si no, hereda la del producto — que es
