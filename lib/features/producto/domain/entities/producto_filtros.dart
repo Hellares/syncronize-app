@@ -95,6 +95,8 @@ class ProductoFiltros extends Equatable {
     bool? soloProductos,
     bool? soloCombos,
     bool? esInsumo,
+    bool? isActive,
+    bool? soloEliminados,
     Map<String, List<String>>? atributos,
     OrdenProducto? orden,
     // Flags para resetear valores nullable
@@ -129,6 +131,12 @@ class ProductoFiltros extends Equatable {
       soloProductos: clearSoloProductos ? null : (soloProductos ?? this.soloProductos),
       soloCombos: clearSoloCombos ? null : (soloCombos ?? this.soloCombos),
       esInsumo: clearEsInsumo ? null : (esInsumo ?? this.esInsumo),
+      // 🔴 Estos dos NO se copiaban, y como el default de ambos es null
+      // —"activos y desactivados", "papelera incluida"— se PERDÍAN en cada
+      // copia. `producto_list_cubit` copia los filtros para paginar, así que
+      // desde la página 2 el POS volvía a ofrecer productos dados de baja.
+      isActive: isActive ?? this.isActive,
+      soloEliminados: soloEliminados ?? this.soloEliminados,
       // Un mapa vacío es un valor legítimo —"saqué todos los filtros"— así que
       // no alcanza con `??`: eso lo confundiría con "no lo toqué".
       atributos: atributos ?? this.atributos,
