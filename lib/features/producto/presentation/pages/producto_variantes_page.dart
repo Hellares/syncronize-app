@@ -9,7 +9,6 @@ import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/popup_item.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../../core/utils/busqueda_texto.dart';
 import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -29,6 +28,7 @@ import '../bloc/sede_selection/sede_selection_cubit.dart';
 import 'analisis_variantes_page.dart';
 import 'grupos_mayoreo_page.dart';
 import 'edicion_masiva_stock_page.dart';
+import '../widgets/filtro_variantes.dart';
 import '../widgets/producto_variante_form_dialog.dart';
 import '../widgets/generar_combinaciones_dialog.dart';
 import '../bloc/ajustar_stock/ajustar_stock_cubit.dart';
@@ -94,8 +94,12 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
   /// Buscador del listado. Un producto migrado puede tener decenas de
   /// variantes —EDREDONES tiene 76— y encontrar una para editarle el precio o
   /// el stock significaba scrollear a ojo.
-  final _buscarCtrl = TextEditingController();
-  String _query = '';
+  /// Buscador + filtro numérico, el MISMO que usan la edición masiva y el
+  /// análisis. Vive en `FiltroVariantes` y no copiado acá porque la lógica
+  /// tiene trampas (el SKU no puede entrar al match por fragmentos, el stock
+  /// solo se suma entre variantes de la misma presentación) que ya costaron
+  /// encontrar una vez.
+  final _filtro = FiltroVariantes();
 
   @override
   void initState() {
@@ -105,27 +109,72 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
 
   @override
   void dispose() {
-    _buscarCtrl.dispose();
+    _filtro.dispose();
     super.dispose();
   }
 
-  /// Filtra por nombre, SKU, códigos y **valores de atributo**, con el mismo
-  /// criterio que el resto de la app (sin tildes, por palabras, exigiéndolas
-  /// todas). Incluir los atributos es lo que permite buscar "niña frozen" o
-  /// "invierno 5 piezas" y no solo el nombre completo.
-  List<ProductoVariante> _filtrar(List<ProductoVariante> variantes) {
-    final terminos = terminosBusqueda(_query);
-    if (terminos.isEmpty) return variantes;
-    return variantes.where((v) {
-      final texto = [
-        v.nombre,
-        v.sku,
-        v.codigoEmpresa,
-        v.codigoBarras ?? '',
-        for (final av in v.atributosValores) av.valor,
-      ].join(' ');
-      return coincideTodosLosTerminos(texto, terminos);
-    }).toList();
+  List<ProductoVariante> _filtrar(List<ProductoVariante> variantes) =>
+      _filtro.filtrar(variantes, _valorDelCampo);
+
+  /// La presentación de la variante: sin esto el filtro numérico de un granel
+  /// pediría el precio POR GRAMO (0.008) cuando en pantalla dice S/8.00/kg.
+  UnidadPresentacion _presentacionDe(ProductoVariante v) {
+    if (v.tienePresentacionPropia) {
+      return UnidadPresentacion(
+        factor: v.factorPresentacion!,
+        simbolo: v.unidadPresentacionSimbolo,
+      );
+    }
+    return UnidadPresentacion(
+      factor: 1,
+      simbolo: v.unidadMedidaId != null ? v.unidadMedida?.displayCorto : null,
+    );
+  }
+
+  double? _precioDe(ProductoVariante v) =>
+      _sedeId == null ? null : v.stockSedeInfo(_sedeId!)?.precio;
+
+  double? _costoDe(ProductoVariante v) =>
+      _sedeId == null ? null : v.stockSedeInfo(_sedeId!)?.precioCosto;
+
+  /// 🔴 `PrecioNivel` no tiene `sedeId`: el precio por mayor NO depende de la
+  /// sede, a diferencia de precio y costo.
+  double? _mayorDe(ProductoVariante v) => v.nivelPorMayor?.precio;
+
+  /// El valor del campo pedido, en unidad de PRESENTACIÓN — la misma en la
+  /// que se ve en la card y en la que se teclea el filtro.
+  double? _valorDelCampo(ProductoVariante v, CampoPrecio campo) {
+    final u = _presentacionDe(v);
+    final crudo = switch (campo) {
+      CampoPrecio.venta => _precioDe(v),
+      CampoPrecio.costo => _costoDe(v),
+      CampoPrecio.mayor => _mayorDe(v),
+    };
+    return crudo == null ? null : u.precio(crudo);
+  }
+
+  /// Cuántas se ven y cuánto stock suman. `stock` en null = "mixto": sumar
+  /// 5000 g de un granel con 2 sacos da un número que no significa nada.
+  ({int cantidad, String? stock}) _resumenVisible(List<ProductoVariante> vis) {
+    if (vis.isEmpty) return (cantidad: 0, stock: null);
+
+    final u0 = _presentacionDe(vis.first);
+    var total = 0.0;
+    var mismaUnidad = true;
+    for (final v in vis) {
+      final u = _presentacionDe(v);
+      if (u.factor != u0.factor || u.simboloVisible != u0.simboloVisible) {
+        mismaUnidad = false;
+      }
+      total += v.stockTotal;
+    }
+    if (!mismaUnidad) return (cantidad: vis.length, stock: null);
+
+    final texto = u0.cantidadTexto(total);
+    return (
+      cantidad: vis.length,
+      stock: u0.simboloVisible == null ? '$texto u' : texto,
+    );
   }
 
   Future<void> _loadData() async {
@@ -345,7 +394,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                 // El buscador aparece recién cuando hay suficientes como para
                 // que scrollear moleste; con 3 o 4 se ven todas de una.
                 if (variantes.length >= 6)
-                  _buildBuscador(variantes.length, filtradas.length),
+                  _buildBuscador(variantes.length, filtradas),
                 Expanded(
                   child: filtradas.isEmpty
                       ? _buildSinResultados()
@@ -376,32 +425,84 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
     );
   }
 
-  Widget _buildBuscador(int total, int visibles) {
+  /// Buscador + embudo. El embudo va A LA DERECHA del buscador y despliega la
+  /// fila de filtro por precio (venta / costo / por mayor), la misma que la
+  /// edición masiva y el análisis.
+  ///
+  /// El caso que más se usa no es buscar un monto sino el operador `vacío`:
+  /// "mostrame las que TODAVÍA no tienen precio por mayor", que es lo que se
+  /// revisa al terminar de cargar una lista.
+  Widget _buildBuscador(int total, List<ProductoVariante> visibles) {
+    final resumen = _resumenVisible(visibles);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CustomSearchField(
-            controller: _buscarCtrl,
-            hintText: 'Buscar por nombre, atributo o SKU…',
-            borderColor: AppColors.blue1,
-            // Sin debounce: se filtra la lista que ya está en memoria.
-            debounceDelay: Duration.zero,
-            onChanged: (v) => setState(() => _query = v),
-          ),
-          if (_query.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6, left: 4),
-              child: AppSubtitle(
-                '$visibles de $total',
-                fontSize: 11,
-                color: Colors.grey.shade600,
+          Row(
+            children: [
+              ResumenVariantes(
+                cantidad: resumen.cantidad,
+                total: total,
+                stock: resumen.stock,
+                filtrando: _filtro.activo,
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: CustomSearchField(
+                  controller: _filtro.busqueda,
+                  hintText: 'Buscar por nombre, atributo o SKU…',
+                  borderColor: AppColors.blue1,
+                  // Sin debounce: se filtra la lista que ya está en memoria.
+                  debounceDelay: Duration.zero,
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                style: IconButton.styleFrom(
+                  minimumSize: Size.zero,
+                  fixedSize: const Size(34, 34),
+                  padding: EdgeInsets.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  backgroundColor: AppColors.blue1
+                      .withValues(alpha: _filtro.filtraPrecio ? 0.20 : 0.08),
+                  foregroundColor: AppColors.blue1,
+                ),
+                tooltip: 'Filtrar por precio',
+                icon: Icon(
+                  _filtro.filtraPrecio
+                      ? Icons.filter_alt
+                      : Icons.filter_alt_outlined,
+                  size: 17,
+                ),
+                onPressed: () => setState(_filtro.alternarPanel),
+              ),
+            ],
+          ),
+          if (_filtro.abierto)
+            FilaFiltroPrecio(
+              filtro: _filtro,
+              onCambio: () => setState(() {}),
             ),
         ],
       ),
     );
+  }
+
+  /// Por qué no se ve nada. Con el embudo abierto la lista puede quedar vacía
+  /// sin que se haya tecleado una letra, y un "coincide con ..." sin texto
+  /// haría buscar un error donde no lo hay.
+  String _mensajeSinResultados() {
+    final texto = _filtro.busqueda.text.trim();
+    final partes = <String>[
+      if (texto.isNotEmpty) 'coincide con "$texto"',
+      if (_filtro.filtraPrecio)
+        'pasa el filtro de ${_filtro.campo.etiqueta.toLowerCase()}',
+    ];
+    if (partes.isEmpty) return 'No hay variantes para mostrar';
+    return 'Ninguna variante ${partes.join(' y ')}';
   }
 
   Widget _buildSinResultados() {
@@ -414,9 +515,10 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
             Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
             AppSubtitle(
-              'Ninguna variante coincide con "${_query.trim()}"',
+              _mensajeSinResultados(),
               fontSize: 11,
               color: Colors.grey.shade600,
+              textAlign: TextAlign.center,
             ),
           ],
         ),

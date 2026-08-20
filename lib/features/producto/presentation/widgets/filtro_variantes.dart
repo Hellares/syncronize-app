@@ -120,12 +120,23 @@ class FiltroVariantes {
         final texto =
             '${v.nombre} ${v.atributosValores.map((a) => a.valor).join(' ')}';
         final porNombre = coincideTodosLosTerminos(texto, terminos);
-        final coincideSku =
-            porSku != null && normalizarTexto(v.sku).contains(porSku);
-        if (!porNombre && !coincideSku) return false;
+        final porCodigo = porSku != null && _coincideCodigo(v, porSku);
+        if (!porNombre && !porCodigo) return false;
       }
       return _pasaPrecio(v, valorDe);
     }).toList();
+  }
+
+  /// ¿Alguno de los CÓDIGOS de la variante contiene la consulta entera?
+  ///
+  /// Los tres van juntos y sin partir en palabras, por la misma razón que el
+  /// SKU: son cadenas con números y, partidos, el "3" de "3 pzs" cae dentro de
+  /// `VAR-000230` o de un EAN y arrastra media lista.
+  bool _coincideCodigo(ProductoVariante v, String consulta) {
+    if (normalizarTexto(v.sku).contains(consulta)) return true;
+    if (normalizarTexto(v.codigoEmpresa).contains(consulta)) return true;
+    final barras = v.codigoBarras;
+    return barras != null && normalizarTexto(barras).contains(consulta);
   }
 
   bool _pasaPrecio(
