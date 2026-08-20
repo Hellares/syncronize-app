@@ -161,9 +161,18 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     }).toList();
     if (cambio) {
       debugPrint('[CotizacionVIP] reaplicado VIP a items del carrito');
-      emit(state.copyWith(items: nuevos));
+      emit(state.copyWith(items: _repreciar(nuevos)));
     }
   }
+
+  /// Reprecia el carrito ENTERO por mayoreo combinado.
+  ///
+  /// 🔴 El precio de una línea depende de las OTRAS: 3 edredones de 3 diseños
+  /// distintos que comparten el mismo "Por Mayor ≥ 3" hacen mayoreo entre sí.
+  /// Va también acá y no solo en Venta Rápida porque si no la cotización
+  /// muestra un precio y al convertirla en venta se cobra otro.
+  List<VentaDetalleInput> _repreciar(List<VentaDetalleInput> items) =>
+      VentaDetalleInput.recalcularNivelesEnLote(items);
 
   /// Intenciones VIP para un producto (vacío si no aplica ninguna política).
   List<VipPrecioIntent> _vipParaNuevoProducto(String? productoId) =>
@@ -334,7 +343,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     }
 
     if (nuevos.isEmpty || isClosed) return;
-    emit(state.copyWith(items: [...state.items, ...nuevos], clearError: true));
+    emit(state.copyWith(
+        items: _repreciar([...state.items, ...nuevos]), clearError: true));
     // La precarga corre en PARALELO con la resolución del cliente (DNI →
     // políticas VIP). Si las políticas cargaron antes de este emit, el
     // reaplicado que disparó `_onClienteCambiadoVip` corrió sobre un carrito
@@ -384,7 +394,8 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
               i.varianteId != null ||
               i.servicioId != null)
           .toList();
-      emit(state.copyWith(tipoCotizacion: tipo, items: soloCatalogo));
+      emit(state.copyWith(
+          tipoCotizacion: tipo, items: _repreciar(soloCatalogo)));
     } else {
       emit(state.copyWith(
         tipoCotizacion: tipo,
@@ -460,7 +471,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
           .copyWith(icbper: icbperPerUnit * nuevaCantidad);
       final lista = [...state.items];
       lista[idx] = nueva;
-      emit(state.copyWith(items: lista, clearError: true));
+      emit(state.copyWith(items: _repreciar(lista), clearError: true));
       return;
     }
 
@@ -491,7 +502,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         ? item.recalcularPrecioPorNiveles(1)
         : item;
     emit(state.copyWith(
-      items: [...state.items, itemConNivel],
+      items: _repreciar([...state.items, itemConNivel]),
       clearError: true,
     ));
 
@@ -534,7 +545,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
           .copyWith(icbper: icbperPerUnit * nuevaCantidad);
       final lista = [...state.items];
       lista[idx] = nueva;
-      emit(state.copyWith(items: lista, clearError: true));
+      emit(state.copyWith(items: _repreciar(lista), clearError: true));
       return;
     }
 
@@ -567,7 +578,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         ? item.recalcularPrecioPorNiveles(cantidad.toDouble())
         : item;
     emit(state.copyWith(
-      items: [...state.items, itemConNivel],
+      items: _repreciar([...state.items, itemConNivel]),
       clearError: true,
     ));
 
@@ -589,7 +600,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         .recalcularPrecioPorNiveles(items[idx].cantidad);
     final lista = [...items];
     lista[idx] = actualizado;
-    emit(state.copyWith(items: lista));
+    emit(state.copyWith(items: _repreciar(lista)));
   }
 
   /// Agrega un item manual (sin productoId). Solo permitido en modo SIMPLE.
@@ -627,7 +638,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       icbper: 0,
     );
     emit(state.copyWith(
-      items: [...state.items, item],
+      items: _repreciar([...state.items, item]),
       clearError: true,
     ));
   }
@@ -665,7 +676,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     }
     if (nuevos.isEmpty) return;
     emit(state.copyWith(
-      items: [...state.items, ...nuevos],
+      items: _repreciar([...state.items, ...nuevos]),
       clearError: true,
     ));
   }
@@ -776,7 +787,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     }
 
     emit(state.copyWith(
-      items: [...state.items, ...nuevos],
+      items: _repreciar([...state.items, ...nuevos]),
       clearError: true,
     ));
   }
@@ -799,7 +810,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         .recalcularPrecioPorNiveles(items[idx].cantidad);
     final lista = [...items];
     lista[idx] = actualizado;
-    emit(state.copyWith(items: lista));
+    emit(state.copyWith(items: _repreciar(lista)));
   }
 
   String _mapTipoAfectacion(String tipo) {
@@ -831,7 +842,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         .copyWith(icbper: icbperPerUnit * cantidadFinal);
     final lista = [...state.items];
     lista[index] = nueva;
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void actualizarPrecioManual(int index, double precioUnitario) {
@@ -846,7 +857,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       precioBase: precioUnitario,
       clearNivelAplicado: true,
     );
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   /// Descuento manual de una línea, en MONTO (S/ total de la línea). El
@@ -858,7 +869,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
     final desc = monto.clamp(0, bruto).toDouble();
     final lista = [...state.items];
     lista[index] = actual.copyWith(descuento: desc);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   /// Suma de brutos (cantidad × precio) de las líneas donde aplica el
@@ -906,13 +917,13 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       acumulado += desc;
       lista.add(item.copyWith(descuento: desc));
     }
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void eliminarItem(int index) {
     if (index < 0 || index >= state.items.length) return;
     final lista = [...state.items]..removeAt(index);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void decrementarProducto(String productoId) {
@@ -951,14 +962,14 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
         .copyWith(icbper: icbperPerUnit * nuevaCantidad);
     final lista = [...state.items];
     lista[idx] = nueva;
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void eliminarCombo(String origenComboId) {
     final lista = state.items
         .where((i) => i.origenComboId != origenComboId)
         .toList();
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void vaciarCarrito() {
@@ -1591,7 +1602,7 @@ class CotizacionRapidaCubit extends Cubit<CotizacionRapidaState> {
       huboCambios = true;
     }
     if (!huboCambios) return;
-    emit(state.copyWith(items: nuevos));
+    emit(state.copyWith(items: _repreciar(nuevos)));
   }
 
   @override

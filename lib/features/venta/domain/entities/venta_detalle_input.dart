@@ -159,6 +159,12 @@ class VentaDetalleInput {
   /// elige el menor entre ellas.
   final List<VipPrecioIntent> vipIntents;
 
+  /// Estado del MAYOREO COMBINADO de la línea: a qué grupo pertenece, cuántas
+  /// unidades lleva juntadas el carrito y cuántas faltan. Null cuando la línea
+  /// no participa de ningún grupo (sin niveles, sin variante, o es componente
+  /// de combo). Solo capa de vista — no viaja al backend.
+  final MayoreoCombinado? mayoreo;
+
   const VentaDetalleInput({
     this.productoId,
     this.varianteId,
@@ -198,6 +204,7 @@ class VentaDetalleInput {
     this.factorPresentacion,
     this.unidadPresentacionSimbolo,
     this.vipIntents = const [],
+    this.mayoreo,
   });
 
   /// True si el precio actual de la línea proviene de una política VIP.
@@ -338,8 +345,10 @@ class VentaDetalleInput {
     double? factorPresentacion,
     String? unidadPresentacionSimbolo,
     List<VipPrecioIntent>? vipIntents,
+    MayoreoCombinado? mayoreo,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
+    bool clearMayoreo = false,
   }) {
     return VentaDetalleInput(
       productoId: productoId ?? this.productoId,
@@ -386,19 +395,133 @@ class VentaDetalleInput {
       unidadPresentacionSimbolo:
           unidadPresentacionSimbolo ?? this.unidadPresentacionSimbolo,
       vipIntents: vipIntents ?? this.vipIntents,
+      mayoreo: clearMayoreo ? null : (mayoreo ?? this.mayoreo),
     );
+  }
+
+  /// Llave del GRUPO DE MAYOREO al que pertenece un nivel.
+  ///
+  /// 🔴 ESPEJO EXACTO de `PrecioNivelService.claveGrupoMayoreo` del backend
+  /// (`precio-nivel.service.ts`). No hace falta que los strings coincidan entre
+  /// los dos lados —cada uno agrupa en su casa—, pero sí que agrupen IGUAL: si
+  /// el app junta variantes que el backend separa, el precio que se manda no es
+  /// el que el servidor calcula y la venta rebota con 409 PRECIO_DESACTUALIZADO.
+  ///
+  /// El `nombre` del nivel NO entra: "Por Mayor" y "Mayorista" al mismo precio
+  /// son el mismo trato. El `productoId` sí, porque el mayoreo combinado se
+  /// acumula DENTRO de un producto.
+  static String claveGrupoMayoreo(String productoId, PrecioNivel nivel) {
+    final valor = nivel.tipoPrecio == TipoPrecioNivel.precioFijo
+        ? (nivel.precio?.toStringAsFixed(6) ?? 'sin-precio')
+        : (nivel.porcentajeDesc?.toStringAsFixed(2) ?? 'sin-pct');
+    return [
+      productoId,
+      nivel.cantidadMinima,
+      nivel.cantidadMaxima ?? 'inf',
+      nivel.tipoPrecio.value,
+      valor,
+    ].join('|');
+  }
+
+  /// Cantidad contra la que se mide un nivel: la de su grupo si el carrito
+  /// juntó más que esta línea, y si no la de la línea.
+  ///
+  /// El `max` es lo que garantiza que el mayoreo combinado nunca EMPEORE un
+  /// precio: una línea de 10 unidades se sigue midiendo por sus 10.
+  static double _cantidadParaNivel(
+    PrecioNivel nivel,
+    double cantidad,
+    Map<String, double> cantidadesGrupo,
+    String productoId,
+  ) {
+    final delGrupo = cantidadesGrupo[claveGrupoMayoreo(productoId, nivel)];
+    return (delGrupo != null && delGrupo > cantidad) ? delGrupo : cantidad;
+  }
+
+  /// MAYOREO COMBINADO: unidades que junta cada grupo en TODO el carrito.
+  ///
+  /// Quien se lleva 3 edredones de tres diseños distintos que comparten el
+  /// mismo "Por Mayor ≥ 3" tiene que pagar por mayor los tres: el cliente ve
+  /// tres edredones, no tres líneas de uno.
+  ///
+  /// Cuenta LÍNEAS, no variantes distintas (la misma variante en dos líneas de
+  /// 1 también suma 2), y deja afuera los componentes de combo, que tienen su
+  /// propio deal de precio.
+  static Map<String, double> cantidadesGrupoMayoreo(
+    List<VentaDetalleInput> items,
+  ) {
+    final totales = <String, double>{};
+    final acumulan = items
+        .where((i) =>
+            i.varianteId != null &&
+            i.productoId != null &&
+            i.origenComboId == null)
+        .toList();
+    // Una sola línea no combina con nadie.
+    if (acumulan.length < 2) return totales;
+
+    for (final item in acumulan) {
+      for (final nivel in item.niveles) {
+        if (!nivel.isActive) continue;
+        final clave = claveGrupoMayoreo(item.productoId!, nivel);
+        totales[clave] = (totales[clave] ?? 0) + item.cantidad;
+      }
+    }
+    return totales;
+  }
+
+  /// Reprecia el carrito ENTERO de una, aplicando mayoreo combinado.
+  ///
+  /// 🔴 Este es el punto de entrada: `recalcularPrecioPorNiveles` sola ya no
+  /// alcanza, porque el precio de una línea ahora depende de las OTRAS. Cada
+  /// vez que se agrega, quita o cambia la cantidad de un ítem hay que pasar la
+  /// lista completa por acá, no repreciar la línea tocada.
+  static List<VentaDetalleInput> recalcularNivelesEnLote(
+    List<VentaDetalleInput> items,
+  ) {
+    final grupos = cantidadesGrupoMayoreo(items);
+    return [
+      for (final item in items)
+        // Componentes de combo: el precio lo fija el prorrateo del combo, no
+        // los niveles. Repreciarlos acá les pisaría el precio del deal.
+        // Espejo de `ignorarNiveles` del backend.
+        if (item.origenComboId != null)
+          item
+        else
+          item.recalcularPrecioPorNiveles(
+            item.cantidad,
+            cantidadesGrupo: grupos,
+          ),
+    ];
   }
 
   /// Selecciona el nivel aplicable más específico para una cantidad dada.
   /// Devuelve `null` si ningún nivel aplica.
+  ///
+  /// Con [cantidadesGrupo] (mayoreo combinado) cada nivel se mide contra las
+  /// unidades de SU grupo cuando el carrito acumuló más que esta línea. Sin el
+  /// mapa manda la cantidad de la línea, que es el comportamiento de siempre.
   static PrecioNivel? nivelAplicableParaCantidad(
     List<PrecioNivel> niveles,
-    double cantidad,
-  ) {
+    double cantidad, {
+    Map<String, double>? cantidadesGrupo,
+    String? productoId,
+  }) {
     if (niveles.isEmpty) return null;
     final cantidadInt = cantidad.floor();
     final aplicables = niveles
-        .where((n) => n.isActive && n.aplicaParaCantidad(cantidadInt))
+        .where((n) =>
+            n.isActive &&
+            n.aplicaParaCantidad(
+              cantidadesGrupo == null || productoId == null
+                  ? cantidadInt
+                  : _cantidadParaNivel(
+                      n,
+                      cantidad,
+                      cantidadesGrupo,
+                      productoId,
+                    ).floor(),
+            ))
         .toList();
     if (aplicables.isEmpty) return null;
     // El más específico = mayor cantidadMinima
@@ -416,7 +539,15 @@ class VentaDetalleInput {
   /// El precio de liquidación gana siempre — aplicar un nivel "Por Mayor
   /// PRECIO_FIJO S/9" sobre un producto liquidado a S/5 lo subiría al
   /// vender 12 unidades, lo cual contradice el remate.
-  VentaDetalleInput recalcularPrecioPorNiveles(double cantidad) {
+  ///
+  /// [cantidadesGrupo] activa el MAYOREO COMBINADO: el mínimo de cada nivel se
+  /// mide contra las unidades del grupo en todo el carrito. Normalmente no se
+  /// pasa a mano — se llama [recalcularNivelesEnLote], que lo arma y reprecia
+  /// todas las líneas juntas.
+  VentaDetalleInput recalcularPrecioPorNiveles(
+    double cantidad, {
+    Map<String, double>? cantidadesGrupo,
+  }) {
     final base = precioBase ?? precioUnitario;
 
     // 1) Precio "normal" (base / nivel por mayor), igual que antes.
@@ -425,7 +556,17 @@ class VentaDetalleInput {
     double? descPct;
 
     if (!enLiquidacion) {
-      final nivel = nivelAplicableParaCantidad(niveles, cantidad);
+      final nivel = nivelAplicableParaCantidad(
+        niveles,
+        cantidad,
+        cantidadesGrupo: cantidadesGrupo,
+        // Solo las líneas de VARIANTE combinan, igual que en el backend
+        // (que scopea el grupo por `variante.productoId`). Un producto sin
+        // variantes no tiene con quién agruparse, y pasarle el productoId acá
+        // lo haría enganchar con el grupo de las variantes de ese mismo
+        // producto — un grupo que el servidor no arma. Eso es un 409.
+        productoId: varianteId != null ? productoId : null,
+      );
       if (nivel != null) {
         final precioConNivel = nivel.calcularPrecioFinal(base);
         // Un nivel por volumen NUNCA sube el precio.
@@ -451,12 +592,21 @@ class VentaDetalleInput {
       }
     }
 
+    // 3) Estado del mayoreo para el badge del carrito. Se calcula SIEMPRE que
+    //    haya mapa de grupos, aplique o no el nivel: el caso más útil para el
+    //    vendedor es justo el que NO aplicó todavía ("falta 1 para S/72").
+    final estadoMayoreo = cantidadesGrupo == null
+        ? null
+        : _estadoMayoreo(cantidad, cantidadesGrupo, base);
+
     if (etiqueta == null) {
       return copyWith(
         cantidad: cantidad,
         precioUnitario: precio,
         precioBase: base,
         clearNivelAplicado: true,
+        mayoreo: estadoMayoreo,
+        clearMayoreo: estadoMayoreo == null,
       );
     }
     return copyWith(
@@ -465,7 +615,52 @@ class VentaDetalleInput {
       precioBase: base,
       nivelAplicado: etiqueta,
       descuentoNivelPct: descPct,
+      mayoreo: estadoMayoreo,
+      clearMayoreo: estadoMayoreo == null,
     );
+  }
+
+  /// Arma el estado del mayoreo combinado para el badge: el nivel MÁS BARATO
+  /// que el grupo ya alcanzó y, si no alcanzó ninguno, el más cercano — el que
+  /// le falta menos. Null si la línea no participa de ningún grupo o si el
+  /// grupo no aporta nada por encima de la propia línea (ahí el badge sería
+  /// ruido: no hay nada "combinado" que explicar).
+  MayoreoCombinado? _estadoMayoreo(
+    double cantidad,
+    Map<String, double> cantidadesGrupo,
+    double base,
+  ) {
+    if (productoId == null || varianteId == null) return null;
+    if (origenComboId != null || enLiquidacion) return null;
+
+    MayoreoCombinado? mejorAlcanzado;
+    MayoreoCombinado? masCercano;
+
+    for (final nivel in niveles) {
+      if (!nivel.isActive) continue;
+      final unidades =
+          cantidadesGrupo[claveGrupoMayoreo(productoId!, nivel)] ?? cantidad;
+      // Sin aporte del resto del carrito no hay nada que contar.
+      if (unidades <= cantidad) continue;
+      final precioNivel = nivel.calcularPrecioFinal(base);
+      if (precioNivel >= base) continue;
+
+      final estado = MayoreoCombinado(
+        nombreNivel: nivel.nombre,
+        precioNivel: precioNivel,
+        minimo: nivel.cantidadMinima,
+        unidadesGrupo: unidades,
+      );
+      if (estado.alcanzado) {
+        if (mejorAlcanzado == null ||
+            estado.precioNivel < mejorAlcanzado.precioNivel) {
+          mejorAlcanzado = estado;
+        }
+      } else if (masCercano == null || estado.faltan < masCercano.faltan) {
+        masCercano = estado;
+      }
+    }
+    return mejorAlcanzado ?? masCercano;
   }
 
   /// Calcula el precio candidato de la política VIP para esta línea. Espejo
@@ -512,4 +707,55 @@ class VentaDetalleInput {
         return r4(p < 0 ? 0 : p);
     }
   }
+}
+
+/// Estado del MAYOREO COMBINADO de una línea, para explicarlo en el carrito.
+///
+/// Existe porque el precio de una línea pasó a depender de las OTRAS, y sin
+/// contarlo el vendedor ve un precio que baja (o que no baja) sin motivo
+/// visible. Los dos mensajes que importan:
+/// - alcanzado: "Por Mayor S/72 · 3 de 3" — por qué bajó.
+/// - por alcanzar: "Falta 1 para Por Mayor S/72" — la venta que se puede
+///   cerrar diciéndolo en voz alta.
+///
+/// Además es la red contra el riesgo de agrupar por precio: si a una variante
+/// le cambian el mayor en S/1 sale del grupo en silencio, y el "2 de 3" que no
+/// llega a 3 es lo que lo hace visible en el mostrador.
+class MayoreoCombinado {
+  /// Nombre del nivel, tal cual lo cargó la empresa ("Por Mayor").
+  final String nombreNivel;
+
+  /// Precio unitario que deja el nivel.
+  final double precioNivel;
+
+  /// Unidades que pide el nivel.
+  final int minimo;
+
+  /// Unidades que juntó el GRUPO en todo el carrito (incluye esta línea).
+  final double unidadesGrupo;
+
+  const MayoreoCombinado({
+    required this.nombreNivel,
+    required this.precioNivel,
+    required this.minimo,
+    required this.unidadesGrupo,
+  });
+
+  bool get alcanzado => unidadesGrupo.floor() >= minimo;
+
+  /// Cuántas unidades faltan para el mínimo. 0 si ya se alcanzó.
+  int get faltan {
+    final resto = minimo - unidadesGrupo.floor();
+    return resto > 0 ? resto : 0;
+  }
+
+  /// Texto listo para el chip del carrito. Corto a propósito: la columna del
+  /// carrito es angosta y el chip convive con el del nivel aplicado.
+  ///
+  /// Alcanzado explica por qué una línea de 1 unidad bajó de precio; el otro
+  /// es el que cierra ventas ("llevate uno más y te los dejo a 72").
+  String get etiqueta => alcanzado
+      ? 'Mayoreo: ${unidadesGrupo.floor()} de $minimo'
+      : 'Falta${faltan == 1 ? '' : 'n'} $faltan para '
+          'S/ ${precioNivel.toStringAsFixed(2)}';
 }

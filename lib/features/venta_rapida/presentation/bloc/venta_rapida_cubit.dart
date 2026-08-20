@@ -132,6 +132,17 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
   }
 
+  /// Reprecia el carrito ENTERO por mayoreo combinado.
+  ///
+  /// 🔴 El precio de una línea depende de las OTRAS: 3 edredones de 3 diseños
+  /// distintos que comparten el mismo "Por Mayor ≥ 3" hacen mayoreo entre sí.
+  /// Por eso, después de agregar, quitar o cambiar la cantidad de cualquier
+  /// ítem —o de que lleguen los niveles del backend— hay que pasar la LISTA
+  /// COMPLETA por acá; repreciar solo la línea que se tocó deja a las otras
+  /// con el precio viejo y la venta rebota con 409 PRECIO_DESACTUALIZADO.
+  List<VentaDetalleInput> _repreciar(List<VentaDetalleInput> items) =>
+      VentaDetalleInput.recalcularNivelesEnLote(items);
+
   /// Re-resuelve y reaplica el precio VIP a todas las líneas del carrito.
   /// Combos, componentes de combo y órdenes de servicio quedan exentos
   /// (paridad con el backend).
@@ -156,7 +167,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
           .copyWith(vipIntents: intents)
           .recalcularPrecioPorNiveles(item.cantidad);
     }).toList();
-    if (cambio) emit(state.copyWith(items: nuevos));
+    if (cambio) emit(state.copyWith(items: _repreciar(nuevos)));
   }
 
   /// Intenciones VIP para un producto (todas las políticas aplicables del
@@ -271,7 +282,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     // Pre-carga del cliente de la orden. La orden manda: el comprobante
     // debe salir a nombre de quien dejó el equipo.
     var nuevo = state.copyWith(
-      items: [...state.items, item],
+      items: _repreciar([...state.items, item]),
       clearError: true,
     );
     if (orden.clienteEmpresa != null) {
@@ -333,7 +344,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
           .copyWith(icbper: icbperPerUnit * nuevaCantidad);
       final lista = [...state.items];
       lista[idx] = nueva;
-      emit(state.copyWith(items: lista, clearError: true));
+      emit(state.copyWith(items: _repreciar(lista), clearError: true));
       return;
     }
 
@@ -371,7 +382,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(cantidadInicial)
         : item;
-    emit(state.copyWith(items: [...state.items, itemConNivel], clearError: true));
+    emit(state.copyWith(
+        items: _repreciar([...state.items, itemConNivel]), clearError: true));
 
     // Si todavía no tenemos los niveles cacheados, los pedimos al backend.
     if (nivelesEnCache == null) {
@@ -419,7 +431,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
           .copyWith(icbper: icbperPerUnit * nuevaCantidad);
       final lista = [...state.items];
       lista[idx] = nueva;
-      emit(state.copyWith(items: lista, clearError: true));
+      emit(state.copyWith(items: _repreciar(lista), clearError: true));
       return;
     }
 
@@ -457,7 +469,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final itemConNivel = nivelesEnCache != null
         ? item.recalcularPrecioPorNiveles(cantidad.toDouble())
         : item;
-    emit(state.copyWith(items: [...state.items, itemConNivel], clearError: true));
+    emit(state.copyWith(
+        items: _repreciar([...state.items, itemConNivel]), clearError: true));
 
     if (nivelesEnCache == null) {
       _cargarNivelesVarianteYActualizar(variante.id);
@@ -477,7 +490,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         .recalcularPrecioPorNiveles(items[idx].cantidad);
     final lista = [...items];
     lista[idx] = actualizado;
-    emit(state.copyWith(items: lista));
+    emit(state.copyWith(items: _repreciar(lista)));
   }
 
   /// Expande un combo en N items de productos individuales con precio
@@ -602,7 +615,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }).toList();
 
     emit(state.copyWith(
-      items: [...state.items, ...nuevos],
+      items: _repreciar([...state.items, ...nuevos]),
       clearError: true,
     ));
     // Prorratea el descuento del combo entre las líneas según su regla.
@@ -672,7 +685,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       }
       return it;
     }).toList();
-    emit(state.copyWith(items: items, clearError: true));
+    emit(state.copyWith(items: _repreciar(items), clearError: true));
   }
 
   /// Quita el componente en [index] (debe ser línea de combo) y re-precia
@@ -691,7 +704,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         : null;
 
     final lista = [...state.items]..removeAt(index);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
 
     if (lista.any((i) => i.origenComboId == comboId)) {
       _recalcularCombo(comboId,
@@ -724,7 +737,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final ultimoIdx =
         lista.lastIndexWhere((i) => i.origenComboId == origenComboId);
     lista.insert(ultimoIdx + 1, nueva);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
 
     final esFijo = ctx.comboTipoPrecio == 'fijo';
     final nuevoObjetivoFijo = esFijo
@@ -758,7 +771,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
     final lista = [...state.items];
     lista[index] = nueva;
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
 
     final esFijo = vieja.comboTipoPrecio == 'fijo';
     final delta = nueva.precioUnitario * nueva.cantidad -
@@ -845,7 +858,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         .recalcularPrecioPorNiveles(items[idx].cantidad);
     final lista = [...items];
     lista[idx] = actualizado;
-    emit(state.copyWith(items: lista));
+    emit(state.copyWith(items: _repreciar(lista)));
   }
 
   String _mapTipoAfectacion(String tipo) {
@@ -869,7 +882,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     if (index < 0 || index >= state.items.length) return;
     final lista = [...state.items];
     lista[index] = lista[index].copyWith(identificadores: valores);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   /// Notas por unidad ("NEGRO 128GB"), en el mismo orden que los
@@ -878,7 +891,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     if (index < 0 || index >= state.items.length) return;
     final lista = [...state.items];
     lista[index] = lista[index].copyWith(notasIdentificador: notas);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void actualizarCantidad(int index, double cantidad) {
@@ -909,7 +922,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         cantidad: cantidadFinal,
         icbper: icbperPerUnit * cantidadFinal,
       );
-      emit(state.copyWith(items: lista, clearError: true));
+      emit(state.copyWith(items: _repreciar(lista), clearError: true));
       final esFijo = actual.comboTipoPrecio == 'fijo';
       final nuevoObjetivoFijo = esFijo
           ? ((actual.comboPrecioObjetivo ?? 0) +
@@ -925,7 +938,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         .copyWith(icbper: icbperPerUnit * cantidadFinal);
     final lista = [...state.items];
     lista[index] = nueva;
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   /// Setea el descuento MANUAL de una línea (por ítem / global) preservando
@@ -959,7 +972,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final monto = (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
     final lista = [...state.items];
     lista[index] = _conDescuentoManual(actual, monto);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void actualizarDescuentoMonto(int index, double monto) {
@@ -972,7 +985,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
     final lista = [...state.items];
     lista[index] = _conDescuentoManual(state.items[index], monto);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   /// Aplica un descuento global por porcentaje a TODAS las líneas, incluidas
@@ -986,7 +999,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       final manual = (item.cantidad * item.precioUnitario) * (porcentaje / 100);
       return _conDescuentoManual(item, manual);
     }).toList();
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   /// Limpia los descuentos MANUALES (por ítem y global). El ahorro
@@ -996,13 +1009,13 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       if (item.descuentoManual == 0) return item;
       return _conDescuentoManual(item, 0);
     }).toList();
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void eliminarItem(int index) {
     if (index < 0 || index >= state.items.length) return;
     final lista = [...state.items]..removeAt(index);
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   /// Decrementa en 1 la cantidad del producto suelto en el carrito.
@@ -1050,7 +1063,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         .copyWith(icbper: icbperPerUnit * nuevaCantidad);
     final lista = [...state.items];
     lista[idx] = nueva;
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   /// Elimina TODOS los items que pertenecen a un combo dado.
@@ -1059,7 +1072,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final lista = state.items
         .where((i) => i.origenComboId != origenComboId)
         .toList();
-    emit(state.copyWith(items: lista, clearError: true));
+    emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
   void vaciarCarrito() {
@@ -1818,7 +1831,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         final esYaCobrada = result.errorCode == 'ORDEN_YA_COBRADA';
         emit(state.copyWith(
           procesando: false,
-          items: lista,
+          items: _repreciar(lista),
           error: esYaCobrada
               ? '${result.message} La línea se quitó del carrito.'
               : 'Los montos de la orden cambiaron y la línea se quitó del carrito. Vuelve a agregarla para cobrar con los valores vigentes.',
@@ -1951,7 +1964,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }).toList();
 
     emit(state.copyWith(
-      items: nuevos,
+      items: _repreciar(nuevos),
       clearPreciosDesactualizados: true,
     ));
   }
@@ -2090,7 +2103,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
 
     emit(state.copyWith(
-      items: nuevos,
+      items: _repreciar(nuevos),
       clearStockInsuficiente: true,
     ));
   }
@@ -2349,7 +2362,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     if (!huboCambios) return;
     debugPrint(
         '[VentaRapida] Carrito sincronizado por FCM: ${afectados.length} item(s)');
-    emit(state.copyWith(items: nuevos));
+    emit(state.copyWith(items: _repreciar(nuevos)));
   }
 
   @override

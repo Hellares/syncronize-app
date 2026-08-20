@@ -224,6 +224,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
         _items[idx] = _items[idx].recalcularPrecioPorNiveles(
           _items[idx].cantidad + cantidad,
         );
+        _repreciarItems();
       });
       _productosDeItems[p.id] = p;
       if (limpiarBusqueda) _limpiarBusqueda();
@@ -260,7 +261,10 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
     ).recalcularPrecioPorNiveles(cantidad);
 
     if (!mounted) return false;
-    setState(() => _items.add(item));
+    setState(() {
+      _items.add(item);
+      _repreciarItems();
+    });
     _productosDeItems[p.id] = p;
     if (limpiarBusqueda) _limpiarBusqueda();
     return true;
@@ -378,6 +382,18 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
     _restaurarCatalogo();
   }
 
+  /// Reprecia la lista ENTERA por mayoreo combinado.
+  ///
+  /// El precio de una línea depende de las OTRAS: 3 edredones de 3 diseños
+  /// distintos que comparten el mismo "Por Mayor ≥ 3" hacen mayoreo entre sí.
+  /// Se llama dentro del `setState` que toca `_items`, después de mutar.
+  void _repreciarItems() {
+    final repreciados = VentaDetalleInput.recalcularNivelesEnLote(_items);
+    _items
+      ..clear()
+      ..addAll(repreciados);
+  }
+
   void _cambiarCantidad(int index, double delta) {
     final nueva = _items[index].cantidad + delta;
     setState(() {
@@ -386,6 +402,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
       } else {
         _items[index] = _items[index].recalcularPrecioPorNiveles(nueva);
       }
+      _repreciarItems();
     });
   }
 
@@ -1151,6 +1168,7 @@ class _CalculadoraMostradorSheetState extends State<CalculadoraMostradorSheet> {
       _items
         ..clear()
         ..addAll(nuevos);
+      _repreciarItems();
       _recotizando = false;
       _estadoPrecios = 'Precios actualizados $hhmm';
     });

@@ -1073,6 +1073,40 @@ class _ItemRowState extends State<_ItemRow> {
                     ),
                   ),
                 ],
+                // MAYOREO COMBINADO: por qué esta línea de 1 unidad bajó de
+                // precio ("Mayoreo: 3 de 3"), o cuánto falta para que baje
+                // ("Falta 1 para S/ 72.00") — el chip con el que se cierra la
+                // venta. También es la red contra el grupo que se rompe: si a
+                // una variante le cambian el mayor, el "2 de 3" que nunca
+                // llega a 3 lo hace visible acá.
+                if (item.mayoreo != null) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: item.mayoreo!.alcanzado
+                          ? Colors.green.shade50
+                          : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color: item.mayoreo!.alcanzado
+                              ? Colors.green.shade300
+                              : Colors.blue.shade300,
+                          width: 0.5),
+                    ),
+                    child: Text(
+                      item.mayoreo!.etiqueta,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: item.mayoreo!.alcanzado
+                            ? Colors.green.shade700
+                            : Colors.blue.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
                 if (item.enLiquidacion) ...[
                   const SizedBox(height: 2),
                   Container(
