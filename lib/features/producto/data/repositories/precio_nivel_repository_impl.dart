@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/grupo_mayoreo.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../domain/repositories/precio_nivel_repository.dart';
 import '../datasources/precio_nivel_remote_datasource.dart';
@@ -102,6 +103,29 @@ class PrecioNivelRepositoryImpl implements PrecioNivelRepository {
         varianteId: varianteId,
       );
       return Success(niveles);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'PrecioNivel');
+    }
+  }
+
+  @override
+  Future<Resource<GruposMayoreoResumen>> getGruposMayoreo({
+    required String productoId,
+    String? sedeId,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      final json = await _remoteDataSource.getGruposMayoreo(
+        productoId: productoId,
+        sedeId: sedeId,
+      );
+      return Success(GruposMayoreoResumen.fromJson(json));
     } catch (e) {
       return _errorHandler.handleException(e, context: 'PrecioNivel');
     }

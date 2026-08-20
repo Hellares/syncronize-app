@@ -56,6 +56,26 @@ class PrecioNivelRemoteDataSource {
         .toList();
   }
 
+  /// MONITOR DE MAYOREO: cómo quedan agrupadas las variantes de un producto
+  /// según sus niveles.
+  ///
+  /// Va en UNA llamada a propósito. Pidiendo los niveles variante por variante
+  /// serían 91 requests en un producto como EDREDONES, y encima el app tendría
+  /// que reagrupar por su cuenta — con el riesgo de mostrar algo distinto de lo
+  /// que el backend termina cobrando.
+  ///
+  /// GET /api/productos/:productoId/grupos-mayoreo?sedeId=xxx
+  Future<Map<String, dynamic>> getGruposMayoreo({
+    required String productoId,
+    String? sedeId,
+  }) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.productos}/$productoId/grupos-mayoreo',
+      queryParameters: sedeId != null ? {'sedeId': sedeId} : null,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Obtiene todos los niveles de precio de una variante
   ///
   /// GET /api/productos/variantes/:varianteId/precios-nivel

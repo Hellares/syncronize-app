@@ -1,4 +1,5 @@
 import '../../../../core/utils/resource.dart';
+import '../entities/grupo_mayoreo.dart';
 import '../entities/precio_nivel.dart';
 import '../../data/models/precio_nivel_model.dart';
 
@@ -24,6 +25,14 @@ abstract class PrecioNivelRepository {
   /// Obtiene todos los niveles de precio de una variante
   Future<Resource<List<PrecioNivel>>> getPreciosNivelVariante({
     required String varianteId,
+  });
+
+  /// Monitor de mayoreo combinado: qué variantes del producto suman entre sí
+  /// para llegar al mínimo de un nivel. Los grupos los arma el backend con la
+  /// misma llave con la que cobra.
+  Future<Resource<GruposMayoreoResumen>> getGruposMayoreo({
+    required String productoId,
+    String? sedeId,
   });
 
   /// Obtiene un nivel de precio por ID

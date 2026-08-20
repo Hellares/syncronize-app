@@ -27,6 +27,7 @@ import '../bloc/variante_atributo/variante_atributo_cubit.dart';
 import '../bloc/configurar_precios/configurar_precios_cubit.dart';
 import '../bloc/sede_selection/sede_selection_cubit.dart';
 import 'analisis_variantes_page.dart';
+import 'grupos_mayoreo_page.dart';
 import 'edicion_masiva_stock_page.dart';
 import '../widgets/producto_variante_form_dialog.dart';
 import '../widgets/generar_combinaciones_dialog.dart';
@@ -183,6 +184,24 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
           ],
         ),
         actions: [
+          // Los grupos de mayoreo son IMPLÍCITOS (dos variantes combinan
+          // cuando tienen el mismo nivel cargado), así que sin esta pantalla
+          // no hay forma de saber cuáles suman entre sí — ni de notar que a
+          // una le cambiaron el precio y quedó fuera de su grupo.
+          IconButton(
+            tooltip: 'Grupos de mayoreo',
+            icon: const Icon(Icons.workspaces_outline, size: 18),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GruposMayoreoPage(
+                  productoId: widget.productoId,
+                  productoNombre: widget.productoNombre,
+                  sedeIdInicial: _sedeId,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Análisis de variantes',
             icon: const Icon(Icons.insights_outlined, size: 18),
