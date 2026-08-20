@@ -10,7 +10,11 @@ import '../../../../core/utils/busqueda_texto.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/grupo_mayoreo.dart';
+import '../../domain/entities/producto_stock.dart';
 import '../../domain/repositories/precio_nivel_repository.dart';
+import '../../domain/usecases/get_stock_variante_en_sede_usecase.dart';
+import '../bloc/configurar_precios/configurar_precios_cubit.dart';
+import '../widgets/configurar_precios_dialog.dart';
 
 /// MONITOR DE MAYOREO COMBINADO — qué variantes suman entre sí para llegar al
 /// mínimo de un nivel.
@@ -51,6 +55,7 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
 
   List<dynamic> _sedes = [];
   String? _sedeId;
+  String? _empresaId;
 
   GruposMayoreoResumen? _resumen;
   bool _cargando = true;
@@ -66,6 +71,7 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
     super.initState();
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is EmpresaContextLoaded) {
+      _empresaId = empresaState.context.empresa.id;
       _sedes = List<dynamic>.from(
         empresaState.context.sedes.where((s) => s.isActive),
       );
@@ -112,6 +118,62 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
     if (terminos.isEmpty) return true;
     // Nombre + SKU juntos: "frozen 3 pzs" y "VAR-000044" filtran igual de bien.
     return coincideTodosLosTerminos('${v.nombre} ${v.sku}', terminos);
+  }
+
+  /// Abre el diálogo de precios de una variante SIN salir del monitor.
+  ///
+  /// Es la mitad que faltaba: detectar acá que una variante quedó sola en su
+  /// grupo —o que su nivel no baja del precio de lista— y tener que irse a otra
+  /// pantalla a corregirlo dejaba el problema visto pero no resuelto. Al volver
+  /// se recarga, así que el reagrupado se ve en el acto: si el precio quedó
+  /// igual al de sus hermanas, la variante SALTA a su grupo.
+  Future<void> _configurarPrecio(VarianteMayoreo v) async {
+    final sedeId = _sedeId;
+    final empresaId = _empresaId;
+    if (sedeId == null || empresaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Elegí una sede para poder editar precios'),
+        ),
+      );
+      return;
+    }
+
+    // El diálogo trabaja sobre el ProductoStock de la sede (precio, costo,
+    // oferta, liquidación), que el monitor no trae: pide solo lo que muestra.
+    final result = await locator<GetStockVarianteEnSedeUseCase>()(
+      varianteId: v.varianteId,
+      sedeId: sedeId,
+    );
+    if (!mounted) return;
+    if (result is! Success<ProductoStock>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result is Error<ProductoStock>
+                ? result.message
+                : 'No se pudo leer el precio de esta variante',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final guardado = await showDialog<bool>(
+      context: context,
+      builder: (_) => BlocProvider(
+        create: (_) => locator<ConfigurarPreciosCubit>(),
+        child: ConfigurarPreciosDialog(
+          stock: result.data,
+          empresaId: empresaId,
+          // Sin esto, un granel se editaría en gramos (S/0.008) en vez de en
+          // kilos (S/8.00).
+          unidadPresentacionSimbolo: v.unidadPresentacionSimbolo,
+          factorPresentacion: v.factorPresentacion,
+        ),
+      ),
+    );
+    if (guardado == true && mounted) _cargar();
   }
 
   @override
@@ -275,6 +337,25 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
             'mínimo. Llevar una de cada una ya es mayoreo.',
             style: TextStyle(fontSize: 10, color: Colors.blue.shade900),
           ),
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Icon(Icons.touch_app_outlined,
+                  size: 11, color: Colors.blue.shade700),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Tocá una variante para editar sus precios: al volver, el '
+                  'reagrupado se ve al instante.',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
@@ -430,7 +511,7 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
             ),
           if (abierto) ...[
             const Divider(height: 1),
-            ...visibles.map((v) => _buildVariante(v, g)),
+            ...visibles.map(_buildVariante),
           ],
         ],
       ),
@@ -457,55 +538,62 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
         ),
       );
 
-  Widget _buildVariante(VarianteMayoreo v, GrupoMayoreo g) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  v.nombre,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: v.isActive ? Colors.black87 : Colors.grey,
-                    decoration:
-                        v.isActive ? null : TextDecoration.lineThrough,
+  Widget _buildVariante(VarianteMayoreo v) {
+    return InkWell(
+      // Tocar la fila abre los precios de esa variante. Es lo que convierte al
+      // monitor en algo accionable: acá se ve el problema y acá se arregla.
+      onTap: () => _configurarPrecio(v),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    v.nombre,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: v.isActive ? Colors.black87 : Colors.grey,
+                      decoration:
+                          v.isActive ? null : TextDecoration.lineThrough,
+                    ),
                   ),
-                ),
-                Text(
-                  '${v.sku}'
-                  '${v.stockActual != null ? ' · ${v.stockActual} u' : ''}'
-                  '${v.isActive ? '' : ' · desactivada'}',
-                  style: TextStyle(fontSize: 9, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          if (v.precioVenta != null) ...[
-            Text(
-              'S/ ${v.precioVenta!.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey[500],
-                decoration: TextDecoration.lineThrough,
+                  Text(
+                    '${v.sku}'
+                    '${v.stockActual != null ? ' · ${v.stockActual} u' : ''}'
+                    '${v.isActive ? '' : ' · desactivada'}',
+                    style: TextStyle(fontSize: 9, color: Colors.grey[600]),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            v.precioConNivel != null
-                ? 'S/ ${v.precioConNivel!.toStringAsFixed(2)}'
-                : '—',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.green.shade700,
+            if (v.precioVenta != null) ...[
+              Text(
+                'S/ ${v.precioVenta!.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[500],
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              v.precioConNivel != null
+                  ? 'S/ ${v.precioConNivel!.toStringAsFixed(2)}'
+                  : '—',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.green.shade700,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 4),
+            Icon(Icons.edit_outlined, size: 13, color: Colors.grey[400]),
+          ],
+        ),
       ),
     );
   }
@@ -550,23 +638,31 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
             style: TextStyle(fontSize: 10, color: Colors.orange.shade900),
           ),
           const SizedBox(height: 8),
+          // También se tocan: es acá donde más falta hace entrar a cargarle
+          // el precio por mayor que nunca tuvo.
           ...visibles.map(
-            (v) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      v.nombre,
-                      style: const TextStyle(fontSize: 10),
+            (v) => InkWell(
+              onTap: () => _configurarPrecio(v),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        v.nombre,
+                        style: const TextStyle(fontSize: 10),
+                      ),
                     ),
-                  ),
-                  Text(
-                    '${v.sku}'
-                    '${v.precioVenta != null ? ' · S/ ${v.precioVenta!.toStringAsFixed(2)}' : ''}',
-                    style: TextStyle(fontSize: 9, color: Colors.grey[700]),
-                  ),
-                ],
+                    Text(
+                      '${v.sku}'
+                      '${v.precioVenta != null ? ' · S/ ${v.precioVenta!.toStringAsFixed(2)}' : ''}',
+                      style: TextStyle(fontSize: 9, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.edit_outlined,
+                        size: 13, color: Colors.orange.shade400),
+                  ],
+                ),
               ),
             ),
           ),

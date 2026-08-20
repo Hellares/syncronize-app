@@ -33,6 +33,11 @@ class VarianteMayoreo extends Equatable {
   /// Cuánto baja por unidad. Null si falta alguno de los dos precios.
   final double? ahorroUnitario;
 
+  /// Presentación de la variante, para que el diálogo de precios de un granel
+  /// hable en kilos y no en gramos. Null = se vende en su unidad de venta.
+  final String? unidadPresentacionSimbolo;
+  final double? factorPresentacion;
+
   const VarianteMayoreo({
     required this.varianteId,
     required this.nombre,
@@ -42,6 +47,8 @@ class VarianteMayoreo extends Equatable {
     this.stockActual,
     this.precioConNivel,
     this.ahorroUnitario,
+    this.unidadPresentacionSimbolo,
+    this.factorPresentacion,
   });
 
   factory VarianteMayoreo.fromJson(Map<String, dynamic> json) =>
@@ -54,6 +61,9 @@ class VarianteMayoreo extends Equatable {
         stockActual: (json['stockActual'] as num?)?.toInt(),
         precioConNivel: _double(json['precioConNivel']),
         ahorroUnitario: _double(json['ahorroUnitario']),
+        unidadPresentacionSimbolo:
+            json['unidadPresentacionSimbolo'] as String?,
+        factorPresentacion: _double(json['factorPresentacion']),
       );
 
   @override
