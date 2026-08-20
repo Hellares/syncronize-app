@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
-import 'package:syncronize/core/theme/app_gradients.dart';
-import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/confirm_dialog.dart';
-import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/popup_item.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
 import '../../../../core/di/injection_container.dart';
@@ -15,6 +12,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../domain/entities/producto_atributo.dart';
 import '../../domain/entities/producto_stock.dart';
+import '../../domain/entities/stock_por_sede_info.dart';
 import '../../domain/entities/producto_variante.dart';
 import '../../domain/usecases/get_stock_variante_en_sede_usecase.dart';
 import '../bloc/producto_atributo/producto_atributo_cubit.dart';
@@ -388,6 +386,9 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
             }
 
             final filtradas = _filtrar(variantes);
+            // Se calcula UNA vez por build, no por fila: la unión de ejes es
+            // lo que permite detectar a la variante a la que le falta uno.
+            final ejes = _EjesProducto.de(variantes, _atributosDisponibles);
 
             return Column(
               children: [
@@ -398,21 +399,48 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                 Expanded(
                   child: filtradas.isEmpty
                       ? _buildSinResultados()
-                      : RefreshIndicator(
-                          onRefresh: () async => _loadData(),
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(12),
-                            itemCount: filtradas.length,
-                            itemBuilder: (context, index) {
-                              final variante = filtradas[index];
-                              return _VarianteCard(
-                                variante: variante,
-                                onEdit: () => _showVarianteDialog(variante),
-                                onDelete: () => _confirmDelete(variante),
-                                onUpdateStock: () => _showStockDialog(variante),
-                                onPrecioTap: () => _handlePrecioTap(variante),
-                              );
-                            },
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                          child: Container(
+                            // El marco envuelve el VIEWPORT, no cada fila: la
+                            // lista se lee como una sola tabla y las filas
+                            // siguen virtualizadas (91 variantes).
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                  color: const Color(0xFFDBE4EE), width: 1),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x0F043261),
+                                  offset: Offset(0, 1),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: RefreshIndicator(
+                              onRefresh: () async => _loadData(),
+                              child: ListView.builder(
+                                padding: const EdgeInsets.only(bottom: 76),
+                                itemCount: filtradas.length,
+                                itemBuilder: (context, index) {
+                                  final variante = filtradas[index];
+                                  return _VarianteFila(
+                                    variante: variante,
+                                    ejes: ejes,
+                                    sedeId: _sedeId,
+                                    ultima: index == filtradas.length - 1,
+                                    onEdit: () => _showVarianteDialog(variante),
+                                    onDelete: () => _confirmDelete(variante),
+                                    onUpdateStock: () =>
+                                        _showStockDialog(variante),
+                                    onPrecioTap: () =>
+                                        _handlePrecioTap(variante),
+                                  );
+                                },
+                              ),
+                            ),
                           ),
                         ),
                 ),
@@ -900,240 +928,349 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
     }
   }
 }
+/// Los ejes que tiene el producto: la unión de los atributos que usan sus
+/// variantes, en el orden en que se compone el nombre.
+///
+/// Sirve para dos cosas a la vez: ordenar el breadcrumb de cada fila y —lo
+/// importante— detectar a la variante que NO los tiene todos. Esa variante es
+/// INALCANZABLE en el sheet de venta (ver
+/// feedback_variante_sin_todos_los_atributos) y hasta ahora se veía igual que
+/// las demás, así que el hueco recién aparecía al no poder venderla.
+class _EjesProducto {
+  /// Ids de atributo, ordenados como se compone el nombre.
+  final List<String> ids;
 
-class _VarianteCard extends StatelessWidget {
+  /// id → "Género", para poder decir cuál falta.
+  final Map<String, String> nombres;
+
+  const _EjesProducto(this.ids, this.nombres);
+
+  static _EjesProducto de(
+    List<ProductoVariante> variantes,
+    List<ProductoAtributo> disponibles,
+  ) {
+    final nombres = <String, String>{};
+    // Set con orden de inserción: si `orden` no está cargado, el fallback es
+    // el orden en que los manda el backend, que ya es el bueno.
+    final vistos = <String>{};
+    for (final v in variantes) {
+      for (final av in v.atributosValores) {
+        vistos.add(av.atributoId);
+        nombres[av.atributoId] = av.atributo.nombre;
+      }
+    }
+    final orden = {for (final a in disponibles) a.id: a.orden};
+    final ids = vistos.toList()
+      ..sort((a, b) => (orden[a] ?? 9999).compareTo(orden[b] ?? 9999));
+    return _EjesProducto(ids, nombres);
+  }
+}
+
+/// Una fila de la tabla de variantes.
+///
+/// Es densa a propósito: un producto como EDREDONES tiene 91 variantes y con
+/// la card anterior entraban dos por pantalla.
+///
+/// La jerarquía va al revés que antes: manda el valor del ÚLTIMO eje —lo único
+/// que distingue a esta variante de sus hermanas— y los demás bajan a un
+/// breadcrumb. Antes el nombre completo salía a 10px y el número de stock a
+/// 16px bold: el dato menos importante era el más grande de la card.
+class _VarianteFila extends StatelessWidget {
   final ProductoVariante variante;
+  final _EjesProducto ejes;
+  final String? sedeId;
+  final bool ultima;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onUpdateStock;
   final VoidCallback onPrecioTap;
 
-  const _VarianteCard({
+  const _VarianteFila({
     required this.variante,
+    required this.ejes,
+    required this.sedeId,
+    required this.ultima,
     required this.onEdit,
     required this.onDelete,
     required this.onUpdateStock,
     required this.onPrecioTap,
   });
 
+  static const _divisor = Color(0xFFEEF2F6);
+  static const _rielAgotada = Color(0xFFCFD8E3);
+  static const _textoTenue = Color(0xFF7D97B3);
+  static const _rojoFalta = Color(0xFFD32F6B);
+  static const _ambar = Color(0xFFC2701E);
+
   @override
   Widget build(BuildContext context) {
-    return GradientContainer(
-      shadowStyle: ShadowStyle.colorful,
-      borderColor: AppColors.blueborder,
-      gradient: AppGradients.blueWhiteBlue(),
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.only( left: 10, right: 10, bottom: 5, top: 5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppSubtitle(variante.nombre),
-                      const SizedBox(height: 4),
-                      AppLabelText(variante.sku)
-                    ],
-                  ),
-                ),
-                CustomActionMenu(
-                  yNudge: 33,
-                  menuWidth: 100,
-                  borderRadius: 8,
-                  itemHeight: 30,
-                  items: [
-                    ActionMenuItem(
-                      type: ActionMenuType.edit,
-                      label: 'Editar',
-                      icon: Icons.edit_outlined,
-                      color: AppColors.blue1,
-                    ),
-                    ActionMenuItem(
-                      type: ActionMenuType.precio,
-                      label: 'Precio',
-                      icon: Icons.attach_money,
-                      color: AppColors.blue1,
-                    ),
-                    ActionMenuItem(
-                      type: ActionMenuType.stock,
-                      label: 'Stock',
-                      icon: Icons.inventory,
-                      color: AppColors.green,
-                    ),
-                    // 🔴 El menú admite CUATRO ítems como máximo
-                    // (`popup_item.dart` lo asserta). Renombrar vive dentro
-                    // del diálogo de editar, al lado del campo de nombre, que
-                    // además es donde uno lo busca.
-                    ActionMenuItem(
-                      type: ActionMenuType.delete,
-                      label: 'Eliminar',
-                      icon: Icons.delete_outlined,
-                      color: AppColors.red,
-                    ),
-                  ],
-                    onSelected: (ActionMenuType value) {
-                    switch (value) {
-                      case ActionMenuType.edit:
-                        onEdit();
-                        break;
-                      case ActionMenuType.precio:
-                        onPrecioTap();
-                        break;
-                      case ActionMenuType.stock:
-                        onUpdateStock();
-                        break;
-                      case ActionMenuType.delete:
-                        onDelete();
-                        break;
-                      default:
-                        break;
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (variante.atributosValores.isNotEmpty) ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: variante.atributosValores.map((atributoValor) {
-                  return InfoChip(
-                    icon: Icons.label, 
-                    fontSize: 9,
-                    text: '${atributoValor.atributo.nombre}: ${atributoValor.valor}',
-                    backgroundColor: AppColors.white,
-                    borderColor: AppColors.blue1,
-                    borderRadius: 4,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                  );
-                }).toList(),
-              ),
-              //const SizedBox(height: 4),
+    final agotada = variante.stockTotal == 0;
+    final faltantes = _faltantes();
+
+    return Container(
+      decoration: BoxDecoration(
+        // Fondo rosado tenue: la variante inalcanzable tiene que saltar en una
+        // lista de 91, no esperar a que alguien lea el badge.
+        color: faltantes.isEmpty ? AppColors.white : const Color(0xFFFEF7FA),
+        border: Border(
+          left: BorderSide(color: _colorRiel(faltantes), width: 3),
+          bottom: ultima
+              ? BorderSide.none
+              : const BorderSide(color: _divisor, width: 1),
+        ),
+      ),
+      child: Opacity(
+        opacity: agotada ? 0.55 : 1,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 6, 2, 6),
+          child: Row(
+            children: [
+              Expanded(child: _identidad(faltantes)),
+              const SizedBox(width: 8),
+              _precioYStock(agotada),
+              _menu(),
             ],
-            const Divider(),
-            //const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppLabelText('Precio'),
-                    Builder(builder: (context) {
-                      final stocks = variante.stocksPorSede;
-                      final stockInfo = stocks != null && stocks.isNotEmpty
-                          ? (stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull ?? stocks.first)
-                          : null;
-                      final enLiq = stockInfo?.isLiquidacionActiva ?? false;
-                      final enOferta = stockInfo?.isOfertaActiva ?? false;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                _precioTexto(stockInfo?.precioEfectivo ?? 0.0),
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: enLiq
-                                          ? Colors.deepOrange.shade700
-                                          : enOferta
-                                              ? Colors.green.shade700
-                                              : Colors.green,
-                                    ),
-                              ),
-                              if (enLiq) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.deepOrange.shade700,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.local_fire_department, size: 10, color: Colors.white),
-                                      SizedBox(width: 2),
-                                      Text('LIQ.', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.white)),
-                                    ],
-                                  ),
-                                ),
-                              ] else if (enOferta) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade700,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.local_offer, size: 10, color: Colors.white),
-                                      SizedBox(width: 2),
-                                      Text('OFERTA', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.white)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          if (enLiq || enOferta)
-                            Text(
-                              'Base: ${_precioTexto(stockInfo?.precio ?? 0.0)}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey.shade500,
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                            ),
-                        ],
-                      );
-                    }),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    AppLabelText('Stock'),
-                    Row(
-                      children: [
-                        Icon(
-                          _getStockIcon(),
-                          size: 14,
-                          color: _getStockColor(),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _stockTexto(variante.stockTotal),
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: _getStockColor(),
-                              ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  /// Título + breadcrumb + el badge que resume el estado comercial.
+  Widget _identidad(List<String> faltantes) {
+    final valores = {
+      for (final av in variante.atributosValores) av.atributoId: av.valor,
+    };
+    final presentes = ejes.ids.where(valores.containsKey).toList();
+    final titulo =
+        presentes.isEmpty ? variante.nombre : valores[presentes.last]!;
+    // Con un solo eje no hay nada que poner de contexto, y el SKU es lo que
+    // más sirve para identificarla a mano.
+    final breadcrumb = presentes.length <= 1
+        ? variante.sku
+        : presentes
+            .sublist(0, presentes.length - 1)
+            .map((id) => valores[id]!)
+            .join(' · ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Flexible(
+              child: AppSubtitle(
+                titulo,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 6),
+            _badge(faltantes),
+          ],
+        ),
+        const SizedBox(height: 1),
+        AppLabelText(
+          breadcrumb,
+          fontSize: 9,
+          color: _textoTenue,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  /// UN solo badge, por prioridad: primero lo que impide vender, después lo
+  /// que impide vender BIEN. Dos badges no entran en una fila de este alto, y
+  /// el eje faltante siempre gana — sin él la variante ni se ofrece.
+  Widget _badge(List<String> faltantes) {
+    if (faltantes.isNotEmpty) {
+      final texto = faltantes.length == 1
+          ? 'falta ${ejes.nombres[faltantes.first] ?? 'un eje'}'
+          : 'faltan ${faltantes.length} ejes';
+      return _chip(texto, _rojoFalta, Icons.warning_amber_rounded);
+    }
+    final nivel = variante.nivelPorMayor;
+    if (nivel == null) {
+      return _chip('sin mayoreo', _ambar, Icons.info_outline);
+    }
+    final precio = nivel.precio;
+    return _chip(
+      precio == null
+          ? nivel.nombre
+          : '${_precioTexto(precio)} x${nivel.cantidadMinima}',
+      AppColors.green,
+      Icons.layers_outlined,
+    );
+  }
+
+  Widget _chip(String texto, Color color, IconData icono) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icono, size: 10, color: color),
+        const SizedBox(width: 2),
+        Text(
+          texto,
+          style: TextStyle(
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _precioYStock(bool agotada) {
+    final stockInfo = _stockInfo();
+    final enLiq = stockInfo?.isLiquidacionActiva ?? false;
+    final enOferta = stockInfo?.isOfertaActiva ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (enLiq || enOferta) ...[
+              Icon(
+                enLiq ? Icons.local_fire_department : Icons.local_offer,
+                size: 10,
+                color: enLiq ? Colors.deepOrange.shade700 : AppColors.greendark,
+              ),
+              const SizedBox(width: 3),
+            ],
+            AppSubtitle(
+              _precioTexto(stockInfo?.precioEfectivo ?? 0.0),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: enLiq ? Colors.deepOrange.shade700 : AppColors.blue3,
+            ),
+          ],
+        ),
+        const SizedBox(height: 1),
+        Text(
+          agotada ? 'agotada' : _stockTexto(variante.stockTotal),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: agotada ? _textoTenue : _colorStock(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _menu() {
+    return CustomActionMenu(
+      yNudge: 33,
+      menuWidth: 100,
+      borderRadius: 8,
+      itemHeight: 30,
+      // 44×44 de área táctil: el ícono queda chico pero el toque entra. Antes
+      // el objetivo era de 24 px, por debajo del mínimo de Material.
+      trigger: const SizedBox(
+        width: 44,
+        height: 44,
+        child: Icon(Icons.more_vert, size: 16, color: Color(0xFF8AA3BD)),
+      ),
+      items: [
+        ActionMenuItem(
+          type: ActionMenuType.edit,
+          label: 'Editar',
+          icon: Icons.edit_outlined,
+          color: AppColors.blue1,
+        ),
+        ActionMenuItem(
+          type: ActionMenuType.precio,
+          label: 'Precio',
+          icon: Icons.attach_money,
+          color: AppColors.blue1,
+        ),
+        ActionMenuItem(
+          type: ActionMenuType.stock,
+          label: 'Stock',
+          icon: Icons.inventory,
+          color: AppColors.green,
+        ),
+        // 🔴 El menú admite CUATRO ítems como máximo (`popup_item.dart` lo
+        // asserta). Renombrar vive dentro del diálogo de editar.
+        ActionMenuItem(
+          type: ActionMenuType.delete,
+          label: 'Eliminar',
+          icon: Icons.delete_outlined,
+          color: AppColors.red,
+        ),
+      ],
+      onSelected: (ActionMenuType value) {
+        switch (value) {
+          case ActionMenuType.edit:
+            onEdit();
+            break;
+          case ActionMenuType.precio:
+            onPrecioTap();
+            break;
+          case ActionMenuType.stock:
+            onUpdateStock();
+            break;
+          case ActionMenuType.delete:
+            onDelete();
+            break;
+          default:
+            break;
+        }
+      },
+    );
+  }
+
+  /// Los ejes del producto que a ESTA variante le faltan.
+  List<String> _faltantes() {
+    if (ejes.ids.isEmpty) return const [];
+    final tiene = {
+      for (final av in variante.atributosValores) av.atributoId,
+    };
+    return ejes.ids.where((id) => !tiene.contains(id)).toList();
+  }
+
+  StockPorSedeInfo? _stockInfo() {
+    final stocks = variante.stocksPorSede;
+    if (stocks == null || stocks.isEmpty) return null;
+    return stocks
+            .where((s) => s.precioConfigurado && s.precio != null)
+            .firstOrNull ??
+        stocks.first;
+  }
+
+  /// El riel de la izquierda: el estado se lee sin leer.
+  Color _colorRiel(List<String> faltantes) {
+    if (faltantes.isNotEmpty) return AppColors.red;
+    if (variante.stockTotal == 0) return _rielAgotada;
+    if (_bajoMinimo()) return AppColors.orange;
+    return AppColors.green;
+  }
+
+  Color _colorStock() => _bajoMinimo() ? _ambar : AppColors.greendark;
+
+  bool _bajoMinimo() {
+    if (sedeId == null) return false;
+    final minimo = variante.stockSedeInfo(sedeId!)?.stockMinimo;
+    return minimo != null && minimo > 0 && variante.stockTotal <= minimo;
+  }
+
   /// La presentación de esta variante, si vende agrupado (gramos → kg).
   ///
-  /// 🔴 Sin esto la card mentía dos veces en un granel: el precio se guarda POR
-  /// UNIDAD DE VENTA —S/0.008 el gramo— y salía "S/0.01", un precio que no
-  /// existe y encima redondeado; y el stock salía "22000" en vez de "22 kg".
-  /// El mismo formateador que ya usan el sheet de venta y la card del producto.
+  /// 🔴 Sin esto la fila miente dos veces en un granel: el precio se guarda
+  /// POR UNIDAD DE VENTA —S/0.008 el gramo— y saldría "S/0.01", un precio que
+  /// no existe y encima redondeado; y el stock saldría "22000" en vez de
+  /// "22 kg".
   UnidadPresentacion get _presentacion => UnidadPresentacion(
         factor: variante.factorPresentacion ?? 1,
         simbolo: variante.unidadPresentacionSimbolo,
@@ -1146,20 +1283,10 @@ class _VarianteCard extends StatelessWidget {
     return p.precioTexto(porUnidadDeVenta);
   }
 
-  /// "22 kg" en granel, "22" en lo que se vende por unidad.
+  /// "22 kg" en granel, "22 u" en lo que se vende por unidad.
   String _stockTexto(int enUnidadDeVenta) {
     final p = _presentacion;
-    if (!p.activa) return '$enUnidadDeVenta';
+    if (!p.activa) return '$enUnidadDeVenta u';
     return p.cantidadTexto(enUnidadDeVenta);
-  }
-
-  IconData _getStockIcon() {
-    if (variante.stockTotal == 0) return Icons.remove_circle;
-    return Icons.check_circle;
-  }
-
-  Color _getStockColor() {
-    if (variante.stockTotal == 0) return Colors.red;
-    return Colors.green;
   }
 }
