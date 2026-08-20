@@ -315,7 +315,10 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                             const SizedBox(height: 16),
 
                             if (!producto.tieneVariantes && !producto.esCombo) ...[
-                              _buildNivelesPrecioSection(producto.id),
+                              _buildNivelesPrecioSection(
+                                producto.id,
+                                _presentacionDe(producto),
+                              ),
                               _buildAtributosManagerSection(producto),
                               const SizedBox(height: 16),
                             ],
@@ -1479,7 +1482,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
   /// nada — para evitar ruido visual en productos sin configuración.
   /// Para gestionar (crear/editar/eliminar) se usa el dialog "Configurar
   /// Precios" del stock por sede.
-  Widget _buildNivelesPrecioSection(String productoId) {
+  Widget _buildNivelesPrecioSection(String productoId, UnidadPresentacion u) {
     return FutureBuilder<Resource<List<PrecioNivel>>>(
       future: locator<PrecioNivelRepository>()
           .getPreciosNivelProducto(productoId: productoId),
@@ -1530,7 +1533,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                ...activos.map((n) => _buildNivelRow(n)),
+                ...activos.map((n) => _buildNivelRow(n, u)),
                 const SizedBox(height: 4),
                 Text(
                   'Para editar usa "Configurar Precios" en stock por sede.',
@@ -1548,12 +1551,15 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
     );
   }
 
-  Widget _buildNivelRow(PrecioNivel n) {
+  /// 🔴 El nivel se guarda en unidad de VENTA. En un granel en gramos eso es
+  /// "3000+ unidades" a "S/0.008", que ademas se redondeaba a "S/0.01": un
+  /// precio que no existe.
+  Widget _buildNivelRow(PrecioNivel n, UnidadPresentacion u) {
     final esFijo = n.tipoPrecio == TipoPrecioNivel.precioFijo;
     final color = esFijo ? AppColors.blue1 : Colors.orange.shade700;
     final icon = esFijo ? Icons.attach_money : Icons.percent;
     final valor = esFijo
-        ? 'S/ ${(n.precio ?? 0).toStringAsFixed(2)}'
+        ? u.precioTexto(n.precio ?? 0)
         : '${(n.porcentajeDesc ?? 0).toStringAsFixed(0)}% off';
 
     return Padding(
@@ -1580,7 +1586,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                       fontSize: 11, fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  n.rangoString,
+                  n.rangoTexto(u),
                   style: TextStyle(
                       fontSize: 9, color: Colors.grey.shade600),
                 ),

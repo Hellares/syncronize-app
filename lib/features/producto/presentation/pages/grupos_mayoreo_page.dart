@@ -411,12 +411,18 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
     final abierto =
         _abiertos.contains(g.clave) || _filtro.trim().isNotEmpty;
 
+    // 🔴 El precio y el mínimo del nivel están en unidad de VENTA: para un
+    // granel en gramos, "desde 3000" y "S/0.008". Se leen en la presentación
+    // del grupo —"desde 3 kg" y "S/8.00/kg"—, que es la única lectura que
+    // significa algo.
+    final u = g.presentacion;
     final precioTexto = g.esPorcentaje
         ? '−${(g.porcentajeDesc ?? 0).toStringAsFixed(0)}%'
-        : 'S/ ${(g.precio ?? 0).toStringAsFixed(2)}';
+        : u.precioTexto(g.precio ?? 0);
+    String cantidad(int n) => u.activa ? u.cantidadTexto(n) : '$n u';
     final rango = g.cantidadMaxima != null
-        ? '${g.cantidadMinima} a ${g.cantidadMaxima} u'
-        : 'desde ${g.cantidadMinima} u';
+        ? '${cantidad(g.cantidadMinima)} a ${cantidad(g.cantidadMaxima!)}'
+        : 'desde ${cantidad(g.cantidadMinima)}';
 
     final solitario = !g.combinaConAlguien;
 
@@ -477,7 +483,7 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
                           solitario
                               ? 'Sola en su grupo: no combina con ninguna otra'
                               : '${g.variantes.length} variantes combinan · '
-                                  '${g.stockDelGrupo} u en stock',
+                                  '${cantidad(g.stockDelGrupo)} en stock',
                           style: TextStyle(
                             fontSize: 10,
                             color: solitario
@@ -539,6 +545,9 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
       );
 
   Widget _buildVariante(VarianteMayoreo v) {
+    // La de ESTA variante, no la del grupo: dos variantes pueden compartir el
+    // nivel y hablar en unidades distintas.
+    final u = v.presentacion;
     return InkWell(
       // Tocar la fila abre los precios de esa variante. Es lo que convierte al
       // monitor en algo accionable: acá se ve el problema y acá se arregla.
@@ -562,7 +571,7 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
                   ),
                   Text(
                     '${v.sku}'
-                    '${v.stockActual != null ? ' · ${v.stockActual} u' : ''}'
+                    '${v.stockActual != null ? ' · ${u.activa ? u.cantidadTexto(v.stockActual!) : '${v.stockActual} u'}' : ''}'
                     '${v.isActive ? '' : ' · desactivada'}',
                     style: TextStyle(fontSize: 9, color: Colors.grey[600]),
                   ),
@@ -571,7 +580,7 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
             ),
             if (v.precioVenta != null) ...[
               Text(
-                'S/ ${v.precioVenta!.toStringAsFixed(2)}',
+                u.precioTexto(v.precioVenta!),
                 style: TextStyle(
                   fontSize: 10,
                   color: Colors.grey[500],
@@ -581,9 +590,7 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
               const SizedBox(width: 6),
             ],
             Text(
-              v.precioConNivel != null
-                  ? 'S/ ${v.precioConNivel!.toStringAsFixed(2)}'
-                  : '—',
+              v.precioConNivel != null ? u.precioTexto(v.precioConNivel!) : '—',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -655,7 +662,7 @@ class _GruposMayoreoPageState extends State<GruposMayoreoPage> {
                     ),
                     Text(
                       '${v.sku}'
-                      '${v.precioVenta != null ? ' · S/ ${v.precioVenta!.toStringAsFixed(2)}' : ''}',
+                      '${v.precioVenta != null ? ' · ${v.presentacion.precioTexto(v.precioVenta!)}' : ''}',
                       style: TextStyle(fontSize: 9, color: Colors.grey[700]),
                     ),
                     const SizedBox(width: 4),

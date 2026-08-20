@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/unidad_presentacion.dart';
+
 /// MONITOR DE MAYOREO COMBINADO — cómo quedan agrupadas las variantes de un
 /// producto según sus niveles de precio.
 ///
@@ -66,6 +68,12 @@ class VarianteMayoreo extends Equatable {
         factorPresentacion: _double(json['factorPresentacion']),
       );
 
+  /// En qué unidad se le habla al usuario de ESTA variante.
+  UnidadPresentacion get presentacion => UnidadPresentacion(
+        factor: factorPresentacion ?? 1,
+        simbolo: unidadPresentacionSimbolo,
+      );
+
   @override
   List<Object?> get props => [varianteId, nombre, sku, precioConNivel];
 }
@@ -109,6 +117,25 @@ class GrupoMayoreo extends Equatable {
   });
 
   bool get esPorcentaje => tipoPrecio == 'PORCENTAJE_DESCUENTO';
+
+  /// La presentación del grupo: la de sus variantes, pero SOLO cuando todas
+  /// coinciden.
+  ///
+  /// El precio y el mínimo del nivel son uno solo para el grupo entero, así que
+  /// únicamente se pueden mostrar en kilos si todas hablan en kilos. Con
+  /// presentaciones distintas —un SACO de 50 combinando con un GRANEL de 1000,
+  /// que el backend agrupa igual porque comparten mínimo y precio— cualquier
+  /// conversión sería falsa para al menos una, y se cae a unidad de venta.
+  UnidadPresentacion get presentacion {
+    if (variantes.isEmpty) return const UnidadPresentacion.ninguna();
+    final primera = variantes.first.presentacion;
+    final todasIguales = variantes.every(
+      (v) =>
+          v.presentacion.factor == primera.factor &&
+          v.presentacion.simboloVisible == primera.simboloVisible,
+    );
+    return todasIguales ? primera : const UnidadPresentacion.ninguna();
+  }
 
   /// Un grupo de una sola variante NO combina con nadie: esa variante necesita
   /// llegar al mínimo ella sola, como antes. Es la señal de que algo quedó

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/unidad_presentacion.dart';
+
 /// Tipo de precio para niveles de volumen
 enum TipoPrecioNivel {
   /// Precio fijo específico para este nivel
@@ -81,7 +83,11 @@ class PrecioNivel extends Equatable {
     }
   }
 
-  /// Obtiene el rango de cantidades como string
+  /// Obtiene el rango de cantidades como string, en unidad de VENTA.
+  ///
+  /// ⚠️ En un producto con presentación esto miente: un granel en gramos con
+  /// "desde 3 kg" dice "3000+ unidades". Usá [rangoTexto] cuando tengas la
+  /// presentación a mano; este getter queda para lo que se vende por unidad.
   String get rangoString {
     if (cantidadMaxima != null) {
       return '$cantidadMinima - $cantidadMaxima unidades';
@@ -89,6 +95,26 @@ class PrecioNivel extends Equatable {
       return '$cantidadMinima+ unidades';
     }
   }
+
+  /// El rango en la unidad en la que se le habla al usuario: "3 - 10 kg".
+  ///
+  /// 🔴 `cantidadMinima` se guarda SIEMPRE en unidad de venta, porque es contra
+  /// la cantidad de la línea que el backend la compara. En un granel en gramos
+  /// eso son 3000, y mostrarlo crudo hace pensar que el mayoreo arranca en 3000
+  /// kilos.
+  String rangoTexto(UnidadPresentacion u) {
+    if (!u.activa) return rangoString;
+    // El símbolo va UNA vez y al final: "3 kg - 10 kg" lo repite sin agregar
+    // nada, y el rango es justo lo que se lee de un vistazo.
+    if (cantidadMaxima == null) return '${u.cantidadTexto(cantidadMinima)}+';
+    final min = u.cantidadTexto(cantidadMinima, conSimbolo: false);
+    return '$min - ${u.cantidadTexto(cantidadMaxima!)}';
+  }
+
+  /// El precio del nivel en la unidad en la que se habla: "S/ 8.00/kg".
+  /// Null en los niveles porcentuales, que no tienen precio propio.
+  String? precioTexto(UnidadPresentacion u) =>
+      precio == null ? null : u.precioTexto(precio!);
 
   /// Obtiene una descripción del descuento/precio
   String getDescripcionPrecio(double? precioBase) {

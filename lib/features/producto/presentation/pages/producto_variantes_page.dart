@@ -1101,10 +1101,15 @@ class _VarianteFila extends StatelessWidget {
       return _chip('sin mayoreo', _ambar, Icons.info_outline);
     }
     final precio = nivel.precio;
+    // 🔴 `cantidadMinima` se guarda en unidad de VENTA: en un granel en gramos
+    // "desde 3 kg" son 3000, y el chip decia "x3000" al lado de un precio que
+    // ya estaba en kilos. Las dos mitades tienen que hablar la misma unidad.
+    final u = _presentacion;
+    final desde = u.activa
+        ? u.cantidadTexto(nivel.cantidadMinima)
+        : '${nivel.cantidadMinima}';
     return _chip(
-      precio == null
-          ? nivel.nombre
-          : '${_precioTexto(precio)} x${nivel.cantidadMinima}',
+      precio == null ? nivel.nombre : '${_precioTexto(precio)} x$desde',
       AppColors.green,
       Icons.layers_outlined,
     );

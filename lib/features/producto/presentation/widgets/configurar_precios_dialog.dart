@@ -320,6 +320,12 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   double _aUnidadDeVenta(double porPresentacion) =>
       porPresentacion / _factorPresentacion;
 
+  /// El traductor completo, para lo que necesita texto y no solo el número.
+  UnidadPresentacion get _presentacion => UnidadPresentacion(
+        factor: _factorPresentacion,
+        simbolo: widget.unidadPresentacionSimbolo,
+      );
+
   /// Sufijo para los labels: " (por kg)" cuando hay presentación.
   String get _sufijoUnidad =>
       _tienePresentacion && widget.unidadPresentacionSimbolo != null
@@ -1176,8 +1182,11 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
   Widget _buildNivelExistenteRow(PrecioNivel n) {
     final esFijo = n.tipoPrecio == TipoPrecioNivel.precioFijo;
     final precioVenta = _precioController.currencyValue;
+    // 🔴 `n.precio` está en unidad de VENTA: en un granel en gramos, S/0.008.
+    // El campo de arriba habla en kilos, así que mostrarlo crudo acá al lado
+    // hacía parecer que el nivel era mil veces más barato de lo que es.
     final descripcionPrecio = esFijo
-        ? '$_simboloMoneda ${(n.precio ?? 0).toStringAsFixed(2)}'
+        ? _presentacion.precioTexto(n.precio ?? 0, moneda: _simboloMoneda)
         : '−${(n.porcentajeDesc ?? 0).toStringAsFixed(0)}%'
             '${precioVenta > 0 ? "  ($_simboloMoneda ${n.calcularPrecioFinal(precioVenta).toStringAsFixed(2)})" : ""}';
     return Padding(
@@ -1217,7 +1226,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  n.rangoString,
+                  n.rangoTexto(_presentacion),
                   style: TextStyle(
                     fontSize: 9,
                     color: Colors.grey.shade600,
@@ -1288,7 +1297,7 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       titulo: 'Eliminar nivel de precio',
       content: [
         Text(
-          '¿Eliminar el nivel $tipoLabel "${n.nombre}" (${n.rangoString})?',
+          '¿Eliminar el nivel $tipoLabel "${n.nombre}" (${n.rangoTexto(_presentacion)})?',
           style: const TextStyle(fontSize: 13),
         ),
         const SizedBox(height: 6),
@@ -1367,6 +1376,10 @@ class _ConfigurarPreciosDialogState extends State<ConfigurarPreciosDialog> {
       builder: (ctx) => PrecioNivelFormDialog(
         precioBase: precioBase > 0 ? precioBase : null,
         precioCosto: precioCosto > 0 ? precioCosto : null,
+        // El form teclea en la MISMA unidad que este diálogo: `precioBase` ya
+        // viene en presentación, y sin esto el nivel se guardaba con el precio
+        // por kilo (x1000) y el mínimo en gramos.
+        presentacion: _presentacion,
         nivelToEdit: nivelToEdit,
         nivelesExistentes: _nivelesExistentes,
         lockTipoPrecio: TipoPrecioNivel.precioFijo,

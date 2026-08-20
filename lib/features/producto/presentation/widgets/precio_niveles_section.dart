@@ -3,6 +3,7 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../domain/entities/precio_nivel.dart';
 import '../../data/models/precio_nivel_model.dart';
 import 'precio_nivel_form_dialog.dart';
@@ -16,6 +17,11 @@ class PrecioNivelesSection extends StatefulWidget {
   final Function(String nivelId, PrecioNivelDto) onNivelUpdated;
   final Function(String nivelId) onNivelDeleted;
 
+  /// La unidad en la que se leen y se teclean estos niveles. Un nivel se
+  /// guarda en unidad de VENTA: sin esto, un granel en gramos muestra
+  /// "3000+ unidades" y guarda el precio por kilo como si fuera por gramo.
+  final UnidadPresentacion? presentacion;
+
   const PrecioNivelesSection({
     super.key,
     required this.niveles,
@@ -24,6 +30,7 @@ class PrecioNivelesSection extends StatefulWidget {
     required this.onNivelCreated,
     required this.onNivelUpdated,
     required this.onNivelDeleted,
+    this.presentacion,
   });
 
   @override
@@ -31,6 +38,9 @@ class PrecioNivelesSection extends StatefulWidget {
 }
 
 class _PrecioNivelesSectionState extends State<PrecioNivelesSection> {
+  UnidadPresentacion get _u =>
+      widget.presentacion ?? const UnidadPresentacion.ninguna();
+
   void _showNivelDialog({PrecioNivel? nivelToEdit}) {
     showDialog(
       context: context,
@@ -39,6 +49,7 @@ class _PrecioNivelesSectionState extends State<PrecioNivelesSection> {
         precioCosto: widget.precioCosto,
         nivelToEdit: nivelToEdit,
         nivelesExistentes: widget.niveles,
+        presentacion: widget.presentacion,
         onSave: (dto) {
           if (nivelToEdit != null) {
             widget.onNivelUpdated(nivelToEdit.id, dto);
@@ -228,7 +239,7 @@ class _PrecioNivelesSectionState extends State<PrecioNivelesSection> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              nivel.rangoString,
+              nivel.rangoTexto(_u),
               style: const TextStyle(
                 fontSize: 9,
                 color: Colors.blue,
@@ -253,7 +264,11 @@ class _PrecioNivelesSectionState extends State<PrecioNivelesSection> {
               ),
               const SizedBox(width: 4),
               Text(
-                nivel.getDescripcionPrecio(widget.precioBase),
+                // El precio FIJO se guarda por unidad de venta; el porcentual
+                // se resuelve sobre `precioBase`, que ya viene en la unidad en
+                // la que habla el formulario.
+                nivel.precioTexto(_u) ??
+                    nivel.getDescripcionPrecio(widget.precioBase),
                 style: TextStyle(
                   fontSize: 10,
                   color: Colors.grey[700],

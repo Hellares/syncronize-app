@@ -5,6 +5,7 @@ import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/currency/currency_formatter.dart';
+import 'package:syncronize/core/utils/unidad_presentacion.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import '../../domain/entities/precio_nivel.dart';
@@ -23,6 +24,15 @@ class PrecioNivelFormDialog extends StatefulWidget {
   /// pantalla "Configurar Precios" que solo permite niveles PRECIO_FIJO).
   final TipoPrecioNivel? lockTipoPrecio;
 
+  /// La unidad en la que se le habla al usuario.
+  ///
+  /// 🔴 Un nivel se GUARDA en unidad de venta: `cantidadMinima` es un entero
+  /// que el backend compara contra la cantidad de la línea, y el precio es por
+  /// unidad de venta. Para un granel en gramos eso significa que "desde 3 kg a
+  /// S/8.00" viaja como 3000 y 0.008. Sin esto el formulario cargaba mayoreo a
+  /// los 3 GRAMOS y guardaba S/8.00 el gramo — el precio por kilo x1000.
+  final UnidadPresentacion? presentacion;
+
   const PrecioNivelFormDialog({
     super.key,
     this.precioBase,
@@ -31,6 +41,7 @@ class PrecioNivelFormDialog extends StatefulWidget {
     required this.nivelesExistentes,
     required this.onSave,
     this.lockTipoPrecio,
+    this.presentacion,
   });
 
   @override
@@ -55,14 +66,16 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
     if (widget.nivelToEdit != null) {
       final nivel = widget.nivelToEdit!;
       _nombreController.text = nivel.nombre;
-      _cantidadMinimaController.text = nivel.cantidadMinima.toString();
+      _cantidadMinimaController.text = _cantidadATexto(nivel.cantidadMinima);
       if (nivel.cantidadMaxima != null) {
-        _cantidadMaximaController.text = nivel.cantidadMaxima.toString();
+        _cantidadMaximaController.text = _cantidadATexto(nivel.cantidadMaxima!);
         _tieneCantidadMaxima = true;
       }
       _tipoPrecio = nivel.tipoPrecio;
       if (nivel.precio != null) {
-        _precioController.text = nivel.precio!.toStringAsFixed(2);
+        // El precio guardado es por unidad de venta; el campo habla en
+        // presentación, igual que el `precioBase` contra el que se valida.
+        _precioController.text = _u.precio(nivel.precio!).toStringAsFixed(2);
       }
       if (nivel.porcentajeDesc != null) {
         _porcentajeController.text = nivel.porcentajeDesc!.toString();
@@ -74,7 +87,7 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
       _nombreController.text = _generarNombreSugerido();
       final sugerencia = _sugerirCantidadMinimaInicial();
       if (sugerencia != null) {
-        _cantidadMinimaController.text = sugerencia.toString();
+        _cantidadMinimaController.text = _cantidadATexto(sugerencia);
       }
     }
     // Si el caller forzó un tipo, sobrescribimos lo que sea que haya quedado
@@ -83,6 +96,34 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
       _tipoPrecio = widget.lockTipoPrecio!;
     }
   }
+
+  UnidadPresentacion get _u =>
+      widget.presentacion ?? const UnidadPresentacion.ninguna();
+
+  /// 🔴 `FieldType.number` borra todo lo que no sea dígito, así que con
+  /// presentación activa "1.5 kg" era INTECLEABLE. Con presentación el campo
+  /// pasa a texto con un formateador decimal propio; sin ella queda como
+  /// estaba, entero.
+  static final _soloDecimal =
+      FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,3}'));
+
+  /// Lo tecleado (presentación) → lo que se guarda (unidad de venta).
+  ///
+  /// ⚠️ La cantidad se MULTIPLICA por el factor; el precio se divide. Usar el
+  /// método del precio acá convertiría 3 kg en 0.003 g.
+  int? _cantidadAVenta(String? texto) {
+    final valor = double.tryParse((texto ?? '').trim().replaceAll(',', '.'));
+    if (valor == null) return null;
+    return _u.cantidadAUnidadDeVenta(valor).round();
+  }
+
+  /// Lo guardado (unidad de venta) → el texto del campo (presentación).
+  String _cantidadATexto(int enUnidadDeVenta) => _u.activa
+      ? UnidadPresentacion.formatearNumero(_u.cantidad(enUnidadDeVenta))
+      : enUnidadDeVenta.toString();
+
+  /// El sufijo de los campos de cantidad: "kg" en un granel, "uds." si no.
+  String get _sufijoCantidad => _u.simboloVisible ?? 'uds.';
 
   /// Sugerencia de cantidad mínima al crear un nivel nuevo: el siguiente
   /// número después del rango más alto registrado. Si el último nivel tiene
@@ -93,7 +134,10 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
     final ordenados = [...widget.nivelesExistentes]
       ..sort((a, b) => a.cantidadMinima.compareTo(b.cantidadMinima));
     final ultimo = ordenados.last;
-    return (ultimo.cantidadMaxima ?? ultimo.cantidadMinima) + 1;
+    // El "+1" es de la unidad en la que se habla: en un granel en gramos,
+    // sugerir "+1 gramo" sobre un mínimo de 3 kg no le sirve a nadie.
+    final paso = _u.cantidadAUnidadDeVenta(1).round();
+    return (ultimo.cantidadMaxima ?? ultimo.cantidadMinima) + paso;
   }
 
   @override
@@ -147,10 +191,14 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
 
   String? _validateCantidadMinima(String? value) {
     if (value == null || value.isEmpty) return 'Requerido';
-    final cantidad = int.tryParse(value);
-    if (cantidad == null || cantidad < 1) return 'Mínimo 1';
+    // El solapamiento y el mínimo se miden en unidad de VENTA, que es donde
+    // viven los niveles existentes.
+    final cantidad = _cantidadAVenta(value);
+    if (cantidad == null || cantidad < 1) {
+      return _u.activa ? 'Muy chico para $_sufijoCantidad' : 'Mínimo 1';
+    }
     final cantMax = _tieneCantidadMaxima
-        ? int.tryParse(_cantidadMaximaController.text)
+        ? _cantidadAVenta(_cantidadMaximaController.text)
         : null;
     final solape = _detectarSolapamiento(cantidad, cantMax);
     if (solape != null) {
@@ -162,10 +210,12 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
   String? _validateCantidadMaxima(String? value) {
     if (!_tieneCantidadMaxima) return null;
     if (value == null || value.isEmpty) return 'Requerido';
-    final max = int.tryParse(value);
-    final min = int.tryParse(_cantidadMinimaController.text);
-    if (max == null || max < 1) return 'Mínimo 1';
-    if (min != null && max <= min) return 'Debe ser > $min';
+    final max = _cantidadAVenta(value);
+    final min = _cantidadAVenta(_cantidadMinimaController.text);
+    if (max == null || max < 1) {
+      return _u.activa ? 'Muy chico para $_sufijoCantidad' : 'Mínimo 1';
+    }
+    if (min != null && max <= min) return 'Debe ser > ${_cantidadATexto(min)}';
     return null;
   }
 
@@ -195,13 +245,17 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
 
     final dto = PrecioNivelDto(
       nombre: _nombreController.text.trim(),
-      cantidadMinima: int.parse(_cantidadMinimaController.text),
+      // A unidad de venta en el borde, igual que el diálogo de precios: la
+      // cantidad se multiplica y el precio se divide.
+      cantidadMinima: _cantidadAVenta(_cantidadMinimaController.text)!,
       cantidadMaxima: _tieneCantidadMaxima
-          ? int.tryParse(_cantidadMaximaController.text)
+          ? _cantidadAVenta(_cantidadMaximaController.text)
           : null,
       tipoPrecio: _tipoPrecio,
       precio: _tipoPrecio == TipoPrecioNivel.precioFijo
-          ? CurrencyUtilsImproved.parseToDouble(_precioController.text)
+          ? _u.precioAUnidadDeVenta(
+              CurrencyUtilsImproved.parseToDouble(_precioController.text),
+            )
           : null,
       porcentajeDesc: _tipoPrecio == TipoPrecioNivel.porcentajeDescuento
           ? double.tryParse(_porcentajeController.text)
@@ -331,9 +385,14 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
                         Expanded(
                           child: CustomText(
                             controller: _cantidadMinimaController,
-                            fieldType: FieldType.number,
+                            fieldType:
+                                _u.activa ? FieldType.text : FieldType.number,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: _u.activa ? [_soloDecimal] : null,
                             label: 'Mínimo',
-                            hintText: 'uds.',
+                            hintText: _sufijoCantidad,
                             borderColor: AppColors.blue1,
                             autovalidateMode: AutovalidateModeX.disabled,
                             validator: _validateCantidadMinima,
@@ -343,9 +402,14 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
                         Expanded(
                           child: CustomText(
                             controller: _cantidadMaximaController,
-                            fieldType: FieldType.number,
+                            fieldType:
+                                _u.activa ? FieldType.text : FieldType.number,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: _u.activa ? [_soloDecimal] : null,
                             label: 'Máximo',
-                            hintText: 'uds.',
+                            hintText: _sufijoCantidad,
                             borderColor: AppColors.blue1,
                             enabled: _tieneCantidadMaxima,
                             autovalidateMode: AutovalidateModeX.disabled,
@@ -415,7 +479,9 @@ class _PrecioNivelFormDialogState extends State<PrecioNivelFormDialog> {
                     if (esFijo)
                       CurrencyTextField(
                         controller: _precioController,
-                        label: 'Precio unitario',
+                        label: _u.activa
+                            ? 'Precio por ${_u.simboloVisible}'
+                            : 'Precio unitario',
                         borderColor: AppColors.blue1,
                         validator: _validatePrecio,
                         onChanged: (_) => setState(() {}),

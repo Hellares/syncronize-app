@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
+import '../../../../core/utils/unidad_presentacion.dart';
 import '../../../producto/domain/entities/producto_list_item.dart';
 
 /// Bottom sheet que muestra los niveles de precio configurados para un
@@ -133,11 +134,13 @@ class _PreciosMayorSheetState extends State<_PreciosMayorSheet> {
               children: [
                 Icon(Icons.label_outline, size: 16, color: Colors.grey.shade700),
                 const SizedBox(width: 8),
-                const Text('Precio base (1 unidad):',
-                    style: TextStyle(fontSize: 12)),
+                Text(
+                  'Precio base (1 ${widget.producto.presentacion.simboloVisible ?? 'unidad'}):',
+                  style: const TextStyle(fontSize: 12),
+                ),
                 const Spacer(),
                 Text(
-                  'S/ ${precioBase.toStringAsFixed(2)}',
+                  widget.producto.presentacion.precioTexto(precioBase),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -207,7 +210,10 @@ class _PreciosMayorSheetState extends State<_PreciosMayorSheet> {
                     itemCount: ordenados.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (_, i) => _NivelTile(
-                        nivel: ordenados[i], precioBase: precioBase),
+                        nivel: ordenados[i],
+                        precioBase: precioBase,
+                        presentacion: widget.producto.presentacion,
+                      ),
                   ),
                 );
               },
@@ -223,7 +229,17 @@ class _NivelTile extends StatelessWidget {
   final PrecioNivel nivel;
   final double precioBase;
 
-  const _NivelTile({required this.nivel, required this.precioBase});
+  /// 🔴 El nivel se guarda en unidad de VENTA: en un granel en gramos, "3000+
+  /// unidades" a "S/0.008". Al cajero eso no le dice nada —y "S/0.01"
+  /// redondeado es un precio que no existe—, asi que se lee en la unidad en la
+  /// que se vende: "desde 3 kg" a "S/8.00/kg".
+  final UnidadPresentacion presentacion;
+
+  const _NivelTile({
+    required this.nivel,
+    required this.precioBase,
+    required this.presentacion,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +315,7 @@ class _NivelTile extends StatelessWidget {
                   size: 12, color: Colors.grey.shade700),
               const SizedBox(width: 4),
               Text(
-                nivel.rangoString,
+                nivel.rangoTexto(presentacion),
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey.shade700,
@@ -315,7 +331,7 @@ class _NivelTile extends StatelessWidget {
             children: [
               if (descuentoPct > 0) ...[
                 Text(
-                  'S/ ${precioBase.toStringAsFixed(2)}',
+                  presentacion.precioTexto(precioBase),
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey.shade500,
@@ -325,7 +341,7 @@ class _NivelTile extends StatelessWidget {
                 const SizedBox(width: 6),
               ],
               Text(
-                'S/ ${precioFinal.toStringAsFixed(2)}',
+                presentacion.precioTexto(precioFinal),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
