@@ -490,5 +490,65 @@ void main() {
       expect(cubit.state.total, 0);
       expect(cubit.state.hayLineasSinCosto, isFalse);
     });
+
+    group('setCostoVariante — el costo se teclea en la unidad de compra', () {
+      test('sin presentación, lo tecleado es el costo por unidad', () {
+        final cubit = CompraCarritoCubit();
+        final p = producto();
+        final v = variante('v1');
+        cubit.agregarVariante(p, v, sedeId: sedeA, cantidad: 3);
+
+        cubit.setCostoVariante('p1', 'v1', 60);
+
+        final linea = cubit.state.porClave('p1|v1')!;
+        expect(linea.precioUnitario, 60);
+        expect(linea.precioCarga, 60);
+        expect(cubit.state.total, closeTo(180, 1e-9));
+      });
+
+      test('🔴 con presentación, S/8 el KILO se guarda como S/0.008 el gramo',
+          () {
+        final cubit = CompraCarritoCubit();
+        final v = variante(
+          'granel',
+          unidadPresentacionId: 'u-kg',
+          unidadPresentacionSimbolo: 'kg',
+          factorPresentacion: 1000,
+        );
+        final p = producto(variantes: [v]);
+        // 2 kg = 2000 g en unidad atómica.
+        cubit.agregarVariante(p, v, sedeId: sedeA, cantidad: 2000);
+
+        cubit.setCostoVariante('p1', 'granel', 8);
+
+        final linea = cubit.state.porClave('p1|granel')!;
+        expect(linea.precioUnitario, closeTo(0.008, 1e-9));
+        // Se sigue leyendo como S/8 el kilo, que es lo que se tecleó.
+        expect(linea.precioCarga, closeTo(8, 1e-9));
+        // Y 2 kg a S/8 son S/16, no S/16 000.
+        expect(cubit.state.total, closeTo(16, 1e-9));
+      });
+
+      test('vaciar el campo deja la línea SIN costo, no en cero', () {
+        final cubit = CompraCarritoCubit();
+        final p = producto();
+        final v = variante('v1');
+        cubit.agregarVariante(p, v, sedeId: sedeA);
+        cubit.setCostoVariante('p1', 'v1', 60);
+
+        cubit.setCostoVariante('p1', 'v1', null);
+
+        expect(cubit.state.porClave('p1|v1')!.precioUnitario, isNull);
+        expect(cubit.state.hayLineasSinCosto, isTrue);
+      });
+
+      test('una variante que no está en el carrito no crea línea', () {
+        final cubit = CompraCarritoCubit();
+
+        cubit.setCostoVariante('p1', 'fantasma', 60);
+
+        expect(cubit.state.estaVacio, isTrue);
+      });
+    });
   });
 }

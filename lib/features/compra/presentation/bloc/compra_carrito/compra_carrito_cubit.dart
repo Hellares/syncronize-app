@@ -124,6 +124,27 @@ class CompraCarritoCubit extends Cubit<CompraCarritoState> {
     _reemplazar(linea.copyWith(cantidad: cantidad));
   }
 
+  /// Costo tecleado desde el sheet de variantes, en la unidad en la que se
+  /// COMPRA (el kilo, el saco), NO en la atómica.
+  ///
+  /// 🔑 La traducción vive acá y no en el sheet porque depende de cómo está
+  /// cargada la línea: si va por unidad de compra, `precioUnitario` es el
+  /// precio del SACO; si no, el de la unidad atómica (el gramo). Es la misma
+  /// cuenta que hace el editor de línea al revés.
+  void setCostoVariante(String productoId, String varianteId, double? costo) {
+    final linea = state.porClave('$productoId|$varianteId');
+    if (linea == null) return;
+    if (costo == null || costo <= 0) {
+      _reemplazar(linea.copyWith(limpiarPrecioUnitario: true));
+      return;
+    }
+    final porUnidadDeCompra = linea.usaUnidadCompra && linea.soportaUnidadCompra;
+    _reemplazar(linea.copyWith(
+      precioUnitario:
+          porUnidadDeCompra ? costo : costo / linea.factorPresentacionEfectivo,
+    ));
+  }
+
   /// Edición de una línea desde el editor (el ✎ de la tabla). Solo se tocan
   /// los campos que se pasan.
   void actualizarLinea(

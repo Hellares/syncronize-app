@@ -164,6 +164,18 @@ class _CompraProductosView extends StatelessWidget {
           sedeId: sedeId,
           cantidad: cantidad,
         ),
+        // El costo se carga en el mismo sheet: abrir el editor variante por
+        // variante para escribir un número era el paso más tedioso de una
+        // compra de 20 líneas.
+        costos: {
+          for (final linea in carrito.state.lineas)
+            if (linea.productoId == producto.id &&
+                linea.varianteId != null &&
+                linea.precioCarga > 0)
+              linea.varianteId!: linea.precioCarga,
+        },
+        onCosto: (variante, costo) =>
+            carrito.setCostoVariante(producto.id, variante.id, costo),
       ),
       // Los niveles son precios de VENTA: en modo compra la vista ni siquiera
       // ofrece el sheet que los usa.

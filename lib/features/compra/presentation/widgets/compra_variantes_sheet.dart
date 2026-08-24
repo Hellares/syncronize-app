@@ -23,6 +23,8 @@ Future<void> showCompraVariantesSheet({
   required String sedeId,
   required Map<String, int> cantidades,
   required void Function(ProductoVariante variante, int cantidad) onCantidad,
+  Map<String, double> costos = const {},
+  void Function(ProductoVariante variante, double? costo)? onCosto,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -33,6 +35,8 @@ Future<void> showCompraVariantesSheet({
       sedeId: sedeId,
       cantidadesIniciales: cantidades,
       onCantidad: onCantidad,
+      costosIniciales: costos,
+      onCosto: onCosto,
     ),
   );
 }
@@ -43,11 +47,17 @@ class _CompraVariantesSheet extends StatefulWidget {
   final Map<String, int> cantidadesIniciales;
   final void Function(ProductoVariante variante, int cantidad) onCantidad;
 
+  /// Costo ya cargado por variante, en la unidad en la que se COMPRA.
+  final Map<String, double> costosIniciales;
+  final void Function(ProductoVariante variante, double? costo)? onCosto;
+
   const _CompraVariantesSheet({
     required this.producto,
     required this.sedeId,
     required this.cantidadesIniciales,
     required this.onCantidad,
+    this.costosIniciales = const {},
+    this.onCosto,
   });
 
   @override
@@ -57,6 +67,11 @@ class _CompraVariantesSheet extends StatefulWidget {
 class _CompraVariantesSheetState extends State<_CompraVariantesSheet> {
   final _buscarController = TextEditingController();
   late final Map<String, int> _cantidades;
+
+  /// Un controller por variante, creado recién cuando la fila lo necesita
+  /// (un producto puede tener 91) y dispuesto con el sheet: si se dispusiera
+  /// al salir la fila de pantalla, el .builder lo mataría al scrollear.
+  final Map<String, TextEditingController> _costoCtrls = {};
   String _query = '';
   bool _verBloqueadas = false;
 
@@ -69,7 +84,30 @@ class _CompraVariantesSheetState extends State<_CompraVariantesSheet> {
   @override
   void dispose() {
     _buscarController.dispose();
+    for (final c in _costoCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  /// El campo de costo de una variante, con lo que ya estuviera cargado.
+  TextEditingController _costoCtrl(ProductoVariante v) =>
+      _costoCtrls.putIfAbsent(v.id, () {
+        final inicial = widget.costosIniciales[v.id];
+        return TextEditingController(
+          text: inicial != null && inicial > 0
+              ? inicial.toStringAsFixed(2)
+              : '',
+        );
+      });
+
+  /// 🔑 Lo tecleado va en la unidad en la que se COMPRA (kg, saco), igual que
+  /// la cantidad: quien carga una compra piensa "el kilo a S/8", no "el gramo
+  /// a S/0.008". La conversión a unidad atómica la hace el carrito, que es
+  /// quien sabe si la línea se carga por saco o por presentación.
+  void _fijarCosto(ProductoVariante v, String texto) {
+    final valor = double.tryParse(texto.trim().replaceAll(',', '.'));
+    widget.onCosto?.call(v, valor != null && valor > 0 ? valor : null);
   }
 
   /// Las que se compran y las que NO, ya pasadas por el buscador.
@@ -108,9 +146,7 @@ class _CompraVariantesSheetState extends State<_CompraVariantesSheet> {
     if (bloqueadas.isNotEmpty) {
       out.add(_EntradaEncabezado(bloqueadas.length));
       if (_verBloqueadas) {
-        out.addAll(
-          bloqueadas.map((v) => _EntradaVariante(v, bloqueada: true)),
-        );
+        out.addAll(bloqueadas.map((v) => _EntradaVariante(v, bloqueada: true)));
       }
     }
     return out;
@@ -155,7 +191,9 @@ class _CompraVariantesSheetState extends State<_CompraVariantesSheet> {
     final elegidas = _cantidades.length;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         height: MediaQuery.of(context).size.height * 0.75,
         decoration: const BoxDecoration(
@@ -218,8 +256,10 @@ class _CompraVariantesSheetState extends State<_CompraVariantesSheet> {
                   ? Center(
                       child: Text(
                         'Ninguna variante coincide',
-                        style:
-                            TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                     )
                   // .builder porque un producto puede tener decenas de
@@ -234,7 +274,8 @@ class _CompraVariantesSheetState extends State<_CompraVariantesSheet> {
                             cuantas: entrada.cuantas,
                             abierto: _verBloqueadas,
                             onTap: () => setState(
-                                () => _verBloqueadas = !_verBloqueadas),
+                              () => _verBloqueadas = !_verBloqueadas,
+                            ),
                           );
                         }
                         final fila = entrada as _EntradaVariante;
@@ -246,6 +287,16 @@ class _CompraVariantesSheetState extends State<_CompraVariantesSheet> {
                           bloqueada: fila.bloqueada,
                           onSumar: () => _sumar(fila.variante),
                           onRestar: () => _restar(fila.variante),
+                          // Solo las que se están comprando: crear un controller
+                          // por cada una de las 91 filas sería pura basura.
+                          costoCtrl: widget.onCosto == null ||
+                                  fila.bloqueada ||
+                                  (_cantidades[fila.variante.id] ?? 0) <= 0
+                              ? null
+                              : _costoCtrl(fila.variante),
+                          onCosto: widget.onCosto == null
+                              ? null
+                              : (texto) => _fijarCosto(fila.variante, texto),
                         );
                       },
                     ),
@@ -265,7 +316,9 @@ class _CompraVariantesSheetState extends State<_CompraVariantesSheet> {
                     child: Text(
                       elegidas > 0 ? 'Listo ($elegidas)' : 'Listo',
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -356,6 +409,11 @@ class _FilaVariante extends StatelessWidget {
   final VoidCallback onSumar;
   final VoidCallback onRestar;
 
+  /// Campo de costo de ESTA variante. Null = el sheet se abrió sin permitir
+  /// cargar costos (no todos los llamadores lo necesitan).
+  final TextEditingController? costoCtrl;
+  final void Function(String texto)? onCosto;
+
   const _FilaVariante({
     required this.producto,
     required this.variante,
@@ -364,6 +422,8 @@ class _FilaVariante extends StatelessWidget {
     required this.onSumar,
     required this.onRestar,
     this.bloqueada = false,
+    this.costoCtrl,
+    this.onCosto,
   });
 
   @override
@@ -382,127 +442,251 @@ class _FilaVariante extends StatelessWidget {
         color: bloqueada
             ? Colors.grey.shade50
             : enCarrito
-                ? AppColors.blue1.withValues(alpha: 0.04)
-                : Colors.white,
+            ? AppColors.blue1.withValues(alpha: 0.04)
+            : Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: bloqueada
               ? Colors.grey.shade200
               : enCarrito
-                  ? AppColors.blue1.withValues(alpha: 0.35)
-                  : Colors.grey.shade300,
+              ? AppColors.blue1.withValues(alpha: 0.35)
+              : Colors.grey.shade300,
           width: 0.8,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  variante.nombre,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: bloqueada ? Colors.grey.shade600 : null,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Row(
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (bloqueada) ...[
-                      Icon(Icons.lock_outline,
-                          size: 11, color: Colors.grey.shade500),
-                      const SizedBox(width: 3),
-                      Text(
-                        // No se dice el costo: el del granel lo escribe la
-                        // apertura por promedio ponderado, y mostrarlo acá
-                        // invita a "corregirlo" en la compra, que es justo lo
-                        // que ensucia el margen.
-                        'sale de abrir un saco',
-                        style:
-                            TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                      ),
-                    ] else
-                      Text(
-                        // Sin costo se dice: es una variante que nunca se
-                        // compró en esta sede, no una que sale gratis.
-                        costo == null || costo <= 0
-                            ? 'sin costo'
-                            : presentacion.precioTexto(costo),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: costo == null || costo <= 0
-                              ? Colors.orange.shade800
-                              : Colors.grey.shade800,
-                        ),
-                      ),
                     Text(
-                      '  ·  ',
-                      style:
-                          TextStyle(fontSize: 10, color: Colors.grey.shade400),
-                    ),
-                    Text(
-                      info == null
-                          ? 'NUEVA en esta sede'
-                          : 'Stock ${presentacion.cantidadTexto(info.cantidad)}',
+                      variante.nombre,
                       style: TextStyle(
-                        fontSize: 10,
-                        color: info == null
-                            ? Colors.orange.shade800
-                            : Colors.grey.shade600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: bloqueada ? Colors.grey.shade600 : null,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        if (bloqueada) ...[
+                          Icon(
+                            Icons.lock_outline,
+                            size: 11,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            // No se dice el costo: el del granel lo escribe la
+                            // apertura por promedio ponderado, y mostrarlo acá
+                            // invita a "corregirlo" en la compra, que es justo lo
+                            // que ensucia el margen.
+                            'sale de abrir un saco',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ] else
+                          Text(
+                            // Sin costo se dice: es una variante que nunca se
+                            // compró en esta sede, no una que sale gratis.
+                            costo == null || costo <= 0
+                                ? 'sin costo'
+                                : presentacion.precioTexto(costo),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: costo == null || costo <= 0
+                                  ? Colors.orange.shade800
+                                  : Colors.grey.shade800,
+                            ),
+                          ),
+                        Text(
+                          '  ·  ',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
+                        Text(
+                          info == null
+                              ? 'NUEVA en esta sede'
+                              : 'Stock ${presentacion.cantidadTexto(info.cantidad)}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: info == null
+                                ? Colors.orange.shade800
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          if (bloqueada && !enCarrito)
-            // Sin stepper: no hay nada que sumar. Se reserva el ancho de los
-            // tres controles para que las filas de las dos secciones queden
-            // alineadas y la lista no baile al desplegar.
-            const SizedBox(width: 128, height: 40)
-          else ...[
-            // Los toques van a 40x40: por debajo de eso el dedo falla y se
-            // termina sumando de más.
-            IconButton(
-              onPressed: enCarrito ? onRestar : null,
-              iconSize: 18,
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.remove_circle_outline),
-              color: AppColors.blue1,
-            ),
-            SizedBox(
-              width: 48,
-              child: Text(
-                // En la unidad en la que se compra: "2 kg", no "2000".
-                enCarrito ? presentacion.cantidadTexto(cantidad) : '0',
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: enCarrito ? AppColors.blue1 : Colors.grey.shade400,
-                ),
               ),
-            ),
-            IconButton(
-              // Un granel que YA venia cargado se puede SACAR pero no sumar:
-              // bloquear tambien el menos lo dejaria trabado adentro de la
-              // compra sin forma de quitarlo.
-              onPressed: bloqueada ? null : onSumar,
-              iconSize: 18,
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.add_circle_outline),
-              color: AppColors.blue1,
+              if (bloqueada && !enCarrito)
+                // Sin stepper: no hay nada que sumar. Se reserva el ancho de los
+                // tres controles para que las filas de las dos secciones queden
+                // alineadas y la lista no baile al desplegar.
+                const SizedBox(width: 128, height: 40)
+              else ...[
+                // Los toques van a 40x40: por debajo de eso el dedo falla y se
+                // termina sumando de más.
+                IconButton(
+                  onPressed: enCarrito ? onRestar : null,
+                  iconSize: 18,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.remove_circle_outline),
+                  color: AppColors.blue1,
+                ),
+                SizedBox(
+                  width: 48,
+                  child: Text(
+                    // En la unidad en la que se compra: "2 kg", no "2000".
+                    enCarrito ? presentacion.cantidadTexto(cantidad) : '0',
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: enCarrito ? AppColors.blue1 : Colors.grey.shade400,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  // Un granel que YA venia cargado se puede SACAR pero no sumar:
+                  // bloquear tambien el menos lo dejaria trabado adentro de la
+                  // compra sin forma de quitarlo.
+                  onPressed: bloqueada ? null : onSumar,
+                  iconSize: 18,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add_circle_outline),
+                  color: AppColors.blue1,
+                ),
+              ],
+            ],
+          ),
+          // El costo se carga ACÁ, en la misma pasada que la cantidad: si no,
+          // hay que abrir el editor de cada línea una por una. Solo aparece en
+          // lo que se está comprando; en el resto sería ruido.
+          if (enCarrito && costoCtrl != null && !bloqueada) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text(
+                  'Costo',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                ),
+                const SizedBox(width: 6),
+                SizedBox(
+                  width: 112,
+                  height: 34,
+                  child: TextField(
+                    controller: costoCtrl,
+                    onChanged: onCosto,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue3,
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: '0.00',
+                      hintStyle: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade400,
+                      ),
+                      prefixText: 'S/ ',
+                      prefixStyle: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                      // La unidad en la que se teclea, al lado del número: sin
+                      // esto un granel se carga con el precio del gramo.
+                      suffixText: presentacion.activa
+                          ? '/${presentacion.simboloVisible}'
+                          : null,
+                      suffixStyle: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: const BorderSide(
+                          color: AppColors.blue1,
+                          width: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Repetir el costo anterior es el caso normal: se ofrece de un
+                // toque en vez de obligar a tipearlo.
+                if (costo != null && costo > 0) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        final anterior = presentacion
+                            .precio(costo)
+                            .toStringAsFixed(2);
+                        costoCtrl!.text = anterior;
+                        onCosto?.call(anterior);
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
+                        child: Text(
+                          'usar ${presentacion.precioTexto(costo)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.blue1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ],
