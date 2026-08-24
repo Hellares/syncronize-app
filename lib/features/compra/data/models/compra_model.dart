@@ -1,5 +1,33 @@
 import '../../domain/entities/compra.dart';
 
+class CompraGastoModel extends CompraGasto {
+  const CompraGastoModel({
+    required super.id,
+    required super.concepto,
+    required super.monto,
+    super.porcentajeIGV,
+    super.igv,
+    super.base,
+    super.prorratea,
+    super.criterio,
+    super.orden,
+  });
+
+  factory CompraGastoModel.fromJson(Map<String, dynamic> json) {
+    return CompraGastoModel(
+      id: json['id'] as String? ?? '',
+      concepto: json['concepto'] as String? ?? '',
+      monto: double.parse((json['monto'] ?? 0).toString()),
+      porcentajeIGV: double.parse((json['porcentajeIGV'] ?? 0).toString()),
+      igv: double.parse((json['igv'] ?? 0).toString()),
+      base: double.parse((json['base'] ?? 0).toString()),
+      prorratea: json['prorratea'] as bool? ?? true,
+      criterio: json['criterio'] as String? ?? 'VALOR',
+      orden: json['orden'] as int? ?? 0,
+    );
+  }
+}
+
 class CompraDetalleModel extends CompraDetalle {
   const CompraDetalleModel({
     required super.id,
@@ -17,6 +45,7 @@ class CompraDetalleModel extends CompraDetalle {
     super.total,
     super.loteId,
     super.orden,
+    super.gastoProrrateado,
     super.producto,
     super.variante,
     super.lote,
@@ -44,6 +73,8 @@ class CompraDetalleModel extends CompraDetalle {
       total: double.parse((json['total'] ?? 0).toString()),
       loteId: json['loteId'] as String?,
       orden: json['orden'] as int? ?? 0,
+      gastoProrrateado:
+          double.parse((json['gastoProrrateado'] ?? 0).toString()),
       producto: json['producto'] as Map<String, dynamic>?,
       variante: json['variante'] as Map<String, dynamic>?,
       lote: json['lote'] as Map<String, dynamic>?,
@@ -82,6 +113,7 @@ class CompraModel extends Compra {
     super.descuento,
     super.impuestos,
     super.total,
+    super.totalGastos,
     required super.fechaRecepcion,
     super.estado,
     super.observaciones,
@@ -91,6 +123,7 @@ class CompraModel extends Compra {
     super.confirmadoEn,
     required super.actualizadoEn,
     super.detalles,
+    super.gastos,
     super.sede,
     super.proveedor,
     super.ordenCompra,
@@ -124,6 +157,7 @@ class CompraModel extends Compra {
       descuento: double.parse((json['descuento'] ?? 0).toString()),
       impuestos: double.parse((json['impuestos'] ?? 0).toString()),
       total: double.parse((json['total'] ?? 0).toString()),
+      totalGastos: double.parse((json['totalGastos'] ?? 0).toString()),
       fechaRecepcion: DateTime.parse(json['fechaRecepcion'] as String),
       estado: _estadoFromString(json['estado'] as String),
       observaciones: json['observaciones'] as String?,
@@ -137,6 +171,11 @@ class CompraModel extends Compra {
       detalles: json['detalles'] != null
           ? (json['detalles'] as List)
               .map((e) => CompraDetalleModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
+      gastos: json['gastos'] != null
+          ? (json['gastos'] as List)
+              .map((e) => CompraGastoModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
       sede: json['sede'] as Map<String, dynamic>?,

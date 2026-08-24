@@ -448,6 +448,49 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
             ),
           _buildMontoRow('Impuestos (IGV)',
               '${_compra.moneda} ${_compra.impuestos.toStringAsFixed(2)}'),
+          // Gastos de la factura que no son productos. Ya están dentro del
+          // total; se listan para que la suma se explique sola.
+          if ((_compra.gastos ?? []).isNotEmpty) ...[
+            _buildMontoRow('Gastos (flete, movilidad)',
+                '${_compra.moneda} ${_compra.totalGastos.toStringAsFixed(2)}'),
+            ...(_compra.gastos ?? []).map(
+              (g) => Padding(
+                padding: const EdgeInsets.only(left: 10, bottom: 2),
+                child: Row(
+                  children: [
+                    Icon(
+                      g.prorratea
+                          ? Icons.call_split
+                          : Icons.remove_circle_outline,
+                      size: 11,
+                      color: g.prorratea
+                          ? Colors.green.shade700
+                          : Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: AppSubtitle(
+                        g.prorratea
+                            ? '${g.concepto} · al costo'
+                            : '${g.concepto} · no toca el costo',
+                        fontSize: 10,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Text(
+                      '${_compra.moneda} ${g.monto.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Divider(height: 1),
@@ -617,6 +660,16 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                             fontSize: 10,
                             fontStyle: FontStyle.italic,
                             color: Colors.green.shade700,
+                          ),
+                        ),
+                      // Flete que le tocó a esta línea: explica por qué el
+                      // costo del producto no es el precio facturado.
+                      if (d.gastoProrrateado > 0 && d.cantidad > 0)
+                        Text(
+                          '+ ${_compra.moneda} ${d.gastoProrrateado.toStringAsFixed(2)} de flete → costo ${_compra.moneda} ${((d.total + d.gastoProrrateado) / d.cantidad).toStringAsFixed(2)}/u',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.orange.shade800,
                           ),
                         ),
                     ],

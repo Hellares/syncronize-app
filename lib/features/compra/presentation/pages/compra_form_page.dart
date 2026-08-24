@@ -92,6 +92,21 @@ class _CompraFormViewState extends State<_CompraFormView> {
 
   final List<Map<String, dynamic>> _detalles = [];
 
+  /// Gastos de la factura que no son productos (flete, movilidad, interés).
+  /// Cada uno es `{concepto, monto, prorratea}`.
+  final List<Map<String, dynamic>> _gastos = [];
+
+  double get _totalGastos => _gastos.fold(
+        0.0,
+        (sum, g) => sum + ((g['monto'] as num?)?.toDouble() ?? 0),
+      );
+
+  /// Cuántas líneas mueven stock: son las únicas entre las que el backend
+  /// puede repartir el flete.
+  int get _detallesConProducto => _detalles
+      .where((d) => d['productoId'] != null || d['varianteId'] != null)
+      .length;
+
   bool get _isFromOc => widget.ordenCompra != null;
 
   @override
@@ -333,6 +348,14 @@ class _CompraFormViewState extends State<_CompraFormView> {
                     'nuevoPrecioVenta': d['nuevoPrecioVenta'],
                 })
             .toList(),
+        if (_gastos.isNotEmpty)
+          'gastos': _gastos
+              .map((g) => {
+                    'concepto': g['concepto'],
+                    'monto': g['monto'],
+                    'prorratea': g['prorratea'] ?? true,
+                  })
+              .toList(),
       };
       context.read<CompraFormCubit>().crearCompra(
             empresaId: widget.empresaId,
@@ -666,6 +689,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
                               _buildOcDetalleCard(entry.key, entry.value))
                         else
                           _buildDetallesTabla(),
+                        const SizedBox(height: 10),
+                        _buildGastosSection(),
                         _buildTotalRow(),
                         const SizedBox(height: 8),
                       ],
@@ -1021,6 +1046,235 @@ class _CompraFormViewState extends State<_CompraFormView> {
     );
   }
 
+  /// Gastos de la factura que no son productos: flete, movilidad, embalaje,
+  /// interés por pago diferido.
+  ///
+  /// Cada uno es `{concepto, monto, prorratea}`. Siempre suman al total —si no,
+  /// la compra no cuadra con la factura del proveedor— y solo suben el costo de
+  /// los productos los que tienen `prorratea = true`.
+  Widget _buildGastosSection() {
+    final totalGastos = _totalGastos;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.local_shipping_outlined,
+                size: 15, color: Colors.grey.shade700),
+            const SizedBox(width: 6),
+            AppSubtitle('Gastos de la factura', fontSize: 12),
+            const Spacer(),
+            InkWell(
+              onTap: _abrirDialogoGasto,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add, size: 14, color: AppColors.blue1),
+                    const SizedBox(width: 3),
+                    AppSubtitle(
+                      'Agregar',
+                      font: AppFont.amazonEmberMedium,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue1,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_gastos.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 4),
+            child: AppSubtitle(
+              'Flete, movilidad, embalaje… lo que el proveedor cobra aparte',
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+          )
+        else
+          ..._gastos.asMap().entries.map((e) {
+            final i = e.key;
+            final g = e.value;
+            final prorratea = g['prorratea'] as bool? ?? true;
+            return Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: InkWell(
+                onTap: () => _abrirDialogoGasto(index: i),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.shade300, width: 0.6),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppSubtitle(
+                              g['concepto'] as String? ?? '',
+                              font: AppFont.amazonEmberMedium,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            AppSubtitle(
+                              prorratea
+                                  ? 'Se reparte en el costo de los productos'
+                                  : 'No toca el costo de los productos',
+                              fontSize: 9,
+                              color: prorratea
+                                  ? Colors.green.shade700
+                                  : Colors.grey.shade600,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$_moneda ${((g['monto'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue3,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => setState(() => _gastos.removeAt(i)),
+                        customBorder: const CircleBorder(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.close,
+                              size: 14, color: Colors.grey.shade500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        if (totalGastos > 0 && _detallesConProducto == 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: AppSubtitle(
+              'Sin productos en la compra, los gastos no se pueden repartir',
+              fontSize: 10,
+              color: Colors.orange.shade800,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Alta/edición de un gasto. El interruptor es la decisión importante: un
+  /// flete sube el costo del producto, un interés por pagar a 30 días no.
+  Future<void> _abrirDialogoGasto({int? index}) async {
+    final existente = index != null ? _gastos[index] : null;
+    final conceptoCtrl =
+        TextEditingController(text: existente?['concepto'] as String? ?? '');
+    final montoCtrl = TextEditingController(
+      text: existente != null
+          ? ((existente['monto'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)
+          : '',
+    );
+    var prorratea = existente?['prorratea'] as bool? ?? true;
+
+    final guardado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(index == null ? 'Agregar gasto' : 'Editar gasto',
+              style: const TextStyle(fontSize: 15)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CustomText(
+                controller: conceptoCtrl,
+                label: 'Concepto',
+                hintText: 'Movilidad Lima-Trujillo',
+                borderColor: AppColors.blue1,
+              ),
+              const SizedBox(height: 10),
+              CustomText(
+                controller: montoCtrl,
+                label: 'Monto',
+                hintText: '30.00',
+                borderColor: AppColors.blue1,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+              const SizedBox(height: 6),
+              SwitchListTile(
+                value: prorratea,
+                onChanged: (v) => setLocal(() => prorratea = v),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: AppColors.blue1,
+                title: AppSubtitle('Sumar al costo de los productos',
+                    fontSize: 11),
+                subtitle: AppSubtitle(
+                  prorratea
+                      ? 'Se reparte entre las líneas según su valor'
+                      : 'Solo suma al total de la compra (interés, multa)',
+                  fontSize: 9,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    conceptoCtrl.dispose();
+    montoCtrl.dispose();
+    if (guardado != true || !mounted) return;
+
+    final concepto = conceptoCtrl.text.trim();
+    final monto = double.tryParse(montoCtrl.text.trim().replaceAll(',', '.'));
+    if (concepto.isEmpty || monto == null || monto <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Poné un concepto y un monto mayor a 0')),
+      );
+      return;
+    }
+    setState(() {
+      final gasto = {
+        'concepto': concepto,
+        'monto': monto,
+        'prorratea': prorratea,
+      };
+      if (index == null) {
+        _gastos.add(gasto);
+      } else {
+        _gastos[index] = gasto;
+      }
+    });
+  }
+
   Widget _buildTotalRow() {
     double total = 0;
     for (final d in _detalles) {
@@ -1061,10 +1315,32 @@ class _CompraFormViewState extends State<_CompraFormView> {
                 ],
               ),
             ),
+          if (_totalGastos > 0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AppSubtitle('Gastos:', fontSize: 12, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  '$_moneda ${_totalGastos.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              AppSubtitle('Subtotal:', fontSize: 12, color: Colors.grey),
+              AppSubtitle(
+                _totalGastos > 0 ? 'Mercadería:' : 'Subtotal:',
+                fontSize: 12,
+                color: Colors.grey,
+              ),
               const SizedBox(width: 8),
               Text(
                 '$_moneda ${total.toStringAsFixed(2)}',

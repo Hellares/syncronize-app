@@ -11,6 +11,44 @@ enum EstadoCompra {
   ANULADA,
 }
 
+/// Gasto de la factura del proveedor que NO es un producto: flete, movilidad,
+/// embalaje, interés por pago diferido.
+///
+/// Siempre suma al total de la compra —si no, no cuadra con la factura ni con
+/// la cuenta por pagar—. Sube el costo de los productos solo si [prorratea]:
+/// un flete sí (es lo que cuesta poner la mercadería en el almacén), un
+/// interés por pagar a 30 días no (es costo financiero).
+class CompraGasto extends Equatable {
+  final String id;
+  final String concepto;
+
+  /// Lo que cobra el proveedor, con IGV adentro si lo tiene.
+  final double monto;
+  final double porcentajeIGV;
+  final double igv;
+  final double base;
+  final bool prorratea;
+
+  /// VALOR (proporcional al total de cada línea) o CANTIDAD (por unidades).
+  final String criterio;
+  final int orden;
+
+  const CompraGasto({
+    required this.id,
+    required this.concepto,
+    required this.monto,
+    this.porcentajeIGV = 0,
+    this.igv = 0,
+    this.base = 0,
+    this.prorratea = true,
+    this.criterio = 'VALOR',
+    this.orden = 0,
+  });
+
+  @override
+  List<Object?> get props => [id, concepto, monto, prorratea, criterio];
+}
+
 class CompraDetalle extends Equatable {
   final String id;
   final String compraId;
@@ -27,6 +65,11 @@ class CompraDetalle extends Equatable {
   final double total;
   final String? loteId;
   final int orden;
+
+  /// Parte del flete/movilidad que se le cargó a esta línea al confirmar.
+  /// Es la diferencia entre lo que facturó el proveedor y lo que realmente
+  /// costó traer el producto.
+  final double gastoProrrateado;
   final Map<String, dynamic>? producto;
   final Map<String, dynamic>? variante;
   final Map<String, dynamic>? lote;
@@ -57,6 +100,7 @@ class CompraDetalle extends Equatable {
     this.total = 0,
     this.loteId,
     this.orden = 0,
+    this.gastoProrrateado = 0,
     this.producto,
     this.variante,
     this.lote,
@@ -98,6 +142,10 @@ class Compra extends Equatable {
   final double descuento;
   final double impuestos;
   final double total;
+
+  /// Suma de los gastos (fletes, intereses). Ya está incluida en [total];
+  /// se expone aparte para poder mostrarla como renglón propio.
+  final double totalGastos;
   final DateTime fechaRecepcion;
   final EstadoCompra estado;
   final String? observaciones;
@@ -107,6 +155,7 @@ class Compra extends Equatable {
   final DateTime? confirmadoEn;
   final DateTime actualizadoEn;
   final List<CompraDetalle>? detalles;
+  final List<CompraGasto>? gastos;
   final Map<String, dynamic>? sede;
   final Map<String, dynamic>? proveedor;
   final Map<String, dynamic>? ordenCompra;
@@ -134,6 +183,7 @@ class Compra extends Equatable {
     this.descuento = 0,
     this.impuestos = 0,
     this.total = 0,
+    this.totalGastos = 0,
     required this.fechaRecepcion,
     this.estado = EstadoCompra.BORRADOR,
     this.observaciones,
@@ -143,6 +193,7 @@ class Compra extends Equatable {
     this.confirmadoEn,
     required this.actualizadoEn,
     this.detalles,
+    this.gastos,
     this.sede,
     this.proveedor,
     this.ordenCompra,
