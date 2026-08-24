@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
@@ -1199,13 +1200,16 @@ class _CompraFormViewState extends State<_CompraFormView> {
         : '';
     var prorratea = existente?['prorratea'] as bool? ?? true;
 
-    final guardado = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: Text(index == null ? 'Agregar gasto' : 'Editar gasto',
-              style: const TextStyle(fontSize: 15)),
-          content: Column(
+    final guardado = await StyledDialog.show<bool>(
+      context,
+      accentColor: AppColors.blue1,
+      backgroundColor: Colors.white,
+      icon: Icons.local_shipping_outlined,
+      titulo: index == null ? 'Agregar gasto' : 'Editar gasto',
+      subtitulo: 'Flete, movilidad, embalaje o cargos del proveedor',
+      content: [
+        StatefulBuilder(
+          builder: (ctx, setLocal) => Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1224,37 +1228,84 @@ class _CompraFormViewState extends State<_CompraFormView> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
               ),
-              const SizedBox(height: 6),
-              SwitchListTile(
-                value: prorratea,
-                onChanged: (v) => setLocal(() => prorratea = v),
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                activeThumbColor: AppColors.blue1,
-                title: AppSubtitle('Sumar al costo de los productos',
-                    fontSize: 11),
-                subtitle: AppSubtitle(
-                  prorratea
-                      ? 'Se reparte entre las líneas según su valor'
-                      : 'Solo suma al total de la compra (interés, multa)',
-                  fontSize: 9,
-                  color: Colors.grey.shade600,
+              const SizedBox(height: 8),
+              // La decisión que importa: un flete sube el costo real de la
+              // mercadería; un interés por pagar a 30 días no.
+              InkWell(
+                onTap: () => setLocal(() => prorratea = !prorratea),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: prorratea
+                        ? AppColors.blue1.withValues(alpha: 0.05)
+                        : Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: prorratea
+                          ? AppColors.blue1.withValues(alpha: 0.35)
+                          : Colors.grey.shade300,
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppSubtitle(
+                              'Sumar al costo de los productos',
+                              font: AppFont.amazonEmberMedium,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            const SizedBox(height: 2),
+                            AppSubtitle(
+                              prorratea
+                                  ? 'Se reparte entre las líneas según su valor'
+                                  : 'Solo suma al total (interés, multa, recargo)',
+                              fontSize: 9,
+                              maxLines: 2,
+                              color: Colors.grey.shade600,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: prorratea,
+                        onChanged: (v) => setLocal(() => prorratea = v),
+                        activeThumbColor: AppColors.blue1,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Guardar'),
-            ),
-          ],
         ),
-      ),
+      ],
+      actions: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ),
+        ),
+        Expanded(
+          child: CustomButton(
+            text: 'Guardar',
+            icon: const Icon(Icons.check, size: 14, color: Colors.white),
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ),
+      ],
     );
 
     if (guardado != true || !mounted) return;
