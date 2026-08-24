@@ -70,6 +70,13 @@ class _CompraFormViewState extends State<_CompraFormView> {
   late final TextEditingController _serieDocProveedorController;
   late final TextEditingController _numDocProveedorController;
 
+  /// 🔴 Del State y NO locales del diálogo: al cerrarse, su animación de salida
+  /// sigue reconstruyendo el CustomText por varios frames y un controller ya
+  /// dispuesto revienta con "used after being disposed".
+  /// Ver feedback_textcontroller_dispose_tras_dialog.
+  late final TextEditingController _gastoConceptoCtrl;
+  late final TextEditingController _gastoMontoCtrl;
+
   // Tipo de documento del proveedor (FACTURA/BOLETA/GUIA/TICKET)
   String? _tipoDocProveedor;
 
@@ -117,6 +124,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
     _observacionesController = TextEditingController();
     _serieDocProveedorController = TextEditingController();
     _numDocProveedorController = TextEditingController();
+    _gastoConceptoCtrl = TextEditingController();
+    _gastoMontoCtrl = TextEditingController();
 
     if (oc != null) {
       _proveedorId = oc.proveedorId;
@@ -156,6 +165,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
     _observacionesController.dispose();
     _serieDocProveedorController.dispose();
     _numDocProveedorController.dispose();
+    _gastoConceptoCtrl.dispose();
+    _gastoMontoCtrl.dispose();
     super.dispose();
   }
 
@@ -1182,13 +1193,10 @@ class _CompraFormViewState extends State<_CompraFormView> {
   /// flete sube el costo del producto, un interés por pagar a 30 días no.
   Future<void> _abrirDialogoGasto({int? index}) async {
     final existente = index != null ? _gastos[index] : null;
-    final conceptoCtrl =
-        TextEditingController(text: existente?['concepto'] as String? ?? '');
-    final montoCtrl = TextEditingController(
-      text: existente != null
-          ? ((existente['monto'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)
-          : '',
-    );
+    _gastoConceptoCtrl.text = existente?['concepto'] as String? ?? '';
+    _gastoMontoCtrl.text = existente != null
+        ? ((existente['monto'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)
+        : '';
     var prorratea = existente?['prorratea'] as bool? ?? true;
 
     final guardado = await showDialog<bool>(
@@ -1202,14 +1210,14 @@ class _CompraFormViewState extends State<_CompraFormView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CustomText(
-                controller: conceptoCtrl,
+                controller: _gastoConceptoCtrl,
                 label: 'Concepto',
                 hintText: 'Movilidad Lima-Trujillo',
                 borderColor: AppColors.blue1,
               ),
               const SizedBox(height: 10),
               CustomText(
-                controller: montoCtrl,
+                controller: _gastoMontoCtrl,
                 label: 'Monto',
                 hintText: '30.00',
                 borderColor: AppColors.blue1,
@@ -1249,12 +1257,11 @@ class _CompraFormViewState extends State<_CompraFormView> {
       ),
     );
 
-    conceptoCtrl.dispose();
-    montoCtrl.dispose();
     if (guardado != true || !mounted) return;
 
-    final concepto = conceptoCtrl.text.trim();
-    final monto = double.tryParse(montoCtrl.text.trim().replaceAll(',', '.'));
+    final concepto = _gastoConceptoCtrl.text.trim();
+    final monto =
+        double.tryParse(_gastoMontoCtrl.text.trim().replaceAll(',', '.'));
     if (concepto.isEmpty || monto == null || monto <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Poné un concepto y un monto mayor a 0')),
