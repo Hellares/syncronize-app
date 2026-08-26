@@ -19,23 +19,34 @@ enum AppWhatsapp {
   final String etiqueta;
 }
 
-/// Cuáles de las dos están instaladas.
+/// Cuáles de las dos pueden abrir un enlace `wa.me`.
 ///
 /// Solo Android: en iOS no se puede consultar ni elegir paquete, así que se
 /// devuelve vacío y el sistema decide (que es lo que ya hacía).
 ///
-/// 🔴 Necesita las dos `<package>` declaradas en `<queries>` del manifest. Sin
-/// eso Android 11+ las esconde y esto devuelve vacío aunque estén instaladas
-/// — falla silenciosa, se ve como "nunca aparece el selector".
-Future<List<AppWhatsapp>> appsWhatsappInstaladas() async {
+/// 🔴 Se pregunta por el intent VIEW con el enlace, NO por MAIN/LAUNCHER.
+/// `canResolveActivity` del plugin resuelve con `MATCH_DEFAULT_ONLY`, que
+/// exige `CATEGORY_DEFAULT`, y una actividad LAUNCHER no la declara —declara
+/// MAIN + LAUNCHER—. Preguntando por el launcher, las DOS daban false aunque
+/// estuvieran instaladas y el selector no aparecía nunca. La actividad que
+/// abre enlaces sí declara DEFAULT, que es justo la que nos interesa: la
+/// pregunta correcta no es "¿está instalada?" sino "¿puede abrir esto?".
+///
+/// 🔴 Y necesita las dos `<package>` declaradas en `<queries>` del manifest:
+/// sin eso Android 11+ las esconde y esto vuelve a devolver vacío.
+Future<List<AppWhatsapp>> appsWhatsappInstaladas({String? url}) async {
   if (!Platform.isAndroid) return const [];
+
+  // Un enlace cualquiera de wa.me alcanza: lo que se compara es el filtro de
+  // intents (esquema y host), no el número.
+  final prueba = url ?? 'https://wa.me/51999999999';
 
   final encontradas = <AppWhatsapp>[];
   for (final app in AppWhatsapp.values) {
     try {
       final intent = AndroidIntent(
-        action: 'android.intent.action.MAIN',
-        category: 'android.intent.category.LAUNCHER',
+        action: 'android.intent.action.VIEW',
+        data: prueba,
         package: app.paquete,
       );
       if (await intent.canResolveActivity() ?? false) encontradas.add(app);

@@ -43,9 +43,11 @@ class WhatsappClienteService {
     // Sin línea vinculada el mensaje termina en una app del celular, y con dos
     // instaladas hay que preguntar cuál. Con envío directo no se consulta: no
     // se abre ninguna app.
+    // Se pregunta con el enlace REAL, el mismo que se va a abrir: así lo que
+    // se comprueba es exactamente lo que después va a pasar.
     final apps = envio.conectado
         ? const <AppWhatsapp>[]
-        : await appsWhatsappInstaladas();
+        : await appsWhatsappInstaladas(url: 'https://wa.me/$numero');
     if (!context.mounted) return;
 
     final redactado = await mostrarDialogoMensajeWhatsapp(
