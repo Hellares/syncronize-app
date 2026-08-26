@@ -237,6 +237,22 @@ class Compra extends Equatable {
   String get proveedorNombre => proveedor?['nombre'] ?? nombreProveedor;
   String? get ordenCompraCodigo => ordenCompra?['codigo'];
 
+  /// El comprobante del proveedor listo para mostrar: "FACTURA F001-000123".
+  /// null cuando no se registró ninguno.
+  ///
+  /// Serie y número pueden faltar por separado —una boleta cargada a mano
+  /// suele traer solo el número—, así que se arma con las partes que hay:
+  /// concatenar a ciegas dejaba cosas como "FACTURA -000123".
+  String? get documentoProveedorTexto {
+    final tipo = tipoDocumentoProveedor?.trim();
+    if (tipo == null || tipo.isEmpty) return null;
+    final partes = [
+      serieDocumentoProveedor?.trim() ?? '',
+      numeroDocumentoProveedor?.trim() ?? '',
+    ].where((p) => p.isNotEmpty);
+    return partes.isEmpty ? tipo : '$tipo ${partes.join('-')}';
+  }
+
   @override
   List<Object?> get props => [id, estado, actualizadoEn];
 }

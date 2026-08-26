@@ -190,7 +190,7 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 0.8),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -201,7 +201,7 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
             _compra.estadoTexto,
             style: TextStyle(
               fontSize: 10,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: color,
             ),
           ),
@@ -348,17 +348,10 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
   }
 
   Widget _buildProveedorCard() {
-    // Documento del proveedor (factura/boleta)
-    String? docProveedor;
-    if (_compra.tipoDocumentoProveedor != null) {
-      final serie = _compra.serieDocumentoProveedor ?? '';
-      final numero = _compra.numeroDocumentoProveedor ?? '';
-      docProveedor =
-          '${_compra.tipoDocumentoProveedor} $serie-$numero'.trim();
-    }
+    final docProveedor = _compra.documentoProveedorTexto;
 
     return GradientContainer(
-      gradient: AppGradients.blueWhiteBlue(),
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       shadowStyle: ShadowStyle.colorful,
       padding: const EdgeInsets.all(14),
@@ -368,29 +361,27 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: AppColors.blue1.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Icon(Icons.business,
-                    size: 18, color: AppColors.blue1),
+                    size: 16, color: AppColors.blue1),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const AppText('PROVEEDOR',
-                        size: 10, color: AppColors.blueGrey),
+                        size: 9, color: AppColors.blueGrey),
                     const SizedBox(height: 2),
-                    Text(
+                    AppSubtitle(
                       _compra.nombreProveedor,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.blue3,
-                      ),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue3,
                     ),
                   ],
                 ),
@@ -398,9 +389,9 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
             ],
           ),
           if (_compra.documentoProveedor != null || docProveedor != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             const Divider(height: 1),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 16,
               runSpacing: 8,
@@ -426,9 +417,10 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
         Icon(icon, size: 14, color: AppColors.blueGrey),
         const SizedBox(width: 4),
         Flexible(
-          child: Text(
+          child: AppSubtitle(
             text,
-            style: const TextStyle(fontSize: 12, color: AppColors.blueGrey),
+            fontSize: 9,
+            color: AppColors.blueGrey,
           ),
         ),
       ],
@@ -437,10 +429,10 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
 
   Widget _buildInfoCard() {
     return GradientContainer(
-      gradient: AppGradients.blueWhiteBlue(),
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       shadowStyle: ShadowStyle.colorful,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -452,11 +444,11 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
               _buildEstadoChip(),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 5),
           // El total arriba de todo y destacado: es el dato que se venía a
           // buscar. El desglose que lo explica vive en RESUMEN DE MONTOS.
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 5),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -466,7 +458,7 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                 Text(
                   '${_compra.moneda} ${_compra.total.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: AppColors.blue1,
                   ),
@@ -606,15 +598,15 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
     final igvMercaderia = _compra.impuestos - igvGastos;
 
     return GradientContainer(
-      gradient: AppGradients.blueWhiteBlue(),
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       shadowStyle: ShadowStyle.colorful,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader(Icons.receipt_long, 'RESUMEN DE MONTOS'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _buildMontoRow(gastos.isEmpty ? 'Subtotal' : 'Mercadería',
               '${_compra.moneda} ${mercaderia.toStringAsFixed(2)}'),
           if (_compra.descuento > 0)
@@ -649,7 +641,7 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
               const Text(
                 'TOTAL',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: AppColors.blue3,
                 ),
@@ -657,7 +649,7 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
               Text(
                 '${_compra.moneda} ${_compra.total.toStringAsFixed(2)}',
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: AppColors.blue1,
                 ),
@@ -672,10 +664,10 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
   Widget _buildDetallesSection() {
     if (_isLoadingDetail) {
       return GradientContainer(
-        gradient: AppGradients.blueWhiteBlue(),
+        gradient: AppGradients.sinfondo,
         borderColor: AppColors.blueborder,
         shadowStyle: ShadowStyle.colorful,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -947,7 +939,7 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
 
   Widget _buildMontoRow(String label, String value, {Color? valueColor}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -956,7 +948,7 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: valueColor,
             ),

@@ -42,6 +42,7 @@ class CompraListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final estadoColor = _estadoColor();
+    final docProveedor = compra.documentoProveedorTexto;
 
     return GradientContainer(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -71,11 +72,30 @@ class CompraListTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      AppSubtitle(
-                        compra.codigo,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        color: AppColors.blue3,
+                      // El comprobante del proveedor al lado del código: es
+                      // por el número de factura que se busca una compra
+                      // cuando se la reconcilia contra el papel.
+                      Row(
+                        children: [
+                          Flexible(
+                            child: AppSubtitle(
+                              compra.codigo,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              color: AppColors.blue3,
+                            ),
+                          ),
+                          if (docProveedor != null) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: _chip(
+                                icon: Icons.description_outlined,
+                                label: docProveedor,
+                                color: AppColors.blue1,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 2),
                       AppSubtitle(
@@ -149,6 +169,10 @@ class CompraListTile extends StatelessWidget {
     );
   }
 
+  /// El texto va en Flexible: en la fila del código el chip comparte el ancho
+  /// y tiene que recortarse en vez de desbordar. Donde el ancho no está
+  /// acotado —los chips del monto y del estado— el Flexible es inocuo: con
+  /// fit loose el hijo se queda con su tamaño natural.
   Widget _chip({
     required String label,
     required Color color,
@@ -168,9 +192,13 @@ class CompraListTile extends StatelessWidget {
             Icon(icon, size: 11, color: color),
             const SizedBox(width: 3),
           ],
-          Text(
-            label,
-            style: TextStyle(fontSize: 9, color: color),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 9, color: color),
+            ),
           ),
         ],
       ),
