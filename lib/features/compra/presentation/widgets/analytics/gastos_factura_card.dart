@@ -12,10 +12,20 @@ import '../../../domain/entities/compra_analytics.dart';
 /// compras. Ese dice cuánta plata pusiste en mercadería; éste, cuánto pagaste
 /// aparte para tenerla en el almacén.
 class GastosFacturaCard extends StatelessWidget {
-  const GastosFacturaCard({super.key, required this.reporte, this.moneda = 'S/'});
+  const GastosFacturaCard({
+    super.key,
+    required this.reporte,
+    this.moneda = 'S/',
+    this.onVerDetalle,
+  });
 
   final GastosFacturaReporte reporte;
   final String moneda;
+
+  /// Si viene, la cabecera ofrece ir a la pantalla dedicada, donde se puede
+  /// filtrar por proveedor y por rango. En esa pantalla se pasa null: ya se
+  /// está ahí.
+  final VoidCallback? onVerDetalle;
 
   String _m(double v) => '$moneda ${v.toStringAsFixed(2)}';
 
@@ -44,6 +54,29 @@ class GastosFacturaCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                if (onVerDetalle != null)
+                  InkWell(
+                    onTap: onVerDetalle,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppSubtitle(
+                            'Ver detalle',
+                            font: AppFont.amazonEmberMedium,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.blue1,
+                          ),
+                          const Icon(Icons.chevron_right,
+                              size: 14, color: AppColors.blue1),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
             AppSubtitle(

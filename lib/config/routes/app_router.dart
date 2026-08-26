@@ -204,6 +204,7 @@ import '../../features/compra/presentation/pages/reposicion_sugerida_page.dart';
 import '../../features/compra/presentation/pages/consultar_guia_page.dart';
 import '../../features/compra/presentation/pages/lote_detail_page.dart';
 import '../../features/compra/presentation/pages/compra_analytics_page.dart';
+import '../../features/compra/presentation/pages/gastos_factura_page.dart';
 import '../../features/compra/presentation/pages/compra_export_page.dart';
 import '../../features/compra/domain/entities/orden_compra.dart';
 import '../../features/producto/presentation/pages/historial_precios_global_page.dart';
@@ -1736,6 +1737,19 @@ class AppRouter {
           return CompraDetailPage(empresaId: empresaId, compra: compra);
         },
       ),
+      // Gastos de la factura (flete, movilidad) con filtros propios.
+      // 🔴 ANTES de '/empresa/compras/:id' o el :id se come el segmento.
+      GoRoute(
+        path: '/empresa/compras/gastos-factura',
+        name: 'empresa-compras-gastos-factura',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>()
+                  .getString(StorageConstants.tenantId) ??
+              '';
+          return GastosFacturaPage(empresaId: empresaId);
+        },
+      ),
+
       // Ruta de analytics de compras
       GoRoute(
         path: '/empresa/compras/analytics',

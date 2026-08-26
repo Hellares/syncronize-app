@@ -130,13 +130,19 @@ class CompraAnalyticsPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
 
             // Lo que costó TRAER la mercadería. Va antes de la tendencia
             // para que no se confunda con ella: la de abajo suma el total de
             // las compras, ésta el flete que se paga aparte.
             if (data.gastosFactura != null) ...[
-              GastosFacturaCard(reporte: data.gastosFactura!),
+              GastosFacturaCard(
+                reporte: data.gastosFactura!,
+                // La tarjeta muestra el panorama; la pantalla dedicada deja
+                // filtrar por proveedor y por rango de fechas.
+                onVerDetalle: () =>
+                    context.push('/empresa/compras/gastos-factura'),
+              ),
               const SizedBox(height: 16),
             ],
 

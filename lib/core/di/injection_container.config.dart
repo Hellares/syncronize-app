@@ -396,6 +396,8 @@ import '../../features/compra/domain/usecases/get_compra_analytics_usecase.dart'
 import '../../features/compra/domain/usecases/get_compra_usecase.dart' as _i668;
 import '../../features/compra/domain/usecases/get_compras_usecase.dart'
     as _i770;
+import '../../features/compra/domain/usecases/get_gastos_factura_usecase.dart'
+    as _i1002;
 import '../../features/compra/domain/usecases/get_lineas_pendientes_usecase.dart'
     as _i1006;
 import '../../features/compra/domain/usecases/get_lotes_proximos_vencer_usecase.dart'
@@ -413,6 +415,8 @@ import '../../features/compra/presentation/bloc/compra_form/compra_form_cubit.da
     as _i999;
 import '../../features/compra/presentation/bloc/compra_list/compra_list_cubit.dart'
     as _i654;
+import '../../features/compra/presentation/bloc/gastos_factura/gastos_factura_cubit.dart'
+    as _i718;
 import '../../features/compra/presentation/bloc/lote_list/lote_list_cubit.dart'
     as _i906;
 import '../../features/compra/presentation/bloc/orden_compra_form/orden_compra_form_cubit.dart'
@@ -3459,6 +3463,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i770.GetComprasUseCase>(
       () => _i770.GetComprasUseCase(gh<_i19.CompraRepository>()),
     );
+    gh.factory<_i1002.GetGastosFacturaUseCase>(
+      () => _i1002.GetGastosFacturaUseCase(gh<_i19.CompraRepository>()),
+    );
     gh.factory<_i1006.GetLineasPendientesUseCase>(
       () => _i1006.GetLineasPendientesUseCase(gh<_i19.CompraRepository>()),
     );
@@ -3607,6 +3614,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i763.LibroContableCubit>(
       () => _i763.LibroContableCubit(gh<_i86.GetLibroContableUseCase>()),
+    );
+    gh.factory<_i718.GastosFacturaCubit>(
+      () => _i718.GastosFacturaCubit(gh<_i1002.GetGastosFacturaUseCase>()),
     );
     gh.lazySingleton<_i473.ImpresorasManager>(
       () => _i473.ImpresorasManager(
