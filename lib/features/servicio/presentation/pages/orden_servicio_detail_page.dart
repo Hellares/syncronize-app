@@ -67,6 +67,8 @@ import '../../../configuracion_documentos/domain/usecases/get_configuracion_comp
 import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../../venta_rapida/domain/entities/orden_cobrable.dart';
 import '../../../venta_rapida/presentation/bloc/venta_rapida_cubit.dart';
+import '../../../../core/utils/telefono_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OrdenServicioDetailPage extends StatefulWidget {
   final String ordenId;
@@ -528,7 +530,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 if (_orden!.clienteEmpresa!.email != null)
                   _buildDetailRow(Icons.email_outlined, 'Email', _orden!.clienteEmpresa!.email!),
                 if (_orden!.clienteEmpresa!.telefono != null)
-                  _buildDetailRow(Icons.phone_outlined, 'Teléfono', _orden!.clienteEmpresa!.telefono!),
+                  _buildTelefonoRow('Teléfono', _orden!.clienteEmpresa!.telefono!),
                 if (_orden!.contactoClienteEmpresa != null) ...[
                   _buildDetailRow(Icons.person, 'Contacto', _orden!.contactoClienteEmpresa!.nombre),
                   if (_orden!.contactoClienteEmpresa!.cargo != null)
@@ -536,7 +538,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   if (_orden!.contactoClienteEmpresa!.dni != null)
                     _buildDetailRow(Icons.badge_outlined, 'DNI Contacto', _orden!.contactoClienteEmpresa!.dni!),
                   if (_orden!.contactoClienteEmpresa!.telefono != null)
-                    _buildDetailRow(Icons.phone_outlined, 'Tel. Contacto', _orden!.contactoClienteEmpresa!.telefono!),
+                    _buildTelefonoRow('Tel. Contacto',
+                        _orden!.contactoClienteEmpresa!.telefono!,
+                        nombre: _orden!.contactoClienteEmpresa!.nombre),
                   if (_orden!.contactoClienteEmpresa!.email != null)
                     _buildDetailRow(Icons.email_outlined, 'Email Contacto', _orden!.contactoClienteEmpresa!.email!),
                 ],
@@ -549,7 +553,8 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 if (_orden!.cliente!.email != null)
                   _buildDetailRow(Icons.email_outlined, 'Email', _orden!.cliente!.email!),
                 if (_orden!.cliente!.telefono != null)
-                  _buildDetailRow(Icons.phone_outlined, 'Teléfono', _orden!.cliente!.telefono!),
+                  _buildTelefonoRow('Teléfono', _orden!.cliente!.telefono!,
+                      nombre: _orden!.cliente!.nombreCompleto),
               ]),
           ],
 
@@ -4937,6 +4942,99 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         AppSubtitle(title, fontSize: 11),
       ],
     );
+  }
+
+  /// Fila de teléfono: lo mismo que [_buildDetailRow] más los dos accesos
+  /// que uno quiere cuando está mirando una orden — escribir por WhatsApp y
+  /// llamar— sin tener que copiar el número a mano.
+  Widget _buildTelefonoRow(String label, String telefono, {String? nombre}) {
+    final wa = telefonoParaWhatsapp(telefono);
+    final tel = telefonoParaLlamar(telefono);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          Icon(Icons.phone_outlined, size: 14, color: Colors.grey.shade500),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            ),
+          ),
+          Expanded(
+            child: AppSubtitle(
+              telefono,
+              fontSize: 10,
+              font: AppFont.amazonEmberMedium,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // 🔴 shrinkWrap: sin eso el IconButton reserva ~48px y rompe una
+          // fila de 10px de fuente.
+          // Ver feedback_iconbutton_m3_tap_target_minimo.
+          if (wa != null)
+            IconButton(
+              onPressed: () => _abrirWhatsapp(wa, nombre),
+              icon: const Icon(Icons.chat, size: 16),
+              color: const Color(0xFF25D366),
+              tooltip: 'WhatsApp',
+              style: IconButton.styleFrom(
+                minimumSize: Size.zero,
+                fixedSize: const Size(30, 30),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          if (tel != null)
+            IconButton(
+              onPressed: () => _llamar(tel),
+              icon: const Icon(Icons.call, size: 16),
+              color: AppColors.blue1,
+              tooltip: 'Llamar',
+              style: IconButton.styleFrom(
+                minimumSize: Size.zero,
+                fixedSize: const Size(30, 30),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Abre el chat con el saludo ya escrito. El texto es solo un punto de
+  /// partida: se borra de un toque si querían escribir otra cosa.
+  Future<void> _abrirWhatsapp(String numero, String? nombre) async {
+    final saludo = nombre != null && nombre.trim().isNotEmpty
+        ? 'Hola ${nombre.trim()}!'
+        : 'Hola!';
+    final mensaje = Uri.encodeComponent(
+      '$saludo Le escribimos por su orden de servicio '
+      '*${_orden!.codigo}*.',
+    );
+    await _abrirUrl(
+      Uri.parse('https://wa.me/$numero?text=$mensaje'),
+      'No se pudo abrir WhatsApp',
+    );
+  }
+
+  Future<void> _llamar(String numero) =>
+      _abrirUrl(Uri.parse('tel:$numero'), 'No se pudo abrir el marcador');
+
+  Future<void> _abrirUrl(Uri uri, String error) async {
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) throw Exception('launch devolvió false');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
