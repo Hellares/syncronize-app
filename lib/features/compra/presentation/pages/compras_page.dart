@@ -40,12 +40,12 @@ class ComprasPage extends StatelessWidget {
             foregroundColor: AppColors.white,
             title: 'Recepciones de Compra',
             actions: [
-              IconButton(
-                icon: const Icon(Icons.local_shipping_outlined, size: 20),
-                onPressed: () =>
-                    context.push('/empresa/compras/gastos-factura'),
-                tooltip: 'Gastos de factura',
-              ),
+              // IconButton(
+              //   icon: const Icon(Icons.local_shipping_outlined, size: 20),
+              //   onPressed: () =>
+              //       context.push('/empresa/compras/gastos-factura'),
+              //   tooltip: 'Gastos de factura',
+              // ),
               IconButton(
                 icon: const Icon(Icons.bar_chart, size: 20),
                 onPressed: () => context.push('/empresa/compras/analytics'),
