@@ -67,10 +67,8 @@ import '../../../configuracion_documentos/domain/usecases/get_configuracion_comp
 import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../../venta_rapida/domain/entities/orden_cobrable.dart';
 import '../../../venta_rapida/presentation/bloc/venta_rapida_cubit.dart';
-import '../../../../core/utils/telefono_helper.dart';
-import '../../../empresa/data/datasources/empresa_remote_datasource.dart';
-import '../widgets/mensaje_whatsapp_dialog.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/services/whatsapp_cliente_service.dart';
+import '../../../../core/widgets/contacto_cliente_acciones.dart';
 
 class OrdenServicioDetailPage extends StatefulWidget {
   final String ordenId;
@@ -4950,9 +4948,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   /// que uno quiere cuando está mirando una orden — escribir por WhatsApp y
   /// llamar— sin tener que copiar el número a mano.
   Widget _buildTelefonoRow(String label, String telefono, {String? nombre}) {
-    final wa = telefonoParaWhatsapp(telefono);
-    final tel = telefonoParaLlamar(telefono);
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
@@ -4974,71 +4969,31 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // 🔴 shrinkWrap: sin eso el IconButton reserva ~48px y rompe una
-          // fila de 10px de fuente.
-          // Ver feedback_iconbutton_m3_tap_target_minimo.
-          if (wa != null)
-            IconButton(
-              onPressed: () => _abrirWhatsapp(wa, nombre),
-              icon: const Icon(Icons.chat, size: 16),
-              color: const Color(0xFF25D366),
-              tooltip: 'WhatsApp',
-              style: IconButton.styleFrom(
-                minimumSize: Size.zero,
-                fixedSize: const Size(30, 30),
-                padding: EdgeInsets.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          if (tel != null)
-            IconButton(
-              onPressed: () => _llamar(tel),
-              icon: const Icon(Icons.call, size: 16),
-              color: AppColors.blue1,
-              tooltip: 'Llamar',
-              style: IconButton.styleFrom(
-                minimumSize: Size.zero,
-                fixedSize: const Size(30, 30),
-                padding: EdgeInsets.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
+          ContactoClienteAcciones(
+            telefono: telefono,
+            onWhatsapp: () => _escribirPorWhatsapp(telefono, nombre),
+          ),
         ],
       ),
     );
   }
 
-  /// Redacta el mensaje y recién ahí abre WhatsApp.
-  ///
-  /// 🔴 El cuadro no es un adorno: `wa.me` abre el chat con el texto puesto
-  /// pero el cursor AL PRINCIPIO, y no hay parámetro para moverlo. Redactando
-  /// acá, WhatsApp recibe el mensaje terminado.
-  Future<void> _abrirWhatsapp(String numero, String? nombre) async {
-    final destinatario = nombre != null && nombre.trim().isNotEmpty
-        ? nombre.trim()
-        : 'el cliente';
+  /// El saludo nombra el equipo: "la orden OS-000123" no le dice nada al
+  /// cliente, "su LAPTOP HP PAVILION" sí.
+  Future<void> _escribirPorWhatsapp(String telefono, String? nombre) {
     final saludo = nombre != null && nombre.trim().isNotEmpty
         ? 'Hola ${nombre.trim()}!'
         : 'Hola!';
-    // El equipo es lo que el cliente reconoce: "la orden OS-000123" no le
-    // dice nada, "su LAPTOP HP PAVILION" sí.
     final equipo = _orden!.descripcionEquipo;
-    final inicial = '$saludo Le escribimos por su orden de servicio '
-        '*${_orden!.codigo}*'
-        '${equipo != null ? ' ($equipo)' : ''}.';
 
-    // Si la empresa tiene su WhatsApp vinculado, el mensaje sale del sistema
-    // y el usuario no cambia de app. Se resuelve ANTES de abrir el cuadro
-    // porque el cuadro tiene que decir cuál de las dos cosas va a pasar.
-    final envio = await _estadoEnvioWhatsapp();
-    if (!mounted) return;
-
-    final redactado = await mostrarDialogoMensajeWhatsapp(
+    return WhatsappClienteService.escribirACliente(
       context,
-      textoInicial: inicial,
-      destinatario: destinatario,
-      envioDirecto: envio.conectado,
-      numeroEmpresa: envio.numero,
+      empresaId: _orden!.empresaId,
+      telefono: telefono,
+      nombreCliente: nombre,
+      textoInicial: '$saludo Le escribimos por su orden de servicio '
+          '*${_orden!.codigo}*'
+          '${equipo != null ? ' ($equipo)' : ''}.',
       atajos: const [
         (
           etiqueta: 'Equipo listo',
@@ -5056,109 +5011,6 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         ),
       ],
     );
-    if (redactado == null || !mounted) return;
-
-    if (envio.conectado &&
-        await _enviarPorElSistema(numero, redactado.texto, redactado.imagen)) {
-      return;
-    }
-
-    // Cae acá si la empresa no tiene WhatsApp vinculado, o si el envío falló
-    // —la instancia se pudo caer entre el chequeo y el envío—. El texto ya
-    // está redactado, así que no se pierde: va igual por wa.me.
-    //
-    // 🔴 La imagen NO puede viajar por acá: wa.me solo prellena texto. Por eso
-    // adjuntar solo se ofrece con la línea vinculada; si igual se llegó hasta
-    // acá con una imagen, hay que decirlo en vez de mandar el texto solo y
-    // que el usuario crea que la foto salió.
-    if (!mounted) return;
-    if (redactado.imagen != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se pudo enviar la imagen. Se abre WhatsApp con el texto; '
-            'la foto hay que adjuntarla ahí.',
-          ),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 5),
-        ),
-      );
-    }
-    await _abrirUrl(
-      Uri.parse(
-          'https://wa.me/$numero?text=${Uri.encodeComponent(redactado.texto)}'),
-      'No se pudo abrir WhatsApp',
-    );
-  }
-
-  /// Estado liviano de la vinculación. Ante cualquier problema devuelve
-  /// "no conectado": abrir WhatsApp siempre funciona, y es preferible a
-  /// prometer un envío directo que después no ocurre.
-  Future<({bool conectado, String? numero})> _estadoEnvioWhatsapp() async {
-    try {
-      final data = await locator<EmpresaRemoteDataSource>()
-          .getEstadoEnvioWhatsapp(_orden!.empresaId);
-      return (
-        conectado: data['conectado'] as bool? ?? false,
-        numero: data['numero'] as String?,
-      );
-    } catch (_) {
-      return (conectado: false, numero: null);
-    }
-  }
-
-  /// Devuelve true si el mensaje salió por el sistema.
-  ///
-  /// Con imagen va como una sola pieza —la foto con el texto de caption—, que
-  /// es como WhatsApp la muestra: mandar dos mensajes separados le llegaría
-  /// al cliente desordenado.
-  Future<bool> _enviarPorElSistema(
-    String numero,
-    String texto,
-    File? imagen,
-  ) async {
-    try {
-      final ds = locator<EmpresaRemoteDataSource>();
-      if (imagen != null) {
-        await ds.enviarImagenWhatsapp(
-          empresaId: _orden!.empresaId,
-          numero: numero,
-          base64: base64Encode(await imagen.readAsBytes()),
-          caption: texto,
-        );
-      } else {
-        await ds.enviarMensajeWhatsapp(
-          empresaId: _orden!.empresaId,
-          numero: numero,
-          mensaje: texto,
-        );
-      }
-      if (!mounted) return true;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Mensaje enviado por WhatsApp'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<void> _llamar(String numero) =>
-      _abrirUrl(Uri.parse('tel:$numero'), 'No se pudo abrir el marcador');
-
-  Future<void> _abrirUrl(Uri uri, String error) async {
-    try {
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok) throw Exception('launch devolvió false');
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
-      );
-    }
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {

@@ -33,6 +33,8 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import 'package:syncronize/features/impresoras/domain/services/impresoras_manager.dart';
 import '../../../cuentas_por_cobrar/domain/usecases/registrar_abono_cuenta_cobrar_usecase.dart';
 import '../../../cuentas_por_cobrar/presentation/widgets/abono_cliente_sheet.dart';
+import '../../../../core/services/whatsapp_cliente_service.dart';
+import '../../../../core/widgets/contacto_cliente_acciones.dart';
 import '../../../servicio/presentation/widgets/bluetooth_printer_sheet.dart';
 import '../services/recibo_cuota_esc_pos_generator.dart';
 import '../../../sorteo/presentation/services/rotulo_envio_pdf_generator.dart';
@@ -869,9 +871,18 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             if (v.emailCliente != null)
               _buildDetailRow(
                   Icons.email_outlined, 'Email', v.emailCliente!),
-            if (v.telefonoCliente != null)
+            // Con el teléfono a la vista, lo que uno quiere hacer es
+            // escribirle o llamarlo — no copiar el número a mano.
+            if (v.telefonoCliente != null && v.telefonoCliente!.isNotEmpty)
               _buildDetailRow(
-                  Icons.phone_outlined, 'Telefono', v.telefonoCliente!),
+                Icons.phone_outlined,
+                'Telefono',
+                v.telefonoCliente!,
+                trailing: ContactoClienteAcciones(
+                  telefono: v.telefonoCliente!,
+                  onWhatsapp: () => _escribirPorWhatsapp(v),
+                ),
+              ),
             if (v.direccionCliente != null)
               _buildDetailRow(Icons.location_on_outlined, 'Direccion',
                   v.direccionCliente!),
@@ -3579,6 +3590,38 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
           ],
         ],
       ),
+    );
+  }
+
+  /// El saludo nombra la venta por su comprobante si lo tiene, y si no por
+  /// su código interno: al cliente le dice más "su boleta B001-123" que
+  /// "la venta V-2026-00045".
+  Future<void> _escribirPorWhatsapp(Venta v) {
+    final nombre = v.nombreCliente.trim();
+    final saludo = nombre.isNotEmpty ? 'Hola $nombre!' : 'Hola!';
+    final referencia = v.codigoComprobante ?? v.codigo;
+
+    return WhatsappClienteService.escribirACliente(
+      context,
+      empresaId: v.empresaId,
+      telefono: v.telefonoCliente!,
+      nombreCliente: nombre,
+      textoInicial: '$saludo Le escribimos por su compra *$referencia*.',
+      atajos: const [
+        (
+          etiqueta: 'Pedido listo',
+          texto: 'Su pedido ya está listo para que lo recoja.',
+        ),
+        (
+          etiqueta: 'En camino',
+          texto: 'Su pedido ya salió y está en camino.',
+        ),
+        (
+          etiqueta: 'Recordar pago',
+          texto: 'Le recordamos que su compra tiene un saldo pendiente. '
+              'Cualquier duda quedamos atentos.',
+        ),
+      ],
     );
   }
 

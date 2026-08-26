@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:syncronize/features/servicio/presentation/widgets/mensaje_whatsapp_dialog.dart';
+import 'package:syncronize/core/widgets/mensaje_whatsapp_dialog.dart';
 
 void main() {
   const inicial = 'Hola Juan! Le escribimos por su orden *OS-1* (LAPTOP HP).';
