@@ -10,10 +10,15 @@ class CompraGastoModel extends CompraGasto {
     super.base,
     super.prorratea,
     super.criterio,
+    super.categoriaGastoId,
+    super.categoriaNombre,
+    super.categoriaIcono,
+    super.categoriaColor,
     super.orden,
   });
 
   factory CompraGastoModel.fromJson(Map<String, dynamic> json) {
+    final categoria = json['categoriaGasto'] as Map<String, dynamic>?;
     return CompraGastoModel(
       id: json['id'] as String? ?? '',
       concepto: json['concepto'] as String? ?? '',
@@ -23,6 +28,10 @@ class CompraGastoModel extends CompraGasto {
       base: double.parse((json['base'] ?? 0).toString()),
       prorratea: json['prorratea'] as bool? ?? true,
       criterio: json['criterio'] as String? ?? 'VALOR',
+      categoriaGastoId: json['categoriaGastoId'] as String?,
+      categoriaNombre: categoria?['nombre'] as String?,
+      categoriaIcono: categoria?['icono'] as String?,
+      categoriaColor: categoria?['color'] as String?,
       orden: json['orden'] as int? ?? 0,
     );
   }

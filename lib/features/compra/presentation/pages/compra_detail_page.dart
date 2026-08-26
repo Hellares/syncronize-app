@@ -19,9 +19,11 @@ import '../../../configuracion_documentos/domain/entities/configuracion_document
 import '../../../configuracion_documentos/domain/entities/plantilla_documento.dart';
 import '../../../configuracion_documentos/domain/usecases/get_configuracion_completa_usecase.dart';
 import '../../domain/entities/compra.dart';
+import '../../domain/usecases/actualizar_compra_usecase.dart';
 import '../../domain/usecases/get_compra_usecase.dart';
 import '../../domain/usecases/confirmar_compra_usecase.dart';
 import '../widgets/confirmar_pago_compra_sheet.dart';
+import '../widgets/gasto_factura_dialog.dart';
 import '../../domain/usecases/anular_compra_usecase.dart';
 import '../../domain/usecases/eliminar_compra_usecase.dart';
 import 'documento_compra_preview_page.dart';
@@ -43,6 +45,7 @@ class CompraDetailPage extends StatefulWidget {
 class _CompraDetailPageState extends State<CompraDetailPage> {
   late Compra _compra;
   bool _isLoadingDetail = true;
+  bool _guardandoGastos = false;
 
   @override
   void initState() {
@@ -67,6 +70,103 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
     } else {
       setState(() => _isLoadingDetail = false);
     }
+  }
+
+  /// Los gastos guardados, en la forma que espera el diálogo y el backend.
+  List<Map<String, dynamic>> get _gastosEditables => (_compra.gastos ?? [])
+      .map((g) => {
+            'concepto': g.concepto,
+            'monto': g.monto,
+            'prorratea': g.prorratea,
+            'criterio': g.criterio,
+            'categoriaGastoId': g.categoriaGastoId,
+            'categoriaNombre': g.categoriaNombre,
+          })
+      .toList();
+
+  /// Guarda la lista COMPLETA de gastos y se queda con la compra que devuelve
+  /// el backend (trae los totales ya recalculados).
+  ///
+  /// Se guarda en el momento, sin borrador: un sheet con cambios sin guardar
+  /// se pierde al arrastrarlo hacia abajo sin pasar por ninguna guarda.
+  /// Ver feedback_bottomsheet_arrastre_saltea_popscope.
+  Future<void> _guardarGastos(
+    List<Map<String, dynamic>> gastos,
+    String mensajeOk,
+  ) async {
+    setState(() => _guardandoGastos = true);
+
+    final result = await locator<ActualizarCompraUseCase>()(
+      empresaId: widget.empresaId,
+      id: _compra.id,
+      // Por el mapeo compartido: los mapas llevan el nombre de la categoría
+      // para poder mostrarlo, y esa clave de más sería un 400.
+      data: {'gastos': gastos.map(gastoAPayload).toList()},
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _guardandoGastos = false;
+      if (result is Success<Compra>) _compra = result.data;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result is Error<Compra> ? result.message : mensajeOk,
+        ),
+        backgroundColor:
+            result is Error<Compra> ? Colors.red : Colors.green,
+      ),
+    );
+  }
+
+  Future<void> _editarGasto({int? index}) async {
+    final actuales = _gastosEditables;
+    final gasto = await mostrarDialogoGastoFactura(
+      context,
+      inicial: index != null ? actuales[index] : null,
+    );
+    if (gasto == null) return;
+
+    if (index == null) {
+      actuales.add(gasto);
+    } else {
+      actuales[index] = gasto;
+    }
+    await _guardarGastos(
+      actuales,
+      index == null ? 'Gasto agregado' : 'Gasto actualizado',
+    );
+  }
+
+  Future<void> _eliminarGasto(int index) async {
+    final actuales = _gastosEditables;
+    final concepto = actuales[index]['concepto'];
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Quitar gasto'),
+        content: Text(
+          '¿Quitar "$concepto" de la factura? El costo de los productos se '
+          'vuelve a calcular sin ese monto.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Quitar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+
+    actuales.removeAt(index);
+    await _guardarGastos(actuales, 'Gasto quitado');
   }
 
   IconData _estadoIcon() {
@@ -427,7 +527,114 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
     );
   }
 
+  /// Un gasto dentro del resumen. En BORRADOR se toca para editarlo y trae
+  /// su propia X para quitarlo; confirmada, es solo lectura.
+  Widget _buildGastoRow(int index, CompraGasto g) {
+    final editable = _compra.esBorrador && !_guardandoGastos;
+    final fila = Row(
+      children: [
+        Icon(
+          g.prorratea ? Icons.call_split : Icons.remove_circle_outline,
+          size: 11,
+          color: g.prorratea ? Colors.green.shade700 : Colors.grey.shade500,
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: AppSubtitle(
+            [
+              g.concepto,
+              if (g.categoriaNombre != null) g.categoriaNombre!,
+              if (g.prorratea)
+                'al costo ${g.criterio == 'CANTIDAD' ? 'por cantidad' : 'por valor'}'
+              else
+                'no toca el costo',
+            ].join(' · '),
+            fontSize: 10,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        Text(
+          '${_compra.moneda} ${g.monto.toStringAsFixed(2)}',
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+        ),
+        if (_compra.esBorrador)
+          // 🔴 Sin `shrinkWrap` el IconButton reserva ~48px y mete separación
+          // fantasma en una fila de 10px de fuente.
+          // Ver feedback_iconbutton_m3_tap_target_minimo.
+          IconButton(
+            onPressed: editable ? () => _eliminarGasto(index) : null,
+            icon: const Icon(Icons.close, size: 14),
+            color: Colors.grey.shade500,
+            tooltip: 'Quitar gasto',
+            style: IconButton.styleFrom(
+              minimumSize: Size.zero,
+              fixedSize: const Size(30, 30),
+              padding: EdgeInsets.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 10, bottom: 2),
+      child: editable
+          ? InkWell(
+              onTap: () => _editarGasto(index: index),
+              borderRadius: BorderRadius.circular(6),
+              child: fila,
+            )
+          : fila,
+    );
+  }
+
+  Widget _buildAgregarGastoLink(bool sinGastos) {
+    return Padding(
+      padding: EdgeInsets.only(top: sinGastos ? 6 : 2, left: 6),
+      child: InkWell(
+        onTap: _guardandoGastos ? null : () => _editarGasto(),
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_guardandoGastos)
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 1.6),
+                )
+              else
+                const Icon(Icons.add, size: 14, color: AppColors.blue1),
+              const SizedBox(width: 4),
+              AppSubtitle(
+                sinGastos ? 'Agregar flete o movilidad' : 'Agregar otro gasto',
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.blue1,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMontosCard() {
+    // 🔴 `subtotal` e `impuestos` del backend YA traen adentro la base y el
+    // IGV de los gastos (`subtotal = Σdetalle.subtotal + Σgasto.base`). Si se
+    // los muestra tal cual y abajo se lista "Gastos" como un renglón más, la
+    // columna no cierra: parece que el flete se cobra dos veces. Restándolos,
+    // Mercadería + IGV + Gastos da exactamente el total.
+    final gastos = _compra.gastos ?? [];
+    final baseGastos = gastos.fold<double>(0, (s, g) => s + g.base);
+    final igvGastos = gastos.fold<double>(0, (s, g) => s + g.igv);
+    final mercaderia = _compra.subtotal - baseGastos;
+    final igvMercaderia = _compra.impuestos - igvGastos;
+
     return GradientContainer(
       gradient: AppGradients.blueWhiteBlue(),
       borderColor: AppColors.blueborder,
@@ -438,8 +645,8 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
         children: [
           _buildSectionHeader(Icons.receipt_long, 'RESUMEN DE MONTOS'),
           const SizedBox(height: 12),
-          _buildMontoRow('Subtotal',
-              '${_compra.moneda} ${_compra.subtotal.toStringAsFixed(2)}'),
+          _buildMontoRow(gastos.isEmpty ? 'Subtotal' : 'Mercadería',
+              '${_compra.moneda} ${mercaderia.toStringAsFixed(2)}'),
           if (_compra.descuento > 0)
             _buildMontoRow(
               'Descuento',
@@ -447,50 +654,21 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
               valueColor: Colors.red.shade600,
             ),
           _buildMontoRow('Impuestos (IGV)',
-              '${_compra.moneda} ${_compra.impuestos.toStringAsFixed(2)}'),
-          // Gastos de la factura que no son productos. Ya están dentro del
-          // total; se listan para que la suma se explique sola.
-          if ((_compra.gastos ?? []).isNotEmpty) ...[
+              '${_compra.moneda} ${igvMercaderia.toStringAsFixed(2)}'),
+          // Gastos de la factura que no son productos. Van con su monto
+          // ENTERO (el IGV del gasto, si lo tiene, va adentro y por eso se
+          // descontó del renglón de impuestos).
+          if (gastos.isNotEmpty) ...[
             _buildMontoRow('Gastos (flete, movilidad)',
                 '${_compra.moneda} ${_compra.totalGastos.toStringAsFixed(2)}'),
-            ...(_compra.gastos ?? []).map(
-              (g) => Padding(
-                padding: const EdgeInsets.only(left: 10, bottom: 2),
-                child: Row(
-                  children: [
-                    Icon(
-                      g.prorratea
-                          ? Icons.call_split
-                          : Icons.remove_circle_outline,
-                      size: 11,
-                      color: g.prorratea
-                          ? Colors.green.shade700
-                          : Colors.grey.shade500,
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: AppSubtitle(
-                        g.prorratea
-                            ? '${g.concepto} · al costo'
-                            : '${g.concepto} · no toca el costo',
-                        fontSize: 10,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    Text(
-                      '${_compra.moneda} ${g.monto.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                  ],
+            ...gastos.asMap().entries.map(
+                  (e) => _buildGastoRow(e.key, e.value),
                 ),
-              ),
-            ),
           ],
+          // Mientras la compra sea BORRADOR el flete todavía se puede
+          // arreglar: al confirmar se congela dentro del precioCosto y ya no
+          // hay vuelta atrás sin anular la compra entera.
+          if (_compra.esBorrador) _buildAgregarGastoLink(gastos.isEmpty),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Divider(height: 1),

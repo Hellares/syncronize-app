@@ -31,6 +31,17 @@ class CompraGasto extends Equatable {
 
   /// VALOR (proporcional al total de cada línea) o CANTIDAD (por unidades).
   final String criterio;
+
+  /// Categoría del catálogo de gastos, la misma de caja chica. Es lo que
+  /// permite sumar "movilidad del año"; [concepto] es el detalle libre.
+  ///
+  /// 🔴 Se conserva al editar: guardar gastos REEMPLAZA la lista entera, así
+  /// que un gasto que vuelva sin su categoría la pierde.
+  final String? categoriaGastoId;
+  final String? categoriaNombre;
+  final String? categoriaIcono;
+  final String? categoriaColor;
+
   final int orden;
 
   const CompraGasto({
@@ -42,11 +53,16 @@ class CompraGasto extends Equatable {
     this.base = 0,
     this.prorratea = true,
     this.criterio = 'VALOR',
+    this.categoriaGastoId,
+    this.categoriaNombre,
+    this.categoriaIcono,
+    this.categoriaColor,
     this.orden = 0,
   });
 
   @override
-  List<Object?> get props => [id, concepto, monto, prorratea, criterio];
+  List<Object?> get props =>
+      [id, concepto, monto, prorratea, criterio, categoriaGastoId];
 }
 
 class CompraDetalle extends Equatable {

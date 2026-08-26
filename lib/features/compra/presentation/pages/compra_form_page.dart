@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
-import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
@@ -19,12 +18,14 @@ import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../domain/entities/linea_compra_draft.dart';
+import '../../domain/prorrateo_gastos.dart';
 import '../../domain/entities/orden_compra.dart';
 import '../bloc/compra_form/compra_form_cubit.dart';
 import '../bloc/compra_form/compra_form_state.dart';
 import '../../../../core/widgets/custom_proveedor_selector.dart';
 import '../widgets/orden_compra_item_selector.dart';
 import '../widgets/credito_selector.dart';
+import '../widgets/gasto_factura_dialog.dart';
 import '../widgets/linea_compra_editor_sheet.dart';
 import 'compra_productos_page.dart';
 import 'importar_guia_page.dart';
@@ -71,13 +72,6 @@ class _CompraFormViewState extends State<_CompraFormView> {
   late final TextEditingController _serieDocProveedorController;
   late final TextEditingController _numDocProveedorController;
 
-  /// 🔴 Del State y NO locales del diálogo: al cerrarse, su animación de salida
-  /// sigue reconstruyendo el CustomText por varios frames y un controller ya
-  /// dispuesto revienta con "used after being disposed".
-  /// Ver feedback_textcontroller_dispose_tras_dialog.
-  late final TextEditingController _gastoConceptoCtrl;
-  late final TextEditingController _gastoMontoCtrl;
-
   // Tipo de documento del proveedor (FACTURA/BOLETA/GUIA/TICKET)
   String? _tipoDocProveedor;
 
@@ -109,6 +103,88 @@ class _CompraFormViewState extends State<_CompraFormView> {
         (sum, g) => sum + ((g['monto'] as num?)?.toDouble() ?? 0),
       );
 
+  /// Lo tecleado en las líneas: `cantidad × precio − descuento`, sin IGV
+  /// encima. Es el número que el usuario reconoce de la factura.
+  double get _brutoMercaderia => _detalles.fold(0.0, (sum, d) {
+        final cantidad = (d['cantidad'] as num?)?.toDouble() ?? 0;
+        final precio = (d['precioUnitario'] as num?)?.toDouble() ?? 0;
+        final descuento = (d['descuento'] as num?)?.toDouble() ?? 0;
+        return sum + cantidad * precio - descuento;
+      });
+
+  /// ¿El IGV se suma ENCIMA de lo tecleado o ya viene adentro?
+  ///
+  /// La recepción desde OC no pregunta: el backend siempre le suma el IGV
+  /// con el porcentaje que quedó snapshoteado en la línea de la OC.
+  bool get _igvVaEncima => _isFromOc || !_precioIncluyeIgv;
+
+  /// El TOTAL de una línea, espejando `calcularDetalle` del backend: es la
+  /// cifra sobre la que se reparten los gastos y de la que sale el
+  /// `precioCosto` al confirmar, y lleva el IGV adentro en los dos casos.
+  double _totalLinea(Map<String, dynamic> d) {
+    final cantidad = (d['cantidad'] as num?)?.toDouble() ?? 0;
+    final precio = (d['precioUnitario'] as num?)?.toDouble() ?? 0;
+    final descuento = (d['descuento'] as num?)?.toDouble() ?? 0;
+    final bruto = cantidad * precio - descuento;
+    if (!_igvVaEncima) return round2(bruto);
+    // Sin porcentaje explícito manda el default del backend (18).
+    final pct = (d['porcentajeIGV'] as num?)?.toDouble() ?? 18;
+    final base = round2(bruto);
+    return round2(base + round2(base * pct / 100));
+  }
+
+  double get _mercaderiaConIgv =>
+      _detalles.fold(0.0, (sum, d) => sum + _totalLinea(d));
+
+  /// IGV que el backend va a agregar. Sin esto, el total del formulario no
+  /// coincide con el de la compra ya creada.
+  double get _igvMercaderia =>
+      _igvVaEncima ? _mercaderiaConIgv - _brutoMercaderia : 0;
+
+  /// Lo que va a decir la factura del proveedor. Es la única cifra que el
+  /// usuario puede comparar contra el papel que tiene en la mano.
+  double get _totalCompra => _mercaderiaConIgv + _totalGastos;
+
+  /// Cuánto gasto le toca a cada línea, indexado por su posición.
+  ///
+  /// Es una PREVISUALIZACIÓN: el reparto que vale lo hace el backend al
+  /// confirmar. La cuenta vive en `prorratearGastos` para poder testearla
+  /// contra los mismos casos que el spec del backend.
+  Map<int, double> get _gastoPorLinea => prorratearGastos(
+        lineas: _detalles
+            .map((d) => (
+                  total: _totalLinea(d),
+                  cantidad: _cantidadAtomica(d),
+                  mueveStock:
+                      d['productoId'] != null || d['varianteId'] != null,
+                ))
+            .toList(),
+        gastos: _gastos
+            .map((g) => (
+                  monto: (g['monto'] as num?)?.toDouble() ?? 0,
+                  prorratea: g['prorratea'] as bool? ?? true,
+                  porCantidad: g['criterio'] == 'CANTIDAD',
+                ))
+            .toList(),
+      );
+
+  /// La cantidad de la línea en unidad ATÓMICA, que es la que el backend
+  /// guarda y con la que reparte cuando el criterio es CANTIDAD. Un saco de
+  /// 50 cargado como "10 sacos" pesa 500, no 10.
+  double _cantidadAtomica(Map<String, dynamic> d) {
+    final cantidad = (d['cantidad'] as num?)?.toDouble() ?? 0;
+    final factor = (d['factorCompra'] as num?)?.toDouble();
+    return d['usaUnidadCompra'] == true && factor != null && factor > 0
+        ? cantidad * factor
+        : cantidad;
+  }
+
+  /// Los gastos tal como los espera el backend. Lo usan las DOS altas
+  /// —compra standalone y recepción desde OC— para que no se vuelvan a
+  /// desincronizar.
+  List<Map<String, dynamic>> _gastosPayload() =>
+      _gastos.map(gastoAPayload).toList();
+
   /// Cuántas líneas mueven stock: son las únicas entre las que el backend
   /// puede repartir el flete.
   int get _detallesConProducto => _detalles
@@ -125,8 +201,6 @@ class _CompraFormViewState extends State<_CompraFormView> {
     _observacionesController = TextEditingController();
     _serieDocProveedorController = TextEditingController();
     _numDocProveedorController = TextEditingController();
-    _gastoConceptoCtrl = TextEditingController();
-    _gastoMontoCtrl = TextEditingController();
 
     if (oc != null) {
       _proveedorId = oc.proveedorId;
@@ -147,6 +221,9 @@ class _CompraFormViewState extends State<_CompraFormView> {
               'cantidad': d.cantidadPendiente,
               'precioUnitario': d.precioUnitario,
               'descuento': d.descuento,
+              // El backend calcula el IGV de la recepción con ESTE
+              // porcentaje, no con el 18 por defecto.
+              'porcentajeIGV': d.porcentajeIGV,
             });
           }
         }
@@ -166,8 +243,6 @@ class _CompraFormViewState extends State<_CompraFormView> {
     _observacionesController.dispose();
     _serieDocProveedorController.dispose();
     _numDocProveedorController.dispose();
-    _gastoConceptoCtrl.dispose();
-    _gastoMontoCtrl.dispose();
     super.dispose();
   }
 
@@ -317,6 +392,10 @@ class _CompraFormViewState extends State<_CompraFormView> {
                     'nuevoPrecioVenta': d['nuevoPrecioVenta'],
                 })
             .toList(),
+        // El flete llega con la mercadería, así que la recepción los manda
+        // igual que la compra standalone. Sin esto la sección de gastos se
+        // dibuja pero el gasto se pierde en silencio al guardar.
+        if (_gastos.isNotEmpty) 'gastos': _gastosPayload(),
       };
       context.read<CompraFormCubit>().crearCompraDesdeOc(
             empresaId: widget.empresaId,
@@ -360,14 +439,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                     'nuevoPrecioVenta': d['nuevoPrecioVenta'],
                 })
             .toList(),
-        if (_gastos.isNotEmpty)
-          'gastos': _gastos
-              .map((g) => {
-                    'concepto': g['concepto'],
-                    'monto': g['monto'],
-                    'prorratea': g['prorratea'] ?? true,
-                  })
-              .toList(),
+        if (_gastos.isNotEmpty) 'gastos': _gastosPayload(),
       };
       context.read<CompraFormCubit>().crearCompra(
             empresaId: widget.empresaId,
@@ -826,6 +898,9 @@ class _CompraFormViewState extends State<_CompraFormView> {
       ],
     );
 
+    // Una sola vez para toda la tabla: el reparto mira TODAS las líneas.
+    final gastoPorLinea = _gastoPorLinea;
+
     final filas = _detalles.asMap().entries.map((entry) {
       final index = entry.key;
       final d = entry.value;
@@ -870,6 +945,20 @@ class _CompraFormViewState extends State<_CompraFormView> {
           ? presLinea.precio(precioNum).toStringAsFixed(2)
           : _fmtPrecioUnit(precioNum);
 
+      // Lo que va a costar de verdad el producto una vez repartido el flete.
+      // Va en la MISMA unidad que muestra la fila (el saco, el kilo), no en
+      // la atómica, para que se pueda comparar contra el P.Unit de al lado.
+      final gastoLinea = gastoPorLinea[index] ?? 0;
+      final cantMostrada = usaUC
+          ? cantidadNum
+          : (tienePres ? cantidadNum / factorPres : cantidadNum);
+      final unidadTxt = usaUC && simboloUC != null
+          ? simboloUC
+          : (tienePres ? simboloPres : 'u');
+      final costoConGasto = cantMostrada > 0
+          ? (_totalLinea(d) + gastoLinea) / cantMostrada
+          : 0.0;
+
       return TableRow(
         decoration: BoxDecoration(
           color: index.isOdd ? Colors.grey.withValues(alpha: 0.04) : Colors.white,
@@ -913,6 +1002,18 @@ class _CompraFormViewState extends State<_CompraFormView> {
                   Text('desc. -${descuento.toStringAsFixed(2)}',
                       style:
                           TextStyle(fontSize: 8, color: Colors.red.shade400)),
+                // El flete que le toca a esta línea. Es lo que explica que el
+                // costo del producto no sea el precio que facturó el
+                // proveedor.
+                if (gastoLinea > 0 && cantMostrada > 0)
+                  Text(
+                    '+ ${gastoLinea.toStringAsFixed(2)} gastos → costo '
+                    'S/${_fmtPrecioUnit(costoConGasto)}/$unidadTxt',
+                    style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange.shade800),
+                  ),
                 ],
               ),
             ),
@@ -941,10 +1042,10 @@ class _CompraFormViewState extends State<_CompraFormView> {
       child: Table(
         border: TableBorder.all(color: Colors.grey.shade200, width: 0.6),
         columnWidths: const {
-          0: FlexColumnWidth(2.4),
-          1: FlexColumnWidth(1.0),
+          0: FlexColumnWidth(3.20),
+          1: FlexColumnWidth(0.7),
           2: FlexColumnWidth(1.0),
-          3: FlexColumnWidth(1.15),
+          3: FlexColumnWidth(1.0),
           4: FixedColumnWidth(26),
         },
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
@@ -957,6 +1058,11 @@ class _CompraFormViewState extends State<_CompraFormView> {
   Widget _buildOcDetalleCard(int index, Map<String, dynamic> detalle) {
     final hasProduct = detalle['productoId'] != null;
     final descripcion = detalle['descripcion'] as String? ?? '';
+    final gastoLinea = _gastoPorLinea[index] ?? 0;
+    final cantidad = (detalle['cantidad'] as num?)?.toDouble() ?? 0;
+    final costoConGasto = cantidad > 0
+        ? (_totalLinea(detalle) + gastoLinea) / cantidad
+        : 0.0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -1023,8 +1129,10 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       }
                       return null;
                     },
-                    onChanged: (v) =>
-                        detalle['cantidad'] = int.tryParse(v) ?? 1,
+                    // Con setState porque el total de la compra y el
+                    // reparto del flete dependen de TODAS las líneas.
+                    onChanged: (v) => setState(
+                        () => detalle['cantidad'] = int.tryParse(v) ?? 1),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1046,12 +1154,23 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       if (double.tryParse(v) == null) return 'Inválido';
                       return null;
                     },
-                    onChanged: (v) =>
-                        detalle['precioUnitario'] = double.tryParse(v) ?? 0,
+                    onChanged: (v) => setState(() =>
+                        detalle['precioUnitario'] = double.tryParse(v) ?? 0),
                   ),
                 ),
               ],
             ),
+            if (gastoLinea > 0 && cantidad > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                '+ ${gastoLinea.toStringAsFixed(2)} de gastos → costo '
+                'S/${_fmtPrecioUnit(costoConGasto)}/u',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade800),
+              ),
+            ],
           ],
         ),
       ),
@@ -1142,9 +1261,16 @@ class _CompraFormViewState extends State<_CompraFormView> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             AppSubtitle(
-                              prorratea
-                                  ? 'Se reparte en el costo de los productos'
-                                  : 'No toca el costo de los productos',
+                              [
+                                if (g['categoriaNombre'] != null)
+                                  g['categoriaNombre'] as String,
+                                if (prorratea)
+                                  g['criterio'] == 'CANTIDAD'
+                                      ? 'al costo por cantidad'
+                                      : 'al costo por valor'
+                                else
+                                  'no toca el costo',
+                              ].join(' · '),
                               fontSize: 9,
                               color: prorratea
                                   ? Colors.green.shade700
@@ -1190,141 +1316,15 @@ class _CompraFormViewState extends State<_CompraFormView> {
     );
   }
 
-  /// Alta/edición de un gasto. El interruptor es la decisión importante: un
-  /// flete sube el costo del producto, un interés por pagar a 30 días no.
+  /// Alta/edición de un gasto. El diálogo es compartido con el detalle de la
+  /// compra, que es donde se arregla el flete que se cargó tarde.
   Future<void> _abrirDialogoGasto({int? index}) async {
-    final existente = index != null ? _gastos[index] : null;
-    _gastoConceptoCtrl.text = existente?['concepto'] as String? ?? '';
-    _gastoMontoCtrl.text = existente != null
-        ? ((existente['monto'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)
-        : '';
-    var prorratea = existente?['prorratea'] as bool? ?? true;
-
-    final guardado = await StyledDialog.show<bool>(
+    final gasto = await mostrarDialogoGastoFactura(
       context,
-      accentColor: AppColors.blue1,
-      backgroundColor: Colors.white,
-      icon: Icons.local_shipping_outlined,
-      titulo: index == null ? 'Agregar gasto' : 'Editar gasto',
-      subtitulo: 'Flete, movilidad, embalaje o cargos del proveedor',
-      content: [
-        StatefulBuilder(
-          builder: (ctx, setLocal) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CustomText(
-                controller: _gastoConceptoCtrl,
-                label: 'Concepto',
-                hintText: 'Movilidad Lima-Trujillo',
-                borderColor: AppColors.blue1,
-              ),
-              const SizedBox(height: 10),
-              CustomText(
-                controller: _gastoMontoCtrl,
-                label: 'Monto',
-                hintText: '30.00',
-                borderColor: AppColors.blue1,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-              const SizedBox(height: 8),
-              // La decisión que importa: un flete sube el costo real de la
-              // mercadería; un interés por pagar a 30 días no.
-              InkWell(
-                onTap: () => setLocal(() => prorratea = !prorratea),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: prorratea
-                        ? AppColors.blue1.withValues(alpha: 0.05)
-                        : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: prorratea
-                          ? AppColors.blue1.withValues(alpha: 0.35)
-                          : Colors.grey.shade300,
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppSubtitle(
-                              'Sumar al costo de los productos',
-                              font: AppFont.amazonEmberMedium,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            const SizedBox(height: 2),
-                            AppSubtitle(
-                              prorratea
-                                  ? 'Se reparte entre las líneas según su valor'
-                                  : 'Solo suma al total (interés, multa, recargo)',
-                              fontSize: 9,
-                              maxLines: 2,
-                              color: Colors.grey.shade600,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: prorratea,
-                        onChanged: (v) => setLocal(() => prorratea = v),
-                        activeThumbColor: AppColors.blue1,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-      actions: [
-        Expanded(
-          child: TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancelar',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ),
-        ),
-        Expanded(
-          child: CustomButton(
-            text: 'Guardar',
-            icon: const Icon(Icons.check, size: 14, color: Colors.white),
-            backgroundColor: AppColors.blue1,
-            textColor: Colors.white,
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ),
-      ],
+      inicial: index != null ? _gastos[index] : null,
     );
-
-    if (guardado != true || !mounted) return;
-
-    final concepto = _gastoConceptoCtrl.text.trim();
-    final monto =
-        double.tryParse(_gastoMontoCtrl.text.trim().replaceAll(',', '.'));
-    if (concepto.isEmpty || monto == null || monto <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Poné un concepto y un monto mayor a 0')),
-      );
-      return;
-    }
+    if (gasto == null || !mounted) return;
     setState(() {
-      final gasto = {
-        'concepto': concepto,
-        'monto': monto,
-        'prorratea': prorratea,
-      };
       if (index == null) {
         _gastos.add(gasto);
       } else {
@@ -1333,18 +1333,14 @@ class _CompraFormViewState extends State<_CompraFormView> {
     });
   }
 
+
   Widget _buildTotalRow() {
-    double total = 0;
-    for (final d in _detalles) {
-      final cantidad = d['cantidad'];
-      final precio = d['precioUnitario'];
-      final descuento = (d['descuento'] as num?)?.toDouble() ?? 0.0;
-      final cantidadNum =
-          cantidad is int ? cantidad.toDouble() : (cantidad as num).toDouble();
-      final precioNum =
-          precio is int ? precio.toDouble() : (precio as num).toDouble();
-      total += cantidadNum * precioNum - descuento;
-    }
+    final bruto = _brutoMercaderia;
+    final igv = _igvMercaderia;
+    final gastos = _totalGastos;
+    final total = _totalCompra;
+    // Con un solo renglón no hay nada que explicar: la mercadería ES el total.
+    final desglosar = igv > 0.005 || gastos > 0;
 
     return Padding(
       padding: const EdgeInsets.only(top: 6),
@@ -1373,32 +1369,23 @@ class _CompraFormViewState extends State<_CompraFormView> {
                 ],
               ),
             ),
-          if (_totalGastos > 0) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AppSubtitle('Gastos:', fontSize: 12, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(
-                  '$_moneda ${_totalGastos.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-              ],
+          // El desglose va ARRIBA y el total abajo, como en la factura: se
+          // lee de sumando en sumando hasta la cifra que hay que pagar.
+          if (desglosar) ...[
+            _buildTotalLinea('Mercadería:', bruto),
+            if (igv > 0.005) _buildTotalLinea('IGV:', igv),
+            if (gastos > 0) _buildTotalLinea('Gastos:', gastos),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: SizedBox(width: 150, child: Divider(height: 1)),
             ),
-            const SizedBox(height: 2),
           ],
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              AppSubtitle(
-                _totalGastos > 0 ? 'Mercadería:' : 'Subtotal:',
-                fontSize: 12,
-                color: Colors.grey,
-              ),
+              // Siempre "Total": con el IGV adentro de lo tecleado y sin
+              // gastos, lo tecleado YA es el total de la compra.
+              AppSubtitle('Total:', fontSize: 12, color: Colors.grey),
               const SizedBox(width: 8),
               Text(
                 '$_moneda ${total.toStringAsFixed(2)}',
@@ -1414,4 +1401,25 @@ class _CompraFormViewState extends State<_CompraFormView> {
       ),
     );
   }
+
+  /// Un sumando del desglose: etiqueta gris a la izquierda, monto a la
+  /// derecha, alineado con el total de abajo.
+  Widget _buildTotalLinea(String etiqueta, double monto) => Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            AppSubtitle(etiqueta, fontSize: 12, color: Colors.grey),
+            const SizedBox(width: 8),
+            Text(
+              '$_moneda ${monto.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+            ),
+          ],
+        ),
+      );
 }
