@@ -685,10 +685,10 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
     final detalles = _compra.detalles;
     if (detalles == null || detalles.isEmpty) {
       return GradientContainer(
-        gradient: AppGradients.blueWhiteBlue(),
+        gradient: AppGradients.sinfondo,
         borderColor: AppColors.blueborder,
         shadowStyle: ShadowStyle.colorful,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -715,10 +715,10 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
     }
 
     return GradientContainer(
-      gradient: AppGradients.blueWhiteBlue(),
+      gradient: AppGradients.sinfondo,
       borderColor: AppColors.blueborder,
       shadowStyle: ShadowStyle.colorful,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

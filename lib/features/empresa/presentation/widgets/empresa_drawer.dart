@@ -19,7 +19,7 @@ class EmpresaDrawer extends StatefulWidget {
 }
 
 class _EmpresaDrawerState extends State<EmpresaDrawer> {
-  static const _drawerWidth = 260.0;
+  static const _drawerWidth = 230.0;
   final ScrollController _scrollController = ScrollController();
 
   // Modo acordeón: solo una sección expandida a la vez (o ninguna).
@@ -600,13 +600,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
         visible: can(permissions?.canViewCompras),
         children: [
           tile(
-            title: 'Órdenes de Compra',
+            title: 'OC',
             icon: Icons.description,
             routeMatch: const _RouteMatch.startsWith('/empresa/compras/ordenes'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/compras/ordenes')),
           ),
           tile(
-            title: 'Recepciones',
+            title: 'Recepcion/Compras',
             icon: Icons.local_shipping,
             routeMatch: const _RouteMatch.startsWith('/empresa/compras/recepciones'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/compras/recepciones')),
