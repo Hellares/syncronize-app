@@ -140,6 +140,18 @@ abstract class CompraRepository {
     String? fechaFin,
   });
 
+  /// Gastos de la FACTURA (flete, movilidad, intereses) por categoría,
+  /// período y proveedor.
+  Future<Resource<GastosFacturaReporte>> getAnalyticsGastosFactura({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? proveedorId,
+    String? categoriaGastoId,
+    String? periodo,
+  });
+
   Future<Resource<List<GastoPeriodo>>> getAnalyticsGastosPeriodo({
     required String empresaId,
     String? sedeId,

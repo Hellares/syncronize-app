@@ -385,6 +385,35 @@ class CompraRemoteDataSource {
         response.data as Map<String, dynamic>);
   }
 
+  /// Reporte de los gastos de la FACTURA (flete, movilidad, intereses).
+  /// 🔴 Distinto de `getAnalyticsGastosPeriodo`, que suma el total de las
+  /// compras: eso es cuánta plata se puso en mercadería, esto es cuánto costó
+  /// traerla.
+  Future<GastosFacturaReporteModel> getAnalyticsGastosFactura({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? proveedorId,
+    String? categoriaGastoId,
+    String? periodo,
+  }) async {
+    final response = await _dioClient.get(
+      '/empresas/$empresaId/compra/analytics/gastos-factura',
+      queryParameters: {
+        if (sedeId != null) 'sedeId': sedeId,
+        if (fechaInicio != null) 'fechaInicio': fechaInicio,
+        if (fechaFin != null) 'fechaFin': fechaFin,
+        if (proveedorId != null) 'proveedorId': proveedorId,
+        if (categoriaGastoId != null) 'categoriaGastoId': categoriaGastoId,
+        if (periodo != null) 'periodo': periodo,
+      },
+    );
+    return GastosFacturaReporteModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
   Future<List<GastoPeriodoModel>> getAnalyticsGastosPeriodo({
     required String empresaId,
     String? sedeId,

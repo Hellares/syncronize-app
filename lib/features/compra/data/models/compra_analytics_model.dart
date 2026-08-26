@@ -149,3 +149,60 @@ class AlertaCompraModel extends AlertaCompra {
     );
   }
 }
+
+class GastosFacturaReporteModel extends GastosFacturaReporte {
+  const GastosFacturaReporteModel({
+    required super.resumen,
+    required super.porCategoria,
+    required super.porPeriodo,
+    required super.porProveedor,
+  });
+
+  factory GastosFacturaReporteModel.fromJson(Map<String, dynamic> json) {
+    List<GastoAgrupado> lista(String clave, {bool esPeriodo = false}) =>
+        ((json[clave] as List?) ?? const [])
+            .map((e) => _agrupadoDesde(
+                  e as Map<String, dynamic>,
+                  esPeriodo: esPeriodo,
+                ))
+            .toList();
+
+    final r = (json['resumen'] as Map<String, dynamic>?) ?? const {};
+    double num2(String k) => (r[k] as num?)?.toDouble() ?? 0;
+
+    return GastosFacturaReporteModel(
+      resumen: GastosFacturaResumen(
+        total: num2('total'),
+        alCosto: num2('alCosto'),
+        financiero: num2('financiero'),
+        cantidadGastos: (r['cantidadGastos'] as num?)?.toInt() ?? 0,
+        comprasConGasto: (r['comprasConGasto'] as num?)?.toInt() ?? 0,
+        totalComprado: num2('totalComprado'),
+        porcentajeSobreCompras: num2('porcentajeSobreCompras'),
+      ),
+      porCategoria: lista('porCategoria'),
+      porPeriodo: lista('porPeriodo', esPeriodo: true),
+      porProveedor: lista('porProveedor'),
+    );
+  }
+
+  /// Los tres cortes tienen la misma forma salvo el nombre de la clave: el de
+  /// período no trae `nombre` sino `periodo`, y no tiene id.
+  static GastoAgrupado _agrupadoDesde(
+    Map<String, dynamic> j, {
+    required bool esPeriodo,
+  }) {
+    return GastoAgrupado(
+      id: esPeriodo
+          ? null
+          : (j['categoriaGastoId'] ?? j['proveedorId']) as String?,
+      nombre: (esPeriodo ? j['periodo'] : j['nombre']) as String? ?? '',
+      total: (j['total'] as num?)?.toDouble() ?? 0,
+      alCosto: (j['alCosto'] as num?)?.toDouble() ?? 0,
+      financiero: (j['financiero'] as num?)?.toDouble() ?? 0,
+      cantidad: (j['cantidad'] as num?)?.toInt() ?? 0,
+      icono: j['icono'] as String?,
+      color: j['color'] as String?,
+    );
+  }
+}

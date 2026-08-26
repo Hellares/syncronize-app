@@ -235,6 +235,25 @@ class CompraRepositoryImpl implements CompraRepository {
       ));
 
   @override
+  Future<Resource<GastosFacturaReporte>> getAnalyticsGastosFactura({
+    required String empresaId,
+    String? sedeId,
+    String? fechaInicio,
+    String? fechaFin,
+    String? proveedorId,
+    String? categoriaGastoId,
+    String? periodo,
+  }) => _execute(() => _remoteDataSource.getAnalyticsGastosFactura(
+        empresaId: empresaId,
+        sedeId: sedeId,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        proveedorId: proveedorId,
+        categoriaGastoId: categoriaGastoId,
+        periodo: periodo,
+      ));
+
+  @override
   Future<Resource<List<GastoPeriodo>>> getAnalyticsGastosPeriodo({
     required String empresaId,
     String? sedeId,

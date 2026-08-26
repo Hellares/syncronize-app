@@ -11,6 +11,11 @@ class CompraAnalyticsData {
   final ComparativoCosto comparativo;
   final List<AlertaCompra> alertas;
 
+  /// Gastos de la FACTURA (flete, movilidad). Nullable a propósito: contra un
+  /// backend que todavía no tiene el endpoint, la sección simplemente no se
+  /// dibuja en vez de romper el dashboard entero.
+  final GastosFacturaReporte? gastosFactura;
+
   const CompraAnalyticsData({
     required this.resumen,
     required this.gastosPeriodo,
@@ -18,6 +23,7 @@ class CompraAnalyticsData {
     required this.topProveedores,
     required this.comparativo,
     required this.alertas,
+    this.gastosFactura,
   });
 }
 
@@ -70,6 +76,13 @@ class GetCompraAnalyticsUseCase {
           empresaId: empresaId,
           sedeId: sedeId,
         ),
+        _repository.getAnalyticsGastosFactura(
+          empresaId: empresaId,
+          sedeId: sedeId,
+          fechaInicio: fechaInicio,
+          fechaFin: fechaFin,
+          periodo: periodo,
+        ),
       ]);
 
       final resumen = results[0] as Resource<CompraResumenGeneral>;
@@ -78,6 +91,7 @@ class GetCompraAnalyticsUseCase {
       final proveedores = results[3] as Resource<List<ProveedorTop>>;
       final comparativo = results[4] as Resource<ComparativoCosto>;
       final alertas = results[5] as Resource<List<AlertaCompra>>;
+      final gastosFactura = results[6] as Resource<GastosFacturaReporte>;
 
       if (resumen is Error<CompraResumenGeneral>) {
         return Error((resumen as Error).message);
@@ -107,6 +121,9 @@ class GetCompraAnalyticsUseCase {
         alertas: alertas is Success<List<AlertaCompra>>
             ? alertas.data
             : [],
+        gastosFactura: gastosFactura is Success<GastosFacturaReporte>
+            ? gastosFactura.data
+            : null,
       ));
     } catch (e) {
       return Error(e.toString());

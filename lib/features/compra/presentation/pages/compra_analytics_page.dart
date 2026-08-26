@@ -12,6 +12,7 @@ import '../../../empresa/presentation/widgets/stats_card.dart';
 import '../../domain/usecases/get_compra_analytics_usecase.dart';
 import '../bloc/compra_analytics/compra_analytics_cubit.dart';
 import '../bloc/compra_analytics/compra_analytics_state.dart';
+import '../widgets/analytics/gastos_factura_card.dart';
 import '../widgets/analytics/gastos_line_chart.dart';
 import '../widgets/analytics/top_productos_chart.dart';
 import '../widgets/analytics/top_proveedores_chart.dart';
@@ -131,9 +132,20 @@ class CompraAnalyticsPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
+            // Lo que costó TRAER la mercadería. Va antes de la tendencia
+            // para que no se confunda con ella: la de abajo suma el total de
+            // las compras, ésta el flete que se paga aparte.
+            if (data.gastosFactura != null) ...[
+              GastosFacturaCard(reporte: data.gastosFactura!),
+              const SizedBox(height: 16),
+            ],
+
             // Spending Trend
             _SectionCard(
-              title: 'Tendencia de Gastos',
+              // Decía "Tendencia de Gastos" y se confundía con la tarjeta de
+              // arriba: esto suma `compra.total`, o sea cuánta plata se puso
+              // en mercadería.
+              title: 'Tendencia de Compras',
               icon: Icons.show_chart,
               child: GastosLineChart(gastos: data.gastosPeriodo),
             ),
