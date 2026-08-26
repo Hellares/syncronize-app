@@ -497,7 +497,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                       ? _orden!.tecnico!.nombreCompleto
                       : 'Sin tecnico asignado',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: _orden!.tecnico != null ? Colors.grey.shade700 : Colors.grey.shade500,
                     fontStyle: _orden!.tecnico != null ? FontStyle.normal : FontStyle.italic,
                   ),
@@ -3930,8 +3930,15 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       return null;
     }
 
+    // 🔴 `bottomNavigationBar` aplica el safe-area inferior SOLO a widgets
+    // Material (BottomAppBar, NavigationBar…). A un Container custom no, y
+    // los botones quedan bajo la barra de navegación del celular.
+    //
+    // El orden importa: Container(decoration) > SafeArea > Padding. Con el
+    // SafeArea por fuera, el fondo y la sombra no llegan al borde y la franja
+    // de la barra queda del color del scaffold, como un escalón.
+    // Ver feedback_safearea_bottom_nav_custom.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -3942,7 +3949,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           ),
         ],
       ),
-      child: Row(
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
         children: [
           if (showCobrar) ...[
             Expanded(
@@ -4007,7 +4018,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             if (mains.isNotEmpty || showCobrar) const SizedBox(width: 6),
             _buildMasAccionesMenu(secundarias),
           ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
