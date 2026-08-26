@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
@@ -7,6 +10,9 @@ import 'package:syncronize/core/widgets/styled_dialog.dart';
 
 /// Un atajo del cuadro: el rótulo del chip y la frase que agrega.
 typedef AtajoMensaje = ({String etiqueta, String texto});
+
+/// Lo que el cuadro devuelve: el texto y, si eligieron una, la imagen.
+typedef MensajeRedactado = ({String texto, File? imagen});
 
 /// Redacta el mensaje ANTES de abrir WhatsApp.
 ///
@@ -19,7 +25,7 @@ typedef AtajoMensaje = ({String etiqueta, String texto});
 /// De paso permite revisar el saludo antes de que el cliente lo vea.
 ///
 /// Devuelve el texto final, o null si se canceló.
-Future<String?> mostrarDialogoMensajeWhatsapp(
+Future<MensajeRedactado?> mostrarDialogoMensajeWhatsapp(
   BuildContext context, {
   required String textoInicial,
   required String destinatario,
@@ -33,7 +39,7 @@ Future<String?> mostrarDialogoMensajeWhatsapp(
 }) async {
   final borrador = _BorradorMensaje(textoInicial);
 
-  final texto = await StyledDialog.show<String>(
+  final resultado = await StyledDialog.show<MensajeRedactado>(
     context,
     accentColor: const Color(0xFF25D366),
     backgroundColor: Colors.white,
@@ -71,22 +77,26 @@ Future<String?> mostrarDialogoMensajeWhatsapp(
           textColor: Colors.white,
           onPressed: () {
             final t = borrador.texto.trim();
-            // Un mensaje vacío abriría el chat sin nada; mejor no hacer nada
-            // que abrir WhatsApp para que el usuario vuelva.
-            if (t.isEmpty) return;
-            Navigator.pop(context, t);
+            // Con imagen el texto puede ir vacío: la foto ES el mensaje.
+            // Sin imagen y sin texto no hay nada que mandar.
+            if (t.isEmpty && borrador.imagen == null) return;
+            Navigator.pop(context, (texto: t, imagen: borrador.imagen));
           },
         ),
       ),
     ],
   );
 
-  return texto;
+  return resultado;
 }
 
 class _BorradorMensaje {
   _BorradorMensaje(this.texto);
   String texto;
+
+  /// Solo puede haber una: WhatsApp manda una imagen con su caption, y varias
+  /// serían varios mensajes — otra cosa, no un parámetro más.
+  File? imagen;
 }
 
 class _MensajeForm extends StatefulWidget {
@@ -124,6 +134,100 @@ class _MensajeFormState extends State<_MensajeForm> {
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  File? _imagen;
+
+  /// 🔴 Redimensiona AL ELEGIR, no al enviar: una foto de celular son 3-5 MB
+  /// y en base64 crece un tercio más. A 1600px y calidad 70 queda en unos
+  /// 300 KB, que es lo que el picker ya hace en el resto de la app.
+  Future<void> _elegirImagen(ImageSource source) async {
+    try {
+      final foto = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 70,
+      );
+      if (foto == null || !mounted) return;
+      setState(() => _imagen = File(foto.path));
+      widget.borrador.imagen = _imagen;
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir la cámara o galería')),
+      );
+    }
+  }
+
+  void _quitarImagen() {
+    setState(() => _imagen = null);
+    widget.borrador.imagen = null;
+  }
+
+  Widget _botonAdjuntar(IconData icono, String texto, ImageSource source) {
+    return Expanded(
+      child: InkWell(
+        onTap: () => _elegirImagen(source),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300, width: 0.8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icono, size: 15, color: AppColors.blue1),
+              const SizedBox(width: 5),
+              AppSubtitle(
+                texto,
+                font: AppFont.amazonEmberMedium,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.blue1,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniatura() {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.file(
+            _imagen!,
+            width: 46,
+            height: 46,
+            fit: BoxFit.cover,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: AppSubtitle(
+            'Se envía con el mensaje',
+            fontSize: 10,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        IconButton(
+          onPressed: _quitarImagen,
+          icon: const Icon(Icons.close, size: 16),
+          color: Colors.grey.shade500,
+          tooltip: 'Quitar imagen',
+          style: IconButton.styleFrom(
+            minimumSize: Size.zero,
+            fixedSize: const Size(32, 32),
+            padding: EdgeInsets.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ],
+    );
   }
 
   /// El atajo se agrega AL FINAL y deja el caret ahí. Insertar en la posición
@@ -167,7 +271,29 @@ class _MensajeFormState extends State<_MensajeForm> {
           ),
           onChanged: (v) => widget.borrador.texto = v,
         ),
+        // 🔴 Adjuntar solo con la línea vinculada: `wa.me` no acepta
+        // archivos, así que sin vinculación no hay forma de mandar la imagen
+        // y ofrecer el botón sería mentir.
         if (widget.envioDirecto) ...[
+          const SizedBox(height: 8),
+          if (_imagen != null)
+            _buildMiniatura()
+          else
+            Row(
+              children: [
+                _botonAdjuntar(
+                  Icons.photo_library_outlined,
+                  'Galería',
+                  ImageSource.gallery,
+                ),
+                const SizedBox(width: 8),
+                _botonAdjuntar(
+                  Icons.photo_camera_outlined,
+                  'Cámara',
+                  ImageSource.camera,
+                ),
+              ],
+            ),
           const SizedBox(height: 8),
           Row(
             children: [

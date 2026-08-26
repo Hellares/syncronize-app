@@ -5033,7 +5033,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final envio = await _estadoEnvioWhatsapp();
     if (!mounted) return;
 
-    final texto = await mostrarDialogoMensajeWhatsapp(
+    final redactado = await mostrarDialogoMensajeWhatsapp(
       context,
       textoInicial: inicial,
       destinatario: destinatario,
@@ -5056,16 +5056,37 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         ),
       ],
     );
-    if (texto == null || !mounted) return;
+    if (redactado == null || !mounted) return;
 
-    if (envio.conectado && await _enviarPorElSistema(numero, texto)) return;
+    if (envio.conectado &&
+        await _enviarPorElSistema(numero, redactado.texto, redactado.imagen)) {
+      return;
+    }
 
     // Cae acá si la empresa no tiene WhatsApp vinculado, o si el envío falló
     // —la instancia se pudo caer entre el chequeo y el envío—. El texto ya
     // está redactado, así que no se pierde: va igual por wa.me.
+    //
+    // 🔴 La imagen NO puede viajar por acá: wa.me solo prellena texto. Por eso
+    // adjuntar solo se ofrece con la línea vinculada; si igual se llegó hasta
+    // acá con una imagen, hay que decirlo en vez de mandar el texto solo y
+    // que el usuario crea que la foto salió.
     if (!mounted) return;
+    if (redactado.imagen != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo enviar la imagen. Se abre WhatsApp con el texto; '
+            'la foto hay que adjuntarla ahí.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
     await _abrirUrl(
-      Uri.parse('https://wa.me/$numero?text=${Uri.encodeComponent(texto)}'),
+      Uri.parse(
+          'https://wa.me/$numero?text=${Uri.encodeComponent(redactado.texto)}'),
       'No se pudo abrir WhatsApp',
     );
   }
@@ -5087,13 +5108,31 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
   }
 
   /// Devuelve true si el mensaje salió por el sistema.
-  Future<bool> _enviarPorElSistema(String numero, String texto) async {
+  ///
+  /// Con imagen va como una sola pieza —la foto con el texto de caption—, que
+  /// es como WhatsApp la muestra: mandar dos mensajes separados le llegaría
+  /// al cliente desordenado.
+  Future<bool> _enviarPorElSistema(
+    String numero,
+    String texto,
+    File? imagen,
+  ) async {
     try {
-      await locator<EmpresaRemoteDataSource>().enviarMensajeWhatsapp(
-        empresaId: _orden!.empresaId,
-        numero: numero,
-        mensaje: texto,
-      );
+      final ds = locator<EmpresaRemoteDataSource>();
+      if (imagen != null) {
+        await ds.enviarImagenWhatsapp(
+          empresaId: _orden!.empresaId,
+          numero: numero,
+          base64: base64Encode(await imagen.readAsBytes()),
+          caption: texto,
+        );
+      } else {
+        await ds.enviarMensajeWhatsapp(
+          empresaId: _orden!.empresaId,
+          numero: numero,
+          mensaje: texto,
+        );
+      }
       if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

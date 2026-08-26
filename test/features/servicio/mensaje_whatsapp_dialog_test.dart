@@ -10,11 +10,11 @@ void main() {
   /// 🔴 Un buzón y no el Future del diálogo: dejar el Future sin await y
   /// después llamar a `enterText` rompe con `TestAsyncUtils.guardSync`, y
   /// awaitearlo colgaría el test porque el diálogo sigue abierto.
-  Future<List<String?>> abrir(
+  Future<List<MensajeRedactado?>> abrir(
     WidgetTester tester, {
     List<AtajoMensaje> atajos = const [],
   }) async {
-    final buzon = <String?>[];
+    final buzon = <MensajeRedactado?>[];
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -59,7 +59,8 @@ void main() {
     await tester.tap(find.text('Abrir WhatsApp'));
     await tester.pumpAndSettle();
 
-    expect(buzon.single, 'Mensaje corregido');
+    expect(buzon.single?.texto, 'Mensaje corregido');
+    expect(buzon.single?.imagen, isNull);
   });
 
   testWidgets('cancelar no devuelve nada', (tester) async {
@@ -143,6 +144,24 @@ void main() {
         find.text('Sale del WhatsApp de la empresa sin salir de la app'),
         findsOneWidget,
       );
+    });
+
+    // 🔴 Dos tests y no uno con los dos casos: un segundo `pumpWidget` sobre
+    // el mismo árbol REUSA el Navigator, así que el primer diálogo sigue
+    // arriba y el tap siguiente pega en su barrier en vez de abrir otro.
+    testWidgets('🔴 sin vinculación NO se ofrece adjuntar', (tester) async {
+      // wa.me no acepta archivos: ofrecer el botón sería mentir.
+      await abrirCon(tester, directo: false);
+
+      expect(find.text('Galería'), findsNothing);
+      expect(find.text('Cámara'), findsNothing);
+    });
+
+    testWidgets('con vinculación se puede adjuntar', (tester) async {
+      await abrirCon(tester, directo: true);
+
+      expect(find.text('Galería'), findsOneWidget);
+      expect(find.text('Cámara'), findsOneWidget);
     });
   });
 

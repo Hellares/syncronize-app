@@ -238,6 +238,31 @@ class EmpresaRemoteDataSource {
     );
   }
 
+  /// Manda una imagen con su texto desde el número de la empresa.
+  ///
+  /// La imagen va en base64 SIN el prefijo `data:` y NO se guarda: viaja
+  /// directo al proveedor. Redimensionarla es responsabilidad del que la
+  /// elige.
+  ///
+  /// POST /api/empresas/:empresaId/whatsapp/enviar-imagen
+  Future<void> enviarImagenWhatsapp({
+    required String empresaId,
+    required String numero,
+    required String base64,
+    String? caption,
+    String mimetype = 'image/jpeg',
+  }) async {
+    await _dioClient.post(
+      '${ApiConstants.empresas}/$empresaId/whatsapp/enviar-imagen',
+      data: {
+        'numero': numero,
+        'base64': base64,
+        if (caption != null && caption.isNotEmpty) 'caption': caption,
+        'mimetype': mimetype,
+      },
+    );
+  }
+
   /// Crea la instancia y devuelve el QR para escanear
   /// (estado, qrBase64 data-uri, pairingCode)
   ///
