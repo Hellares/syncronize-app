@@ -4863,6 +4863,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     String? nombreComercialEfectivo;
     String? direccionFiscalEfectiva;
     String? telefonoEfectivo;
+    // 🔴 Sin facturación electrónica el ticket de la OS NO lleva RUC ni razón
+    // social: el negocio no emite documentos fiscales y ponerlos arriba lo
+    // disfraza de comprobante. El nombre comercial y la dirección sí van.
+    // Si la consulta falla se asume APAGADA, que es la lectura conservadora.
+    // Una OS nunca es un comprobante fiscal, así que acá no hace falta la
+    // guarda por tipo que sí lleva el ticket de venta.
+    var facturacionActiva = false;
     try {
       final config = await locator<VentaRemoteDataSource>()
           .getConfiguracionSunat(sedeId: _orden!.sedeId);
@@ -4871,6 +4878,7 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       nombreComercialEfectivo = config['nombreComercial'] as String?;
       direccionFiscalEfectiva = config['direccionFiscal'] as String?;
       telefonoEfectivo = config['telefono'] as String?;
+      facturacionActiva = config['facturacionActiva'] as bool? ?? false;
     } catch (_) {
       // Sin config de facturación → fallback a los datos de la empresa.
     }
@@ -4907,8 +4915,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         builder: (_) => DocumentoOrdenServicioPreviewPage(
           orden: _orden!,
           empresaNombre: nombreComercialEfectivo ?? empresa.nombre,
-          empresaRazonSocial: razonSocialEfectiva,
-          empresaRuc: rucEfectivo ?? empresa.ruc,
+          empresaRazonSocial: facturacionActiva ? razonSocialEfectiva : null,
+          empresaRuc:
+              facturacionActiva ? (rucEfectivo ?? empresa.ruc) : null,
           empresaDireccion: direccionFiscalEfectiva ?? direccionFinal,
           empresaTelefono: telefonoEfectivo ?? empresa.telefono,
           sedeNombre: sedeNombre,
