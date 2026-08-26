@@ -183,15 +183,20 @@ class GastosFacturaCard extends StatelessWidget {
       );
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        corte('Al costo', 'Sube el precio de los productos', r.alCosto,
-            Colors.green.shade700),
-        const SizedBox(width: 8),
-        corte('Financiero', 'Intereses y recargos, aparte del costo',
-            r.financiero, Colors.blueGrey.shade600),
-      ],
+    // 🔴 `stretch` necesita que la Row tenga altura conocida, y acá la Column
+    // que la contiene es de altura libre: sin IntrinsicHeight los hijos
+    // reciben h=Infinity y revienta en performLayout. El analyzer no lo ve.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          corte('Al costo', 'Sube el precio de los productos', r.alCosto,
+              Colors.green.shade700),
+          const SizedBox(width: 8),
+          corte('Financiero', 'Intereses y recargos, aparte del costo',
+              r.financiero, Colors.blueGrey.shade600),
+        ],
+      ),
     );
   }
 
