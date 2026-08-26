@@ -8,7 +8,6 @@ import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
-import 'package:syncronize/core/widgets/info_chip.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -287,7 +286,13 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 24),
+                    // 🔴 El último botón queda bajo la barra de navegación
+                    // del celular. Va SUMADO al padding del contenido y no
+                    // como SafeArea envolvente, que cortaría el scroll.
+                    // Ver feedback_safearea_bottom_nav_custom.
+                    SizedBox(
+                      height: 24 + MediaQuery.of(context).padding.bottom,
+                    ),
                   ],
                 ),
               ),
@@ -752,151 +757,177 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Row(
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      borderColor: AppColors.blueborder,
+      shadowStyle: ShadowStyle.colorful,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              const Icon(Icons.inventory_2_outlined,
-                  size: 16, color: AppColors.blue1),
-              const SizedBox(width: 6),
-              AppSubtitle('PRODUCTOS (${detalles.length})',
-                  fontSize: 11, color: AppColors.blue3),
+              Expanded(
+                child: _buildSectionHeader(
+                  Icons.inventory_2_outlined,
+                  'PRODUCTOS (${detalles.length})',
+                ),
+              ),
+              // La moneda una vez arriba y no repetida en cada celda: con
+              // cuatro columnas angostas, el "S/" delante de cada número se
+              // come el ancho que necesitan los importes.
+              AppSubtitle(_compra.moneda, fontSize: 10, color: Colors.grey),
             ],
           ),
-        ),
-        ...detalles.map((d) => _buildProductoItem(d)),
-      ],
-    );
-  }
-
-  Widget _buildProductoItem(CompraDetalle d) {
-    final loteCodigo = d.lote?['codigo'] as String?;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.blueborder.withValues(alpha: 0.4),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            offset: const Offset(0, 1),
-            blurRadius: 3,
-          ),
+          const SizedBox(height: 10),
+          _buildDetallesTabla(detalles),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Nombre y total
-            Row(
+    );
+  }
+
+  /// Las líneas en tabla y no en cards: una card por producto obliga a saltar
+  /// de bloque en bloque para comparar precios, y en una compra de diez
+  /// líneas ocupa media pantalla por ítem. Es la misma tabla del formulario
+  /// de compra, para que la línea se lea igual antes y después de guardar.
+  Widget _buildDetallesTabla(List<CompraDetalle> detalles) {
+    final headerStyle = TextStyle(
+      fontSize: 9,
+      color: Colors.grey.shade600,
+      fontWeight: FontWeight.w700,
+    );
+    final cellStyle = TextStyle(fontSize: 9.5, color: Colors.grey.shade800);
+
+    Widget celda(String texto, TextStyle estilo,
+        {TextAlign align = TextAlign.left}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+        child: Text(
+          texto,
+          style: estilo,
+          textAlign: align,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+
+    final header = TableRow(
+      decoration:
+          BoxDecoration(color: AppColors.blue1.withValues(alpha: 0.07)),
+      children: [
+        celda('Producto', headerStyle),
+        celda('Cant.', headerStyle, align: TextAlign.right),
+        celda('P.Unit', headerStyle, align: TextAlign.right),
+        celda('Total', headerStyle, align: TextAlign.right),
+      ],
+    );
+
+    final filas = detalles.asMap().entries.map((entry) {
+      final i = entry.key;
+      final d = entry.value;
+      final loteCodigo = d.lote?['codigo'] as String?;
+
+      // Si la línea entró por unidad de compra, la columna habla en la unidad
+      // en la que se compró (el saco) y el equivalente atómico va abajo.
+      final usaUC = d.usaUnidadCompra && d.unidadOriginalSimbolo != null;
+      final cantTxt = usaUC
+          ? '${_fmtCant(d.cantidadOriginal ?? d.cantidad.toDouble())} '
+              '${d.unidadOriginalSimbolo}'
+          : '${d.cantidad}';
+      final precioTxt = usaUC
+          ? (d.precioUnitario * (d.factorAplicado ?? 1)).toStringAsFixed(2)
+          : d.precioUnitario.toStringAsFixed(2);
+
+      return TableRow(
+        decoration: BoxDecoration(
+          color: i.isOdd ? Colors.grey.withValues(alpha: 0.04) : Colors.white,
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppColors.bluechip,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(Icons.category_outlined,
-                      size: 16, color: AppColors.blue1),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        d.nombreProducto,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        d.usaUnidadCompra && d.unidadOriginalSimbolo != null
-                            ? '${d.cantidadOriginal ?? d.cantidad} ${d.unidadOriginalSimbolo} x ${_compra.moneda} ${(d.cantidadOriginal != null && d.cantidadOriginal! > 0 ? (d.precioUnitario * (d.factorAplicado ?? 1)).toStringAsFixed(2) : d.precioUnitario.toStringAsFixed(2))}'
-                            : '${d.cantidad} x ${_compra.moneda} ${d.precioUnitario.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      if (d.usaUnidadCompra)
-                        Text(
-                          '= ${d.cantidad} u @ ${_compra.moneda} ${d.precioUnitario.toStringAsFixed(2)}/u',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontStyle: FontStyle.italic,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
-                      // Flete que le tocó a esta línea: explica por qué el
-                      // costo del producto no es el precio facturado.
-                      if (d.gastoProrrateado > 0 && d.cantidad > 0)
-                        Text(
-                          '+ ${_compra.moneda} ${d.gastoProrrateado.toStringAsFixed(2)} de flete → costo ${_compra.moneda} ${((d.total + d.gastoProrrateado) / d.cantidad).toStringAsFixed(2)}/u',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.orange.shade800,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
                 Text(
-                  '${_compra.moneda} ${d.total.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.blue1,
+                  d.nombreProducto,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade900,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                if (usaUC)
+                  Text(
+                    '= ${d.cantidad} u @ ${d.precioUnitario.toStringAsFixed(2)}/u',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                // Explica por qué el costo del producto no es el precio que
+                // facturó el proveedor.
+                if (d.gastoProrrateado > 0 && d.cantidad > 0)
+                  Text(
+                    '+ ${d.gastoProrrateado.toStringAsFixed(2)} gastos → costo '
+                    '${((d.total + d.gastoProrrateado) / d.cantidad).toStringAsFixed(2)}/u',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                if (loteCodigo != null || d.descuento > 0)
+                  Text(
+                    [
+                      if (loteCodigo != null) 'Lote $loteCodigo',
+                      if (d.descuento > 0)
+                        'desc. -${d.descuento.toStringAsFixed(2)}',
+                    ].join(' · '),
+                    style: TextStyle(fontSize: 8, color: Colors.grey.shade500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
-            // Lote y descuento chips
-            if (loteCodigo != null || d.descuento > 0) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  if (loteCodigo != null)
-                    InfoChip(
-                      text: loteCodigo,
-                      icon: Icons.layers_outlined,
-                      textColor: AppColors.blue1,
-                      backgroundColor: AppColors.bluechip,
-                      borderRadius: 4,
-                      fontSize: 10,
-                    ),
-                  if (d.descuento > 0)
-                    InfoChip(
-                      text:
-                          'Desc: ${_compra.moneda} ${d.descuento.toStringAsFixed(2)}',
-                      icon: Icons.discount_outlined,
-                      textColor: Colors.red.shade600,
-                      backgroundColor: Colors.red.shade50,
-                      borderRadius: 4,
-                      fontSize: 10,
-                    ),
-                ],
-              ),
-            ],
-          ],
-        ),
+          ),
+          celda(cantTxt, cellStyle, align: TextAlign.right),
+          celda(precioTxt, cellStyle, align: TextAlign.right),
+          celda(
+            d.total.toStringAsFixed(2),
+            const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.blue1,
+            ),
+            align: TextAlign.right,
+          ),
+        ],
+      );
+    }).toList();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Table(
+        border: TableBorder.all(color: Colors.grey.shade200, width: 0.6),
+        columnWidths: const {
+          0: FlexColumnWidth(3.1),
+          1: FlexColumnWidth(0.85),
+          2: FlexColumnWidth(1.0),
+          3: FlexColumnWidth(1.05),
+        },
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: [header, ...filas],
       ),
     );
   }
+
+  /// Sin decimales cuando la cantidad es entera: "10 sacos", no "10.00 sacos".
+  String _fmtCant(double v) =>
+      v == v.truncateToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
   Widget _buildNotasCard(String title, String content, IconData icon) {
     return GradientContainer(
