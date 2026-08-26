@@ -63,6 +63,7 @@ class CompraDetalleModel extends CompraDetalle {
     super.cantidadOriginal,
     super.unidadOriginalSimbolo,
     super.factorAplicado,
+    super.nuevoPrecioVenta,
   });
 
   factory CompraDetalleModel.fromJson(Map<String, dynamic> json) {
@@ -96,6 +97,9 @@ class CompraDetalleModel extends CompraDetalle {
       factorAplicado: json['factorAplicado'] != null
           ? double.tryParse(json['factorAplicado'].toString())
           : null,
+      nuevoPrecioVenta: json['nuevoPrecioVenta'] != null
+          ? double.tryParse(json['nuevoPrecioVenta'].toString())
+          : null,
     );
   }
 }
@@ -118,6 +122,7 @@ class CompraModel extends Compra {
     super.fechaVencimientoPago,
     super.moneda,
     super.tipoCambio,
+    super.precioIncluyeIgv,
     super.subtotal,
     super.descuento,
     super.impuestos,
@@ -162,6 +167,7 @@ class CompraModel extends Compra {
       tipoCambio: json['tipoCambio'] != null
           ? double.parse(json['tipoCambio'].toString())
           : null,
+      precioIncluyeIgv: json['precioIncluyeIgv'] as bool? ?? true,
       subtotal: double.parse((json['subtotal'] ?? 0).toString()),
       descuento: double.parse((json['descuento'] ?? 0).toString()),
       impuestos: double.parse((json['impuestos'] ?? 0).toString()),

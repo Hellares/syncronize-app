@@ -73,16 +73,8 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
   }
 
   /// Los gastos guardados, en la forma que espera el diálogo y el backend.
-  List<Map<String, dynamic>> get _gastosEditables => (_compra.gastos ?? [])
-      .map((g) => {
-            'concepto': g.concepto,
-            'monto': g.monto,
-            'prorratea': g.prorratea,
-            'criterio': g.criterio,
-            'categoriaGastoId': g.categoriaGastoId,
-            'categoriaNombre': g.categoriaNombre,
-          })
-      .toList();
+  List<Map<String, dynamic>> get _gastosEditables =>
+      (_compra.gastos ?? []).map(gastoGuardadoAMapa).toList();
 
   /// Guarda la lista COMPLETA de gastos y se queda con la compra que devuelve
   /// el backend (trae los totales ya recalculados).
@@ -260,6 +252,15 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                     child: ListTile(
                       leading: Icon(Icons.cancel, color: Colors.red),
                       title: Text('Anular'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                if (_compra.esBorrador)
+                  const PopupMenuItem(
+                    value: 'editar',
+                    child: ListTile(
+                      leading: Icon(Icons.edit, color: AppColors.blue1),
+                      title: Text('Editar'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -1087,6 +1088,17 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
 
   void _handleAction(BuildContext context, String action) async {
     switch (action) {
+      case 'editar':
+        // El formulario devuelve true al guardar; los totales y las líneas
+        // cambian, así que se relee la compra en vez de confiar en la copia
+        // que trajo esta pantalla.
+        final guardada = await context.pushNamed<bool>(
+          'empresa-compras-recepciones-editar',
+          pathParameters: {'id': _compra.id},
+          extra: _compra,
+        );
+        if (guardada == true) await _fetchDetail();
+        break;
       case 'confirmar':
         final t = _compra.terminosPago?.toUpperCase() ?? '';
         final esContado = t.isEmpty || t == 'CONTADO';

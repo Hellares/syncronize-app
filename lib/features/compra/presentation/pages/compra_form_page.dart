@@ -17,7 +17,9 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
+import '../../domain/entities/compra.dart';
 import '../../domain/entities/linea_compra_draft.dart';
+import '../../domain/linea_guardada.dart';
 import '../../domain/prorrateo_gastos.dart';
 import '../../domain/entities/orden_compra.dart';
 import '../bloc/compra_form/compra_form_cubit.dart';
@@ -34,10 +36,15 @@ class CompraFormPage extends StatelessWidget {
   final String empresaId;
   final OrdenCompra? ordenCompra;
 
+  /// Compra en BORRADOR que se está corrigiendo. Cuando viene, la pantalla es
+  /// la misma pero arranca cargada y guarda con PUT en vez de crear.
+  final Compra? compra;
+
   const CompraFormPage({
     super.key,
     required this.empresaId,
     this.ordenCompra,
+    this.compra,
   });
 
   @override
@@ -47,6 +54,7 @@ class CompraFormPage extends StatelessWidget {
       child: _CompraFormView(
         empresaId: empresaId,
         ordenCompra: ordenCompra,
+        compra: compra,
       ),
     );
   }
@@ -55,10 +63,12 @@ class CompraFormPage extends StatelessWidget {
 class _CompraFormView extends StatefulWidget {
   final String empresaId;
   final OrdenCompra? ordenCompra;
+  final Compra? compra;
 
   const _CompraFormView({
     required this.empresaId,
     this.ordenCompra,
+    this.compra,
   });
 
   @override
@@ -179,6 +189,30 @@ class _CompraFormViewState extends State<_CompraFormView> {
         : cantidad;
   }
 
+  /// Las líneas tal como las espera `CreateCompraDto`. Las usan el alta
+  /// standalone y la edición del borrador: es el mismo payload, y tenerlo en
+  /// un solo lugar es lo que evita que la edición mande de menos y borre en
+  /// silencio lo que el alta sí guardaba.
+  List<Map<String, dynamic>> _detallesPayload() => _detalles
+      .map((d) => {
+            if (d['productoId'] != null) 'productoId': d['productoId'],
+            if (d['varianteId'] != null) 'varianteId': d['varianteId'],
+            if (d['ordenCompraDetalleId'] != null)
+              'ordenCompraDetalleId': d['ordenCompraDetalleId'],
+            'descripcion': d['descripcion'],
+            'cantidad': d['cantidad'],
+            'precioUnitario': d['precioUnitario'],
+            'descuento': d['descuento'] ?? 0,
+            if (d['porcentajeIGV'] != null) 'porcentajeIGV': d['porcentajeIGV'],
+            if (d['usaUnidadCompra'] == true) 'usaUnidadCompra': true,
+            // Override puntual del empaque (ej. saco de 40 en vez de 50).
+            if (d['usaUnidadCompra'] == true && d['factorCompra'] != null)
+              'factorCompra': d['factorCompra'],
+            if (d['nuevoPrecioVenta'] != null)
+              'nuevoPrecioVenta': d['nuevoPrecioVenta'],
+          })
+      .toList();
+
   /// Los gastos tal como los espera el backend. Lo usan las DOS altas
   /// —compra standalone y recepción desde OC— para que no se vuelvan a
   /// desincronizar.
@@ -193,16 +227,27 @@ class _CompraFormViewState extends State<_CompraFormView> {
 
   bool get _isFromOc => widget.ordenCompra != null;
 
+  /// Reapertura de un BORRADOR para corregirlo: cambiar el proveedor, sacar o
+  /// agregar productos, arreglar el flete. Usa toda la pantalla de compra
+  /// standalone; lo único distinto es de dónde salen los datos y a dónde van.
+  bool get _esEdicion => widget.compra != null;
+
   @override
   void initState() {
     super.initState();
     final oc = widget.ordenCompra;
+    final compra = widget.compra;
 
-    _observacionesController = TextEditingController();
-    _serieDocProveedorController = TextEditingController();
-    _numDocProveedorController = TextEditingController();
+    _observacionesController =
+        TextEditingController(text: compra?.observaciones ?? '');
+    _serieDocProveedorController =
+        TextEditingController(text: compra?.serieDocumentoProveedor ?? '');
+    _numDocProveedorController =
+        TextEditingController(text: compra?.numeroDocumentoProveedor ?? '');
 
-    if (oc != null) {
+    if (compra != null) {
+      _hidratarDesdeCompra(compra);
+    } else if (oc != null) {
       _proveedorId = oc.proveedorId;
       _proveedorNombre = oc.nombreProveedor;
       _sedeId = oc.sedeId;
@@ -244,6 +289,33 @@ class _CompraFormViewState extends State<_CompraFormView> {
     _serieDocProveedorController.dispose();
     _numDocProveedorController.dispose();
     super.dispose();
+  }
+
+  /// Deja el formulario como quedó el borrador la última vez que se guardó.
+  void _hidratarDesdeCompra(Compra compra) {
+    _proveedorId = compra.proveedorId;
+    _proveedorNombre = compra.nombreProveedor;
+    _sedeId = compra.sedeId;
+    _moneda = compra.moneda;
+    _terminosPago = compra.terminosPago;
+    _diasCredito = compra.diasCredito;
+    _fechaRecepcion = compra.fechaRecepcion;
+    // 🔴 La convención de IGV sale de la compra, no del default: reabrir con
+    // `true` una compra cargada con el IGV por fuera cambiaba TODOS los montos
+    // al guardar, con los mismos precios en pantalla.
+    _precioIncluyeIgv = compra.precioIncluyeIgv;
+    // Un valor fuera de la lista tira el dropdown abajo, y el tipo de
+    // documento lo pudo haber escrito otro cliente.
+    const tiposConocidos = {'FACTURA', 'BOLETA', 'GUIA', 'TICKET'};
+    final tipo = compra.tipoDocumentoProveedor?.trim().toUpperCase();
+    _tipoDocProveedor = tiposConocidos.contains(tipo) ? tipo : null;
+    _detalles.addAll((compra.detalles ?? []).map(
+      (d) => itemDesdeDetalleGuardado(
+        d,
+        precioIncluyeIgv: compra.precioIncluyeIgv,
+      ),
+    ));
+    _gastos.addAll((compra.gastos ?? []).map(gastoGuardadoAMapa));
   }
 
   void _removeDetalle(int index) {
@@ -364,6 +436,36 @@ class _CompraFormViewState extends State<_CompraFormView> {
       return;
     }
 
+    if (_esEdicion) {
+      // El PUT es un MERGE, así que los campos de texto van SIEMPRE —también
+      // vacíos—: omitirlos conserva el valor guardado y no habría forma de
+      // borrar un número de factura escrito mal.
+      final data = {
+        'proveedorId': _proveedorId,
+        'sedeId': _sedeId,
+        'moneda': _moneda,
+        'precioIncluyeIgv': _precioIncluyeIgv,
+        'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
+        if (_terminosPago != null) 'terminosPago': _terminosPago,
+        if (_diasCredito != null) 'diasCredito': _diasCredito,
+        'tipoDocumentoProveedor': _tipoDocProveedor ?? '',
+        'serieDocumentoProveedor': _serieDocProveedorController.text.trim(),
+        'numeroDocumentoProveedor': _numDocProveedorController.text.trim(),
+        'observaciones': _observacionesController.text.trim(),
+        'detalles': _detallesPayload(),
+        // Va SIEMPRE, incluso vacía: mandarla solo cuando hay gastos dejaba
+        // los viejos intactos y no había forma de sacar un flete cargado de
+        // más.
+        'gastos': _gastosPayload(),
+      };
+      context.read<CompraFormCubit>().actualizarCompra(
+            empresaId: widget.empresaId,
+            id: widget.compra!.id,
+            data: data,
+          );
+      return;
+    }
+
     if (_isFromOc) {
       // CreateCompraDesdeOcDto: usa 'lineas' con ordenCompraDetalleId + cantidad
       final data = {
@@ -421,24 +523,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
               _numDocProveedorController.text.trim(),
         if (_observacionesController.text.trim().isNotEmpty)
           'observaciones': _observacionesController.text.trim(),
-        'detalles': _detalles
-            .map((d) => {
-                  if (d['productoId'] != null) 'productoId': d['productoId'],
-                  if (d['varianteId'] != null) 'varianteId': d['varianteId'],
-                  'descripcion': d['descripcion'],
-                  'cantidad': d['cantidad'],
-                  'precioUnitario': d['precioUnitario'],
-                  'descuento': d['descuento'] ?? 0,
-                  if (d['usaUnidadCompra'] == true)
-                    'usaUnidadCompra': true,
-                  // Override puntual del empaque (ej. saco de 40 en vez de 50).
-                  if (d['usaUnidadCompra'] == true &&
-                      d['factorCompra'] != null)
-                    'factorCompra': d['factorCompra'],
-                  if (d['nuevoPrecioVenta'] != null)
-                    'nuevoPrecioVenta': d['nuevoPrecioVenta'],
-                })
-            .toList(),
+        'detalles': _detallesPayload(),
         if (_gastos.isNotEmpty) 'gastos': _gastosPayload(),
       };
       context.read<CompraFormCubit>().crearCompra(
@@ -460,7 +545,10 @@ class _CompraFormViewState extends State<_CompraFormView> {
       appBar: SmartAppBar(
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
-        title: _isFromOc ? 'Recepción desde OC' : 'Nueva Compra',
+        title: _esEdicion
+            ? 'Editar Compra'
+            : (_isFromOc ? 'Recepción desde OC' : 'Nueva Compra'),
+        subtitle: _esEdicion ? widget.compra!.codigo : null,
       ),
       // Tocar cualquier parte vacía del form oculta el teclado y quita el foco
       // del campo activo (para escribir, se toca el campo).
@@ -472,7 +560,11 @@ class _CompraFormViewState extends State<_CompraFormView> {
             if (state is CompraFormSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Compra creada: ${state.compra.codigo}'),
+                content: Text(
+                  _esEdicion
+                      ? 'Compra actualizada: ${state.compra.codigo}'
+                      : 'Compra creada: ${state.compra.codigo}',
+                ),
                 backgroundColor: Colors.green,
               ),
             );
@@ -782,7 +874,9 @@ class _CompraFormViewState extends State<_CompraFormView> {
                       const SizedBox(height: 16),
                       CustomButton(
                         backgroundColor: AppColors.blue1,
-                        text: _isFromOc ? 'Crear Recepción' : 'Crear Compra',
+                        text: _esEdicion
+                            ? 'Guardar Cambios'
+                            : (_isFromOc ? 'Crear Recepción' : 'Crear Compra'),
                         onPressed: isLoading ? null : _submit,
                       ),
                       const SizedBox(height: 16),

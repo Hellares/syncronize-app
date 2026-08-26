@@ -100,6 +100,12 @@ class CompraDetalle extends Equatable {
   final String? unidadOriginalSimbolo;
   final double? factorAplicado;
 
+  /// Precio de venta a aplicar al producto cuando se confirme la compra.
+  /// 🔴 Hace falta para poder REABRIR un borrador: sin él, editar la compra
+  /// reenviaba la línea sin este campo y el precio de venta que el usuario
+  /// había fijado se borraba sin decir nada.
+  final double? nuevoPrecioVenta;
+
   const CompraDetalle({
     required this.id,
     required this.compraId,
@@ -125,6 +131,7 @@ class CompraDetalle extends Equatable {
     this.cantidadOriginal,
     this.unidadOriginalSimbolo,
     this.factorAplicado,
+    this.nuevoPrecioVenta,
   });
 
   String get nombreProducto {
@@ -154,6 +161,12 @@ class Compra extends Equatable {
   final DateTime? fechaVencimientoPago;
   final String moneda;
   final double? tipoCambio;
+
+  /// Convención de IGV con la que se cargaron los precios de esta compra.
+  /// 🔴 Se necesita para reabrir un borrador: si el formulario asumiera el
+  /// default (true) al editar una compra cargada sin IGV incluido, guardar
+  /// cambiaría la convención y con ella TODOS los montos.
+  final bool precioIncluyeIgv;
   final double subtotal;
   final double descuento;
   final double impuestos;
@@ -195,6 +208,7 @@ class Compra extends Equatable {
     this.fechaVencimientoPago,
     this.moneda = 'PEN',
     this.tipoCambio,
+    this.precioIncluyeIgv = true,
     this.subtotal = 0,
     this.descuento = 0,
     this.impuestos = 0,

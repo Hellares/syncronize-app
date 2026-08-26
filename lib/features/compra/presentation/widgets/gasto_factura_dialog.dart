@@ -10,6 +10,23 @@ import 'package:syncronize/core/widgets/styled_dialog.dart';
 import 'package:syncronize/features/auth/presentation/widgets/custom_text.dart';
 import 'package:syncronize/features/categoria_gasto/domain/entities/categoria_gasto.dart';
 import 'package:syncronize/features/categoria_gasto/domain/usecases/get_categorias_gasto_usecase.dart';
+import 'package:syncronize/features/compra/domain/entities/compra.dart';
+
+/// Un gasto YA guardado, en la forma de mapa con la que trabajan el diálogo y
+/// [gastoAPayload].
+///
+/// 🔴 `categoriaGastoId` viaja de vuelta sí o sí: guardar gastos REEMPLAZA la
+/// lista entera, así que un gasto que vuelve sin su categoría la pierde y deja
+/// de sumar en el reporte. Lo usan las dos pantallas que reabren gastos —el
+/// detalle y la edición del borrador—, para que no se desincronicen.
+Map<String, dynamic> gastoGuardadoAMapa(CompraGasto g) => {
+  'concepto': g.concepto,
+  'monto': g.monto,
+  'prorratea': g.prorratea,
+  'criterio': g.criterio,
+  'categoriaGastoId': g.categoriaGastoId,
+  'categoriaNombre': g.categoriaNombre,
+};
 
 /// Estado editable del diálogo, compartido entre el contenido (que tiene los
 /// campos) y el botón Guardar (que vive afuera, en `actions`).

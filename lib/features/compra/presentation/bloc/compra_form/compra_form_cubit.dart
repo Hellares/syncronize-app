@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../../core/utils/resource.dart';
 import '../../../domain/entities/compra.dart';
 import '../../../domain/usecases/crear_compra_usecase.dart';
+import '../../../domain/usecases/actualizar_compra_usecase.dart';
 import '../../../domain/usecases/crear_compra_desde_oc_usecase.dart';
 import 'compra_form_state.dart';
 
@@ -10,10 +11,12 @@ import 'compra_form_state.dart';
 class CompraFormCubit extends Cubit<CompraFormState> {
   final CrearCompraUseCase _crearCompraUseCase;
   final CrearCompraDesdeOcUseCase _crearCompraDesdeOcUseCase;
+  final ActualizarCompraUseCase _actualizarCompraUseCase;
 
   CompraFormCubit(
     this._crearCompraUseCase,
     this._crearCompraDesdeOcUseCase,
+    this._actualizarCompraUseCase,
   ) : super(const CompraFormInitial());
 
   Future<void> crearCompra({
@@ -51,6 +54,30 @@ class CompraFormCubit extends Cubit<CompraFormState> {
 
     if (result is Success<Compra>) {
       emit(CompraFormSuccess(result.data, isFromOc: true));
+    } else if (result is Error<Compra>) {
+      emit(CompraFormError(result.message));
+    }
+  }
+
+  /// Guarda los cambios de una compra en BORRADOR. El backend hace MERGE: lo
+  /// que no va en `data` se conserva.
+  Future<void> actualizarCompra({
+    required String empresaId,
+    required String id,
+    required Map<String, dynamic> data,
+  }) async {
+    emit(const CompraFormLoading());
+
+    final result = await _actualizarCompraUseCase(
+      empresaId: empresaId,
+      id: id,
+      data: data,
+    );
+
+    if (isClosed) return;
+
+    if (result is Success<Compra>) {
+      emit(CompraFormSuccess(result.data));
     } else if (result is Error<Compra>) {
       emit(CompraFormError(result.message));
     }

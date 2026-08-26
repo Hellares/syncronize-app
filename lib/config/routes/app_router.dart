@@ -1729,6 +1729,15 @@ class AppRouter {
         },
       ),
       GoRoute(
+        path: '/empresa/compras/recepciones/:id/editar',
+        name: 'empresa-compras-recepciones-editar',
+        builder: (context, state) {
+          final empresaId = locator<LocalStorageService>().getString(StorageConstants.tenantId) ?? '';
+          final compra = state.extra as Compra;
+          return CompraFormPage(empresaId: empresaId, compra: compra);
+        },
+      ),
+      GoRoute(
         path: '/empresa/compras/recepciones/:id',
         name: 'empresa-compras-recepciones-detail',
         builder: (context, state) {

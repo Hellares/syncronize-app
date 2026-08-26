@@ -4062,6 +4062,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i430.ConciliacionCubit>(
       () => _i430.ConciliacionCubit(gh<_i742.GetConciliacionUseCase>()),
     );
+    gh.factory<_i999.CompraFormCubit>(
+      () => _i999.CompraFormCubit(
+        gh<_i526.CrearCompraUseCase>(),
+        gh<_i50.CrearCompraDesdeOcUseCase>(),
+        gh<_i693.ActualizarCompraUseCase>(),
+      ),
+    );
     gh.factory<_i234.AprobarDevolucionUseCase>(
       () =>
           _i234.AprobarDevolucionUseCase(gh<_i552.DevolucionVentaRepository>()),
@@ -4082,12 +4089,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i38.RendicionesListCubit>(
       () => _i38.RendicionesListCubit(gh<_i1058.ListarRendicionesUseCase>()),
-    );
-    gh.factory<_i999.CompraFormCubit>(
-      () => _i999.CompraFormCubit(
-        gh<_i526.CrearCompraUseCase>(),
-        gh<_i50.CrearCompraDesdeOcUseCase>(),
-      ),
     );
     gh.factory<_i123.GetServiciosUseCase>(
       () => _i123.GetServiciosUseCase(gh<_i603.ServicioRepository>()),
