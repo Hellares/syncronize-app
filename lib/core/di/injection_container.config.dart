@@ -367,6 +367,8 @@ import '../../features/compra/data/repositories/compra_repository_impl.dart'
     as _i544;
 import '../../features/compra/domain/repositories/compra_repository.dart'
     as _i19;
+import '../../features/compra/domain/usecases/actualizar_compra_usecase.dart'
+    as _i693;
 import '../../features/compra/domain/usecases/actualizar_orden_compra_usecase.dart'
     as _i895;
 import '../../features/compra/domain/usecases/anular_compra_usecase.dart'
@@ -3408,6 +3410,9 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i596.ResponderTercerizacionUseCase(
         gh<_i289.TercerizacionRepository>(),
       ),
+    );
+    gh.factory<_i693.ActualizarCompraUseCase>(
+      () => _i693.ActualizarCompraUseCase(gh<_i19.CompraRepository>()),
     );
     gh.factory<_i895.ActualizarOrdenCompraUseCase>(
       () => _i895.ActualizarOrdenCompraUseCase(gh<_i19.CompraRepository>()),

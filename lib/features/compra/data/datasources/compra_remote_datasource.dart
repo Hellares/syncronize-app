@@ -190,6 +190,21 @@ class CompraRemoteDataSource {
     return CompraModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Editar una compra en BORRADOR. El backend hace MERGE: lo que no va en
+  /// `data` se conserva, y los detalles solo se reemplazan si el body los
+  /// manda. Para arreglar el flete olvidado alcanza con `{'gastos': [...]}`.
+  Future<CompraModel> actualizarCompra({
+    required String empresaId,
+    required String id,
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await _dioClient.put(
+      '/empresas/$empresaId/compras/$id',
+      data: data,
+    );
+    return CompraModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<CompraModel> confirmarCompra({
     required String empresaId,
     required String id,

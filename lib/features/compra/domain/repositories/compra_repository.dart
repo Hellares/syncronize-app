@@ -76,6 +76,13 @@ abstract class CompraRepository {
     required Map<String, dynamic> data,
   });
 
+  /// Editar una compra en BORRADOR (merge parcial del lado del backend).
+  Future<Resource<Compra>> actualizarCompra({
+    required String empresaId,
+    required String id,
+    required Map<String, dynamic> data,
+  });
+
   Future<Resource<Compra>> confirmarCompra({
     required String empresaId,
     required String id,

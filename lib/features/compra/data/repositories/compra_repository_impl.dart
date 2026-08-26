@@ -139,6 +139,14 @@ class CompraRepositoryImpl implements CompraRepository {
         empresaId: empresaId, data: data));
 
   @override
+  Future<Resource<Compra>> actualizarCompra({
+    required String empresaId,
+    required String id,
+    required Map<String, dynamic> data,
+  }) => _execute(() => _remoteDataSource.actualizarCompra(
+        empresaId: empresaId, id: id, data: data));
+
+  @override
   Future<Resource<Compra>> confirmarCompra({
     required String empresaId,
     required String id,
