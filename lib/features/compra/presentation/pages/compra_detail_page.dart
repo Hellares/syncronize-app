@@ -169,6 +169,47 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
     await _guardarGastos(actuales, 'Gasto quitado');
   }
 
+  /// Sobre el fondo claro de la card el blanco de la franja ya no sirve:
+  /// cada estado lleva su propio color.
+  Color _estadoColor() {
+    switch (_compra.estado) {
+      case EstadoCompra.BORRADOR:
+        return Colors.amber.shade800;
+      case EstadoCompra.CONFIRMADA:
+        return Colors.green.shade700;
+      case EstadoCompra.ANULADA:
+        return Colors.red.shade600;
+    }
+  }
+
+  /// El estado, a la derecha del título de INFORMACION.
+  Widget _buildEstadoChip() {
+    final color = _estadoColor();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_estadoIcon(), size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            _compra.estadoTexto,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   IconData _estadoIcon() {
     switch (_compra.estado) {
       case EstadoCompra.BORRADOR:
@@ -242,7 +283,6 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeaderCard(),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Column(
@@ -303,116 +343,6 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderCard() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.blue1,
-            AppColors.blue1.withValues(alpha: 0.85),
-          ],
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // TODO en una sola fila: estado y OC a la izquierda, total a
-              // la derecha. La sede salió —dice siempre "SEDE PRINCIPAL" y
-              // no aporta— y la fecha vive en el subtítulo del AppBar.
-              Row(
-                children: [
-                  Expanded(
-                    // Wrap y no Row: con un código de OC largo, una fila
-                    // rígida desborda en vez de bajar el chip.
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(_estadoIcon(),
-                                  size: 12, color: Colors.white),
-                              const SizedBox(width: 4),
-                              Text(
-                                _compra.estadoTexto,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (_compra.ordenCompraCodigo != null)
-                          _buildHeaderChip(Icons.receipt_long,
-                              'OC: ${_compra.ordenCompraCodigo}'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${_compra.moneda} ${_compra.total.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: Colors.white70),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.white70,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -514,8 +444,38 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader(Icons.info_outline, 'INFORMACION'),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSectionHeader(Icons.info_outline, 'INFORMACION'),
+              ),
+              _buildEstadoChip(),
+            ],
+          ),
           const SizedBox(height: 12),
+          // El total arriba de todo y destacado: es el dato que se venía a
+          // buscar. El desglose que lo explica vive en RESUMEN DE MONTOS.
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Total de la compra',
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(
+                  '${_compra.moneda} ${_compra.total.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.blue1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_compra.ordenCompraCodigo != null)
+            _buildInfoRow('Orden de Compra', _compra.ordenCompraCodigo!),
           _buildInfoRow('Fecha Recepcion',
               DateFormatter.formatDate(_compra.fechaRecepcion)),
           _buildInfoRow('Moneda', _compra.moneda),
