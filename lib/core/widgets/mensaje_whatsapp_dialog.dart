@@ -46,9 +46,10 @@ Future<MensajeRedactado?> mostrarDialogoMensajeWhatsapp(
 }) async {
   final elegirApp = !envioDirecto && appsDisponibles.length > 1;
   final borrador = _BorradorMensaje(textoInicial)
-    // Preseleccionada la primera para que el botón siempre pueda actuar sin
-    // obligar a tocar el selector.
-    ..app = elegirApp ? appsDisponibles.first : null;
+    // Preseleccionada la que se usó la última vez: quien escribe siempre
+    // desde Business no tiene que corregir el selector cada vez. La primera
+    // vez cae en la primera de la lista.
+    ..app = elegirApp ? appWhatsappPreferida(appsDisponibles) : null;
 
   final resultado = await StyledDialog.show<MensajeRedactado>(
     context,

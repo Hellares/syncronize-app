@@ -3,6 +3,10 @@ import 'dart:io';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../constants/storage_constants.dart';
+import '../di/injection_container.dart';
+import '../storage/local_storage_service.dart';
+
 /// Cuál de las dos apps de WhatsApp abrir.
 ///
 /// Un celular con dos chips suele tener las dos instaladas, cada una con su
@@ -55,6 +59,34 @@ Future<List<AppWhatsapp>> appsWhatsappInstaladas({String? url}) async {
     }
   }
   return encontradas;
+}
+
+/// La app con la que se escribió la última vez, si sigue disponible.
+///
+/// Se recuerda en vez de pedir una configuración: el usuario elige una vez y
+/// la próxima ya viene marcada. Si la guardada ya no está instalada —o nunca
+/// se eligió— manda la primera de la lista.
+AppWhatsapp appWhatsappPreferida(List<AppWhatsapp> disponibles) {
+  if (disponibles.isEmpty) return AppWhatsapp.normal;
+  try {
+    final guardada = locator<LocalStorageService>()
+        .getString(StorageConstants.appWhatsappPreferida);
+    final match =
+        disponibles.where((a) => a.paquete == guardada).firstOrNull;
+    if (match != null) return match;
+  } catch (_) {
+    // Sin storage disponible, se sigue con el default.
+  }
+  return disponibles.first;
+}
+
+/// Recuerda la elección para la próxima vez. Best-effort: que no se guarde no
+/// puede impedir que el mensaje salga.
+Future<void> recordarAppWhatsapp(AppWhatsapp app) async {
+  try {
+    await locator<LocalStorageService>()
+        .setString(StorageConstants.appWhatsappPreferida, app.paquete);
+  } catch (_) {}
 }
 
 /// Abre el chat con el texto prellenado.

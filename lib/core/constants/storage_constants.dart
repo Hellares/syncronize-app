@@ -24,4 +24,9 @@ class StorageConstants {
   static const String rememberMe = 'remember_me';
   static const String themeMode = 'theme_mode';
   static const String language = 'language';
+
+  /// Con cuál de las dos apps de WhatsApp se escribe a los clientes. Es del
+  /// DISPOSITIVO, no de la empresa ni del usuario: depende de qué apps tiene
+  /// instaladas este celular.
+  static const String appWhatsappPreferida = 'app_whatsapp_preferida';
 }

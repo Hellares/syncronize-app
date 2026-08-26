@@ -80,10 +80,15 @@ class WhatsappClienteService {
         segundos: 5,
       );
     }
+    // Se recuerda ANTES de abrir: si el intent falla igual queda anotada la
+    // intención, que es lo que el usuario expresó.
+    final app = redactado.app;
+    if (app != null) await recordarAppWhatsapp(app);
+
     final abierto = await abrirChatWhatsapp(
       numero: numero,
       texto: redactado.texto,
-      app: redactado.app,
+      app: app,
     );
     if (!abierto && context.mounted) {
       _avisar(context, 'No se pudo abrir WhatsApp', color: Colors.red);
