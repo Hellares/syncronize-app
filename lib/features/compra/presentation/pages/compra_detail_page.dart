@@ -8,6 +8,7 @@ import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
+import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
@@ -182,8 +183,11 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_compra.codigo),
+      appBar: SmartAppBar(
+        title: _compra.codigo,
+        // El subtítulo del SmartAppBar existe para esto: la metadata breve
+        // que antes ocupaba una franja entera abajo.
+        subtitle: DateFormatter.formatDate(_compra.fechaRecepcion),
         backgroundColor: AppColors.blue1,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -319,67 +323,69 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Estado chip
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_estadoIcon(), size: 16, color: Colors.white),
-                    const SizedBox(width: 6),
-                    Text(
-                      _compra.estadoTexto,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+              // Estado y total en la MISMA fila: son las dos cosas que se
+              // miran de un vistazo, y apiladas se comían media pantalla.
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Total
-              Text(
-                '${_compra.moneda} ${_compra.total.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Info chips row
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                alignment: WrapAlignment.center,
-                children: [
-                  _buildHeaderChip(
-                    Icons.calendar_today,
-                    DateFormatter.formatDate(_compra.fechaRecepcion),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_estadoIcon(), size: 12, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          _compra.estadoTexto,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  if (_compra.sedeNombre.isNotEmpty)
-                    _buildHeaderChip(Icons.store, _compra.sedeNombre),
-                  if (_compra.ordenCompraCodigo != null)
-                    _buildHeaderChip(
-                        Icons.receipt_long, 'OC: ${_compra.ordenCompraCodigo}'),
-                  if (_compra.moneda != 'PEN')
-                    _buildHeaderChip(Icons.currency_exchange, _compra.moneda),
+                  const Spacer(),
+                  Text(
+                    '${_compra.moneda} ${_compra.total.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                 ],
               ),
+              // La fecha ya vive en el subtítulo del AppBar; acá queda solo
+              // lo que no entra ahí.
+              if (_compra.sedeNombre.isNotEmpty ||
+                  _compra.ordenCompraCodigo != null) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    if (_compra.sedeNombre.isNotEmpty)
+                      _buildHeaderChip(Icons.store, _compra.sedeNombre),
+                    if (_compra.ordenCompraCodigo != null)
+                      _buildHeaderChip(Icons.receipt_long,
+                          'OC: ${_compra.ordenCompraCodigo}'),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
