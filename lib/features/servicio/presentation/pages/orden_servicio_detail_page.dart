@@ -5012,9 +5012,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final saludo = nombre != null && nombre.trim().isNotEmpty
         ? 'Hola ${nombre.trim()}!'
         : 'Hola!';
+    // El equipo es lo que el cliente reconoce: "la orden OS-000123" no le
+    // dice nada, "su LAPTOP HP PAVILION" sí.
+    final equipo = _orden!.descripcionEquipo;
     final mensaje = Uri.encodeComponent(
       '$saludo Le escribimos por su orden de servicio '
-      '*${_orden!.codigo}*.',
+      '*${_orden!.codigo}*'
+      '${equipo != null ? ' ($equipo)' : ''}.',
     );
     await _abrirUrl(
       Uri.parse('https://wa.me/$numero?text=$mensaje'),

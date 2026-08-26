@@ -257,6 +257,22 @@ class OrdenModeloEquipo extends Equatable {
   List<Object?> get props => [id, marca, modelo];
 }
 
+extension OrdenServicioEquipo on OrdenServicio {
+  /// El equipo en una línea, para nombrarlo cuando se le escribe al cliente:
+  /// "LAPTOP HP PAVILION". null si la orden no registró ninguno.
+  ///
+  /// Mismo orden de prioridad que la sección EQUIPO de la pantalla: el modelo
+  /// del catálogo (marca + modelo) gana sobre la marca suelta tecleada a mano.
+  /// El tipo va adelante porque es como se lo nombra al hablar.
+  String? get descripcionEquipo {
+    final partes = [
+      tipoEquipo?.trim() ?? '',
+      modeloEquipo?.nombreCompleto.trim() ?? marcaEquipo?.trim() ?? '',
+    ].where((p) => p.isNotEmpty);
+    return partes.isEmpty ? null : partes.join(' ');
+  }
+}
+
 class OrdenComponente extends Equatable {
   final String id;
   final String ordenServicioId;
