@@ -24,6 +24,12 @@ Future<String?> mostrarDialogoMensajeWhatsapp(
   required String textoInicial,
   required String destinatario,
   List<AtajoMensaje> atajos = const [],
+  /// true ⇒ el mensaje sale del WhatsApp de la empresa sin salir de la app.
+  /// false ⇒ se abre WhatsApp con el texto puesto.
+  bool envioDirecto = false,
+  /// El número de la empresa, para decir de dónde sale. Solo se muestra
+  /// cuando [envioDirecto].
+  String? numeroEmpresa,
 }) async {
   final borrador = _BorradorMensaje(textoInicial);
 
@@ -31,10 +37,21 @@ Future<String?> mostrarDialogoMensajeWhatsapp(
     context,
     accentColor: const Color(0xFF25D366),
     backgroundColor: Colors.white,
-    icon: Icons.chat,
+    icon: envioDirecto ? Icons.send : Icons.chat,
     titulo: 'Mensaje a $destinatario',
-    subtitulo: 'Se abre WhatsApp con el texto ya escrito',
-    content: [_MensajeForm(borrador: borrador, atajos: atajos)],
+    // Que el usuario sepa ANTES de escribir si el mensaje va a salir solo o
+    // si todavía le falta darle enviar en WhatsApp.
+    subtitulo: envioDirecto
+        ? 'Se envía desde el WhatsApp de la empresa'
+        : 'Se abre WhatsApp con el texto ya escrito',
+    content: [
+      _MensajeForm(
+        borrador: borrador,
+        atajos: atajos,
+        envioDirecto: envioDirecto,
+        numeroEmpresa: numeroEmpresa,
+      ),
+    ],
     actions: [
       Expanded(
         child: TextButton(
@@ -47,8 +64,9 @@ Future<String?> mostrarDialogoMensajeWhatsapp(
       ),
       Expanded(
         child: CustomButton(
-          text: 'Abrir WhatsApp',
-          icon: const Icon(Icons.send, size: 14, color: Colors.white),
+          text: envioDirecto ? 'Enviar' : 'Abrir WhatsApp',
+          icon: Icon(envioDirecto ? Icons.send : Icons.open_in_new,
+              size: 14, color: Colors.white),
           backgroundColor: const Color(0xFF25D366),
           textColor: Colors.white,
           onPressed: () {
@@ -72,10 +90,17 @@ class _BorradorMensaje {
 }
 
 class _MensajeForm extends StatefulWidget {
-  const _MensajeForm({required this.borrador, required this.atajos});
+  const _MensajeForm({
+    required this.borrador,
+    required this.atajos,
+    required this.envioDirecto,
+    this.numeroEmpresa,
+  });
 
   final _BorradorMensaje borrador;
   final List<AtajoMensaje> atajos;
+  final bool envioDirecto;
+  final String? numeroEmpresa;
 
   @override
   State<_MensajeForm> createState() => _MensajeFormState();
@@ -142,6 +167,27 @@ class _MensajeFormState extends State<_MensajeForm> {
           ),
           onChanged: (v) => widget.borrador.texto = v,
         ),
+        if (widget.envioDirecto) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.check_circle,
+                  size: 13, color: Color(0xFF25D366)),
+              const SizedBox(width: 5),
+              Expanded(
+                child: AppSubtitle(
+                  widget.numeroEmpresa != null
+                      ? 'Sale del WhatsApp de la empresa '
+                          '(${widget.numeroEmpresa}) sin salir de la app'
+                      : 'Sale del WhatsApp de la empresa sin salir de la app',
+                  fontSize: 9,
+                  maxLines: 2,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ],
         if (widget.atajos.isNotEmpty) ...[
           const SizedBox(height: 10),
           AppSubtitle(

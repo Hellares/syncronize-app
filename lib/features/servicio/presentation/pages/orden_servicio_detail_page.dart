@@ -68,6 +68,7 @@ import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../../venta_rapida/domain/entities/orden_cobrable.dart';
 import '../../../venta_rapida/presentation/bloc/venta_rapida_cubit.dart';
 import '../../../../core/utils/telefono_helper.dart';
+import '../../../empresa/data/datasources/empresa_remote_datasource.dart';
 import '../widgets/mensaje_whatsapp_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -5026,10 +5027,18 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
         '*${_orden!.codigo}*'
         '${equipo != null ? ' ($equipo)' : ''}.';
 
+    // Si la empresa tiene su WhatsApp vinculado, el mensaje sale del sistema
+    // y el usuario no cambia de app. Se resuelve ANTES de abrir el cuadro
+    // porque el cuadro tiene que decir cuál de las dos cosas va a pasar.
+    final envio = await _estadoEnvioWhatsapp();
+    if (!mounted) return;
+
     final texto = await mostrarDialogoMensajeWhatsapp(
       context,
       textoInicial: inicial,
       destinatario: destinatario,
+      envioDirecto: envio.conectado,
+      numeroEmpresa: envio.numero,
       atajos: const [
         (
           etiqueta: 'Equipo listo',
@@ -5049,10 +5058,53 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     );
     if (texto == null || !mounted) return;
 
+    if (envio.conectado && await _enviarPorElSistema(numero, texto)) return;
+
+    // Cae acá si la empresa no tiene WhatsApp vinculado, o si el envío falló
+    // —la instancia se pudo caer entre el chequeo y el envío—. El texto ya
+    // está redactado, así que no se pierde: va igual por wa.me.
+    if (!mounted) return;
     await _abrirUrl(
       Uri.parse('https://wa.me/$numero?text=${Uri.encodeComponent(texto)}'),
       'No se pudo abrir WhatsApp',
     );
+  }
+
+  /// Estado liviano de la vinculación. Ante cualquier problema devuelve
+  /// "no conectado": abrir WhatsApp siempre funciona, y es preferible a
+  /// prometer un envío directo que después no ocurre.
+  Future<({bool conectado, String? numero})> _estadoEnvioWhatsapp() async {
+    try {
+      final data = await locator<EmpresaRemoteDataSource>()
+          .getEstadoEnvioWhatsapp(_orden!.empresaId);
+      return (
+        conectado: data['conectado'] as bool? ?? false,
+        numero: data['numero'] as String?,
+      );
+    } catch (_) {
+      return (conectado: false, numero: null);
+    }
+  }
+
+  /// Devuelve true si el mensaje salió por el sistema.
+  Future<bool> _enviarPorElSistema(String numero, String texto) async {
+    try {
+      await locator<EmpresaRemoteDataSource>().enviarMensajeWhatsapp(
+        empresaId: _orden!.empresaId,
+        numero: numero,
+        mensaje: texto,
+      );
+      if (!mounted) return true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mensaje enviado por WhatsApp'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _llamar(String numero) =>

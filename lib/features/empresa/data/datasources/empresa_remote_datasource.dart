@@ -209,6 +209,35 @@ class EmpresaRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// ¿El sistema puede escribirle al cliente por su cuenta?
+  ///
+  /// Liviano y sin permiso de administrador, al revés que [getWhatsapp]: lo
+  /// consulta quien atiende una orden para saber si el mensaje sale desde el
+  /// sistema o hay que abrir WhatsApp.
+  ///
+  /// GET /api/empresas/:empresaId/whatsapp/estado
+  Future<Map<String, dynamic>> getEstadoEnvioWhatsapp(String empresaId) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.empresas}/$empresaId/whatsapp/estado',
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Manda un mensaje de texto desde el número de la empresa.
+  /// Falla con 400 si la vinculación no está conectada.
+  ///
+  /// POST /api/empresas/:empresaId/whatsapp/enviar
+  Future<void> enviarMensajeWhatsapp({
+    required String empresaId,
+    required String numero,
+    required String mensaje,
+  }) async {
+    await _dioClient.post(
+      '${ApiConstants.empresas}/$empresaId/whatsapp/enviar',
+      data: {'numero': numero, 'mensaje': mensaje},
+    );
+  }
+
   /// Crea la instancia y devuelve el QR para escanear
   /// (estado, qrBase64 data-uri, pairingCode)
   ///

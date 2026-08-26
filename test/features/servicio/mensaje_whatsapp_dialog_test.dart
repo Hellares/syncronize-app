@@ -84,6 +84,68 @@ void main() {
     expect(ctrl.selection.baseOffset, ctrl.text.length);
   });
 
+  group('modo de envío', () {
+    Future<void> abrirCon(
+      WidgetTester tester, {
+      required bool directo,
+      String? numeroEmpresa,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => mostrarDialogoMensajeWhatsapp(
+                  context,
+                  textoInicial: inicial,
+                  destinatario: 'Juan',
+                  envioDirecto: directo,
+                  numeroEmpresa: numeroEmpresa,
+                ),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('sin vinculación anuncia que abre WhatsApp', (tester) async {
+      await abrirCon(tester, directo: false);
+
+      expect(find.text('Abrir WhatsApp'), findsOneWidget);
+      expect(find.text('Se abre WhatsApp con el texto ya escrito'),
+          findsOneWidget);
+      expect(find.text('Enviar'), findsNothing);
+    });
+
+    testWidgets('🔴 con vinculación anuncia que sale desde el sistema',
+        (tester) async {
+      // El usuario tiene que saber ANTES de escribir si el mensaje se va solo
+      // o si todavía le falta darle enviar en WhatsApp.
+      await abrirCon(tester, directo: true, numeroEmpresa: '51901168935');
+
+      expect(find.text('Enviar'), findsOneWidget);
+      expect(find.text('Se envía desde el WhatsApp de la empresa'),
+          findsOneWidget);
+      expect(find.textContaining('51901168935'), findsOneWidget);
+      expect(find.text('Abrir WhatsApp'), findsNothing);
+    });
+
+    testWidgets('sin número de empresa el aviso igual se muestra',
+        (tester) async {
+      await abrirCon(tester, directo: true);
+
+      expect(find.text('Enviar'), findsOneWidget);
+      expect(
+        find.text('Sale del WhatsApp de la empresa sin salir de la app'),
+        findsOneWidget,
+      );
+    });
+  });
+
   testWidgets('un mensaje vacío no abre WhatsApp', (tester) async {
     final buzon = await abrir(tester);
     await tester.enterText(find.byType(TextField), '   ');
