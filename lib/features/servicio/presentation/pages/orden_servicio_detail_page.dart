@@ -68,6 +68,7 @@ import '../../../venta/data/datasources/venta_remote_datasource.dart';
 import '../../../venta_rapida/domain/entities/orden_cobrable.dart';
 import '../../../venta_rapida/presentation/bloc/venta_rapida_cubit.dart';
 import '../../../../core/utils/telefono_helper.dart';
+import '../widgets/mensaje_whatsapp_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class OrdenServicioDetailPage extends StatefulWidget {
@@ -5006,22 +5007,50 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     );
   }
 
-  /// Abre el chat con el saludo ya escrito. El texto es solo un punto de
-  /// partida: se borra de un toque si querían escribir otra cosa.
+  /// Redacta el mensaje y recién ahí abre WhatsApp.
+  ///
+  /// 🔴 El cuadro no es un adorno: `wa.me` abre el chat con el texto puesto
+  /// pero el cursor AL PRINCIPIO, y no hay parámetro para moverlo. Redactando
+  /// acá, WhatsApp recibe el mensaje terminado.
   Future<void> _abrirWhatsapp(String numero, String? nombre) async {
+    final destinatario = nombre != null && nombre.trim().isNotEmpty
+        ? nombre.trim()
+        : 'el cliente';
     final saludo = nombre != null && nombre.trim().isNotEmpty
         ? 'Hola ${nombre.trim()}!'
         : 'Hola!';
     // El equipo es lo que el cliente reconoce: "la orden OS-000123" no le
     // dice nada, "su LAPTOP HP PAVILION" sí.
     final equipo = _orden!.descripcionEquipo;
-    final mensaje = Uri.encodeComponent(
-      '$saludo Le escribimos por su orden de servicio '
-      '*${_orden!.codigo}*'
-      '${equipo != null ? ' ($equipo)' : ''}.',
+    final inicial = '$saludo Le escribimos por su orden de servicio '
+        '*${_orden!.codigo}*'
+        '${equipo != null ? ' ($equipo)' : ''}.';
+
+    final texto = await mostrarDialogoMensajeWhatsapp(
+      context,
+      textoInicial: inicial,
+      destinatario: destinatario,
+      atajos: const [
+        (
+          etiqueta: 'Equipo listo',
+          texto: 'Ya está listo para que lo retire cuando guste.',
+        ),
+        (
+          etiqueta: 'Presupuesto',
+          texto: 'Tenemos el presupuesto listo y quedamos atentos a su '
+              'aprobación para continuar.',
+        ),
+        (
+          etiqueta: 'Demora',
+          texto: 'Le avisamos que va a demorar un poco más de lo previsto. '
+              'Apenas tengamos novedades le escribimos.',
+        ),
+      ],
     );
+    if (texto == null || !mounted) return;
+
     await _abrirUrl(
-      Uri.parse('https://wa.me/$numero?text=$mensaje'),
+      Uri.parse('https://wa.me/$numero?text=${Uri.encodeComponent(texto)}'),
       'No se pudo abrir WhatsApp',
     );
   }
