@@ -5,14 +5,16 @@ import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/utils/whatsapp_apps.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/styled_dialog.dart';
 
 /// Un atajo del cuadro: el rótulo del chip y la frase que agrega.
 typedef AtajoMensaje = ({String etiqueta, String texto});
 
-/// Lo que el cuadro devuelve: el texto y, si eligieron una, la imagen.
-typedef MensajeRedactado = ({String texto, File? imagen});
+/// Lo que el cuadro devuelve: el texto, la imagen si eligieron una, y con
+/// cuál de las dos apps de WhatsApp abrir (null = la que decida el sistema).
+typedef MensajeRedactado = ({String texto, File? imagen, AppWhatsapp? app});
 
 /// Redacta el mensaje ANTES de abrir WhatsApp.
 ///
@@ -36,8 +38,17 @@ Future<MensajeRedactado?> mostrarDialogoMensajeWhatsapp(
   /// El número de la empresa, para decir de dónde sale. Solo se muestra
   /// cuando [envioDirecto].
   String? numeroEmpresa,
+
+  /// Las apps de WhatsApp instaladas. Con DOS se ofrece elegir; con una o
+  /// ninguna no hay nada que preguntar. Se ignora si [envioDirecto], que no
+  /// abre ninguna app.
+  List<AppWhatsapp> appsDisponibles = const [],
 }) async {
-  final borrador = _BorradorMensaje(textoInicial);
+  final elegirApp = !envioDirecto && appsDisponibles.length > 1;
+  final borrador = _BorradorMensaje(textoInicial)
+    // Preseleccionada la primera para que el botón siempre pueda actuar sin
+    // obligar a tocar el selector.
+    ..app = elegirApp ? appsDisponibles.first : null;
 
   final resultado = await StyledDialog.show<MensajeRedactado>(
     context,
@@ -56,6 +67,7 @@ Future<MensajeRedactado?> mostrarDialogoMensajeWhatsapp(
         atajos: atajos,
         envioDirecto: envioDirecto,
         numeroEmpresa: numeroEmpresa,
+        appsDisponibles: elegirApp ? appsDisponibles : const [],
       ),
     ],
     actions: [
@@ -80,7 +92,10 @@ Future<MensajeRedactado?> mostrarDialogoMensajeWhatsapp(
             // Con imagen el texto puede ir vacío: la foto ES el mensaje.
             // Sin imagen y sin texto no hay nada que mandar.
             if (t.isEmpty && borrador.imagen == null) return;
-            Navigator.pop(context, (texto: t, imagen: borrador.imagen));
+            Navigator.pop(
+              context,
+              (texto: t, imagen: borrador.imagen, app: borrador.app),
+            );
           },
         ),
       ),
@@ -97,6 +112,9 @@ class _BorradorMensaje {
   /// Solo puede haber una: WhatsApp manda una imagen con su caption, y varias
   /// serían varios mensajes — otra cosa, no un parámetro más.
   File? imagen;
+
+  /// Con cuál de las dos apps abrir. null = la que decida el sistema.
+  AppWhatsapp? app;
 }
 
 class _MensajeForm extends StatefulWidget {
@@ -105,12 +123,14 @@ class _MensajeForm extends StatefulWidget {
     required this.atajos,
     required this.envioDirecto,
     this.numeroEmpresa,
+    this.appsDisponibles = const [],
   });
 
   final _BorradorMensaje borrador;
   final List<AtajoMensaje> atajos;
   final bool envioDirecto;
   final String? numeroEmpresa;
+  final List<AppWhatsapp> appsDisponibles;
 
   @override
   State<_MensajeForm> createState() => _MensajeFormState();
@@ -189,6 +209,51 @@ class _MensajeFormState extends State<_MensajeForm> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _botonApp(AppWhatsapp app) {
+    final elegida = widget.borrador.app == app;
+    return InkWell(
+      onTap: () => setState(() => widget.borrador.app = app),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        decoration: BoxDecoration(
+          color: elegida
+              ? const Color(0xFF25D366).withValues(alpha: 0.10)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: elegida
+                ? const Color(0xFF25D366).withValues(alpha: 0.55)
+                : Colors.grey.shade300,
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              elegida ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 14,
+              color: elegida ? const Color(0xFF25D366) : Colors.grey.shade400,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: AppSubtitle(
+                app.etiqueta,
+                font: AppFont.amazonEmberMedium,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                color: elegida ? AppColors.blue3 : Colors.grey.shade700,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -312,6 +377,32 @@ class _MensajeFormState extends State<_MensajeForm> {
                 ),
               ),
             ],
+          ),
+        ],
+        // Con dos apps instaladas hay que preguntar: cada una tiene su propia
+        // cuenta, y mandar el mensaje del negocio por la personal es un error
+        // que se descubre cuando el cliente contesta al número equivocado.
+        if (widget.appsDisponibles.length > 1) ...[
+          const SizedBox(height: 10),
+          AppSubtitle(
+            'Abrir con',
+            font: AppFont.amazonEmberMedium,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+          const SizedBox(height: 5),
+          Row(
+            children: widget.appsDisponibles
+                .map((app) => Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: app == widget.appsDisponibles.last ? 0 : 6,
+                        ),
+                        child: _botonApp(app),
+                      ),
+                    ))
+                .toList(),
           ),
         ],
         if (widget.atajos.isNotEmpty) ...[

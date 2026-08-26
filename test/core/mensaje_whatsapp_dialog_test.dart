@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:syncronize/core/utils/whatsapp_apps.dart';
 import 'package:syncronize/core/widgets/mensaje_whatsapp_dialog.dart';
 
 void main() {
@@ -90,6 +91,7 @@ void main() {
       WidgetTester tester, {
       required bool directo,
       String? numeroEmpresa,
+      List<AppWhatsapp> apps = const [],
     }) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -102,6 +104,7 @@ void main() {
                   destinatario: 'Juan',
                   envioDirecto: directo,
                   numeroEmpresa: numeroEmpresa,
+                  appsDisponibles: apps,
                 ),
                 child: const Text('abrir'),
               ),
@@ -155,6 +158,31 @@ void main() {
 
       expect(find.text('Galería'), findsNothing);
       expect(find.text('Cámara'), findsNothing);
+    });
+
+    testWidgets('🔴 con las DOS apps instaladas se ofrece elegir cuál abrir',
+        (tester) async {
+      // Un celular con dos chips tiene una cuenta en cada app: mandar el
+      // mensaje del negocio por la personal es un error que se descubre
+      // cuando el cliente contesta al número equivocado.
+      await abrirCon(tester, directo: false, apps: AppWhatsapp.values);
+
+      expect(find.text('Abrir con'), findsOneWidget);
+      expect(find.text('WhatsApp'), findsOneWidget);
+      expect(find.text('WhatsApp Business'), findsOneWidget);
+    });
+
+    testWidgets('con UNA sola app no hay nada que preguntar', (tester) async {
+      await abrirCon(tester, directo: false, apps: const [AppWhatsapp.normal]);
+
+      expect(find.text('Abrir con'), findsNothing);
+    });
+
+    testWidgets('con envío directo no se pregunta: no se abre ninguna app',
+        (tester) async {
+      await abrirCon(tester, directo: true, apps: AppWhatsapp.values);
+
+      expect(find.text('Abrir con'), findsNothing);
     });
 
     testWidgets('con vinculación se puede adjuntar', (tester) async {

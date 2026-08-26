@@ -135,5 +135,11 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="yape"/>
         </intent>
+        <!-- WhatsApp y WhatsApp Business por separado: un celular con dos
+             chips suele tener las dos, y hay que poder preguntar cuál abrir.
+             Sin declararlas acá, Android 11+ las esconde y `canResolveActivity`
+             devuelve false aunque estén instaladas. -->
+        <package android:name="com.whatsapp"/>
+        <package android:name="com.whatsapp.w4b"/>
     </queries>
 </manifest>

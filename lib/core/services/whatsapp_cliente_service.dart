@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../di/injection_container.dart';
 import '../utils/telefono_helper.dart';
+import '../utils/whatsapp_apps.dart';
 import '../widgets/mensaje_whatsapp_dialog.dart';
 import '../../features/empresa/data/datasources/empresa_remote_datasource.dart';
 
@@ -39,6 +40,12 @@ class WhatsappClienteService {
     // Se resuelve ANTES de abrir el cuadro porque el cuadro tiene que decir
     // cuál de las dos cosas va a pasar.
     final envio = await _estadoEnvio(empresaId);
+    // Sin línea vinculada el mensaje termina en una app del celular, y con dos
+    // instaladas hay que preguntar cuál. Con envío directo no se consulta: no
+    // se abre ninguna app.
+    final apps = envio.conectado
+        ? const <AppWhatsapp>[]
+        : await appsWhatsappInstaladas();
     if (!context.mounted) return;
 
     final redactado = await mostrarDialogoMensajeWhatsapp(
@@ -47,6 +54,7 @@ class WhatsappClienteService {
       destinatario: destinatario,
       envioDirecto: envio.conectado,
       numeroEmpresa: envio.numero,
+      appsDisponibles: apps,
       atajos: atajos,
     );
     if (redactado == null || !context.mounted) return;
@@ -70,13 +78,14 @@ class WhatsappClienteService {
         segundos: 5,
       );
     }
-    await _abrirUrl(
-      context,
-      Uri.parse(
-        'https://wa.me/$numero?text=${Uri.encodeComponent(redactado.texto)}',
-      ),
-      'No se pudo abrir WhatsApp',
+    final abierto = await abrirChatWhatsapp(
+      numero: numero,
+      texto: redactado.texto,
+      app: redactado.app,
     );
+    if (!abierto && context.mounted) {
+      _avisar(context, 'No se pudo abrir WhatsApp', color: Colors.red);
+    }
   }
 
   /// Abre el marcador del teléfono.
