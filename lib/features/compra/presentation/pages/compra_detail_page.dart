@@ -193,7 +193,7 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
+            icon: Icon(Icons.picture_as_pdf, size: 20,),
             onPressed: () => _mostrarOpcionesPDF(),
             tooltip: 'Generar PDF',
           ),
@@ -327,41 +327,57 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Estado y total en la MISMA fila: son las dos cosas que se
-              // miran de un vistazo, y apiladas se comían media pantalla.
+              // TODO en una sola fila: estado y OC a la izquierda, total a
+              // la derecha. La sede salió —dice siempre "SEDE PRINCIPAL" y
+              // no aporta— y la fecha vive en el subtítulo del AppBar.
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  Expanded(
+                    // Wrap y no Row: con un código de OC largo, una fila
+                    // rígida desborda en vez de bajar el chip.
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Icon(_estadoIcon(), size: 12, color: Colors.white),
-                        const SizedBox(width: 4),
-                        Text(
-                          _compra.estadoTexto,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_estadoIcon(),
+                                  size: 12, color: Colors.white),
+                              const SizedBox(width: 4),
+                              Text(
+                                _compra.estadoTexto,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        if (_compra.ordenCompraCodigo != null)
+                          _buildHeaderChip(Icons.receipt_long,
+                              'OC: ${_compra.ordenCompraCodigo}'),
                       ],
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Text(
                     '${_compra.moneda} ${_compra.total.toStringAsFixed(2)}',
                     style: const TextStyle(
-                      fontSize: 21,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                       letterSpacing: -0.5,
@@ -369,23 +385,6 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                   ),
                 ],
               ),
-              // La fecha ya vive en el subtítulo del AppBar; acá queda solo
-              // lo que no entra ahí.
-              if (_compra.sedeNombre.isNotEmpty ||
-                  _compra.ordenCompraCodigo != null) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    if (_compra.sedeNombre.isNotEmpty)
-                      _buildHeaderChip(Icons.store, _compra.sedeNombre),
-                    if (_compra.ordenCompraCodigo != null)
-                      _buildHeaderChip(Icons.receipt_long,
-                          'OC: ${_compra.ordenCompraCodigo}'),
-                  ],
-                ),
-              ],
             ],
           ),
         ),
