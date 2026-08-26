@@ -51,6 +51,34 @@ class VentaFixture {
     );
   }
 
+  /// Nota de venta: el comprobante del negocio SIN facturación electrónica.
+  static Venta buildNotaVentaTicket() {
+    final b = buildBoletaTicket();
+    return Venta(
+      id: b.id,
+      empresaId: b.empresaId,
+      sedeId: b.sedeId,
+      vendedorId: b.vendedorId,
+      codigo: b.codigo,
+      canalVenta: b.canalVenta,
+      nombreCliente: b.nombreCliente,
+      documentoCliente: b.documentoCliente,
+      moneda: b.moneda,
+      subtotal: b.subtotal,
+      descuento: b.descuento,
+      impuestos: b.impuestos,
+      total: b.total,
+      estado: b.estado,
+      tipoComprobante: 'TICKET',
+      fechaVenta: b.fechaVenta,
+      creadoEn: b.creadoEn,
+      actualizadoEn: b.actualizadoEn,
+      sedeNombre: b.sedeNombre,
+      vendedorNombre: b.vendedorNombre,
+      detalles: b.detalles,
+    );
+  }
+
   /// Factura SUNAT con desglose tributario (Op. Gravada).
   static Venta buildFacturaA4() {
     return Venta(

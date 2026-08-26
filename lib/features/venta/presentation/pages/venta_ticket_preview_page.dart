@@ -56,6 +56,14 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
   // sede tuviera direccionFiscalSede propia.
   String? _rucEfectivo;
   String? _razonSocialEfectiva;
+
+  /// ¿El ticket lleva RUC y razón social?
+  ///
+  /// Sin facturación electrónica el negocio emite una NOTA DE VENTA, no un
+  /// documento fiscal, y poner el RUC arriba la disfraza de comprobante. El
+  /// nombre comercial y la dirección sí van: identifican al negocio sin
+  /// pretender valor tributario.
+  bool _mostrarDatosFiscales = true;
   String? _direccionFiscalEfectiva;
   String? _nombreComercialEfectivo;
   // Términos de venta (bloque izquierdo) + línea final centrada (general).
@@ -176,6 +184,10 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
     String? direccionFiscalEfectiva;
     String? telefonoEfectivo;
     Uint8List? firmaBytes;
+    // Si la consulta falla se asume APAGADA: es la lectura conservadora —
+    // omitir el RUC en un ticket no rompe nada, ponerlo donde no corresponde
+    // sí.
+    var facturacionActiva = false;
 
     await Future.wait([
       // Configuración de documentos (colores, logo, márgenes, etc.)
@@ -204,6 +216,9 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
           nombreComercialEfectivo = config['nombreComercial'] as String?;
           direccionFiscalEfectiva = config['direccionFiscal'] as String?;
           telefonoEfectivo = config['telefono'] as String?;
+          // Ya viene en esta misma respuesta (sede > empresa), así que no
+          // hace falta preguntar por los emisores aparte.
+          facturacionActiva = config['facturacionActiva'] as bool? ?? false;
         } catch (_) {}
       }(),
       // Firma del cliente (si existe): lookup + descarga
@@ -242,11 +257,17 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
     }
 
     try {
+      // Un comprobante fiscal lleva SIEMPRE su RUC y razón social, aunque
+      // el flag venga apagado: si se emitió una boleta, es una boleta.
+      final mostrarDatosFiscales =
+          facturacionActiva || venta.esComprobanteFiscal;
+
       final pdf = await PdfVentaGenerator.generarTicket(
         venta: venta,
         empresaNombre: empresa.nombre,
         empresaRuc: rucEfectivo ?? empresa.ruc,
         razonSocial: razonSocialEfectiva,
+        mostrarDatosFiscales: mostrarDatosFiscales,
         nombreComercial: nombreComercialEfectivo,
         direccionFiscal: direccionFiscalEfectiva,
         logoEmpresa: logoBytes,
@@ -267,6 +288,7 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         _esperandoSunat = esperando;
         _rucEfectivo = rucEfectivo;
         _razonSocialEfectiva = razonSocialEfectiva;
+        _mostrarDatosFiscales = mostrarDatosFiscales;
         _direccionFiscalEfectiva = direccionFiscalEfectiva;
         _nombreComercialEfectivo = nombreComercialEfectivo;
         _telefonoEfectivo = telefonoEfectivo;
@@ -294,8 +316,10 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
         _autoPrintIntentado = true;
         unawaited(_intentarAutoImprimir(
           empresaNombre: nombreComercialEfectivo ?? empresa.nombre,
-          empresaRazonSocial: razonSocialEfectiva,
-          empresaRuc: rucEfectivo ?? empresa.ruc,
+          empresaRazonSocial:
+              mostrarDatosFiscales ? razonSocialEfectiva : null,
+          empresaRuc:
+              mostrarDatosFiscales ? (rucEfectivo ?? empresa.ruc) : null,
           empresaDireccion: direccionFiscalEfectiva ?? empresa.direccionFiscal,
           empresaTelefono: telefonoEfectivo ?? empresa.telefono,
           sedeNombre: venta.sedeNombre,
@@ -588,8 +612,10 @@ class _VentaTicketPreviewPageState extends State<VentaTicketPreviewPage> {
       // Identidad efectiva: sede > empresa. La sede puede tener
       // direccionFiscalSede/rucSede/razonSocialSede y debe ganar sobre empresa.
       empresaNombre: _nombreComercialEfectivo ?? empresa.nombre,
-      empresaRazonSocial: _razonSocialEfectiva,
-      empresaRuc: _rucEfectivo ?? empresa.ruc,
+      empresaRazonSocial:
+          _mostrarDatosFiscales ? _razonSocialEfectiva : null,
+      empresaRuc:
+          _mostrarDatosFiscales ? (_rucEfectivo ?? empresa.ruc) : null,
       empresaDireccion: _direccionFiscalEfectiva ?? empresa.direccionFiscal,
       empresaTelefono: _telefonoEfectivo ?? empresa.telefono,
       sedeNombre: _venta?.sedeNombre,

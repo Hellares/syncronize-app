@@ -538,6 +538,18 @@ class Venta extends Equatable {
 
   bool get esEditable => estado == EstadoVenta.borrador;
 
+  /// ¿El comprobante de esta venta es un documento FISCAL?
+  ///
+  /// Un TICKET (nota de venta) no lo es: no se declara a SUNAT. La distinción
+  /// decide si el ticket impreso lleva RUC y razón social — un documento
+  /// fiscal los lleva SIEMPRE, aunque la facturación esté apagada.
+  bool get esComprobanteFiscal => const {
+        'BOLETA',
+        'FACTURA',
+        'NOTA_CREDITO',
+        'NOTA_DEBITO',
+      }.contains(tipoComprobante);
+
   bool get puedeConfirmar => estado == EstadoVenta.borrador;
 
   bool get puedeAnular =>

@@ -41,6 +41,48 @@ void main() {
       }
     });
 
+    test('🔴 nota de venta sin facturación: sin RUC ni razón social',
+        () async {
+      // El negocio que no emite documentos fiscales no puede poner el RUC
+      // arriba del ticket: lo disfraza de comprobante. El nombre comercial y
+      // la dirección sí van — identifican al negocio.
+      final bytes = await PdfVentaGenerator.generarTicket(
+        venta: VentaFixture.buildNotaVentaTicket(),
+        empresaNombre: 'Bodega Doña Rosa',
+        empresaRuc: '20111111111',
+        razonSocial: 'INVERSIONES ROSA SAC',
+        direccionFiscal: 'Av. Empresa 999',
+        mostrarDatosFiscales: false,
+      );
+
+      PdfTestHelpers.expectValidPdf(bytes);
+      final blob = PdfTestHelpers.extractText(bytes).join(' ');
+
+      expect(blob, isNot(contains('20111111111')),
+          reason: 'No debe imprimir el RUC');
+      expect(blob, isNot(contains('RUC')), reason: 'Ni la etiqueta RUC');
+      expect(blob, isNot(contains('INVERSIONES ROSA SAC')),
+          reason: 'No debe imprimir la razón social');
+      // Lo que SÍ identifica al negocio se mantiene.
+      expect(blob, contains('Bodega Do'), reason: 'Falta el nombre comercial');
+      expect(blob, contains('Av. Empresa 999'), reason: 'Falta la dirección');
+    });
+
+    test('con facturación activa el ticket mantiene los datos fiscales',
+        () async {
+      final bytes = await PdfVentaGenerator.generarTicket(
+        venta: VentaFixture.buildNotaVentaTicket(),
+        empresaNombre: 'Bodega Doña Rosa',
+        empresaRuc: '20111111111',
+        razonSocial: 'INVERSIONES ROSA SAC',
+        direccionFiscal: 'Av. Empresa 999',
+      );
+
+      final blob = PdfTestHelpers.extractText(bytes).join(' ');
+      expect(blob, contains('20111111111'));
+      expect(blob, contains('INVERSIONES ROSA SAC'));
+    });
+
     test('Factura SUNAT — A4 con QR', () async {
       final venta = VentaFixture.buildFacturaA4();
 

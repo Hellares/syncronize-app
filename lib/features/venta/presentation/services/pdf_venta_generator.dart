@@ -69,6 +69,14 @@ class PdfVentaGenerator {
     ConfiguracionDocumentoCompleta? documentConfig,
     Uint8List? firmaCliente,
     String? resolucionSunat,
+
+    /// false ⇒ el ticket NO imprime RUC ni razón social.
+    ///
+    /// Es para el negocio sin facturación electrónica: emite una nota de
+    /// venta, no un documento fiscal, y poner el RUC arriba la disfraza de
+    /// comprobante. El nombre comercial y la dirección sí van: identifican
+    /// al negocio sin pretender valor tributario.
+    bool mostrarDatosFiscales = true,
   }) async {
     final pdf = pw.Document();
     final detalles = venta.detalles ?? [];
@@ -79,7 +87,7 @@ class PdfVentaGenerator {
     final style = PdfDocumentStyle.fromConfig(
       documentConfig: documentConfig,
       empresaNombre: empresaNombre,
-      empresaRuc: empresaRuc,
+      empresaRuc: mostrarDatosFiscales ? empresaRuc : null,
       empresaDireccion: direccionFiscal,
       defaultPrimaryColor: PdfColors.black,
       defaultBodyColor: PdfColors.black,
@@ -106,9 +114,13 @@ class PdfVentaGenerator {
     // Datos de empresa: nombre comercial (título) + razón social + RUC (del emisor)
     final nombreEmpresaFinal =
         nombreComercial ?? documentConfig?.configuracion.nombreComercial ?? empresaNombre;
-    final razonSocialFinal = razonSocial;
-    // RUC: prioridad del emisor efectivo (puede ser sede con RUC propio)
-    final ruc = empresaRuc ?? documentConfig?.configuracion.ruc;
+    final razonSocialFinal = mostrarDatosFiscales ? razonSocial : null;
+    // RUC: prioridad del emisor efectivo (puede ser sede con RUC propio).
+    // 🔴 El `??` es lo que hace que NO alcance con mandar empresaRuc en null:
+    // sin la guarda, el RUC se recupera solo desde la config de documentos.
+    final ruc = mostrarDatosFiscales
+        ? (empresaRuc ?? documentConfig?.configuracion.ruc)
+        : null;
     // Dirección: prioridad emisor efectivo > config documentos
     final direccion = direccionFiscal ?? documentConfig?.direccionEfectiva;
     final telefono = documentConfig?.telefonoEfectivo;
