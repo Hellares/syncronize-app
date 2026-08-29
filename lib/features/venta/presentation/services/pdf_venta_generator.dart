@@ -637,6 +637,17 @@ class PdfVentaGenerator {
                 children: [
                   pw.Text(d.descripcion,
                       style: pw.TextStyle(fontSize: 6, color: colorCuerpo)),
+                  // Código del artículo, igual que en el ticket térmico: es lo
+                  // que permite ubicar exactamente qué se vendió en un cambio
+                  // o una garantía. Los dos renders del ticket tienen que
+                  // decir lo mismo.
+                  if (d.codigoIdentificador != null)
+                    pw.Text(
+                      '${d.codigoIdentificador!.etiqueta}: '
+                      '${d.codigoIdentificador!.valor}',
+                      style: pw.TextStyle(
+                          fontSize: 5, color: PdfColors.grey700),
+                    ),
                   // La columna de cantidad es angosta y no entra "1.5 kg":
                   // el cliente tiene derecho a leer en qué unidad se le cobró.
                   if (descuento > 0)

@@ -25,10 +25,34 @@ class VentaDetalle extends Equatable {
   // Datos del producto/variante/servicio (snapshot)
   final String? productoNombre;
   final String? productoCodigo;
+
+  /// SKU del producto. OPCIONAL: no todas las empresas lo cargan, y por eso el
+  /// ticket cae a [productoCodigo], que sí es obligatorio.
+  final String? productoSku;
   final String? varianteNombre;
   final String? varianteSku;
   final String? servicioNombre;
   final String? servicioCodigo;
+
+  /// El código con el que se identifica lo vendido en esta línea, y de dónde
+  /// salió. Null cuando no hay ninguno (servicios, ítems libres).
+  ///
+  /// Prioridad: **SKU de la variante → SKU del producto → código del
+  /// producto**. La variante primero porque es lo que de verdad salió del
+  /// stock: en un producto con tallas, el SKU del padre no dice cuál se
+  /// vendió, y ese es justamente el dato que se necesita en un cambio.
+  ({String etiqueta, String valor})? get codigoIdentificador {
+    final candidatos = <({String etiqueta, String? valor})>[
+      (etiqueta: 'SKU', valor: varianteSku),
+      (etiqueta: 'SKU', valor: productoSku),
+      (etiqueta: 'Cod', valor: productoCodigo),
+    ];
+    for (final c in candidatos) {
+      final valor = c.valor?.trim() ?? '';
+      if (valor.isNotEmpty) return (etiqueta: c.etiqueta, valor: valor);
+    }
+    return null;
+  }
 
   // Trazabilidad de combo origen: cuando este detalle es un componente
   // que se vendió como parte de un combo expandido, estos campos lo
@@ -86,6 +110,7 @@ class VentaDetalle extends Equatable {
     this.orden = 0,
     this.productoNombre,
     this.productoCodigo,
+    this.productoSku,
     this.varianteNombre,
     this.varianteSku,
     this.servicioNombre,

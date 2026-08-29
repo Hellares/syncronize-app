@@ -276,6 +276,21 @@ class TicketVentaEscPosGenerator {
           );
         }
 
+        // Código del artículo, debajo del nombre. Es lo que permite ubicar
+        // EXACTAMENTE qué se vendió en un cambio o una garantía, cuando el
+        // nombre solo no alcanza ("POLO NEGRO" hay veinte).
+        //
+        // Va en renglón aparte y no pegado al nombre porque en 58 mm la
+        // columna DESC son ~14 chars: un SKU adelante empujaría el nombre a
+        // envolverse siempre. Solo se imprime si el artículo tiene código, así
+        // que un ítem libre no gasta papel.
+        final codigo = d.codigoIdentificador;
+        if (codigo != null) {
+          bytes += generator.text(
+            _ascii('  ${codigo.etiqueta}: ${codigo.valor}'),
+          );
+        }
+
         // Sub-líneas de respaldo. Con la unidad pegada al P.U. y la cantidad
         // entrando en su columna, lo normal es que NO se impriman: el ítem
         // entra entero en una sola línea. Solo aparecen cuando algo no entró,
