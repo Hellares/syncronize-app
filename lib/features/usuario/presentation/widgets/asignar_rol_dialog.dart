@@ -131,7 +131,12 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed: () => setState(() => _accesosRapidosOcultos.clear()),
+                // 🔴 Solo los ids del DASHBOARD. Esta lista también guarda qué
+                // ítems del MENÚ LATERAL están ocultos (se configuran en la
+                // ficha completa del usuario), y un `clear()` los borraba todos
+                // desde acá sin ningún aviso.
+                onPressed: () => setState(() => _accesosRapidosOcultos
+                    .removeAll(AccesosRapidosCatalogo.items.map((e) => e.$1))),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   minimumSize: const Size(0, 28),
@@ -142,9 +147,9 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
               ),
               TextButton(
                 onPressed: () => setState(() {
+                  // Sin `clear()`, por lo mismo de arriba.
                   _accesosRapidosOcultos
-                    ..clear()
-                    ..addAll(AccesosRapidosCatalogo.items.map((e) => e.$1));
+                      .addAll(AccesosRapidosCatalogo.items.map((e) => e.$1));
                 }),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -249,9 +254,12 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
     setState(() {
       _puedeAbrirCaja = preset.puedeAbrirCaja;
       _puedeCerrarCaja = preset.puedeCerrarCaja;
+      // Reemplaza TODO lo de esta lista -- accesos del dashboard y menu --
+      // porque aplicar el estandar del rol es volver al punto de partida.
       _accesosRapidosOcultos
         ..clear()
-        ..addAll(preset.accesosRapidosOcultos);
+        ..addAll(preset.accesosRapidosOcultos)
+        ..addAll(preset.menuOcultos);
       _permisosEspeciales
         ..clear()
         ..addAll(preset.permisosEspeciales);

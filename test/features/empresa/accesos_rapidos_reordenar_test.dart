@@ -97,6 +97,39 @@ void main() {
     expect(find.byType(LongPressDraggable<int>), findsWidgets);
   });
 
+  testWidgets(
+      '🔴 cada id del catalogo tiene su boton en el dashboard',
+      (tester) async {
+    // La ficha de usuario ofrece un checkbox por cada id de
+    // `AccesosRapidosCatalogo.items`, pero el botón lo dibuja
+    // `_itemsCatalogo`. Estuvieron desincronizados: 21 checkboxes contra 16
+    // botones, así que el admin marcaba y desmarcaba seis accesos que no
+    // existían en ninguna pantalla.
+    //
+    // Con TODOS los permisos en true no hay filtro que valga, así que la
+    // cantidad dibujada tiene que ser exactamente la del catálogo.
+    await tester.pumpWidget(montar(permisos: const {
+      'canManageVentas': true,
+      'canViewVentas': true,
+      'canViewCotizaciones': true,
+      'canViewCaja': true,
+      'canViewReports': true,
+      'canViewStatistics': true,
+      'canManageInvoices': true,
+      'canViewProducts': true,
+      'canViewServices': true,
+      'canManageOrders': true,
+      'canManageSettings': true,
+    }));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byType(LongPressDraggable<int>).evaluate().length,
+      AccesosRapidosCatalogo.items.length,
+      reason: 'Hay ids en el catalogo sin boton, o botones sin id',
+    );
+  });
+
   testWidgets('sin permisos no dibuja nada y tampoco revienta', (tester) async {
     await tester.pumpWidget(montar());
     await tester.pumpAndSettle();

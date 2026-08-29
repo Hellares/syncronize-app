@@ -25,6 +25,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import '../../../empresa/presentation/widgets/accesos_rapidos_section.dart'
     show AccesosRapidosCatalogo;
 import '../../../../core/utils/granular_permissions_catalog.dart';
+import '../../../../core/utils/menu_drawer_catalogo.dart';
 import '../../../../core/utils/rol_presets.dart';
 import '../../domain/entities/usuario_filtros.dart';
 import '../bloc/usuario_form/usuario_form_cubit.dart';
@@ -76,6 +77,7 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
   /// el admin los abre cuando necesita ajustar permisos finos.
   bool _permisosExpanded = false;
   bool _accesosExpanded = false;
+  bool _menuExpanded = false;
 
   // DNI lookup state
   bool _isLookingUpDni = false;
@@ -695,6 +697,8 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
             _buildPermisosEspeciales(),
             const SizedBox(height: 12),
             _buildAccesosRapidosSeleccion(),
+            const SizedBox(height: 12),
+            _buildMenuDrawerSeleccion(),
           ],
         ),
       ),
@@ -853,9 +857,12 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
     setState(() {
       _puedeAbrirCaja = preset.puedeAbrirCaja;
       _puedeCerrarCaja = preset.puedeCerrarCaja;
+      // Reemplaza TODO lo de esta lista -- accesos del dashboard y menu --
+      // porque aplicar el estandar del rol es volver al punto de partida.
       _accesosRapidosOcultos
         ..clear()
-        ..addAll(preset.accesosRapidosOcultos);
+        ..addAll(preset.accesosRapidosOcultos)
+        ..addAll(preset.menuOcultos);
       _permisosEspeciales
         ..clear()
         ..addAll(preset.permisosEspeciales);
@@ -873,6 +880,103 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
   /// Sección plegable con todos los accesos rápidos. Por default todos
   /// activos (ningún oculto) — el admin desmarca los que NO quiere que
   /// el usuario vea.
+
+  /// Picker de los ítems del MENÚ lateral que verá el usuario.
+  ///
+  /// Comparte la misma lista que los accesos rápidos
+  /// (`UsuarioSedeRol.accesosRapidosOcultos`), y es a propósito: un ítem que
+  /// existe en los dos lados —Cotizaciones, Caja, Ventas— se oculta de una sola
+  /// vez en el dashboard y en el menú. Por eso algunas casillas de acá se
+  /// mueven solas al tocar las de arriba.
+  ///
+  /// Solo están las 5 secciones donde la operación varía de verdad entre
+  /// negocios. Administración y Catálogos quedaron afuera: ya las cierran los
+  /// permisos del rol, y sumarlas era ruido.
+  Widget _buildMenuDrawerSeleccion() {
+    final ids = MenuDrawerCatalogo.todosLosIds;
+    final visiblesCount =
+        ids.where((id) => !_accesosRapidosOcultos.contains(id)).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildCollapsibleHeader(
+          title: 'Opciones del menú lateral',
+          expanded: _menuExpanded,
+          itemsActivos: visiblesCount,
+          onToggle: () => setState(() => _menuExpanded = !_menuExpanded),
+        ),
+        if (_menuExpanded) ...[
+          Text(
+            'Marca las opciones del menú que verá el usuario. Si desmarcas '
+            'todas las de una sección, la sección entera desaparece. Oculta, '
+            'no bloquea: lo que impide entrar de verdad son los permisos.',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 4),
+          for (final (seccion, items) in MenuDrawerCatalogo.secciones) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      seccion.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue1.withValues(alpha: 0.7),
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                  // Atajo por sección: con 20 ítems en Inventario, tildar uno
+                  // por uno es inusable.
+                  _AtajoSeccion(
+                    texto: 'todas',
+                    onTap: () => setState(() {
+                      for (final (id, _) in items) {
+                        _accesosRapidosOcultos.remove(id);
+                      }
+                    }),
+                  ),
+                  _AtajoSeccion(
+                    texto: 'ninguna',
+                    onTap: () => setState(() {
+                      for (final (id, _) in items) {
+                        _accesosRapidosOcultos.add(id);
+                      }
+                    }),
+                  ),
+                ],
+              ),
+            ),
+            Wrap(
+              spacing: 4,
+              runSpacing: 0,
+              children: items.map((entry) {
+                final id = entry.$1;
+                final visible = !_accesosRapidosOcultos.contains(id);
+                return SizedBox(
+                  width: (MediaQuery.of(context).size.width - 56) / 2,
+                  child: _buildCompactCheckbox(entry.$2, visible, (value) {
+                    setState(() {
+                      if (value == true) {
+                        _accesosRapidosOcultos.remove(id);
+                      } else {
+                        _accesosRapidosOcultos.add(id);
+                      }
+                    });
+                  }),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
   Widget _buildAccesosRapidosSeleccion() {
     final totalAccesos = AccesosRapidosCatalogo.items.length;
     final visiblesCount = totalAccesos - _accesosRapidosOcultos.length;
@@ -926,7 +1030,13 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
             children: [
               TextButton(
                 onPressed: () =>
-                    setState(() => _accesosRapidosOcultos.clear()),
+                    // 🔴 Solo los ids del DASHBOARD. Un `clear()` a secas
+                    // borraría también lo configurado del menú lateral, que
+                    // vive en esta misma lista: el admin tocaba un botón de
+                    // accesos rápidos y le desaparecía la configuración del
+                    // menú sin ningún aviso.
+                    setState(() => _accesosRapidosOcultos
+                        .removeAll(AccesosRapidosCatalogo.items.map((e) => e.$1))),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   minimumSize: const Size(0, 28),
@@ -939,9 +1049,10 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
               ),
               TextButton(
                 onPressed: () => setState(() {
+                  // Sin `clear()`, por lo mismo de arriba: se agregan los del
+                  // dashboard y se respeta lo del menú.
                   _accesosRapidosOcultos
-                    ..clear()
-                    ..addAll(AccesosRapidosCatalogo.items.map((e) => e.$1));
+                      .addAll(AccesosRapidosCatalogo.items.map((e) => e.$1));
                 }),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1006,6 +1117,37 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
             child: const Text('Aceptar'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Atajo "todas / ninguna" de una seccion del picker de menu.
+///
+/// `GestureDetector` y no `TextButton`: van dos pegados en la misma linea del
+/// titulo de seccion, y el tap target minimo de Material los separaba tanto que
+/// empujaban el titulo.
+class _AtajoSeccion extends StatelessWidget {
+  final String texto;
+  final VoidCallback onTap;
+
+  const _AtajoSeccion({required this.texto, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Text(
+          texto,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppColors.blue1.withValues(alpha: 0.8),
+          ),
+        ),
       ),
     );
   }

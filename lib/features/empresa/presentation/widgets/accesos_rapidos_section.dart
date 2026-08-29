@@ -206,6 +206,14 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           puedeVer: (p) => p.canManageVentas,
         ),
         _AccesoItem(
+          id: AccesosRapidosCatalogo.ventaAvanzada,
+          icon: Icons.point_of_sale,
+          label: 'V. Avanzada',
+          color: AppColors.green,
+          route: '/empresa/ventas/nueva',
+          puedeVer: (p) => p.canManageVentas,
+        ),
+        _AccesoItem(
           id: AccesosRapidosCatalogo.colaPos,
           icon: Icons.receipt_long,
           label: 'Cola POS',
@@ -263,6 +271,33 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           color: Colors.brown,
           route: '/empresa/caja/historial',
           puedeVer: (p) => p.canViewCaja,
+        ),
+        _AccesoItem(
+          id: AccesosRapidosCatalogo.tesoreria,
+          icon: Icons.savings,
+          label: 'Tesorería',
+          color: Colors.teal,
+          route: '/empresa/tesoreria',
+          // Consolida el dinero de TODAS las sedes: es una vista de gestión,
+          // no de mostrador.
+          puedeVer: (p) => p.canViewReports || p.canViewStatistics,
+        ),
+        _AccesoItem(
+          id: AccesosRapidosCatalogo.cajaChica,
+          icon: Icons.payments,
+          label: 'Caja Chica',
+          color: Colors.deepPurple,
+          route: '/empresa/caja-chica',
+          puedeVer: (p) => p.canViewCaja,
+        ),
+        _AccesoItem(
+          id: AccesosRapidosCatalogo.cuentasPorCobrar,
+          icon: Icons.request_quote,
+          label: 'Por Cobrar',
+          color: Colors.redAccent,
+          route: '/empresa/cuentas-por-cobrar',
+          // Es la deuda de los clientes: la misma llave que ver ventas.
+          puedeVer: (p) => p.canViewVentas,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.finanzas,
@@ -323,6 +358,23 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           color: Colors.deepPurple,
           route: '/empresa/flujo-documentos',
           puedeVer: (p) => p.canViewVentas,
+        ),
+        _AccesoItem(
+          id: AccesosRapidosCatalogo.guiasRemision,
+          icon: Icons.local_shipping,
+          label: 'Guías Remisión',
+          color: Colors.indigo,
+          route: '/empresa/guias-remision',
+          // La GRE es un documento electrónico: misma llave que facturación.
+          puedeVer: (p) => p.canManageInvoices,
+        ),
+        _AccesoItem(
+          id: AccesosRapidosCatalogo.config,
+          icon: Icons.settings,
+          label: 'Configuración',
+          color: Colors.blueGrey,
+          route: '/empresa/configuracion',
+          puedeVer: (p) => p.canManageSettings,
         ),
       ];
   }
