@@ -825,7 +825,11 @@ class _VentaPOSPageState extends State<VentaPOSPage> {
     // Primero pedir autorización del supervisor
     final auth = await showAutorizacionDialog(
       context,
-      operacion: 'DESCUENTO',
+      // Mismo id que el resto de las pantallas que piden autorizar un
+      // descuento. Antes acá decía 'DESCUENTO' y en las otras
+      // 'APLICAR_DESCUENTO': eran la misma operación con dos nombres, y
+      // auditar "quién autorizó descuentos" dejaba afuera la mitad.
+      operacion: 'APLICAR_DESCUENTO',
       titulo: 'Autorizar descuento',
       descripcion: 'Un supervisor debe autorizar el descuento',
     );
