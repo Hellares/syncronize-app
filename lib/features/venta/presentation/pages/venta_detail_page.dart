@@ -27,6 +27,7 @@ import '../../../auth/presentation/widgets/custom_text.dart'
     show CustomText, FieldType;
 import '../../../../core/widgets/producto_sede_selector/producto_sede_search_cubit.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_cubit.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../empresa/presentation/bloc/configuracion_empresa/configuracion_empresa_state.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
@@ -4041,52 +4042,89 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
   }
 
   void _showAnularVentaDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Anular venta',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        content: const Text(
-          'Se reversara el stock y la venta quedara anulada. Esta accion no se puede deshacer. ¿Desea continuar?',
-          style: TextStyle(fontSize: 13),
+    StyledDialog.show<void>(
+      context,
+      accentColor: Colors.red.shade700,
+      backgroundColor: Colors.white,
+      icon: Icons.cancel_outlined,
+      titulo: 'Anular venta',
+      content: const [
+        Text(
+          'Se reversara el stock y la venta quedara anulada. Esta accion no '
+          'se puede deshacer. ¿Desea continuar?',
+          style: TextStyle(fontSize: 12),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
+      ],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Cancelar',
+            backgroundColor: Colors.grey.shade200,
+            textColor: Colors.black87,
+            onPressed: () => Navigator.pop(context),
           ),
-          ElevatedButton(
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: CustomButton(
+            text: 'Anular',
+            backgroundColor: Colors.red.shade700,
+            textColor: Colors.white,
             onPressed: () {
-              Navigator.pop(ctx);
+              Navigator.pop(context);
               _requestAutorizacionAnular(context);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Anular'),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Future<void> _requestAutorizacionAnular(BuildContext ctx) async {
-    final result = await showAutorizacionDialog(
-      ctx,
-      operacion: 'ANULAR_VENTA',
-      titulo: 'Autorizacion para anular',
-      descripcion: 'Un administrador debe autorizar la anulacion de esta venta',
-    );
+  /// El usuario logueado es administrador de la empresa.
+  ///
+  /// 🔴 Se mira el ROL (`EMPRESA_ADMIN` / `SUPER_ADMIN`), no
+  /// `permissions.canManageVentas`: ese permiso lo tiene también el vendedor
+  /// —lo necesita para crear y confirmar ventas—, así que gatear con él dejaría
+  /// a todo el mundo sin autorización y el control dejaría de existir.
+  bool _esAdminEmpresa(BuildContext context) {
+    final estado = context.read<EmpresaContextCubit>().state;
+    return estado is EmpresaContextLoaded && estado.context.esAdminEmpresa;
+  }
 
-    if (!mounted || result == null) return;
+  Future<void> _requestAutorizacionAnular(BuildContext ctx) async {
+    final String autorizadoPorId;
+    final String autorizadoPorNombre;
+
+    if (_esAdminEmpresa(ctx)) {
+      // El admin se autoriza a sí mismo: pedirle usuario y contraseña sería
+      // hacerlo identificarse de nuevo en su propia sesión. El aviso previo ya
+      // es la confirmación. Queda igual de trazable: la venta guarda
+      // `anuladoPorId` y `autorizadoPorId`, y que coincidan es justamente la
+      // marca de que fue una anulación directa del administrador.
+      final auth = ctx.read<AuthBloc>().state;
+      if (auth is! Authenticated) return;
+      autorizadoPorId = auth.user.id;
+      autorizadoPorNombre = auth.user.nombreCompleto;
+    } else {
+      final result = await showAutorizacionDialog(
+        ctx,
+        operacion: 'ANULAR_VENTA',
+        titulo: 'Autorizacion para anular',
+        descripcion:
+            'Un administrador debe autorizar la anulacion de esta venta',
+      );
+      if (!mounted || result == null) return;
+      autorizadoPorId = result.autorizadoPorId;
+      autorizadoPorNombre = result.autorizadoPorNombre;
+    }
+
+    if (!mounted) return;
 
     context.read<VentaFormCubit>().anularVenta(
       _venta!.id,
-      autorizadoPorId: result.autorizadoPorId,
-      motivo: result.autorizadoPorNombre.isNotEmpty
-          ? 'Anulacion de venta - Autorizado por ${result.autorizadoPorNombre}'
+      autorizadoPorId: autorizadoPorId,
+      motivo: autorizadoPorNombre.isNotEmpty
+          ? 'Anulacion de venta - Autorizado por $autorizadoPorNombre'
           : 'Anulacion de venta',
     );
   }
