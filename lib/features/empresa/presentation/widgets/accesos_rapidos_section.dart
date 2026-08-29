@@ -749,6 +749,10 @@ class _CasillaArrastrable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final card = _AccesoRapidoCard(
+      // El `Stack` del modo edición envuelve la card sin cambiarle el tamaño,
+      // y eso se rompe en silencio: la card sigue dibujándose, más angosta.
+      // La clave le da al test un punto donde medirla.
+      key: ValueKey('acceso-card-${item.id}'),
       icon: item.icon,
       label: item.label,
       color: item.color,
@@ -760,6 +764,11 @@ class _CasillaArrastrable extends StatelessWidget {
     // sigue al dedo sería un botón imposible de tocar.
     final cardEnLaGrilla = modoEdicion
         ? Stack(
+            // 🔴 `passthrough` y no el `loose` de fábrica: loose afloja las
+            // restricciones TIGHT que baja el `Expanded` de la fila, y la card
+            // —que no declara ancho— se encoge a su contenido. El ✕ terminaba
+            // deformando la grilla en vez de dibujarse encima.
+            fit: StackFit.passthrough,
             children: [
               card,
               Positioned(
@@ -852,6 +861,7 @@ class _AccesoRapidoCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const _AccesoRapidoCard({
+    super.key,
     required this.icon,
     required this.label,
     required this.color,

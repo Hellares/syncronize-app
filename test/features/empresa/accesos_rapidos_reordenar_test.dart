@@ -211,6 +211,41 @@ void main() {
         findsNWidgets(find.byType(LongPressDraggable<int>).evaluate().length));
   });
 
+  testWidgets('🔴 el ✕ se dibuja ENCIMA: las cards no cambian de tamaño',
+      (tester) async {
+    // El ✕ vivía en un Stack con el `fit` de fábrica (loose), que afloja las
+    // restricciones tight que baja el Expanded de la fila. La card no declara
+    // ancho, así que se encogía a su contenido y la grilla entera se deformaba
+    // al entrar en modo edición.
+    // 🔴 Se mide la CARD, no el `LongPressDraggable`: el Stack recibe
+    // restricciones tight y conserva el ancho, así que medirlo a él no ve
+    // nada. La que se achica es la card de adentro.
+    await tester.pumpWidget(montar(permisos: cuatroAccesos));
+    await tester.pumpAndSettle();
+
+    final lasCards = find.byWidgetPredicate((w) {
+      final k = w.key;
+      return k is ValueKey<String> && k.value.startsWith('acceso-card-');
+    });
+
+    List<Size> medirTodas() => [
+          for (var i = 0; i < lasCards.evaluate().length; i++)
+            tester.getSize(lasCards.at(i)),
+        ];
+
+    final antes = medirTodas();
+    expect(antes, isNotEmpty);
+
+    await tester.longPress(find.byType(LongPressDraggable<int>).first);
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.close), findsWidgets);
+    final despues = medirTodas();
+
+    expect(despues, antes,
+        reason: 'el control de edición no puede ocupar espacio propio');
+  });
+
   testWidgets('tocar el ✕ esconde la card y lo persiste', (tester) async {
     await tester.pumpWidget(montar(permisos: cuatroAccesos));
     await tester.pumpAndSettle();
