@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../domain/entities/empresa_permissions.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
@@ -112,6 +113,19 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
   /// pisarle el del otro.
   String? _clavePrefs;
 
+  /// Los accesos que ESTE usuario decidió no ver en el dashboard.
+  ///
+  /// 🔴 Es una preferencia LOCAL y sirve solo para descongestionar la grilla:
+  /// no toca `accesosRapidosOcultos` (lo que el admin configura por usuario) ni
+  /// el drawer, que sigue mostrando todo lo que el rol permite. Ocultar acá no
+  /// es quitar acceso: la pantalla sigue estando a un menú de distancia.
+  Set<String> _ocultos = <String>{};
+  String? _claveOcultos;
+
+  /// Con el modo edición prendido cada card muestra su ✕. Se enciende con el
+  /// mismo mantenido que inicia el arrastre, así el gesto es uno solo.
+  bool _modoEdicion = false;
+
   bool _yaCargue = false;
 
   /// Índice que se está arrastrando, para atenuar su casilla de origen.
@@ -124,25 +138,113 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
     // leerlos recién está listo en este punto.
     if (_yaCargue) return;
     _yaCargue = true;
-    _cargarOrden();
+    _cargarPreferencias();
   }
 
-  Future<void> _cargarOrden() async {
+  Future<void> _cargarPreferencias() async {
     final empresa = context.read<EmpresaContextCubit>().state;
     final auth = context.read<AuthBloc>().state;
     if (empresa is! EmpresaContextLoaded || auth is! Authenticated) return;
-    final clave =
-        'accesos_rapidos_orden:${empresa.context.empresa.id}:${auth.user.id}';
+    final sufijo = '${empresa.context.empresa.id}:${auth.user.id}';
+    final clave = 'accesos_rapidos_orden:$sufijo';
+    final claveOcultos = 'accesos_rapidos_ocultos:$sufijo';
 
     final prefs = await SharedPreferences.getInstance();
     final guardado = prefs.getStringList(clave);
+    final ocultos = prefs.getStringList(claveOcultos);
     if (!mounted) return;
     setState(() {
-      // La clave se guarda igual aunque no haya nada leído: es la que se va a
-      // usar para grabar el primer reordenamiento.
+      // Las claves se guardan igual aunque no haya nada leído: son las que se
+      // van a usar para grabar el primer cambio.
       _clavePrefs = clave;
+      _claveOcultos = claveOcultos;
       _orden = guardado;
+      _ocultos = ocultos?.toSet() ?? <String>{};
     });
+  }
+
+  Future<void> _guardarOcultos(Set<String> ocultos) async {
+    setState(() => _ocultos = ocultos);
+    final clave = _claveOcultos;
+    if (clave == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(clave, ocultos.toList());
+  }
+
+  void _ocultar(String id) {
+    HapticFeedback.selectionClick();
+    _guardarOcultos({..._ocultos, id});
+  }
+
+  void _mostrar(Iterable<String> ids) =>
+      _guardarOcultos({..._ocultos}..removeAll(ids));
+
+  /// Lista los accesos que el usuario escondió, para poder devolverlos.
+  ///
+  /// Es la contracara obligatoria del ✕: sin esta puerta, ocultar sería un
+  /// viaje de ida y la única salida quedaría en borrar los datos de la app.
+  Future<void> _dialogoOcultos(
+    BuildContext context,
+    List<_AccesoItem> escondidos,
+  ) async {
+    await StyledDialog.show<void>(
+      context,
+      accentColor: AppColors.blue1,
+      icon: Icons.visibility_off_outlined,
+      titulo: 'Accesos ocultos',
+      subtitulo: 'Tocá uno para volver a mostrarlo en el dashboard',
+      content: [
+        for (final it in escondidos)
+          InkWell(
+            onTap: () {
+              _mostrar([it.id]);
+              Navigator.of(context).pop();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: it.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(it.icon, size: 16, color: it.color),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      it.label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.add_circle_outline,
+                      size: 16, color: AppColors.blue1),
+                ],
+              ),
+            ),
+          ),
+      ],
+      actions: [
+        if (escondidos.length > 1)
+          TextButton(
+            onPressed: () {
+              _mostrar(escondidos.map((it) => it.id));
+              Navigator.of(context).pop();
+            },
+            child: const Text('Mostrar todos',
+                style: TextStyle(fontSize: 11)),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cerrar', style: TextStyle(fontSize: 11)),
+        ),
+      ],
+    );
   }
 
   /// Aplica el orden guardado sobre los accesos que el usuario puede ver.
@@ -389,17 +491,24 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
         }
         final permisos = state.context.permissions;
         final ocultos = permisos.accesosRapidosOcultos.toSet();
-        final visibles = _itemsCatalogo(widget.colaPosCount, permisos)
+        final permitidos = _itemsCatalogo(widget.colaPosCount, permisos)
             // Filtro 1: permiso del rol (vendedor no ve productos, etc.).
             .where((it) => it.puedeVer(permisos))
             // Filtro 2: override del admin por usuario (oculto explícito).
             .where((it) => !ocultos.contains(it.id))
             .toList();
 
-        if (visibles.isEmpty) return const SizedBox.shrink();
+        if (permitidos.isEmpty) return const SizedBox.shrink();
 
-        // Filtro 3: el orden que el propio usuario eligió arrastrando.
-        final items = _ordenar(visibles);
+        // Filtro 3: lo que el propio usuario escondió para no abrumarse.
+        // Se separa en vez de descartarse: hace falta para poder devolverlo.
+        final escondidos =
+            permitidos.where((it) => _ocultos.contains(it.id)).toList();
+
+        // Filtro 4: el orden que el propio usuario eligió arrastrando.
+        final items = _ordenar(
+          permitidos.where((it) => !_ocultos.contains(it.id)).toList(),
+        );
 
         // Reorganización en filas de máx 5 — densidad consistente con el
         // diseño previo. Los huecos de la última fila se compensan con
@@ -422,15 +531,107 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
                   desde: filas[f],
                   itemsPorFila: porFila,
                   arrastrando: _arrastrando,
-                  onArrastreInicia: (i) => setState(() => _arrastrando = i),
+                  modoEdicion: _modoEdicion,
+                  onArrastreInicia: (i) => setState(() {
+                    _arrastrando = i;
+                    // El mantenido hace las dos cosas: engancha la card para
+                    // arrastrarla Y destapa los ✕. Si el dedo se suelta sin
+                    // moverse, lo que queda es el modo edición.
+                    _modoEdicion = true;
+                  }),
                   onArrastreTermina: () => setState(() => _arrastrando = null),
                   onSoltar: (desde, hasta) => _mover(items, desde, hasta),
+                  onOcultar: _ocultar,
                 ),
               ],
+              if (_modoEdicion || escondidos.isNotEmpty)
+                _PieDeAccesos(
+                  escondidos: escondidos.length,
+                  modoEdicion: _modoEdicion,
+                  onListo: () => setState(() => _modoEdicion = false),
+                  onVerOcultos: () => _dialogoOcultos(context, escondidos),
+                ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// Pie de la card de accesos: el modo edición y la puerta de vuelta.
+///
+/// Aparece solo cuando hace falta —en edición, o cuando hay algo escondido—
+/// porque un renglón permanente sería justo el tipo de ruido que esta función
+/// vino a sacar del dashboard.
+class _PieDeAccesos extends StatelessWidget {
+  final int escondidos;
+  final bool modoEdicion;
+  final VoidCallback onListo;
+  final VoidCallback onVerOcultos;
+
+  const _PieDeAccesos({
+    required this.escondidos,
+    required this.modoEdicion,
+    required this.onListo,
+    required this.onVerOcultos,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (escondidos > 0)
+            InkWell(
+              onTap: onVerOcultos,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.visibility_off_outlined,
+                        size: 12, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text(
+                      escondidos == 1
+                          ? '1 acceso oculto'
+                          : '$escondidos accesos ocultos',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (modoEdicion) ...[
+            if (escondidos > 0) const SizedBox(width: 8),
+            InkWell(
+              onTap: onListo,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Text(
+                  'Listo',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue1,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -448,18 +649,22 @@ class _Fila extends StatelessWidget {
   final int desde;
   final int itemsPorFila;
   final int? arrastrando;
+  final bool modoEdicion;
   final void Function(int indice) onArrastreInicia;
   final VoidCallback onArrastreTermina;
   final void Function(int desde, int hasta) onSoltar;
+  final void Function(String id) onOcultar;
 
   const _Fila({
     required this.items,
     required this.desde,
     required this.itemsPorFila,
     required this.arrastrando,
+    required this.modoEdicion,
     required this.onArrastreInicia,
     required this.onArrastreTermina,
     required this.onSoltar,
+    required this.onOcultar,
   });
 
   @override
@@ -491,9 +696,11 @@ class _Fila extends StatelessWidget {
                     indice: i,
                     anchoCard: anchoCard,
                     seEstaArrastrando: arrastrando == i,
+                    modoEdicion: modoEdicion,
                     onArrastreInicia: onArrastreInicia,
                     onArrastreTermina: onArrastreTermina,
                     onSoltar: onSoltar,
+                    onOcultar: onOcultar,
                   ),
                 ),
               ),
@@ -521,18 +728,22 @@ class _CasillaArrastrable extends StatelessWidget {
   final int indice;
   final double anchoCard;
   final bool seEstaArrastrando;
+  final bool modoEdicion;
   final void Function(int indice) onArrastreInicia;
   final VoidCallback onArrastreTermina;
   final void Function(int desde, int hasta) onSoltar;
+  final void Function(String id) onOcultar;
 
   const _CasillaArrastrable({
     required this.item,
     required this.indice,
     required this.anchoCard,
     required this.seEstaArrastrando,
+    required this.modoEdicion,
     required this.onArrastreInicia,
     required this.onArrastreTermina,
     required this.onSoltar,
+    required this.onOcultar,
   });
 
   @override
@@ -544,6 +755,49 @@ class _CasillaArrastrable extends StatelessWidget {
       badgeCount: item.badge,
       onTap: () => context.push(item.route),
     );
+
+    // El ✕ va solo sobre la card que queda en su lugar: en el fantasma que
+    // sigue al dedo sería un botón imposible de tocar.
+    final cardEnLaGrilla = modoEdicion
+        ? Stack(
+            children: [
+              card,
+              Positioned(
+                top: 0,
+                right: 0,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onOcultar(item.id),
+                  // El área tocable es más grande que el círculo dibujado: en
+                  // una grilla de 5 columnas el ✕ tiene que ser chico para no
+                  // tapar la card, pero un blanco de 14 px no se acierta.
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.topRight,
+                    padding: const EdgeInsets.only(top: 2, right: 2),
+                    child: Container(
+                      width: 15,
+                      height: 15,
+                      decoration: BoxDecoration(
+                        color: AppColors.red,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.close,
+                          size: 10, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          )
+        : card;
 
     return DragTarget<int>(
       onWillAcceptWithDetails: (detalles) => detalles.data != indice,
@@ -581,7 +835,7 @@ class _CasillaArrastrable extends StatelessWidget {
             child: AnimatedOpacity(
               opacity: seEstaArrastrando ? 0.25 : 1,
               duration: const Duration(milliseconds: 120),
-              child: card,
+              child: cardEnLaGrilla,
             ),
           ),
         );

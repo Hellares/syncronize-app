@@ -180,6 +180,120 @@ void main() {
       reason: 'El reordenamiento tiene que persistir',
     );
   });
+
+  // ── Ocultar accesos (preferencia del propio usuario) ──────────────────
+  //
+  // Un admin ve 21 botones y eso abruma. Puede esconder los que no usa, PERO
+  // esconder no es sacar acceso: el drawer los sigue mostrando según su rol, y
+  // por eso esto vive en SharedPreferences y no toca `accesosRapidosOcultos`,
+  // que es lo que el admin configura para OTROS usuarios.
+
+  const cuatroAccesos = {
+    'canViewVentas': true,
+    'canManageVentas': true,
+    'canViewProducts': true,
+    'canViewCotizaciones': true,
+  };
+
+  testWidgets('el mantenido destapa los ✕ sin tener que arrastrar',
+      (tester) async {
+    await tester.pumpWidget(montar(permisos: cuatroAccesos));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.close), findsNothing,
+        reason: 'en reposo la grilla no muestra controles de edición');
+
+    await tester.longPress(find.byType(LongPressDraggable<int>).first);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byIcon(Icons.close),
+        findsNWidgets(find.byType(LongPressDraggable<int>).evaluate().length));
+  });
+
+  testWidgets('tocar el ✕ esconde la card y lo persiste', (tester) async {
+    await tester.pumpWidget(montar(permisos: cuatroAccesos));
+    await tester.pumpAndSettle();
+
+    final antes = find.byType(LongPressDraggable<int>).evaluate().length;
+
+    await tester.longPress(find.byType(LongPressDraggable<int>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close).first);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(LongPressDraggable<int>).evaluate().length, antes - 1);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getStringList('accesos_rapidos_ocultos:emp_1:user_1'),
+      hasLength(1),
+      reason: 'sin persistir, el acceso vuelve al reabrir el dashboard',
+    );
+  });
+
+  testWidgets('🔴 esconder el ÚLTIMO acceso no deja la sección sin salida',
+      (tester) async {
+    // El caso que se lleva puesta la función entera: la sección se dibujaba
+    // solo si había algo visible, así que esconder todo la hacía desaparecer
+    // — y con ella el único lugar desde donde volver a mostrarlos. Quedaba
+    // recuperable únicamente borrando los datos de la app.
+    await tester.pumpWidget(
+        montar(permisos: const {'canViewCotizaciones': true}));
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.byType(LongPressDraggable<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(LongPressDraggable<int>), findsNothing);
+    expect(find.text('1 acceso oculto'), findsOneWidget,
+        reason: 'tiene que quedar la puerta para devolverlos');
+  });
+
+  testWidgets('lo escondido se puede devolver desde el diálogo',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'accesos_rapidos_ocultos:emp_1:user_1': <String>[
+        AccesosRapidosCatalogo.cotizaciones,
+      ],
+    });
+    await tester.pumpWidget(montar(permisos: cuatroAccesos));
+    await tester.pumpAndSettle();
+
+    final conOculto = find.byType(LongPressDraggable<int>).evaluate().length;
+    expect(find.text('1 acceso oculto'), findsOneWidget);
+
+    await tester.tap(find.text('1 acceso oculto'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cotizaciones'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byType(LongPressDraggable<int>).evaluate().length,
+      conOculto + 1,
+      reason: 'volvió a la grilla',
+    );
+    expect(find.text('1 acceso oculto'), findsNothing);
+  });
+
+  testWidgets('un id escondido que ya no existe se ignora', (tester) async {
+    // Mismo criterio que el orden guardado: lo persistido no es una lista
+    // blanca. Un id de una pantalla que sacamos del catálogo no puede dejar
+    // el pie contando accesos fantasma.
+    SharedPreferences.setMockInitialValues({
+      'accesos_rapidos_ocultos:emp_1:user_1': <String>['pantalla-que-ya-no-esta'],
+    });
+    await tester.pumpWidget(montar(permisos: cuatroAccesos));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('oculto'), findsNothing);
+  });
 }
 
 class _FakeEmpresaContextCubit extends EmpresaContextCubit {
