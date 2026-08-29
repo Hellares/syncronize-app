@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/granular_permissions_catalog.dart';
+import '../../../../core/utils/menu_drawer_catalogo.dart';
+import '../../../empresa/presentation/widgets/accesos_rapidos_section.dart'
+    show AccesosRapidosCatalogo;
 import '../../data/datasources/usuario_remote_datasource.dart';
 
 /// "Qué puede hacer este usuario, y por qué."
@@ -159,7 +163,8 @@ class _PermisosSheetState extends State<_PermisosSheet> {
         if (especiales.isEmpty)
           _vacio('Nada: todo le viene de su rol')
         else
-          ...especiales.map((id) => _filaSimple(Icons.vpn_key, id)),
+          ...especiales.map(
+              (id) => _filaSimple(Icons.vpn_key, _etiquetaPermiso(id))),
 
         const SizedBox(height: 12),
         _titulo('Qué NO ve (aunque pueda)'),
@@ -167,10 +172,13 @@ class _PermisosSheetState extends State<_PermisosSheet> {
           _vacio('Nada oculto: ve todo lo que su rol permite')
         else ...[
           if (ocultosDash.isNotEmpty)
-            _filaSimple(Icons.dashboard_outlined,
-                'Dashboard: ${ocultosDash.join(', ')}'),
+            _filaSimple(
+                Icons.dashboard_outlined,
+                'Dashboard: '
+                '${ocultosDash.map(_etiquetaOculto).join(', ')}'),
           if (ocultosMenu.isNotEmpty)
-            _filaSimple(Icons.menu_open, 'Menú: ${ocultosMenu.join(', ')}'),
+            _filaSimple(Icons.menu_open,
+                'Menú: ${ocultosMenu.map(_etiquetaOculto).join(', ')}'),
         ],
 
         const SizedBox(height: 12),
@@ -281,4 +289,30 @@ class _PermisosSheetState extends State<_PermisosSheet> {
       ),
     );
   }
+
+  /// Etiqueta legible de un permiso especial. Si el id no está en el catálogo
+  /// se muestra crudo a propósito: significa que quedó configuración de un
+  /// permiso que ya no existe, y esconderlo detrás de un guion lo volvería
+  /// invisible justo para quien tiene que limpiarlo.
+  String _etiquetaPermiso(String id) {
+    for (final p in kGranularPermissionsCatalog) {
+      if (p.id == id) return p.label;
+    }
+    return id;
+  }
+
+  /// Ídem para los elementos ocultos. Busca en los dos catálogos porque la
+  /// lista mezcla botones del dashboard e ítems del menú.
+  String _etiquetaOculto(String id) {
+    for (final (idCat, label) in AccesosRapidosCatalogo.items) {
+      if (idCat == id) return label;
+    }
+    for (final (_, items) in MenuDrawerCatalogo.secciones) {
+      for (final (idCat, label) in items) {
+        if (idCat == id) return label;
+      }
+    }
+    return id;
+  }
+
 }
