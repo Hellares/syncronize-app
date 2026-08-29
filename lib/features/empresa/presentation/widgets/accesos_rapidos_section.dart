@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_container.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../domain/entities/empresa_permissions.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
@@ -85,13 +88,100 @@ class AccesosRapidosCatalogo {
   ];
 }
 
-class AccesosRapidosSection extends StatelessWidget {
+class AccesosRapidosSection extends StatefulWidget {
   final int colaPosCount;
 
   const AccesosRapidosSection({
     super.key,
     this.colaPosCount = 0,
   });
+
+  @override
+  State<AccesosRapidosSection> createState() => _AccesosRapidosSectionState();
+}
+
+class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
+  /// El orden que eligió el usuario arrastrando, como lista de ids.
+  ///
+  /// Null = todavía no se leyó de disco, o nunca ordenó nada: se usa el orden
+  /// del catálogo tal cual.
+  List<String>? _orden;
+
+  /// Clave de preferencias, por EMPRESA y por USUARIO: en un mostrador el
+  /// mismo teléfono lo usan varios cajeros, y el orden de uno no tiene por qué
+  /// pisarle el del otro.
+  String? _clavePrefs;
+
+  bool _yaCargue = false;
+
+  /// Índice que se está arrastrando, para atenuar su casilla de origen.
+  int? _arrastrando;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Acá y no en initState: la clave sale de los blocs, y el contexto para
+    // leerlos recién está listo en este punto.
+    if (_yaCargue) return;
+    _yaCargue = true;
+    _cargarOrden();
+  }
+
+  Future<void> _cargarOrden() async {
+    final empresa = context.read<EmpresaContextCubit>().state;
+    final auth = context.read<AuthBloc>().state;
+    if (empresa is! EmpresaContextLoaded || auth is! Authenticated) return;
+    final clave =
+        'accesos_rapidos_orden:${empresa.context.empresa.id}:${auth.user.id}';
+
+    final prefs = await SharedPreferences.getInstance();
+    final guardado = prefs.getStringList(clave);
+    if (!mounted) return;
+    setState(() {
+      // La clave se guarda igual aunque no haya nada leído: es la que se va a
+      // usar para grabar el primer reordenamiento.
+      _clavePrefs = clave;
+      _orden = guardado;
+    });
+  }
+
+  /// Aplica el orden guardado sobre los accesos que el usuario puede ver.
+  ///
+  /// 🔴 El orden guardado NO es una lista blanca. Un id guardado que ya no
+  /// existe se ignora, y un acceso visible que no figura en lo guardado va al
+  /// FINAL: así, cuando agreguemos una pantalla nueva al catálogo, aparece
+  /// igual en vez de quedar invisible para todo el que ya había ordenado su
+  /// dashboard.
+  List<_AccesoItem> _ordenar(List<_AccesoItem> visibles) {
+    final orden = _orden;
+    if (orden == null || orden.isEmpty) return visibles;
+
+    final porId = {for (final it in visibles) it.id: it};
+    final ordenados = <_AccesoItem>[];
+    for (final id in orden) {
+      final item = porId.remove(id);
+      if (item != null) ordenados.add(item);
+    }
+    // `where` sobre la lista original conserva el orden del catálogo entre los
+    // que sobraron.
+    ordenados.addAll(visibles.where((it) => porId.containsKey(it.id)));
+    return ordenados;
+  }
+
+  Future<void> _mover(List<_AccesoItem> actuales, int desde, int hasta) async {
+    if (desde == hasta || desde < 0 || desde >= actuales.length) return;
+
+    final ids = actuales.map((it) => it.id).toList();
+    final id = ids.removeAt(desde);
+    ids.insert(hasta.clamp(0, ids.length), id);
+
+    setState(() => _orden = ids);
+
+    final clave = _clavePrefs;
+    if (clave == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(clave, ids);
+  }
 
   /// Items disponibles. Se filtran en build según permisos del rol del
   /// usuario en la empresa actual. Cuando agregues nuevas pantallas,
@@ -247,7 +337,7 @@ class AccesosRapidosSection extends StatelessWidget {
         }
         final permisos = state.context.permissions;
         final ocultos = permisos.accesosRapidosOcultos.toSet();
-        final visibles = _itemsCatalogo(colaPosCount, permisos)
+        final visibles = _itemsCatalogo(widget.colaPosCount, permisos)
             // Filtro 1: permiso del rol (vendedor no ve productos, etc.).
             .where((it) => it.puedeVer(permisos))
             // Filtro 2: override del admin por usuario (oculto explícito).
@@ -256,16 +346,16 @@ class AccesosRapidosSection extends StatelessWidget {
 
         if (visibles.isEmpty) return const SizedBox.shrink();
 
+        // Filtro 3: el orden que el propio usuario eligió arrastrando.
+        final items = _ordenar(visibles);
+
         // Reorganización en filas de máx 5 — densidad consistente con el
         // diseño previo. Los huecos de la última fila se compensan con
         // `Expanded` para mantener el ancho de las cards.
         const porFila = 5;
-        final filas = <List<_AccesoItem>>[];
-        for (var i = 0; i < visibles.length; i += porFila) {
-          filas.add(visibles.sublist(
-            i,
-            (i + porFila).clamp(0, visibles.length),
-          ));
+        final filas = <int>[];
+        for (var i = 0; i < items.length; i += porFila) {
+          filas.add(i);
         }
 
         return GradientContainer(
@@ -273,9 +363,17 @@ class AccesosRapidosSection extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           child: Column(
             children: [
-              for (var idx = 0; idx < filas.length; idx++) ...[
-                if (idx > 0) const SizedBox(height: 6),
-                _Fila(items: filas[idx], itemsPorFila: porFila),
+              for (var f = 0; f < filas.length; f++) ...[
+                if (f > 0) const SizedBox(height: 6),
+                _Fila(
+                  items: items,
+                  desde: filas[f],
+                  itemsPorFila: porFila,
+                  arrastrando: _arrastrando,
+                  onArrastreInicia: (i) => setState(() => _arrastrando = i),
+                  onArrastreTermina: () => setState(() => _arrastrando = null),
+                  onSoltar: (desde, hasta) => _mover(items, desde, hasta),
+                ),
               ],
             ],
           ),
@@ -289,33 +387,153 @@ class AccesosRapidosSection extends StatelessWidget {
 /// los `SizedBox` invisibles ocupan el ancho restante para que las cards
 /// no se estiren y mantengan el tamaño visual consistente.
 class _Fila extends StatelessWidget {
+  /// La lista COMPLETA de accesos, no solo los de esta fila: el índice que
+  /// viaja en el arrastre es global, así que soltar una card en otra fila
+  /// tiene que poder resolverse igual.
   final List<_AccesoItem> items;
-  final int itemsPorFila;
 
-  const _Fila({required this.items, required this.itemsPorFila});
+  /// Índice global del primer item de esta fila.
+  final int desde;
+  final int itemsPorFila;
+  final int? arrastrando;
+  final void Function(int indice) onArrastreInicia;
+  final VoidCallback onArrastreTermina;
+  final void Function(int desde, int hasta) onSoltar;
+
+  const _Fila({
+    required this.items,
+    required this.desde,
+    required this.itemsPorFila,
+    required this.arrastrando,
+    required this.onArrastreInicia,
+    required this.onArrastreTermina,
+    required this.onSoltar,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final item in items)
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: _AccesoRapidoCard(
-                icon: item.icon,
-                label: item.label,
-                color: item.color,
-                badgeCount: item.badge,
-                onTap: () => context.push(item.route),
+    final hasta = (desde + itemsPorFila).clamp(0, items.length);
+    final enLaFila = hasta - desde;
+
+    // LayoutBuilder para saber cuánto mide una card: el "fantasma" que sigue
+    // al dedo se dibuja FUERA del layout, así que no hereda el ancho del
+    // `Expanded` y hay que dárselo a mano.
+    return LayoutBuilder(
+      builder: (context, restricciones) {
+        // Si alguna vez esta sección cae en un contexto sin ancho acotado (un
+        // scroll horizontal, una Row sin Expanded), el ancho sale infinito y
+        // el SizedBox del fantasma revienta al arrastrar. Un ancho fijo de
+        // respaldo mantiene la card usable en vez de tumbar la pantalla.
+        final anchoDisponible = restricciones.maxWidth.isFinite
+            ? restricciones.maxWidth
+            : itemsPorFila * 78.0;
+        final anchoCard = anchoDisponible / itemsPorFila - 6;
+        return Row(
+          children: [
+            for (var i = desde; i < hasta; i++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: _CasillaArrastrable(
+                    item: items[i],
+                    indice: i,
+                    anchoCard: anchoCard,
+                    seEstaArrastrando: arrastrando == i,
+                    onArrastreInicia: onArrastreInicia,
+                    onArrastreTermina: onArrastreTermina,
+                    onSoltar: onSoltar,
+                  ),
+                ),
               ),
+            // Espaciadores invisibles para que la última fila incompleta no
+            // estire las cards visibles.
+            for (var i = enLaFila; i < itemsPorFila; i++)
+              const Expanded(child: SizedBox.shrink()),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Una card de acceso rápido que se puede tomar con un mantenido y soltar
+/// sobre otra para intercambiar el orden.
+///
+/// Es `LongPressDraggable` y no un `ReorderableListView` porque esto es una
+/// GRILLA de 5 por fila: el reorderable de Flutter solo sabe de listas de una
+/// sola columna. Y el mantenido, además de ser lo que pidió el usuario, es lo
+/// que deja el tap simple libre para abrir la pantalla — que es lo que la card
+/// hace el 99 % de las veces.
+class _CasillaArrastrable extends StatelessWidget {
+  final _AccesoItem item;
+  final int indice;
+  final double anchoCard;
+  final bool seEstaArrastrando;
+  final void Function(int indice) onArrastreInicia;
+  final VoidCallback onArrastreTermina;
+  final void Function(int desde, int hasta) onSoltar;
+
+  const _CasillaArrastrable({
+    required this.item,
+    required this.indice,
+    required this.anchoCard,
+    required this.seEstaArrastrando,
+    required this.onArrastreInicia,
+    required this.onArrastreTermina,
+    required this.onSoltar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final card = _AccesoRapidoCard(
+      icon: item.icon,
+      label: item.label,
+      color: item.color,
+      badgeCount: item.badge,
+      onTap: () => context.push(item.route),
+    );
+
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (detalles) => detalles.data != indice,
+      onAcceptWithDetails: (detalles) => onSoltar(detalles.data, indice),
+      builder: (context, candidatos, __) {
+        final recibiendo = candidatos.isNotEmpty;
+        return LongPressDraggable<int>(
+          data: indice,
+          onDragStarted: () {
+            // Vibración corta: es la única señal de que la card "se despegó",
+            // porque el dedo la tapa justo cuando empieza a moverse.
+            HapticFeedback.selectionClick();
+            onArrastreInicia(indice);
+          },
+          onDragEnd: (_) => onArrastreTermina(),
+          onDraggableCanceled: (_, __) => onArrastreTermina(),
+          // El fantasma que sigue al dedo. Necesita ancho propio y un
+          // `Material`: fuera del árbol normal no hereda ni las restricciones
+          // ni el tema, y sin Material el texto sale con el subrayado amarillo
+          // del renderizado sin estilo.
+          feedback: Material(
+            color: Colors.transparent,
+            child: Opacity(
+              opacity: 0.9,
+              child: SizedBox(width: anchoCard, child: card),
             ),
           ),
-        // Espaciadores invisibles para que la última fila incompleta no
-        // estire las cards visibles.
-        for (var i = items.length; i < itemsPorFila; i++)
-          const Expanded(child: SizedBox.shrink()),
-      ],
+          // El hueco que deja mientras viaja.
+          childWhenDragging: Opacity(opacity: 0.25, child: card),
+          child: AnimatedScale(
+            // La casilla que va a recibir se agranda apenas: dice dónde va a
+            // caer sin mover a las demás de lugar.
+            scale: recibiendo ? 1.06 : 1,
+            duration: const Duration(milliseconds: 120),
+            child: AnimatedOpacity(
+              opacity: seEstaArrastrando ? 0.25 : 1,
+              duration: const Duration(milliseconds: 120),
+              child: card,
+            ),
+          ),
+        );
+      },
     );
   }
 }
