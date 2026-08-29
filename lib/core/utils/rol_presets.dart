@@ -69,16 +69,27 @@ const Map<String, RolPreset> kRolPresets = {
     permisosEspeciales: [],
   ),
 
-  // Vende, cobra y maneja SU caja. Sin inventario y sin la tesorería que
-  // consolida todas las sedes.
+  // Vende, cobra y maneja SU caja. Le queda el mostrador y poco más:
+  // V. Rápida, V. Avanzada, Cola POS, sus ventas, cotizaciones, Caja,
+  // Historial de Cajas, Facturación, Productos, Servicios y Por Cobrar.
+  //
+  // Los ids son compartidos con el menú, así que cada uno de estos también
+  // saca el ítem correspondiente del drawer.
   'CAJERO': RolPreset(
     puedeAbrirCaja: true,
     puedeCerrarCaja: true,
     accesosRapidosOcultos: [
       AccesosRapidosCatalogo.monitorProductos,
       AccesosRapidosCatalogo.flujoDocs,
-      // Tesorería mira el dinero de TODAS las sedes: es gestión, no mostrador.
+      // Mira el dinero de TODAS las sedes: es gestión, no mostrador.
       AccesosRapidosCatalogo.tesoreria,
+      AccesosRapidosCatalogo.sorteos,
+      // Sirve para supervisar las cajas de OTROS.
+      AccesosRapidosCatalogo.monitorCajas,
+      // Fondo fijo: lo maneja administración.
+      AccesosRapidosCatalogo.cajaChica,
+      // Despacho de mercadería, no cobro.
+      AccesosRapidosCatalogo.guiasRemision,
     ],
     menuOcultos: [
       MenuDrawerCatalogo.tesoreriaConsolidado,

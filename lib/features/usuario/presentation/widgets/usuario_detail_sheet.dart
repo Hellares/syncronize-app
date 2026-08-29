@@ -15,6 +15,7 @@ import '../bloc/usuario_list/usuario_list_cubit.dart';
 import '../widgets/asignar_rol_dialog.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import 'permisos_usuario_sheet.dart';
 
 /// Bottom sheet que muestra el detalle de un usuario
 class UsuarioDetailSheet extends StatelessWidget {
@@ -189,6 +190,27 @@ class UsuarioDetailSheet extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.green.shade700,
                         side: BorderSide(color: Colors.green.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Qué puede hacer y por qué. Los permisos no se guardan: los
+                  // calcula el backend desde los roles, así que sin esta
+                  // pantalla no había forma de consultarlos para OTRO usuario.
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => mostrarPermisosDeUsuario(
+                        context,
+                        usuarioId: usuario.id,
+                        nombre: usuario.nombreCompleto,
+                      ),
+                      icon: const Icon(Icons.shield_outlined, size: 16),
+                      label: const Text('Ver permisos'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.blue1,
+                        side: const BorderSide(color: AppColors.blueborder),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                     ),

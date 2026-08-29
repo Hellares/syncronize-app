@@ -55,6 +55,20 @@ class UsuarioRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Qué puede hacer este usuario, y de dónde le viene cada permiso.
+  ///
+  /// Los permisos no se guardan en ningún lado: los calcula el backend desde
+  /// los roles. Por eso hay que preguntarlos y no se pueden derivar acá.
+  Future<Map<String, dynamic>> getPermisosDeUsuario({
+    required String usuarioId,
+  }) async {
+    final response = await _dioClient.get(
+      '${ApiConstants.usuarios}/$usuarioId/permisos',
+    );
+
+    return response.data as Map<String, dynamic>;
+  }
+
   /// Actualiza un usuario
   Future<Map<String, dynamic>> updateUsuario({
     required String empresaId,
