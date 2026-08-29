@@ -402,16 +402,23 @@ class _CarritoView extends StatelessWidget {
     );
   }
 
-  bool _esAdmin(BuildContext context) {
+  /// Puede descontar sin que un superior lo autorice.
+  ///
+  /// `canDescuentoLibre` ya viene resuelto del backend: es admin **o** tiene el
+  /// permiso especial `venta.descuento-libre`. Antes acá se miraba
+  /// `canManageDiscounts`, que es solo-admin, así que un vendedor de confianza
+  /// tenía que hacer venir a un administrador en cada venta y el permiso
+  /// especial —que existía en la pantalla de usuarios— no hacía nada.
+  bool _puedeDescontarSinAutorizacion(BuildContext context) {
     final empresaState = context.read<EmpresaContextCubit>().state;
     if (empresaState is EmpresaContextLoaded) {
-      return empresaState.context.permissions.canManageDiscounts;
+      return empresaState.context.permissions.canDescuentoLibre;
     }
     return false;
   }
 
   Future<void> _mostrarDescuentoItem(BuildContext context, int index, dynamic item) async {
-    if (!_esAdmin(context)) {
+    if (!_puedeDescontarSinAutorizacion(context)) {
       final auth = await showAutorizacionDialog(
         context,
         operacion: 'APLICAR_DESCUENTO',
@@ -585,7 +592,7 @@ class _CarritoView extends StatelessWidget {
   }
 
   Future<void> _mostrarDescuentoGlobal(BuildContext context, VentaRapidaState state) async {
-    if (!_esAdmin(context)) {
+    if (!_puedeDescontarSinAutorizacion(context)) {
       final auth = await showAutorizacionDialog(
         context,
         operacion: 'APLICAR_DESCUENTO',

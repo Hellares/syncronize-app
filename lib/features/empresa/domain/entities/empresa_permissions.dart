@@ -22,6 +22,13 @@ class EmpresaPermissions extends Equatable {
   final bool canViewDiscounts;     // Ver políticas de descuento
   final bool canManageDiscounts;   // Crear, editar, eliminar políticas de descuento
 
+  // Granulares aditivos: admin siempre, y ademas quien tenga el ID del
+  // catalogo granular. Opcionales con default false para no romper una
+  // respuesta de un backend que todavia no los mande.
+  final bool canDescuentoLibre;      // Descontar sin pedir autorización
+  final bool canEditarPrecioVenta;   // Cambiar el precio al cobrar
+  final bool canEditarCostoProducto; // Editar el costo del producto
+
   // Cotizaciones - Separado en VIEW y MANAGE
   final bool canViewCotizaciones;   // Ver lista de cotizaciones
   final bool canManageCotizaciones; // Crear, editar, eliminar cotizaciones
@@ -92,6 +99,9 @@ class EmpresaPermissions extends Equatable {
     required this.canManageClients,
     required this.canViewDiscounts,
     required this.canManageDiscounts,
+    this.canDescuentoLibre = false,
+    this.canEditarPrecioVenta = false,
+    this.canEditarCostoProducto = false,
     required this.canViewCotizaciones,
     required this.canManageCotizaciones,
     required this.canViewVentas,
@@ -147,6 +157,9 @@ class EmpresaPermissions extends Equatable {
         canManageClients,
         canViewDiscounts,
         canManageDiscounts,
+        canDescuentoLibre,
+        canEditarPrecioVenta,
+        canEditarCostoProducto,
         canViewCotizaciones,
         canManageCotizaciones,
         canViewVentas,

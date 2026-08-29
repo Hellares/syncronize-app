@@ -1,4 +1,3 @@
-import 'granular_permissions_catalog.dart';
 import '../../features/empresa/presentation/widgets/accesos_rapidos_section.dart'
     show AccesosRapidosCatalogo;
 
@@ -55,10 +54,9 @@ const Map<String, RolPreset> kRolPresets = {
       AccesosRapidosCatalogo.config,
       AccesosRapidosCatalogo.monitorProductos,
     ],
-    permisosEspeciales: [
-      // Cajero típicamente puede anular movimientos suyos.
-      GranularPermissionId.cajaMovimientoAnular,
-    ],
+    // Sin permisos especiales: anular movimientos de caja ya viene con el rol
+    // (`canManageCaja` incluye al cajero), así que no hay nada que sumarle.
+    permisosEspeciales: [],
   ),
 
   'TECNICO': RolPreset(
@@ -78,10 +76,11 @@ const Map<String, RolPreset> kRolPresets = {
       AccesosRapidosCatalogo.ventaAvanzada,
       AccesosRapidosCatalogo.colaPos,
     ],
-    permisosEspeciales: [
-      GranularPermissionId.productoVerCosto,
-      GranularPermissionId.clienteVerCredito,
-    ],
+    // El contador ve costos y crédito por su rol; no hay nada que sumarle con
+    // un permiso especial. (Antes acá figuraban `producto.ver-costo` y
+    // `cliente.ver-credito`, dos permisos que nunca hicieron nada porque
+    // pretendían RESTRINGIR, y este mecanismo solo suma.)
+    permisosEspeciales: [],
   ),
 
   'OPERADOR': RolPreset(

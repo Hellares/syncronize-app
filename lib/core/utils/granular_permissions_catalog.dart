@@ -25,20 +25,13 @@ class GranularPermission {
 class GranularPermissionId {
   static const cajaAbrir = 'caja.abrir';
   static const cajaCerrar = 'caja.cerrar';
-  static const cajaMovimientoAnular = 'caja.movimiento-anular';
 
   static const ventaDescuentoLibre = 'venta.descuento-libre';
-  static const ventaAnular = 'venta.anular';
   static const ventaEditarPrecio = 'venta.editar-precio';
 
-  static const cotizacionAprobarGrande = 'cotizacion.aprobar-grande';
-
-  static const productoVerCosto = 'producto.ver-costo';
   static const productoEditarCosto = 'producto.editar-costo';
 
   static const devolucionCrear = 'devolucion.crear';
-
-  static const clienteVerCredito = 'cliente.ver-credito';
 }
 
 /// Catálogo completo. Orden importa para la UI (agrupar por category).
@@ -56,12 +49,6 @@ const List<GranularPermission> kGranularPermissionsCatalog = [
     description: 'Permite cerrar caja con conteo físico.',
     category: 'Caja',
   ),
-  GranularPermission(
-    id: GranularPermissionId.cajaMovimientoAnular,
-    label: 'Anular movimiento de caja',
-    description: 'Anular un ingreso/egreso registrado en caja.',
-    category: 'Caja',
-  ),
 
   // Venta
   GranularPermission(
@@ -71,33 +58,13 @@ const List<GranularPermission> kGranularPermissionsCatalog = [
     category: 'Venta',
   ),
   GranularPermission(
-    id: GranularPermissionId.ventaAnular,
-    label: 'Anular venta',
-    description: 'Anular ventas ya registradas.',
-    category: 'Venta',
-  ),
-  GranularPermission(
     id: GranularPermissionId.ventaEditarPrecio,
     label: 'Editar precio en venta',
     description: 'Modificar el precio del producto al cobrar.',
     category: 'Venta',
   ),
 
-  // Cotización
-  GranularPermission(
-    id: GranularPermissionId.cotizacionAprobarGrande,
-    label: 'Aprobar cotización grande',
-    description: 'Aprobar cotizaciones que excedan el límite estándar.',
-    category: 'Cotización',
-  ),
-
   // Producto
-  GranularPermission(
-    id: GranularPermissionId.productoVerCosto,
-    label: 'Ver costo de productos',
-    description: 'Ver el campo costo en producto y reportes.',
-    category: 'Producto',
-  ),
   GranularPermission(
     id: GranularPermissionId.productoEditarCosto,
     label: 'Editar costo de productos',
@@ -109,16 +76,10 @@ const List<GranularPermission> kGranularPermissionsCatalog = [
   GranularPermission(
     id: GranularPermissionId.devolucionCrear,
     label: 'Crear devolución',
-    description: 'Registrar devolución de venta.',
+    description:
+        'Registrar devoluciones sin ser administrador (por defecto solo '
+        'los admin pueden).',
     category: 'Devolución',
-  ),
-
-  // Cliente
-  GranularPermission(
-    id: GranularPermissionId.clienteVerCredito,
-    label: 'Ver crédito de clientes',
-    description: 'Ver línea de crédito y deuda actual.',
-    category: 'Cliente',
   ),
 ];
 
