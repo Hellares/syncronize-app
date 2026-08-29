@@ -156,17 +156,10 @@ class _PermisosSheetState extends State<_PermisosSheet> {
 
         const SizedBox(height: 12),
         _titulo('Asignado a mano'),
-        if (especiales.isEmpty &&
-            asignado['puedeAbrirCaja'] != true &&
-            asignado['puedeCerrarCaja'] != true)
+        if (especiales.isEmpty)
           _vacio('Nada: todo le viene de su rol')
-        else ...[
+        else
           ...especiales.map((id) => _filaSimple(Icons.vpn_key, id)),
-          if (asignado['puedeAbrirCaja'] == true)
-            _filaSimple(Icons.lock_open, 'Puede abrir caja (flag)'),
-          if (asignado['puedeCerrarCaja'] == true)
-            _filaSimple(Icons.lock, 'Puede cerrar caja (flag)'),
-        ],
 
         const SizedBox(height: 12),
         _titulo('Qué NO ve (aunque pueda)'),
@@ -251,7 +244,6 @@ class _PermisosSheetState extends State<_PermisosSheet> {
     final explicacion = switch (origen) {
       'rol' => 'por su rol ${detalle ?? ''}'.trim(),
       'especial' => 'por el permiso especial "$detalle"',
-      'flag' => 'por un flag de caja',
       _ => 'ningún rol suyo lo otorga',
     };
 
