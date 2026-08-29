@@ -12,7 +12,17 @@ class SedeRemoteDataSource {
   /// Obtiene todas las sedes de una empresa
   ///
   /// GET /api/empresas/:empresaId/sedes
+  ///
+  /// 🔴 Con `empresaId` vacío la URL queda `/empresas//sedes`, que el cliente
+  /// normaliza a `/empresas/sedes`: el backend lee "sedes" como si fuera el id
+  /// y responde **404 "Empresa no encontrada o no tienes acceso a ella"**. Ese
+  /// mensaje manda a investigar permisos cuando el problema es un id que nunca
+  /// llegó. Se corta acá para que falle diciendo la verdad.
   Future<List<SedeModel>> getSedes(String empresaId) async {
+    if (empresaId.isEmpty) {
+      throw ArgumentError('Falta el ID de la empresa para listar sus sedes');
+    }
+
     final response = await _dioClient.get(
       '/empresas/$empresaId/sedes',
     );

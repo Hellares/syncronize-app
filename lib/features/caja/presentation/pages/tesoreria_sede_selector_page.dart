@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../empresa/domain/entities/sede.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../sede/domain/usecases/get_sedes_usecase.dart';
 
 /// Selector de sede para entrar a la pantalla de Tesorería.
@@ -13,9 +16,13 @@ import '../../../sede/domain/usecases/get_sedes_usecase.dart';
 /// muestra la lista para que el admin elija. Las tesorerias son
 /// independientes por sede (acordado en diseño).
 class TesoreriaSedeSelectorPage extends StatefulWidget {
+  /// Puede venir vacío: la ruta lo lee del query string y no todos los
+  /// accesos lo mandan. La tesorería es SIEMPRE la de la empresa en la que
+  /// ya estás parado, así que el contexto es la fuente real y el parámetro
+  /// queda como atajo para deep links.
   final String empresaId;
 
-  const TesoreriaSedeSelectorPage({super.key, required this.empresaId});
+  const TesoreriaSedeSelectorPage({super.key, this.empresaId = ''});
 
   @override
   State<TesoreriaSedeSelectorPage> createState() =>
@@ -24,15 +31,25 @@ class TesoreriaSedeSelectorPage extends StatefulWidget {
 
 class _TesoreriaSedeSelectorPageState extends State<TesoreriaSedeSelectorPage> {
   late Future<List<Sede>?> _future;
+  late String _empresaId;
 
   @override
   void initState() {
     super.initState();
+    _empresaId = widget.empresaId.isNotEmpty
+        ? widget.empresaId
+        : _empresaIdDelContexto();
     _future = _loadSedes();
   }
 
+  String _empresaIdDelContexto() {
+    final estado = context.read<EmpresaContextCubit>().state;
+    return estado is EmpresaContextLoaded ? estado.context.empresa.id : '';
+  }
+
   Future<List<Sede>?> _loadSedes() async {
-    final res = await locator<GetSedesUseCase>().call(widget.empresaId);
+    if (_empresaId.isEmpty) return null;
+    final res = await locator<GetSedesUseCase>().call(_empresaId);
     if (res is Success<List<Sede>>) {
       final sedes = res.data;
       // Auto-redirect si hay una sola sede.
@@ -64,10 +81,19 @@ class _TesoreriaSedeSelectorPageState extends State<TesoreriaSedeSelectorPage> {
           }
           final sedes = snapshot.data;
           if (sedes == null) {
-            return const Center(
+            // Se distinguen porque se arreglan distinto: sin empresa activa
+            // hay que volver a entrar a la empresa; lo otro es la red o el
+            // servidor.
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('No se pudieron cargar las sedes.'),
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _empresaId.isEmpty
+                      ? 'No hay una empresa activa. Volvé a entrar a la '
+                          'empresa e intentá de nuevo.'
+                      : 'No se pudieron cargar las sedes.',
+                  textAlign: TextAlign.center,
+                ),
               ),
             );
           }
