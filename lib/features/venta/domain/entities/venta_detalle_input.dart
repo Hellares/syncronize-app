@@ -114,25 +114,68 @@ class VentaDetalleInput {
   final bool requiereIdentificador;
   final String? etiquetaIdentificador;
 
-  /// Un identificador por unidad vendida en esta línea. Cantidad 3 ⇒ tres
-  /// valores. Esto SÍ viaja al backend, que valida que estén completos y los
-  /// sella en la descripción que se imprime y se declara.
-  final List<String> identificadores;
+  /// Los identificadores de la línea, AGRUPADOS por unidad vendida: el índice
+  /// es la unidad y cada una puede llevar más de un código, porque un celular
+  /// dual SIM tiene dos IMEI. Cantidad 3 ⇒ tres grupos.
+  ///
+  /// Esto SÍ viaja al backend, que valida que estén completos y los sella en
+  /// la descripción que se imprime y se declara.
+  final List<List<String>> identificadores;
 
-  /// Nota opcional por unidad, en el MISMO orden que [identificadores]
-  /// ("NEGRO 128GB"). Va aparte y no pegada al identificador porque este se
-  /// guarda limpio para poder buscarlo exacto ante un reclamo de garantía; el
-  /// backend la agrega entre paréntesis solo en el texto del comprobante.
-  final List<String> notasIdentificador;
+  /// Nota opcional por CÓDIGO ("SIM1", "NEGRO 128GB"), agrupada igual que
+  /// [identificadores] y en el mismo orden. Va aparte y no pegada al
+  /// identificador porque este se guarda limpio para poder buscarlo exacto
+  /// ante un reclamo de garantía; el backend la agrega entre paréntesis solo
+  /// en el texto del comprobante.
+  final List<List<String>> notasIdentificador;
 
-  /// Faltan identificadores para la cantidad que se está vendiendo.
+  /// El par (código, nota) de cada casilla, recortado a la cantidad ACTUAL y
+  /// ya limpio.
+  ///
+  /// Dos cosas que tienen que pasar acá y no en el consumidor:
+  ///
+  /// - El state puede tener más o menos grupos que unidades —se bajó la
+  ///   cantidad después de tipear, o se subió y todavía no se tocó el campo
+  ///   nuevo—, y tanto el bloqueo del cobro como lo que se manda al backend
+  ///   tienen que mirar SIEMPRE la cantidad actual.
+  /// - 🔴 El par se filtra JUNTO: descartar un código vacío por un lado y su
+  ///   nota por otro corre los índices, y la nota termina pegada al código de
+  ///   al lado en un documento que se imprime y se declara.
+  List<List<(String, String)>> get _casillasLimpias {
+    final unidades = cantidad.round();
+    return List.generate(unidades < 0 ? 0 : unidades, (u) {
+      final codigos =
+          u < identificadores.length ? identificadores[u] : const <String>[];
+      final notas =
+          u < notasIdentificador.length ? notasIdentificador[u] : const <String>[];
+      final pares = <(String, String)>[];
+      for (var k = 0; k < codigos.length; k++) {
+        final codigo = codigos[k].trim();
+        if (codigo.isEmpty) continue;
+        pares.add((codigo, k < notas.length ? notas[k].trim() : ''));
+      }
+      return pares;
+    });
+  }
+
+  /// Los códigos que corresponden a la cantidad que se está vendiendo, uno por
+  /// grupo y sin los vacíos.
+  List<List<String>> get identificadoresPorUnidad =>
+      [for (final grupo in _casillasLimpias) [for (final par in grupo) par.$1]];
+
+  /// Las notas, alineadas una a una con [identificadoresPorUnidad].
+  List<List<String>> get notasIdentificadorPorUnidad =>
+      [for (final grupo in _casillasLimpias) [for (final par in grupo) par.$2]];
+
+  /// Falta el identificador de alguna unidad que se está vendiendo.
   /// Bloquea el cobro: el IMEI no se puede completar después, la boleta ya
   /// salió impresa.
+  ///
+  /// Basta UN código por unidad: los extras (el segundo IMEI de un dual SIM)
+  /// son opcionales y no frenan la venta.
   bool get identificadoresIncompletos {
     if (!requiereIdentificador) return false;
-    final cargados =
-        identificadores.where((e) => e.trim().isNotEmpty).length;
-    return cargados != cantidad.round();
+    return identificadoresPorUnidad.any((codigos) => codigos.isEmpty);
   }
 
   /// Unidad en la que se le habla al cliente cuando la de venta es demasiado
@@ -292,15 +335,25 @@ class VentaDetalleInput {
         if (icbper > 0) 'icbper': icbper,
         // El backend valida que estén completos y los sella en la
         // descripción que se imprime y se declara a SUNAT.
-        if (identificadores.any((e) => e.trim().isNotEmpty)) ...{
+        if (identificadoresPorUnidad.any((g) => g.isNotEmpty)) ...{
+          // Agrupado por unidad: es la forma que el backend necesita para
+          // saber qué par de IMEI es de qué aparato.
+          'identificadoresPorUnidad': identificadoresPorUnidad,
+          // Plano, además del agrupado, a propósito: con un código por unidad
+          // las dos formas dicen lo mismo, así que este app sigue cobrando
+          // contra un backend que todavía no conozca el campo agrupado. Solo
+          // una venta con códigos extra necesita el backend nuevo.
           'identificadores':
-              identificadores.map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
-          // Van solo si hay alguna: el orden importa, así que se mandan
-          // completas (con vacíos) para que el índice coincida con el
-          // identificador al que anotan.
-          if (notasIdentificador.any((e) => e.trim().isNotEmpty))
+              identificadoresPorUnidad.expand((g) => g).toList(),
+          // Van solo si hay alguna. Las dos formas, por lo mismo que los
+          // códigos: aplanadas quedan alineadas por índice con
+          // `identificadores`, que es como las lee el backend viejo.
+          if (notasIdentificadorPorUnidad
+              .any((g) => g.any((n) => n.isNotEmpty))) ...{
+            'notasIdentificadorPorUnidad': notasIdentificadorPorUnidad,
             'notasIdentificador':
-                notasIdentificador.map((e) => e.trim()).toList(),
+                notasIdentificadorPorUnidad.expand((g) => g).toList(),
+          },
         },
         if (origenComboId != null) 'origenComboId': origenComboId,
         if (origenComboNombre != null) 'origenComboNombre': origenComboNombre,
@@ -324,8 +377,8 @@ class VentaDetalleInput {
     double? icbper,
     bool? requiereIdentificador,
     String? etiquetaIdentificador,
-    List<String>? identificadores,
-    List<String>? notasIdentificador,
+    List<List<String>>? identificadores,
+    List<List<String>>? notasIdentificador,
     int? stockDisponible,
     List<PrecioNivel>? niveles,
     double? precioBase,

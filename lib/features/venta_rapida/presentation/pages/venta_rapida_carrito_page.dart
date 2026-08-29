@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -820,8 +822,11 @@ class _CarritoView extends StatelessWidget {
     if (incompletos.isNotEmpty) {
       final detalle = incompletos.map((i) {
         final etiqueta = i.etiquetaIdentificador ?? 'N° de serie';
-        final cargados =
-            i.identificadores.where((e) => e.trim().isNotEmpty).length;
+        // UNIDADES cubiertas, no códigos cargados: una unidad con dos IMEI
+        // sigue siendo una sola unidad resuelta.
+        final cargados = i.identificadoresPorUnidad
+            .where((codigos) => codigos.isNotEmpty)
+            .length;
         return '• ${i.descripcion}\n   $cargados de '
             '${i.cantidad.round()} $etiqueta';
       }).join('\n');
@@ -917,11 +922,18 @@ class _ItemRowState extends State<_ItemRow> {
   late TextEditingController _cantCtrl;
   late FocusNode _focusNode;
 
-  /// Un controller por casilla de identificador, indexado por posición.
-  final Map<int, TextEditingController> _identCtrls = {};
+  /// Un controller por casilla de identificador, con clave `"unidad:codigo"`:
+  /// una unidad puede tener más de una casilla (los dos IMEI de un dual SIM),
+  /// así que la posición sola ya no alcanza para identificarla.
+  final Map<String, TextEditingController> _identCtrls = {};
 
-  /// Ídem para la nota opcional de cada unidad.
-  final Map<int, TextEditingController> _notaCtrls = {};
+  /// Techo de códigos por unidad. Espeja el del backend
+  /// (`MAX_CODIGOS_POR_UNIDAD`): si acá se dejaran agregar más, el rechazo
+  /// llegaría recién al cobrar, con la venta ya armada.
+  static const _maxCodigosPorUnidad = 5;
+
+  /// Ídem para la nota opcional de cada casilla, con la misma clave.
+  final Map<String, TextEditingController> _notaCtrls = {};
 
   /// Alto del campo y alto de la fila que lo contiene. La diferencia es el
   /// aire entre casillas, y es por donde pasa la vertical del conector: si
@@ -938,16 +950,52 @@ class _ItemRowState extends State<_ItemRow> {
   String get _textoCantidad =>
       _pres.cantidadTexto(widget.item.cantidad, conSimbolo: false);
 
+  /// Cuándo se avisó por última vez que la cantidad no entra en el stock.
+  ///
+  /// `onChanged` dispara por TECLA: al escribir "25" sobre un stock de 1, el
+  /// cap actúa en cada dígito y sin este freno el aviso parpadearía una vez
+  /// por tecla para un solo error.
+  DateTime? _ultimoAvisoStock;
+
   /// Lo tecleado está en presentación (1.5 kg) y el carrito guarda unidad de
   /// venta (1500 g). Sin convertir, vender 1.5 kg descontaría 1.5 gramos.
   void _aplicarCantidad(BuildContext context, String texto) {
     final escrito = double.tryParse(texto.replaceAll(',', '.')) ?? 0;
     // MULTIPLICA (1.5 kg → 1500 g). El precio va al revés; usar el método del
     // precio acá convertía 1 kg en 0.001 g y el campo se iba a cero.
+    final pedido = _pres.cantidadAUnidadDeVenta(escrito);
+    // El recorte al stock lo hace el cubit; acá solo se avisa. Antes recortaba
+    // en silencio y el campo volvía solo al máximo sin decir por qué, que se
+    // lee como que el teclado falló.
+    _avisarSiExcedeStock(context, pedido);
     context.read<VentaRapidaCubit>().actualizarCantidad(
           widget.index,
-          _pres.cantidadAUnidadDeVenta(escrito),
+          pedido,
         );
+  }
+
+  /// Avisa que lo tecleado excede el stock. No frena nada —el cap sigue siendo
+  /// del cubit—: solo le pone voz.
+  void _avisarSiExcedeStock(BuildContext context, double pedido) {
+    // Las líneas de orden de servicio no manejan stock (cantidad fija 1), y sin
+    // stock conocido no hay techo contra el cual avisar.
+    if (widget.item.ordenServicioId != null) return;
+    final num? stock = widget.item.stockDisponible as num?;
+    if (stock == null || pedido <= stock) return;
+
+    final ahora = DateTime.now();
+    final ultimo = _ultimoAvisoStock;
+    if (ultimo != null &&
+        ahora.difference(ultimo) < const Duration(milliseconds: 1200)) {
+      return;
+    }
+    _ultimoAvisoStock = ahora;
+
+    _AvisoSuperior.mostrar(
+      context,
+      'Solo hay ${_pres.cantidadTexto(stock)} en stock. '
+      'Se ajustó la cantidad al máximo.',
+    );
   }
 
   @override
@@ -1308,8 +1356,9 @@ class _ItemRowState extends State<_ItemRow> {
     final unidades = (item.cantidad as double).round();
     if (unidades <= 0) return const SizedBox.shrink();
 
-    final valores = List<String>.from(item.identificadores as List);
-    final notas = List<String>.from(item.notasIdentificador as List);
+    final grupos = _gruposVisibles();
+    final notas = _notasVisibles(grupos);
+    final ultimaUnidad = grupos.length - 1;
 
     // Sin recuadro ni encabezado: el hint del campo ya dice qué se escribe, y
     // una caja de color competía visualmente con la fila del producto. El
@@ -1319,115 +1368,311 @@ class _ItemRowState extends State<_ItemRow> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Una casilla por unidad. Al subir la cantidad aparecen más, y las
-          // ya tipeadas se conservan porque se indexan por posición.
-          for (var i = 0; i < unidades; i++)
-            SizedBox(
-              height: _hFilaIdent,
-              child: Row(
-                // stretch para que el conector reciba el alto COMPLETO de la
-                // fila: es lo que permite que la vertical de una enganche con
-                // la de la siguiente y se lea como una sola rama continua.
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: 18,
-                    child: CustomPaint(
-                      painter: _RamaPainter(
-                        esUltimo: i == unidades - 1,
-                        color: Colors.grey.shade400,
-                      ),
+          // Una casilla por unidad —el equipo— y colgando de ELLA las extra que
+          // se hayan agregado con "+". Son dos niveles a propósito: con todas
+          // al mismo nivel, el segundo IMEI del primer equipo se leía igual que
+          // el IMEI principal del segundo, y no había forma de saber qué código
+          // era de qué aparato.
+          for (var u = 0; u < grupos.length; u++)
+            for (var k = 0; k < grupos[u].length; k++)
+              SizedBox(
+                height: _hFilaIdent,
+                child: Row(
+                  // stretch para que el conector reciba el alto COMPLETO de la
+                  // fila: es lo que permite que la vertical de una enganche con
+                  // la de la siguiente y se lea como una sola rama continua.
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Carril del EQUIPO: el tramo de tronco que le toca a esta
+                    // sección va de SU color, igual que el codo. El color
+                    // cambia justo donde empieza el equipo siguiente, así que
+                    // cada sección se lee como un bloque propio.
+                    //
+                    // Ancho fijo aunque no dibuje nada: si colapsara a 0, los
+                    // hijos del último equipo se correrían a la izquierda y la
+                    // sangría dejaría de estar alineada entre secciones.
+                    SizedBox(
+                      width: 18,
+                      child: k == 0
+                          ? CustomPaint(
+                              painter: _RamaPainter(
+                                // Cierra la rama solo la ÚLTIMA casilla de todo
+                                // el bloque: mientras cuelguen códigos hijos, la
+                                // vertical tiene que seguir bajando.
+                                esUltimo: u == ultimaUnidad &&
+                                    grupos[u].length == 1,
+                                color: _colorUnidad(u),
+                              ),
+                            )
+                          // En una fila hija el tronco solo continúa si abajo
+                          // viene OTRO equipo.
+                          : (u < ultimaUnidad
+                              ? CustomPaint(
+                                  painter: _RielPainter(color: _colorUnidad(u)),
+                                )
+                              : const SizedBox.shrink()),
                     ),
-                  ),
-                  const SizedBox(width: 2),
-                  // El identificador casi siempre se timbra, así que se lee
-                  // poco: el reparto le da más ancho a la nota, que sí se
-                  // escribe a mano.
-                  Expanded(
-                    flex: 2,
-                    child: Center(
-                      child: SizedBox(
-                        height: _hCampoIdent,
-                        child: CustomText(
-                          controller: _identCtrl(i, valores),
-                          hintText: etiqueta,
-                          textCase: TextCase.upper,
-                          height: _hCampoIdent,
-                          onChanged: (v) => _guardarIdentificador(i, v),
-                          // El IMEI viene impreso como código de barras en la
-                          // caja del equipo: timbrarlo evita tipear 15 dígitos
-                          // y, sobre todo, evita el dedazo en un dato que
-                          // después no se puede corregir sin anular la boleta.
-                          // Igual queda editable a mano para los que no traen
-                          // código o no leen.
-                          // Abre el escáner CONTINUO: queda en media
-                          // pantalla y va llenando las casillas siguientes,
-                          // en vez de entrar y salir una vez por equipo.
-                          suffixIcon: GestureDetector(
-                            onTap: () => _abrirEscaner(i),
-                            child: const Padding(
-                              padding: EdgeInsets.only(right: 2),
-                              child: Icon(Icons.qr_code_scanner,
-                                  size: 17, color: AppColors.blue1),
-                            ),
+                    // Sangría del hijo: su propio codo, del color del equipo al
+                    // que pertenece.
+                    if (k > 0) ...[
+                      const SizedBox(width: 2),
+                      SizedBox(
+                        width: 14,
+                        child: CustomPaint(
+                          painter: _RamaPainter(
+                            esUltimo: k == grupos[u].length - 1,
+                            color: _colorUnidad(u),
                           ),
-                          // El estado vive en el borde del campo: es lo único
-                          // que queda ahora que no hay recuadro.
-                          borderColor: (i < valores.length &&
-                                  valores[i].trim().isNotEmpty)
-                              ? Colors.green.shade400
-                              : Colors.red.shade300,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 8),
-                          textStyle: const TextStyle(fontSize: 11),
-                          hintStyle:
-                              TextStyle(fontSize: 10, color: Colors.grey[500]),
-                          showValidationIndicator: false,
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  // Nota OPCIONAL: no bloquea el cobro y no entra al array de
-                  // identificadores. El backend la pone entre paréntesis solo
-                  // en el texto del comprobante, así el IMEI queda limpio para
-                  // buscarlo exacto ante un reclamo de garantía.
-                  Expanded(
-                    flex: 3,
-                    child: Center(
-                      child: SizedBox(
-                        height: _hCampoIdent,
-                        child: CustomText(
-                          controller: _notaCtrl(i, notas),
-                          hintText: 'nota',
-                          textCase: TextCase.upper,
-                          height: _hCampoIdent,
-                          onChanged: (v) => _guardarNota(i, v),
-                          borderColor: AppColors.blue1Alpha40,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 8),
-                          textStyle: const TextStyle(fontSize: 11),
-                          hintStyle:
-                              TextStyle(fontSize: 10, color: Colors.grey[500]),
-                          showValidationIndicator: false,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                    ],
+                    const SizedBox(width: 2),
+                    // El identificador casi siempre se timbra, así que se lee
+                    // poco: el reparto le da más ancho a la nota, que sí se
+                    // escribe a mano.
+                    Expanded(flex: 2, child: _campoCodigo(u, k, grupos, etiqueta)),
+                    const SizedBox(width: 5),
+                    // Nota OPCIONAL: no bloquea el cobro y no entra al array de
+                    // identificadores. El backend la pone entre paréntesis solo
+                    // en el texto del comprobante, así el IMEI queda limpio para
+                    // buscarlo exacto ante un reclamo de garantía.
+                    //
+                    // Una por CÓDIGO: los dos IMEI de un dual SIM pueden querer
+                    // distinguirse ("SIM1" / "SIM2").
+                    Expanded(flex: 3, child: _campoNota(u, k, notas)),
+                    _botonCodigo(u, k, grupos),
+                  ],
+                ),
               ),
-            ),
         ],
       ),
     );
   }
 
+  /// Los grupos tal como se DIBUJAN: uno por unidad vendida y con al menos una
+  /// casilla, aunque todavía no se haya tipeado nada.
+  ///
+  /// Se recorta a la cantidad ACTUAL a propósito: si el cajero cargó tres IMEI
+  /// y después bajó la cantidad a dos, el tercero ya no es de esta venta y
+  /// mandarlo hacía que el backend rechazara el cobro por sobrar un dato.
+  List<List<String>> _gruposVisibles() {
+    final unidades = (widget.item.cantidad as double).round();
+    final guardados = widget.item.identificadores as List;
+    return List.generate(unidades < 0 ? 0 : unidades, (i) {
+      final grupo = i < guardados.length
+          ? List<String>.from(guardados[i] as List)
+          : <String>[];
+      if (grupo.isEmpty) grupo.add('');
+      return grupo;
+    });
+  }
+
+  /// Un color por EQUIPO. Pinta TODA la sección: el tronco, el codo del
+  /// principal, los codos de sus hijos y el borde de sus campos.
+  ///
+  /// Cicla: lo que importa es que dos secciones vecinas nunca compartan color.
+  ///
+  /// 🔴 El rojo NO está en la paleta y no puede estar: es el único color que
+  /// quedó significando algo —"falta este código y bloquea el cobro"— y se
+  /// impone sobre el color de la sección. Ver [_campoCodigo].
+  static const _coloresUnidad = <Color>[
+    AppColors.blue1,
+    Color(0xFF2E7D32), // green 800
+    Color(0xFF8E24AA), // purple 600
+    Color(0xFFEF6C00), // orange 800
+  ];
+
+  Color _colorUnidad(int u) =>
+      _coloresUnidad[u % _coloresUnidad.length];
+
+  /// Las notas con la MISMA forma que las casillas de código: una por casilla,
+  /// rellenando con vacío lo que falte. Alinearlas acá es lo que hace que la
+  /// nota de una casilla no termine en la de al lado.
+  List<List<String>> _notasVisibles(List<List<String>> grupos) {
+    final guardadas = widget.item.notasIdentificador as List;
+    return List.generate(grupos.length, (u) {
+      final fila = u < guardadas.length
+          ? List<String>.from(guardadas[u] as List)
+          : <String>[];
+      while (fila.length < grupos[u].length) {
+        fila.add('');
+      }
+      return fila;
+    });
+  }
+
+  Widget _campoCodigo(
+    int u,
+    int k,
+    List<List<String>> grupos,
+    String etiqueta,
+  ) {
+    final valor = grupos[u][k];
+    return Center(
+      child: SizedBox(
+        height: _hCampoIdent,
+        child: CustomText(
+          controller: _identCtrl(u, k, valor),
+          // Las casillas extra se numeran ("IMEI 2") para que se lea que son
+          // del MISMO aparato y no de otra unidad.
+          hintText: k == 0 ? etiqueta : '$etiqueta ${k + 1}',
+          textCase: TextCase.upper,
+          height: _hCampoIdent,
+          onChanged: (v) => _guardarIdentificador(u, k, v),
+          // El IMEI viene impreso como código de barras en la caja del
+          // equipo: timbrarlo evita tipear 15 dígitos y, sobre todo, evita
+          // el dedazo en un dato que después no se puede corregir sin anular
+          // la boleta. Igual queda editable a mano para los que no traen
+          // código o no leen.
+          // Abre el escáner CONTINUO: queda en media pantalla y va llenando
+          // las casillas siguientes, en vez de entrar y salir una vez por
+          // equipo.
+          suffixIcon: GestureDetector(
+            onTap: () => _abrirEscaner(u, k),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 2),
+              child: Icon(Icons.qr_code_scanner,
+                  size: 17, color: _colorUnidad(u)),
+            ),
+          ),
+          // El borde dice a qué EQUIPO pertenece el campo…
+          //
+          // 🔴 …salvo cuando falta un código obligatorio: ahí gana el rojo. Es
+          // lo único que le avisa al cajero por qué no puede cobrar, así que se
+          // impone sobre el color de la sección. Las casillas extra son
+          // opcionales: vacías no son un error y se quedan con su color.
+          //
+          // El verde de "ya cargado" lo reemplaza el color del equipo: que el
+          // campo tenga texto ya se ve sin pintarlo.
+          borderColor: (k == 0 && valor.trim().isEmpty)
+              ? Colors.red.shade300
+              : _colorUnidad(u),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          textStyle: const TextStyle(fontSize: 11),
+          hintStyle: TextStyle(fontSize: 10, color: Colors.grey[500]),
+          showValidationIndicator: false,
+        ),
+      ),
+    );
+  }
+
+  Widget _campoNota(int u, int k, List<List<String>> notas) {
+    return Center(
+      child: SizedBox(
+        height: _hCampoIdent,
+        child: CustomText(
+          controller: _notaCtrl(u, k, notas[u][k]),
+          hintText: 'nota',
+          textCase: TextCase.upper,
+          height: _hCampoIdent,
+          onChanged: (v) => _guardarNota(u, k, v),
+          // El color del equipo, pero atenuado: la nota es el campo secundario
+          // de la fila y con el mismo peso que el código competían.
+          borderColor: _colorUnidad(u).withValues(alpha: 0.45),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          textStyle: const TextStyle(fontSize: 11),
+          hintStyle: TextStyle(fontSize: 10, color: Colors.grey[500]),
+          showValidationIndicator: false,
+        ),
+      ),
+    );
+  }
+
+  /// `+` en la casilla principal de la unidad —agrega otro código al MISMO
+  /// aparato, que es el caso del celular dual SIM— y `−` en las extra.
+  ///
+  /// `GestureDetector` y no `IconButton`: en Material 3 el IconButton reserva
+  /// ~48 px de área táctil aunque se le achiquen los constraints, y desarma
+  /// esta fila de 38.
+  Widget _botonCodigo(int u, int k, List<List<String>> grupos) {
+    final esPrincipal = k == 0;
+    final habilitado =
+        !esPrincipal || grupos[u].length < _maxCodigosPorUnidad;
+    return GestureDetector(
+      // opaque: hace tocable TODO el ancho reservado, no solo los píxeles del
+      // ícono.
+      behavior: HitTestBehavior.opaque,
+      onTap: !habilitado
+          ? null
+          : (esPrincipal ? () => _agregarCodigo(u) : () => _quitarCodigo(u, k)),
+      child: SizedBox(
+        width: 28,
+        child: Center(
+          child: Icon(
+            esPrincipal
+                ? Icons.add_circle_outline
+                : Icons.remove_circle_outline,
+            size: 18,
+            color: !habilitado
+                ? Colors.grey.shade300
+                // El "+" toma el color del equipo —refuerza de quién va a
+                // colgar el código nuevo—; el "−" queda rojo porque ahí lo que
+                // importa es que borra.
+                : (esPrincipal ? _colorUnidad(u) : Colors.red.shade300),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Suma una casilla vacía a ESA unidad (el segundo IMEI del aparato).
+  void _agregarCodigo(int u) {
+    final grupos = _gruposVisibles();
+    if (u >= grupos.length || grupos[u].length >= _maxCodigosPorUnidad) return;
+    grupos[u].add('');
+    context
+        .read<VentaRapidaCubit>()
+        .actualizarIdentificadores(widget.index, grupos);
+  }
+
+  void _quitarCodigo(int u, int k) {
+    final grupos = _gruposVisibles();
+    if (u >= grupos.length || k >= grupos[u].length) return;
+    final notas = _notasVisibles(grupos);
+    grupos[u].removeAt(k);
+    // La nota se va CON su código: dejarla movería la de abajo al código de
+    // arriba, y eso termina impreso en el comprobante.
+    if (k < notas[u].length) notas[u].removeAt(k);
+    // La unidad siempre conserva su casilla principal, aunque quede vacía.
+    if (grupos[u].isEmpty) {
+      grupos[u].add('');
+      notas[u].add('');
+    }
+    // Al sacar una casilla del medio las de abajo se renumeran, así que los
+    // controllers de la unidad ya no corresponden a lo que muestran: se
+    // descartan y se reconstruyen desde el state.
+    _olvidarControllersDe(u);
+    final cubit = context.read<VentaRapidaCubit>();
+    cubit.actualizarIdentificadores(widget.index, grupos);
+    cubit.actualizarNotasIdentificador(widget.index, notas);
+  }
+
+  /// Suelta los controllers —código y nota— de una unidad para que se rearmen
+  /// desde el state.
+  ///
+  /// Se liberan DESPUÉS del frame: en este momento los `TextField` siguen
+  /// montados con ellos y un `dispose()` en el acto revienta al reconstruir.
+  void _olvidarControllersDe(int u) {
+    final viejos = <TextEditingController>[];
+    for (final mapa in [_identCtrls, _notaCtrls]) {
+      for (final clave in mapa.keys.where((c) => c.startsWith('$u:')).toList()) {
+        viejos.add(mapa.remove(clave)!);
+      }
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final ctrl in viejos) {
+        ctrl.dispose();
+      }
+    });
+  }
+
   /// Un controller por casilla, memorizado para que no se pierda el cursor en
   /// cada rebuild del carrito (que ocurre con cada tecla).
-  TextEditingController _identCtrl(int i, List<String> valores) {
-    final actual = i < valores.length ? valores[i] : '';
+  TextEditingController _identCtrl(int u, int k, String actual) {
     final ctrl = _identCtrls.putIfAbsent(
-      i,
+      '$u:$k',
       () => TextEditingController(text: actual),
     );
     // Se sincroniza solo si cambió desde afuera (ej. se limpió el carrito):
@@ -1438,16 +1683,33 @@ class _ItemRowState extends State<_ItemRow> {
     return ctrl;
   }
 
-  /// Abre el escáner continuo desde la casilla [desde].
-  void _abrirEscaner(int desde) {
+  /// Las casillas aplanadas en el orden en que se ven: `(unidad, código)`.
+  ///
+  /// El sheet del escáner trabaja con un índice plano —numera casillas, no
+  /// unidades—, así que hace falta poder ir y volver entre las dos formas.
+  List<(int, int)> _casillas(List<List<String>> grupos) {
+    return [
+      for (var u = 0; u < grupos.length; u++)
+        for (var k = 0; k < grupos[u].length; k++) (u, k),
+    ];
+  }
+
+  /// Abre el escáner continuo parado en la casilla `(u, k)`.
+  void _abrirEscaner(int u, int k) {
     final item = widget.item;
+    final grupos = _gruposVisibles();
+    final casillas = _casillas(grupos);
+    final desde = casillas.indexWhere((c) => c.$1 == u && c.$2 == k);
     mostrarEscanerIdentificadores(
       context,
       etiqueta: (item.etiquetaIdentificador as String?) ?? 'N° de serie',
-      unidades: (item.cantidad as double).round(),
-      actuales: List<String>.from(item.identificadores as List),
-      indiceInicial: desde,
-      onCapturado: _escanearIdentificador,
+      // CASILLAS, no unidades: con un dual SIM hay más casillas que aparatos,
+      // y el escáner las tiene que llenar todas antes de cerrarse.
+      unidades: casillas.length,
+      actuales: [for (final c in casillas) grupos[c.$1][c.$2]],
+      indiceInicial: desde < 0 ? 0 : desde,
+      onCapturado: (plano, valor) =>
+          _escanearIdentificador(casillas, plano, valor),
     );
   }
 
@@ -1456,23 +1718,27 @@ class _ItemRowState extends State<_ItemRow> {
   /// Hay que tocar el controller a mano porque el valor no viene del teclado y
   /// `onChanged` no se dispara solo; sin esto el número quedaba guardado pero
   /// la casilla se veía vacía.
-  void _escanearIdentificador(int i, String codigo) {
+  void _escanearIdentificador(
+    List<(int, int)> casillas,
+    int plano,
+    String codigo,
+  ) {
     final valor = codigo.trim();
-    if (valor.isEmpty) return;
-    final ctrl = _identCtrls[i];
+    if (valor.isEmpty || plano < 0 || plano >= casillas.length) return;
+    final (u, k) = casillas[plano];
+    final ctrl = _identCtrls['$u:$k'];
     if (ctrl != null) {
       ctrl.text = valor;
       ctrl.selection = TextSelection.collapsed(offset: valor.length);
     }
-    _guardarIdentificador(i, valor);
+    _guardarIdentificador(u, k, valor);
   }
 
   /// Controller de la nota, con el mismo criterio que el del identificador:
   /// memorizado para no perder el cursor en cada rebuild del carrito.
-  TextEditingController _notaCtrl(int i, List<String> notas) {
-    final actual = i < notas.length ? notas[i] : '';
+  TextEditingController _notaCtrl(int u, int k, String actual) {
     final ctrl = _notaCtrls.putIfAbsent(
-      i,
+      '$u:$k',
       () => TextEditingController(text: actual),
     );
     if (ctrl.text != actual && !ctrl.selection.isValid) {
@@ -1481,34 +1747,28 @@ class _ItemRowState extends State<_ItemRow> {
     return ctrl;
   }
 
-  void _guardarNota(int i, String valor) {
-    final item = widget.item;
-    final unidades = (item.cantidad as double).round();
-    final actuales = List<String>.from(item.notasIdentificador as List);
-    while (actuales.length < unidades) {
-      actuales.add('');
+  void _guardarNota(int u, int k, String valor) {
+    final notas = _notasVisibles(_gruposVisibles());
+    if (u >= notas.length) return;
+    while (notas[u].length <= k) {
+      notas[u].add('');
     }
-    if (actuales.length > unidades) {
-      actuales.removeRange(unidades, actuales.length);
-    }
-    if (i < actuales.length) actuales[i] = valor;
+    notas[u][k] = valor;
     context
         .read<VentaRapidaCubit>()
-        .actualizarNotasIdentificador(widget.index, actuales);
+        .actualizarNotasIdentificador(widget.index, notas);
   }
 
-  void _guardarIdentificador(int i, String valor) {
-    final item = widget.item;
-    final unidades = (item.cantidad as double).round();
-    final actuales = List<String>.from(item.identificadores as List);
-    while (actuales.length < unidades) {
-      actuales.add('');
+  void _guardarIdentificador(int u, int k, String valor) {
+    final grupos = _gruposVisibles();
+    if (u >= grupos.length) return;
+    while (grupos[u].length <= k) {
+      grupos[u].add('');
     }
-    if (actuales.length > unidades) actuales.removeRange(unidades, actuales.length);
-    if (i < actuales.length) actuales[i] = valor;
+    grupos[u][k] = valor;
     context
         .read<VentaRapidaCubit>()
-        .actualizarIdentificadores(widget.index, actuales);
+        .actualizarIdentificadores(widget.index, grupos);
   }
 }
 
@@ -1709,6 +1969,10 @@ class _RamaPainter extends CustomPainter {
   /// Última casilla del grupo: la vertical corta en el codo en vez de seguir
   /// hasta abajo. Es lo que cierra visualmente la rama.
   final bool esUltimo;
+
+  /// Color de la sección: pinta la vertical, el codo y la punta. Toda la rama
+  /// de un equipo va del mismo color, y el cambio de color marca dónde empieza
+  /// el siguiente.
   final Color color;
 
   const _RamaPainter({required this.esUltimo, required this.color});
@@ -1757,4 +2021,121 @@ class _RamaPainter extends CustomPainter {
   @override
   bool shouldRepaint(_RamaPainter viejo) =>
       viejo.esUltimo != esUltimo || viejo.color != color;
+}
+
+/// Solo la vertical del tronco, sin codo ni punta.
+///
+/// Es lo que va detrás de las filas HIJAS: dice "el bloque sigue, abajo viene
+/// otro equipo". Sin esto el tronco quedaba cortado a la altura de cada código
+/// extra y el bloque se leía como varios grupos sueltos.
+class _RielPainter extends CustomPainter {
+  final Color color;
+
+  const _RielPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawLine(
+      const Offset(5, 0),
+      Offset(5, size.height),
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RielPainter viejo) => viejo.color != color;
+}
+
+/// Aviso breve anclado ARRIBA, apenas debajo del AppBar.
+///
+/// No es un `SnackBar` a propósito: ese sale por abajo, que es justo donde el
+/// cajero tiene el teclado abierto mientras teclea la cantidad — el aviso
+/// quedaba pegado al pulgar o directamente tapado. Vive en el `Overlay`, así
+/// que no empuja la lista del carrito ni la reconstruye.
+class _AvisoSuperior {
+  static OverlayEntry? _entry;
+  static Timer? _timer;
+
+  static void mostrar(BuildContext context, String mensaje) {
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+    // Un aviso a la vez: el nuevo reemplaza al anterior en vez de encimarse.
+    _quitar();
+
+    final topeSuperior = MediaQuery.of(context).padding.top + kToolbarHeight + 8;
+    final entry = OverlayEntry(
+      builder: (_) => Positioned(
+        top: topeSuperior,
+        left: 16,
+        right: 16,
+        // Deja pasar los toques: el aviso no debe bloquear el carrito debajo.
+        child: IgnorePointer(
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 180),
+            builder: (_, t, hijo) => Opacity(
+              opacity: t,
+              child: Transform.translate(
+                offset: Offset(0, -8 * (1 - t)),
+                child: hijo,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade800,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded,
+                        color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        mensaje,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    _entry = entry;
+    overlay.insert(entry);
+    _timer = Timer(const Duration(seconds: 2), _quitar);
+  }
+
+  /// Se anula la referencia ANTES de sacarlo del overlay: así un segundo
+  /// llamado no puede intentar removerlo dos veces (eso sí revienta).
+  static void _quitar() {
+    _timer?.cancel();
+    _timer = null;
+    final entry = _entry;
+    _entry = null;
+    entry?.remove();
+  }
 }

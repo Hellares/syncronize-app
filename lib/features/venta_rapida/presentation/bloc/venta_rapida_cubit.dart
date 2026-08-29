@@ -873,21 +873,23 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     }
   }
 
-  /// Identificadores por unidad de una línea (IMEI, N° de serie, placa).
+  /// Identificadores de una línea (IMEI, N° de serie, placa), AGRUPADOS por
+  /// unidad: el índice es la unidad y cada una puede llevar más de un código,
+  /// porque un celular dual SIM tiene dos IMEI.
   ///
   /// Se guardan tal cual se van tipeando, incluso incompletos: el bloqueo del
   /// cobro lo hace `identificadoresIncompletos`, no este método. Recortar acá
   /// haría que el campo se vacíe solo mientras el cajero escribe.
-  void actualizarIdentificadores(int index, List<String> valores) {
+  void actualizarIdentificadores(int index, List<List<String>> valores) {
     if (index < 0 || index >= state.items.length) return;
     final lista = [...state.items];
     lista[index] = lista[index].copyWith(identificadores: valores);
     emit(state.copyWith(items: _repreciar(lista), clearError: true));
   }
 
-  /// Notas por unidad ("NEGRO 128GB"), en el mismo orden que los
-  /// identificadores. Son opcionales: no bloquean el cobro.
-  void actualizarNotasIdentificador(int index, List<String> notas) {
+  /// Notas por CÓDIGO ("SIM1", "NEGRO 128GB"), agrupadas igual que los
+  /// identificadores y en el mismo orden. Son opcionales: no bloquean el cobro.
+  void actualizarNotasIdentificador(int index, List<List<String>> notas) {
     if (index < 0 || index >= state.items.length) return;
     final lista = [...state.items];
     lista[index] = lista[index].copyWith(notasIdentificador: notas);
