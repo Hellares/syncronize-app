@@ -7,7 +7,6 @@ import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
-import 'package:syncronize/core/utils/granular_permissions_catalog.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/currency/currency_textfield.dart';
@@ -223,14 +222,19 @@ class _CajaViewState extends State<_CajaView> {
               if (empresaState is! EmpresaContextLoaded) {
                 return const SizedBox.shrink();
               }
-              final esAdmin =
-                  empresaState.context.primaryRole?.isAdminRole ?? false;
-              final tieneGranular = empresaState
-                  .context
-                  .permissions
-                  .granularPermissions
-                  .contains(GranularPermissionId.cajaCerrar);
-              if (!esAdmin && !tieneGranular) {
+              // 🔴 Se usa el permiso CALCULADO, no la lista cruda de
+              // granulares. Antes esto miraba si el id `caja.cerrar` estaba en
+              // la lista, y funcionaba de casualidad: al cajero se lo escribía
+              // la sincronización de la UI al prender el flag. Un cajero sin
+              // ese id —perfectamente posible— se quedaba sin botón aunque
+              // pudiera cerrar.
+              //
+              // `canCerrarCaja` ya contempla los tres casos en una sola
+              // condición: admin, o quien tenga el flag/granular. Y desde que
+              // el rol CAJERO dejó de concederlo, destildarle "puede cerrar"
+              // le saca el botón Y se lo rechaza el endpoint — que es lo que
+              // el negocio esperaba desde el principio.
+              if (!empresaState.context.permissions.canCerrarCaja) {
                 // Sin botón → dejamos un colchón inferior para que el
                 // último card de movimientos no quede pegado al borde
                 // del celular. Mantiene el SafeArea para devices con
