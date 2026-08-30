@@ -2550,11 +2550,16 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 final abonadoComp = imputado[comp.id] ?? 0;
                 final cubierto =
                     abonadoComp > 0 && abonadoComp + 0.005 >= costoComp;
+                // Con UN solo motivo su importe ES el total de arriba. Con
+                // mano de obra Y repuesto, cada importe sí dice cómo se
+                // compone el total, así que se quedan.
+                final unSoloMotivo = (mo > 0) != (rep > 0);
                 final desglose = <_DesgloseItem>[
-                  if (mo > 0) _DesgloseItem('Mano obra', mo),
-                  if (rep > 0) _DesgloseItem('Repuesto/compra', rep),
-                  if (abonadoComp > 0 && !cubierto)
-                    _DesgloseItem('Abonado', abonadoComp),
+                  if (mo > 0)
+                    _DesgloseItem('Mano obra', unSoloMotivo ? null : mo),
+                  if (rep > 0)
+                    _DesgloseItem('Repuesto/compra', unSoloMotivo ? null : rep),
+                  if (abonadoComp > 0) _DesgloseItem('Abonado', abonadoComp),
                 ];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -2572,42 +2577,9 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                 font: AppFont.amazonEmberMedium,
                                 color: Colors.grey.shade700),
                           ),
-                          // Lo que falta va DEBAJO del precio, no al lado:
-                          // el saldo del repuesto se lee contra su total, y
-                          // así no hay que restar al ojo.
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('S/ ${costoComp.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600)),
-                              if (abonadoComp > 0) ...[
-                                const SizedBox(height: 2),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: (cubierto ? Colors.green : Colors.amber)
-                                        .withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    cubierto
-                                        ? '✓ pagado'
-                                        : 'Debe S/ ${(costoComp - abonadoComp).toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 8.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: cubierto
-                                          ? Colors.green.shade700
-                                          : Colors.amber.shade800,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                          Text('S/ ${costoComp.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w600)),
                         ],
                       ),
                       // Desglose mano de obra / repuesto-compra
@@ -2628,25 +2600,59 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                           text: TextSpan(
                                             children: [
                                               TextSpan(
-                                                text: '${d.label}: ',
+                                                text: d.monto == null
+                                                    ? d.label
+                                                    : '${d.label}: ',
                                                 style: TextStyle(
                                                     fontSize: 9.5,
                                                     color: Colors.grey.shade500),
                                               ),
-                                              TextSpan(
-                                                text:
-                                                    'S/ ${d.monto.toStringAsFixed(2)}',
-                                                style: TextStyle(
-                                                    fontSize: 9.5,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Colors.grey.shade700),
-                                              ),
+                                              if (d.monto != null)
+                                                TextSpan(
+                                                  text:
+                                                      'S/ ${d.monto!.toStringAsFixed(2)}',
+                                                  style: TextStyle(
+                                                      fontSize: 9.5,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: d.label ==
+                                                              'Abonado'
+                                                          ? Colors.green.shade700
+                                                          : Colors
+                                                              .grey.shade700),
+                                                ),
                                             ],
                                           ),
                                         ))
                                     .toList(),
                               ),
                             ),
+                            // El chip va en ESTA fila, junto al abonado, y no
+                            // debajo del precio: es una línea menos de alto
+                            // por componente.
+                            if (abonadoComp > 0)
+                              Container(
+                                margin: const EdgeInsets.only(left: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: (cubierto ? Colors.green : Colors.amber)
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  cubierto
+                                      ? '✓ pagado'
+                                      : 'Debe S/ ${(costoComp - abonadoComp).toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: cubierto
+                                        ? Colors.green.shade700
+                                        : Colors.amber.shade800,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -5751,7 +5757,10 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
 /// Item del desglose de costo por componente (mano de obra / repuesto-compra).
 class _DesgloseItem {
   final String label;
-  final double monto;
+
+  /// null = solo el rótulo. Con UN solo motivo su importe ES el total que ya
+  /// se muestra arriba, así que repetirlo no agrega nada.
+  final double? monto;
   const _DesgloseItem(this.label, this.monto);
 }
 
