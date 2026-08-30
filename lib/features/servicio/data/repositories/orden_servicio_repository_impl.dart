@@ -270,6 +270,7 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
     required double monto,
     String? metodoPago,
     String? nota,
+    String? servicioComponenteId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
@@ -279,6 +280,8 @@ class OrdenServicioRepositoryImpl implements OrdenServicioRepository {
         'monto': monto,
         if (metodoPago != null) 'metodoPago': metodoPago,
         if (nota != null && nota.isNotEmpty) 'nota': nota,
+        if (servicioComponenteId != null)
+          'servicioComponenteId': servicioComponenteId,
       });
       return Success(result);
     } catch (e) {

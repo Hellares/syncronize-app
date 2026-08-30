@@ -47,6 +47,10 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
     final montoCtrl = TextEditingController();
     final notaCtrl = TextEditingController();
     String metodo = 'EFECTIVO';
+    // null = al costo del servicio, que es lo que fue siempre todo abono
+    // anterior a esta pantalla.
+    String? componenteId;
+    final componentes = widget.orden.componentes ?? const <OrdenComponente>[];
 
     final confirmado = await showDialog<bool>(
       context: context,
@@ -82,6 +86,49 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
                   ),
               ],
             ),
+            if (componentes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '¿A qué corresponde?',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Costo del servicio',
+                        style: TextStyle(fontSize: 10)),
+                    selected: componenteId == null,
+                    selectedColor: AppColors.green.withValues(alpha: 0.15),
+                    onSelected: (_) =>
+                        setDialogState(() => componenteId = null),
+                  ),
+                  for (final c in componentes)
+                    ChoiceChip(
+                      label: Text(
+                        // El costo del componente es mano de obra + repuestos:
+                        // los dos los paga el cliente (modelo aditivo).
+                        '${c.componente?.displayName ?? 'Componente'}'
+                        '${(c.costoAccion ?? 0) + (c.costoRepuestos ?? 0) > 0 ? ' · S/ ${((c.costoAccion ?? 0) + (c.costoRepuestos ?? 0)).toStringAsFixed(2)}' : ''}',
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      selected: componenteId == c.id,
+                      selectedColor: AppColors.green.withValues(alpha: 0.15),
+                      onSelected: (_) =>
+                          setDialogState(() => componenteId = c.id),
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: 10),
             CustomText(
               controller: notaCtrl,
@@ -133,6 +180,7 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
       monto: monto,
       metodoPago: metodo,
       nota: notaCtrl.text.trim().isEmpty ? null : notaCtrl.text.trim(),
+      servicioComponenteId: componenteId,
     );
     if (!mounted) return;
     setState(() => _busy = false);
@@ -250,6 +298,11 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
 
   Widget _buildFila(AdelantoOrden f, DateFormat df) {
     final esAjuste = f.monto < 0;
+    final comp = f.servicioComponenteId == null
+        ? null
+        : (widget.orden.componentes ?? const <OrdenComponente>[])
+            .where((c) => c.id == f.servicioComponenteId)
+            .firstOrNull;
     final color = f.anulado
         ? Colors.grey
         : esAjuste
@@ -290,6 +343,15 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
                   '${f.nota != null ? ' · ${f.nota}' : ''}',
                   style: TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
                 ),
+                if (f.servicioComponenteId != null)
+                  Text(
+                    '🔧 ${comp?.componente?.displayName ?? 'Componente'}',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
               ],
             ),
           ),

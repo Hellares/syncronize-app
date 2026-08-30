@@ -2480,6 +2480,10 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
       totalRep += comp.costoRepuestos ?? 0;
     }
     final subtotalComponentes = totalMO + totalRep;
+    // Lo que el cliente ya dejó pagado de cada repuesto. Etiqueta sobre el
+    // mismo adelanto de la orden: dice qué quedó cubierto, no abre un saldo
+    // aparte por componente.
+    final imputado = _orden!.adelantoPorComponente;
     final costoTotal = _orden!.costoTotal;
     final adelanto = _orden!.adelanto;
     final descuento = _orden!.descuento;
@@ -2566,6 +2570,27 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                           Text('S/ ${costoComp.toStringAsFixed(2)}',
                               style: const TextStyle(
                                   fontSize: 11, fontWeight: FontWeight.w600)),
+                          if ((imputado[comp.id] ?? 0) > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                (imputado[comp.id] ?? 0) + 0.005 >= costoComp
+                                    ? '✓ pagado'
+                                    : 'Abonado S/ ${(imputado[comp.id] ?? 0).toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       // Desglose mano de obra / repuesto-compra

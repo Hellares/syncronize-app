@@ -120,6 +120,21 @@ class OrdenServicio extends Equatable {
     this.tercerizacionDestino,
   });
 
+  /// Cuánto del adelanto quedó imputado a cada componente, por id.
+  ///
+  /// Solo filas NO anuladas, y solo abonos: los ajustes negativos corrigen el
+  /// total de la orden, no el pago de un repuesto, así que el backend los
+  /// guarda sin imputar.
+  Map<String, double> get adelantoPorComponente {
+    final acc = <String, double>{};
+    for (final a in adelantos ?? const <AdelantoOrden>[]) {
+      final compId = a.servicioComponenteId;
+      if (a.anulado || compId == null) continue;
+      acc[compId] = (acc[compId] ?? 0) + a.monto;
+    }
+    return acc;
+  }
+
   /// Subtotal de componentes (mano de obra + repuestos)
   double get subtotalComponentes {
     if (componentes == null || componentes!.isEmpty) return 0;
@@ -457,6 +472,13 @@ class AdelantoOrden extends Equatable {
   final DateTime creadoEn;
   final bool anulado;
 
+  /// A qué se imputa el abono. null = al costo del servicio (o sin imputar).
+  ///
+  /// 🔴 Es una ETIQUETA, no una cuenta aparte: el saldo de la orden sigue
+  /// siendo `costoFinal - adelanto`. Sirve para decir "estos 100 son la
+  /// carcasa", no para abrir un saldo por repuesto.
+  final String? servicioComponenteId;
+
   const AdelantoOrden({
     required this.id,
     required this.monto,
@@ -465,8 +487,10 @@ class AdelantoOrden extends Equatable {
     this.creadoPorNombre,
     required this.creadoEn,
     this.anulado = false,
+    this.servicioComponenteId,
   });
 
   @override
-  List<Object?> get props => [id, monto, metodoPago, anulado];
+  List<Object?> get props =>
+      [id, monto, metodoPago, anulado, servicioComponenteId];
 }

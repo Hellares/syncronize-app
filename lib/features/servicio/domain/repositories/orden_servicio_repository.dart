@@ -96,6 +96,8 @@ abstract class OrdenServicioRepository {
     required double monto,
     String? metodoPago,
     String? nota,
+    /// Componente al que se imputa. null = al costo del servicio.
+    String? servicioComponenteId,
   });
 
   /// Anula un abono del libro (EGRESO en caja por devolución).

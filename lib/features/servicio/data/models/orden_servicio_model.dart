@@ -150,6 +150,7 @@ class AdelantoOrdenModel extends AdelantoOrden {
     super.creadoPorNombre,
     required super.creadoEn,
     super.anulado,
+    super.servicioComponenteId,
   });
 
   factory AdelantoOrdenModel.fromJson(Map<String, dynamic> json) {
@@ -161,6 +162,7 @@ class AdelantoOrdenModel extends AdelantoOrden {
       creadoPorNombre: json['creadoPorNombre'] as String?,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
       anulado: json['anulado'] as bool? ?? false,
+      servicioComponenteId: json['servicioComponenteId'] as String?,
     );
   }
 }
