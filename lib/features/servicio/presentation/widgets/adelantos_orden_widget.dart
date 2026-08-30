@@ -50,7 +50,16 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
     // null = al costo del servicio, que es lo que fue siempre todo abono
     // anterior a esta pantalla.
     String? componenteId;
-    final componentes = widget.orden.componentes ?? const <OrdenComponente>[];
+    final imputado = widget.orden.adelantoPorComponente;
+    // Solo los que todavía deben algo. Uno ya cubierto no acepta más plata —el
+    // backend lo rechaza— así que ofrecerlo sería prometer un error. Los que
+    // están SIN COSTEAR siempre se ofrecen: no hay total que completar.
+    final componentes = (widget.orden.componentes ?? const <OrdenComponente>[])
+        .where((c) {
+      final costo = (c.costoAccion ?? 0) + (c.costoRepuestos ?? 0);
+      if (costo <= 0) return true;
+      return (imputado[c.id] ?? 0) + 0.005 < costo;
+    }).toList();
 
     final confirmado = await showDialog<bool>(
       context: context,
@@ -114,11 +123,12 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
                   ),
                   for (final c in componentes)
                     ChoiceChip(
+                      // El costo del componente es mano de obra + repuestos:
+                      // los dos los paga el cliente (modelo aditivo). Con algo
+                      // abonado se muestra cuánto FALTA, que es el número que
+                      // el cajero tiene que escribir arriba.
                       label: Text(
-                        // El costo del componente es mano de obra + repuestos:
-                        // los dos los paga el cliente (modelo aditivo).
-                        '${c.componente?.displayName ?? 'Componente'}'
-                        '${(c.costoAccion ?? 0) + (c.costoRepuestos ?? 0) > 0 ? ' · S/ ${((c.costoAccion ?? 0) + (c.costoRepuestos ?? 0)).toStringAsFixed(2)}' : ''}',
+                        _etiquetaComponente(c, imputado[c.id] ?? 0),
                         style: const TextStyle(fontSize: 10),
                       ),
                       selected: componenteId == c.id,
@@ -191,6 +201,17 @@ class _AdelantosOrdenWidgetState extends State<AdelantosOrdenWidget> {
     } else if (result is Error<OrdenServicio>) {
       SnackBarHelper.showError(context, result.message);
     }
+  }
+
+  /// "Carcasa · S/ 100.00", "Carcasa · falta S/ 40.00" o "Carcasa · sin costear".
+  static String _etiquetaComponente(OrdenComponente c, double abonado) {
+    final nombre = c.componente?.displayName ?? 'Componente';
+    final costo = (c.costoAccion ?? 0) + (c.costoRepuestos ?? 0);
+    if (costo <= 0) return '$nombre · sin costear';
+    if (abonado > 0) {
+      return '$nombre · falta S/ ${(costo - abonado).toStringAsFixed(2)}';
+    }
+    return '$nombre · S/ ${costo.toStringAsFixed(2)}';
   }
 
   Future<void> _anular(AdelantoOrden fila) async {
