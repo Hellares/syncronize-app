@@ -2547,9 +2547,14 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                 final mo = comp.costoAccion ?? 0;
                 final rep = comp.costoRepuestos ?? 0;
                 final costoComp = mo + rep;
+                final abonadoComp = imputado[comp.id] ?? 0;
+                final cubierto =
+                    abonadoComp > 0 && abonadoComp + 0.005 >= costoComp;
                 final desglose = <_DesgloseItem>[
                   if (mo > 0) _DesgloseItem('Mano obra', mo),
                   if (rep > 0) _DesgloseItem('Repuesto/compra', rep),
+                  if (abonadoComp > 0 && !cubierto)
+                    _DesgloseItem('Abonado', abonadoComp),
                 ];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -2567,30 +2572,42 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                                 font: AppFont.amazonEmberMedium,
                                 color: Colors.grey.shade700),
                           ),
-                          Text('S/ ${costoComp.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.w600)),
-                          if ((imputado[comp.id] ?? 0) > 0) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                (imputado[comp.id] ?? 0) + 0.005 >= costoComp
-                                    ? '✓ pagado'
-                                    : 'Abonado S/ ${(imputado[comp.id] ?? 0).toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.green.shade700,
+                          // Lo que falta va DEBAJO del precio, no al lado:
+                          // el saldo del repuesto se lee contra su total, y
+                          // así no hay que restar al ojo.
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('S/ ${costoComp.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
+                              if (abonadoComp > 0) ...[
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: (cubierto ? Colors.green : Colors.amber)
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    cubierto
+                                        ? '✓ pagado'
+                                        : 'Debe S/ ${(costoComp - abonadoComp).toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: cubierto
+                                          ? Colors.green.shade700
+                                          : Colors.amber.shade800,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ],
+                              ],
+                            ],
+                          ),
                         ],
                       ),
                       // Desglose mano de obra / repuesto-compra
