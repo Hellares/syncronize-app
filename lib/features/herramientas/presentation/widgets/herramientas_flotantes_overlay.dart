@@ -5,6 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../producto/presentation/bloc/sede_selection/sede_selection_cubit.dart';
+import '../pages/catalogo_compartir_page.dart';
 import 'calculadora_mostrador_sheet.dart';
 import 'calculadora_simple_sheet.dart';
 
@@ -127,7 +133,47 @@ class _HerramientasFlotantesOverlayState
       label: 'Calculadora',
       onTap: () => _abrir(CalculadoraSimpleSheet.show),
     ),
+    _Herramienta(
+      icono: Icons.collections_bookmark_outlined,
+      label: 'Catálogo',
+      onTap: _abrirCatalogo,
+    ),
   ];
+
+  /// Arma un catálogo de varios productos para mandarlo en PDF.
+  ///
+  /// 🔴 La sede sale del cubit GLOBAL --el mismo que usa la lista de
+  /// productos--; sin una elegida se cae a la principal de la empresa, porque
+  /// el precio y el stock del catálogo son SIEMPRE de una sede.
+  void _abrirCatalogo() {
+    _cerrarMenu();
+    final ctx = _navCtx;
+    if (ctx == null) return;
+
+    final empresaEstado = ctx.read<EmpresaContextCubit>().state;
+    if (empresaEstado is! EmpresaContextLoaded) return;
+    final sedes = empresaEstado.context.sedes;
+    if (sedes.isEmpty) return;
+
+    // 🔴 Nada de `firstWhere(orElse:)` acá: `sedes` esta declarada de la
+    // ENTIDAD pero llega poblada con MODELOS, y Dart exige que el `orElse`
+    // devuelva el tipo del RUNTIME. Compila limpio y revienta al tocar el
+    // boton. Se recorre a mano con un valor por defecto.
+    final elegida = ctx.read<SedeSelectionCubit>().selectedSedeId;
+    String sedeId = sedes.first.id;
+    if (elegida != null && sedes.any((s) => s.id == elegida)) {
+      sedeId = elegida;
+    } else {
+      for (final s in sedes) {
+        if (s.esPrincipal == true) {
+          sedeId = s.id;
+          break;
+        }
+      }
+    }
+
+    CatalogoCompartirPage.show(ctx, sedeId: sedeId);
+  }
 
   /// Ángulos (en grados) del inicio y fin del abanico según el cuadrante
   /// libre alrededor del botón. Pantalla: y crece hacia abajo, así que

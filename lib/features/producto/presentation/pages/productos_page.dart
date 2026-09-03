@@ -48,6 +48,7 @@ import 'stock_por_sede_page.dart';
 import 'alertas_stock_bajo_page.dart';
 import 'transferencias_stock_page.dart';
 import 'agregar_stock_inicial_page.dart';
+import 'compartir_producto_page.dart';
 import 'bulk_upload_productos_page.dart';
 // Import para SearchDelegate
 // import '../search_delegate/producto_search_delegate.dart';
@@ -388,6 +389,61 @@ class _ProductosPageState extends State<ProductosPage>
     if (_search == value) return;
     setState(() => _search = value);
     _loadProductos();
+  }
+
+  /// Abre la vista previa de la ficha para compartirla.
+  ///
+  /// 🔴 La card de la lista NO trae atributos ni imágenes: se pide la ficha
+  /// completa, igual que hace el botón de stock. Sin esto la imagen saldría
+  /// sin características.
+  Future<void> _compartirProducto(String productoId, String sedeId) async {
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    if (empresaState is! EmpresaContextLoaded) return;
+    final empresa = empresaState.context.empresa;
+
+    try {
+      final result = await locator<GetProductoUseCase>()(
+        productoId: productoId,
+        empresaId: empresa.id,
+      );
+      if (!mounted) return;
+      if (result is! Success<Producto>) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo cargar el producto para compartirlo'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      final p = result.data;
+      final precio = p.precioEfectivoEnSede(sedeId) ?? 0;
+      final lista = p.precioEnSede(sedeId);
+      final imgs = p.imagenes;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CompartirProductoPage(
+            titulo: p.nombre,
+            codigo: p.codigoEmpresa,
+            fotoUrl: (imgs != null && imgs.isNotEmpty) ? imgs.first : null,
+            atributosValores: p.atributosValores ?? const [],
+            plantillasIds: p.plantillasAtributosIds,
+            precio: precio,
+            // El de lista solo si hay rebaja vigente: sirve para tacharlo.
+            precioAnterior: (lista != null && lista > precio) ? lista : null,
+            empresaNombre: empresa.nombre,
+            empresaTelefono: empresa.telefono,
+            empresaLogo: empresa.logo,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Future<void> _showArchivoManager(
@@ -1202,6 +1258,7 @@ class _ProductosPageState extends State<ProductosPage>
                   },
                   onManageFiles: () =>
                       _showArchivoManager(producto.id, producto.nombre),
+                  onCompartir: () => _compartirProducto(producto.id, sedeId),
                   onViewVariants: producto.tieneVariantes
                       ? () => _showVariantes(producto.id, producto.nombre)
                       : null,

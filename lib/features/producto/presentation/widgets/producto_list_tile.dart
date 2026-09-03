@@ -12,6 +12,8 @@ class ProductoListTile extends StatelessWidget {
   final ProductoListItem producto;
   final VoidCallback onTap;
   final VoidCallback? onManageFiles;
+  /// Compartir la ficha del producto como imagen (WhatsApp).
+  final VoidCallback? onCompartir;
   final VoidCallback? onViewVariants;
   final VoidCallback? onManageVariants; // Navega directo a gestión de variantes
   final VoidCallback? onStockDoubleTap;
@@ -25,6 +27,7 @@ class ProductoListTile extends StatelessWidget {
     required this.onTap,
     required this.sedeId,
     this.onManageFiles,
+    this.onCompartir,
     this.onViewVariants,
     this.onManageVariants,
     this.onStockDoubleTap,
@@ -190,6 +193,39 @@ class ProductoListTile extends StatelessWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+
+              // Compartir la ficha como imagen, al lado del clip. Oculto en
+              // productos con VARIANTES: ahí se comparte la variante puntual,
+              // que es la que tiene el precio y los atributos que el cliente
+              // preguntó.
+              if (onCompartir != null && !producto.tieneVariantes)
+                Positioned(
+                  top: 0,
+                  right: 35, // A la izquierda del clip, mismo paso que abajo
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onCompartir,
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AppColors.blue1.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: AppColors.cardBackground,
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.share_outlined,
+                          size: 14,
+                          color: AppColors.blue1,
+                        ),
+                      ),
                     ),
                   ),
                 ),

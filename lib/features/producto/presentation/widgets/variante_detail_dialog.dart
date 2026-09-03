@@ -9,7 +9,13 @@ import 'package:syncronize/core/utils/resource.dart';
 import 'package:syncronize/core/utils/unidad_presentacion.dart';
 import 'package:syncronize/core/widgets/info_chip.dart';
 import 'package:syncronize/core/widgets/styled_dialog.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../bloc/sede_selection/sede_selection_cubit.dart';
+import '../pages/compartir_producto_page.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/entities/producto_variante.dart';
 import '../../domain/repositories/plantilla_repository.dart';
@@ -50,6 +56,22 @@ void showVarianteDetailDialog({
         ),
       ],
       actions: [
+        // Compartir ESTA variante: es la que tiene el precio y los atributos
+        // que el cliente preguntó. En el producto padre el botón no existe.
+        Expanded(
+          child: CustomButton(
+            text: 'Compartir',
+            backgroundColor: AppColors.blue1,
+            textColor: AppColors.white,
+            onPressed: () => _compartirVariante(
+              dialogContext,
+              variante,
+              plantillasIds,
+              plantillas,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         Expanded(
           child: CustomButton(
             text: 'Cerrar',
@@ -60,6 +82,54 @@ void showVarianteDetailDialog({
           ),
         ),
       ],
+    ),
+  );
+}
+
+/// Arma la ficha de la variante y abre la vista previa para compartirla.
+///
+/// 🔴 El precio sale del stock de la SEDE elegida; si no hay una elegida o esa
+/// sede no tiene precio, cae al primer stock con precio configurado. Sin eso,
+/// una variante con precio solo en otra sede se compartiria en S/ 0.
+Future<void> _compartirVariante(
+  BuildContext context,
+  ProductoVariante variante,
+  List<String> plantillasIds,
+  List<AtributoPlantilla> plantillas,
+) async {
+  final empresaState = context.read<EmpresaContextCubit>().state;
+  if (empresaState is! EmpresaContextLoaded) return;
+  final empresa = empresaState.context.empresa;
+
+  final stocks = variante.stocksPorSede ?? const [];
+  final sedeElegida = context.read<SedeSelectionCubit>().selectedSedeId;
+  final stock = stocks.where((s) => s.sedeId == sedeElegida && s.precio != null).firstOrNull ??
+      stocks.where((s) => s.precio != null).firstOrNull ??
+      (stocks.isEmpty ? null : stocks.first);
+
+  final precio = stock == null ? 0.0 : (variante.precioEfectivoEnSede(stock.sedeId) ?? 0);
+  final lista = stock == null ? null : variante.precioEnSede(stock.sedeId);
+
+  final archivos = variante.archivos ?? const [];
+  final foto = archivos.isNotEmpty ? archivos.first.url : null;
+
+  if (!context.mounted) return;
+  Navigator.of(context).pop();
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => CompartirProductoPage(
+        titulo: variante.nombre,
+        codigo: variante.codigoEmpresa,
+        fotoUrl: foto,
+        atributosValores: variante.atributosValores,
+        plantillasIds: plantillasIds,
+        precio: precio,
+        precioAnterior: (lista != null && lista > precio) ? lista : null,
+        empresaNombre: empresa.nombre,
+        empresaTelefono: empresa.telefono,
+        empresaLogo: empresa.logo,
+      ),
     ),
   );
 }
