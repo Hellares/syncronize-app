@@ -16,12 +16,26 @@ import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+/// Una foto del ítem.
+///
+/// Cuando un producto tiene varias, cada una suele ser un COLOR o un DIBUJO
+/// distinto del mismo artículo, al mismo precio.
+class FotoItem {
+  final String url;
+  bool elegida;
+  FotoItem(this.url, {this.elegida = true});
+}
+
 /// Un renglón del catálogo, ya resuelto por la pantalla: producto o variante.
 class ItemCatalogo {
   final String id;
   final String titulo;
   final String? codigo;
-  final String? fotoUrl;
+
+  /// 🔴 TODAS sus fotos, no una. Con varias elegidas sale **una tarjeta por
+  /// foto**, con los mismos datos: son el mismo producto en otro color, y
+  /// quedarse con la primera dejaba el resto del surtido invisible.
+  final List<FotoItem> fotos;
   final double precio;
 
   /// `nombre: valor` ya aplanados y en orden. La ficha del PDF muestra los
@@ -38,10 +52,50 @@ class ItemCatalogo {
     required this.precio,
     required this.stock,
     this.codigo,
-    this.fotoUrl,
+    List<String> fotos = const [],
     this.caracteristicas = const [],
     bool? elegido,
-  }) : elegido = elegido ?? stock > 0;
+  })  : fotos = [for (final u in fotos) FotoItem(u)],
+        elegido = elegido ?? stock > 0;
+
+  /// La primera foto elegida, para la miniatura de la lista.
+  String? get fotoPrincipal =>
+      fotos.where((f) => f.elegida).map((f) => f.url).firstOrNull ??
+      fotos.map((f) => f.url).firstOrNull;
+}
+
+/// Lo que termina siendo UNA tarjeta del PDF.
+class TarjetaCatalogo {
+  final ItemCatalogo item;
+  final String? fotoUrl;
+
+  /// "Diseño 2 de 5", solo cuando el ítem aporta más de una tarjeta.
+  final String? etiqueta;
+  const TarjetaCatalogo(this.item, {this.fotoUrl, this.etiqueta});
+}
+
+/// Expande los ítems en tarjetas: una por foto elegida.
+///
+/// 🔴 Las tarjetas se numeran ("Diseño 2 de 5") en cuanto hay más de una. Sin
+/// eso el catálogo muestra cinco tarjetas idénticas y el cliente solo puede
+/// pedir "la tercera foto", que del otro lado del WhatsApp no se sabe cuál es.
+List<TarjetaCatalogo> tarjetasDe(List<ItemCatalogo> items) {
+  final salida = <TarjetaCatalogo>[];
+  for (final item in items.where((i) => i.elegido)) {
+    final fotos = item.fotos.where((f) => f.elegida).toList();
+    if (fotos.length <= 1) {
+      salida.add(TarjetaCatalogo(item, fotoUrl: fotos.firstOrNull?.url));
+      continue;
+    }
+    for (var i = 0; i < fotos.length; i++) {
+      salida.add(TarjetaCatalogo(
+        item,
+        fotoUrl: fotos[i].url,
+        etiqueta: 'Diseño ${i + 1} de ${fotos.length}',
+      ));
+    }
+  }
+  return salida;
 }
 
 /// Baja las miniaturas en tandas y devuelve `url -> bytes`.
@@ -132,7 +186,7 @@ Future<Uint8List> construirCatalogoPdf({
   final fecha =
       '${ahora.day.toString().padLeft(2, '0')}/${ahora.month.toString().padLeft(2, '0')}/${ahora.year}';
 
-  final elegidos = items.where((i) => i.elegido).toList();
+  final tarjetas = tarjetasDe(items);
 
   /// 🔴 `MemoryImage` LANZA si no reconoce los bytes, y como se construye
   /// dentro de la tarjeta, una sola foto rara —un HTML de error servido con
@@ -148,8 +202,9 @@ Future<Uint8List> construirCatalogoPdf({
     }
   }
 
-  pw.Widget tarjeta(ItemCatalogo it) {
-    final foto = imagen(it.fotoUrl);
+  pw.Widget tarjeta(TarjetaCatalogo tj) {
+    final it = tj.item;
+    final foto = imagen(tj.fotoUrl);
     final rasgos = it.caracteristicas.take(maxCaracteristicas).toList();
     final sinStock = it.stock <= 0;
 
@@ -207,6 +262,13 @@ Future<Uint8List> construirCatalogoPdf({
                     lineSpacing: 1,
                   ),
                 ),
+                // "Diseño 2 de 5": lo único que distingue dos tarjetas del
+                // mismo producto.
+                if (tj.etiqueta != null) ...[
+                  pw.SizedBox(height: 2),
+                  pw.Text(tj.etiqueta!,
+                      style: pw.TextStyle(fontSize: 6.5, color: marca)),
+                ],
                 if (incluirCodigo && (it.codigo ?? '').isNotEmpty) ...[
                   pw.SizedBox(height: 2),
                   pw.Text('Cód. ${it.codigo}',
@@ -330,7 +392,7 @@ Future<Uint8List> construirCatalogoPdf({
               gris: gris,
               grisOscuro: grisOscuro,
               fecha: fecha,
-              articulos: elegidos.length,
+              articulos: tarjetas.length,
             )
           : _franjaContinuacion(
               empresaNombre: empresaNombre,
@@ -375,7 +437,7 @@ Future<Uint8List> construirCatalogoPdf({
               1: pw.FlexColumnWidth()
             },
             children: [
-              for (var i = 0; i < elegidos.length; i += 2)
+              for (var i = 0; i < tarjetas.length; i += 2)
                 pw.TableRow(
                   // Las dos tarjetas de la fila terminan a la misma altura: si
                   // no, la que tiene menos caracteristicas queda corta y la
@@ -384,14 +446,14 @@ Future<Uint8List> construirCatalogoPdf({
                   children: [
                     pw.Padding(
                       padding: const pw.EdgeInsets.only(right: 6, bottom: 12),
-                      child: tarjeta(elegidos[i]),
+                      child: tarjeta(tarjetas[i]),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.only(left: 6, bottom: 12),
                       // Impar: la ultima fila deja la celda vacia en vez de
                       // estirar la tarjeta a todo el ancho.
-                      child: i + 1 < elegidos.length
-                          ? tarjeta(elegidos[i + 1])
+                      child: i + 1 < tarjetas.length
+                          ? tarjeta(tarjetas[i + 1])
                           : pw.SizedBox(),
                     ),
                   ],
@@ -541,5 +603,8 @@ pw.Widget _franjaContinuacion({
 
 /// Cuántas imágenes hay que bajar para estos ítems.
 @visibleForTesting
-int fotosADescargar(List<ItemCatalogo> items) =>
-    items.where((i) => i.elegido && (i.fotoUrl ?? '').isNotEmpty).length;
+int fotosADescargar(List<ItemCatalogo> items) => tarjetasDe(items)
+    .map((t) => t.fotoUrl)
+    .whereType<String>()
+    .toSet()
+    .length;

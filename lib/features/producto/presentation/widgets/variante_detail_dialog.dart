@@ -111,8 +111,10 @@ Future<void> _compartirVariante(
   final precio = stock == null ? 0.0 : (variante.precioEfectivoEnSede(stock.sedeId) ?? 0);
   final lista = stock == null ? null : variante.precioEnSede(stock.sedeId);
 
-  final archivos = variante.archivos ?? const [];
-  final foto = archivos.isNotEmpty ? archivos.first.url : null;
+  // TODAS las fotos de la variante: cada una suele ser un color distinto.
+  final fotos = <String>{
+    for (final a in variante.archivos ?? const []) a.url,
+  }.toList();
 
   // 🔴 La ficha se presenta con el NOMBRE COMERCIAL y el color de la marca:
   // `empresa.nombre` es la razón social.
@@ -130,7 +132,7 @@ Future<void> _compartirVariante(
         empresaId: empresa.id,
         titulo: variante.nombre,
         codigo: variante.codigoEmpresa,
-        fotoUrl: foto,
+        fotos: fotos,
         atributosValores: variante.atributosValores,
         plantillasIds: plantillasIds,
         precio: precio,

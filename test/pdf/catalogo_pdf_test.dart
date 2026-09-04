@@ -107,6 +107,50 @@ void main() {
     expect(blob, isNot(contains('Microfibra')));
   });
 
+  test('🔴 un item con VARIAS fotos sale como una tarjeta por foto', () async {
+    // Son el mismo producto en otro color: mismo nombre, mismo precio. Lo unico
+    // que las distingue es el rotulo, y sin el el cliente solo puede pedir "la
+    // tercera foto".
+    final conDisenos = ItemCatalogo(
+      id: '9',
+      titulo: 'EDREDON 2 PLAZAS',
+      codigo: 'EDR-2P',
+      precio: 129.9,
+      stock: 10,
+      fotos: const ['a.webp', 'b.webp', 'c.webp'],
+    );
+    expect(tarjetasDe([conDisenos]).length, 3);
+    expect(fotosADescargar([conDisenos]), 3);
+
+    final bytes = await construirCatalogoPdf(
+      items: [conDisenos],
+      empresaNombre: 'JAYLILAND',
+      imagenes: const {},
+    );
+    final blob = blobDe(bytes);
+    expect(blob, contains('1 de 3'));
+    expect(blob, contains('3 de 3'));
+    // El rotulo cuenta TARJETAS, no items.
+    expect(blob, contains('3'));
+  });
+
+  test('destildar fotos baja la cantidad de tarjetas', () async {
+    final it = ItemCatalogo(
+      id: '9',
+      titulo: 'EDREDON',
+      precio: 1,
+      stock: 5,
+      fotos: const ['a.webp', 'b.webp', 'c.webp'],
+    );
+    it.fotos[1].elegida = false;
+    expect(tarjetasDe([it]).length, 2);
+
+    // Con UNA sola foto no se numera: numerar una tarjeta sola no dice nada.
+    it.fotos[2].elegida = false;
+    expect(tarjetasDe([it]).length, 1);
+    expect(tarjetasDe([it]).single.etiqueta, isNull);
+  });
+
   test('un color de marca distinto no rompe el documento', () async {
     final bytes = await construirCatalogoPdf(
       items: items(),

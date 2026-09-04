@@ -31,7 +31,10 @@ class CompartirProductoPage extends StatefulWidget {
 
   final String titulo;
   final String? codigo;
-  final String? fotoUrl;
+  /// 🔴 TODAS las fotos: cuando hay varias, cada una suele ser un COLOR o un
+  /// DIBUJO distinto del mismo artículo. Antes se mandaba la primera sin
+  /// preguntar y el resto no existía.
+  final List<String> fotos;
   final List<dynamic> atributosValores;
   final List<String> plantillasIds;
   final double precio;
@@ -53,7 +56,7 @@ class CompartirProductoPage extends StatefulWidget {
     required this.precio,
     required this.empresaNombre,
     this.codigo,
-    this.fotoUrl,
+    this.fotos = const [],
     this.atributosValores = const [],
     this.plantillasIds = const [],
     this.precioAnterior,
@@ -75,6 +78,7 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
   bool _incluirCodigo = true;
   bool _enviando = false;
   List<AtributoPlantilla> _plantillas = const [];
+  late String? _foto = widget.fotos.isEmpty ? null : widget.fotos.first;
 
   @override
   void initState() {
@@ -98,7 +102,7 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
   }
 
   Future<void> _precargarFoto() async {
-    final url = widget.fotoUrl;
+    final url = _foto;
     if (url == null || url.isEmpty) return;
     try {
       await precacheImage(NetworkImage(url), context);
@@ -197,7 +201,7 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
                   child: FichaCompartible(
                     titulo: widget.titulo,
                     codigo: widget.codigo,
-                    fotoUrl: widget.fotoUrl,
+                    fotoUrl: _foto,
                     atributosValores: widget.atributosValores,
                     plantillasIds: widget.plantillasIds,
                     plantillas: _plantillas,
@@ -229,6 +233,48 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // 🔴 Con varias fotos se elige CUÁL se manda: cada una
+                  // suele ser un color o un dibujo distinto del mismo
+                  // artículo. Para mandar varias de una vez está el catálogo,
+                  // que saca una tarjeta por foto.
+                  if (widget.fotos.length > 1) ...[
+                    SizedBox(
+                      height: 46,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: widget.fotos.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 6),
+                        itemBuilder: (_, i) {
+                          final url = widget.fotos[i];
+                          final elegida = url == _foto;
+                          return GestureDetector(
+                            onTap: _enviando
+                                ? null
+                                : () {
+                                    setState(() => _foto = url);
+                                    _precargarFoto();
+                                  },
+                            child: Opacity(
+                              opacity: elegida ? 1 : .45,
+                              child: Container(
+                                width: 46,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: elegida ? _marca : Colors.grey.shade300,
+                                    width: elegida ? 2 : 1,
+                                  ),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Image.network(url, fit: BoxFit.cover),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   Wrap(
                     spacing: 6,
                     children: [

@@ -433,7 +433,11 @@ class _ProductosPageState extends State<ProductosPage>
             empresaId: empresa.id,
             titulo: p.nombre,
             codigo: p.codigoEmpresa,
-            fotoUrl: (imgs != null && imgs.isNotEmpty) ? imgs.first : null,
+            // TODAS: cada foto suele ser un color o un dibujo distinto.
+            fotos: <String>{
+              ...?p.archivos?.map((a) => a.url),
+              ...?imgs,
+            }.toList(),
             atributosValores: p.atributosValores ?? const [],
             plantillasIds: p.plantillasAtributosIds,
             precio: precio,

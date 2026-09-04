@@ -71,7 +71,9 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
   bool _trabajando = false;
   String _progreso = '';
 
-  int get _elegidos => _items.where((i) => i.elegido).length;
+  /// Lo que de verdad va a salir: un ítem con varias fotos elegidas aporta una
+  /// tarjeta por foto. Los topes y los avisos cuentan TARJETAS.
+  int get _tarjetas => tarjetasDe(_items).length;
 
   EmpresaInfo? get _empresa {
     final estado = context.read<EmpresaContextCubit>().state;
@@ -127,14 +129,15 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
       final variantes = p.variantes ?? const [];
       if (p.tieneVariantes && variantes.isNotEmpty) {
         for (final v in variantes) {
-          final archivos = v.archivos ?? const [];
+          final propias = _fotos(archivos: v.archivos);
           nuevos.add(ItemCatalogo(
             id: v.id,
             titulo: v.nombre,
             codigo: v.codigoEmpresa,
-            fotoUrl: archivos.isNotEmpty
-                ? (archivos.first.urlThumbnail ?? archivos.first.url)
-                : p.thumbnailPrincipal,
+            // Sin fotos propias hereda las del padre, como en la lista.
+            fotos: propias.isNotEmpty
+                ? propias
+                : _fotos(archivos: p.archivos, imagenes: p.imagenes),
             precio: v.precioEfectivoEnSede(widget.sedeId) ?? 0,
             stock: (v.stockEnSede(widget.sedeId) ?? 0).toDouble(),
             caracteristicas: _caracteristicas(v.atributosValores),
@@ -145,7 +148,7 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
           id: p.id,
           titulo: p.nombre,
           codigo: p.codigoEmpresa,
-          fotoUrl: p.thumbnailPrincipal,
+          fotos: _fotos(archivos: p.archivos, imagenes: p.imagenes),
           precio: p.precioEfectivoEnSede(widget.sedeId) ?? 0,
           stock: (p.stockEnSede(widget.sedeId) ?? 0).toDouble(),
           caracteristicas: _caracteristicas(p.atributosValores ?? const []),
@@ -170,6 +173,20 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
     } finally {
       if (mounted) setState(() { _trabajando = false; _progreso = ''; });
     }
+  }
+
+  /// TODAS las fotos, sin repetir.
+  ///
+  /// 🔴 Cuando un producto tiene varias, cada una suele ser un COLOR o un
+  /// DIBUJO distinto del mismo artículo, al mismo precio. Quedarse con la
+  /// primera --lo que hacía antes-- dejaba el resto del surtido invisible.
+  List<String> _fotos({List<dynamic>? archivos, List<String>? imagenes}) {
+    final urls = <String>[
+      for (final a in archivos ?? const [])
+        (a.urlThumbnail as String?) ?? (a.url as String),
+      ...?imagenes,
+    ].where((u) => u.isNotEmpty);
+    return urls.toSet().toList();
   }
 
   List<(String, String)> _caracteristicas(List<dynamic> valores) {
@@ -223,17 +240,17 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
   Future<({File archivo, String marca, int productos, String peso})?>
       _armarPdf() async {
     final empresa = _empresa;
-    if (empresa == null || _elegidos == 0) return null;
+    if (empresa == null || _tarjetas == 0) return null;
 
     // Con muchos ítems se avisa y se deja decidir, en vez de recortar en
     // silencio o dejar la pantalla colgada un minuto sin explicación.
-    if (_elegidos >= _avisarDesde) {
+    if (_tarjetas >= _avisarDesde) {
       final seguir = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Catálogo grande', style: TextStyle(fontSize: 15)),
           content: Text(
-            'Son $_elegidos productos: unas ${(_elegidos / 6).ceil()} páginas. '
+            'Son $_tarjetas tarjetas: unas ${(_tarjetas / 4).ceil()} páginas. '
             'Si cada uno tiene su propia foto puede tardar y pesar bastante.',
             style: const TextStyle(fontSize: 12),
           ),
@@ -259,7 +276,7 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
       final logoUrl = identidad.logoUrl ?? '';
       final imagenes = await descargarImagenes(
         [
-          ...elegidos.map((i) => i.fotoUrl ?? ''),
+          ...tarjetasDe(_items).map((t) => t.fotoUrl ?? ''),
           // El logo baja con las fotos: en el PDF tampoco puede ser una URL.
           logoUrl,
         ].where((u) => u.isNotEmpty),
@@ -380,7 +397,10 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey.shade200),
           ),
-          child: CheckboxListTile(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+          CheckboxListTile(
             dense: true,
             value: it.elegido,
             onChanged: _trabajando ? null : (v) => setState(() => it.elegido = v ?? false),
@@ -406,7 +426,7 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
             ),
             secondary: SizedBox(
               width: 38, height: 38,
-              child: (it.fotoUrl ?? '').isEmpty
+              child: (it.fotoPrincipal ?? '').isEmpty
                   ? Container(
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
@@ -417,12 +437,68 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
                     )
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: Image.network(it.fotoUrl!, fit: BoxFit.cover),
+                      child: Image.network(it.fotoPrincipal!, fit: BoxFit.cover),
                     ),
             ),
           ),
+          // 🔴 Con VARIAS fotos, cada una es un color o un dibujo del mismo
+          // producto: sale una tarjeta por foto tildada, con los mismos datos.
+          // Acá se elige cuáles van.
+          if (it.fotos.length > 1) _tiraDeFotos(it),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  /// Las fotos del ítem, para elegir cuáles salen.
+  Widget _tiraDeFotos(ItemCatalogo it) {
+    final elegidas = it.fotos.where((f) => f.elegida).length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(52, 0, 10, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 44,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: it.fotos.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) {
+                  final f = it.fotos[i];
+                  return GestureDetector(
+                    onTap: _trabajando
+                        ? null
+                        : () => setState(() => f.elegida = !f.elegida),
+                    child: Opacity(
+                      opacity: f.elegida ? 1 : .35,
+                      child: Container(
+                        width: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: f.elegida ? AppColors.blue1 : Colors.grey.shade300,
+                            width: f.elegida ? 2 : 1,
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.network(f.url, fit: BoxFit.cover),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            elegidas > 1 ? '$elegidas tarjetas' : '1 tarjeta',
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
     );
   }
 
@@ -471,9 +547,9 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: (_trabajando || _elegidos == 0) ? null : _armarYCompartir,
+                    onPressed: (_trabajando || _tarjetas == 0) ? null : _armarYCompartir,
                     icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                    label: Text('Compartir ($_elegidos)', style: const TextStyle(fontSize: 12)),
+                    label: Text('Compartir ($_tarjetas)', style: const TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.blue1,
                       foregroundColor: Colors.white,
@@ -489,7 +565,7 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: (_trabajando || _elegidos == 0)
+                onPressed: (_trabajando || _tarjetas == 0)
                     ? null
                     : _armarYEnviarPorWhatsapp,
                 icon: const Icon(Icons.send, size: 16),
