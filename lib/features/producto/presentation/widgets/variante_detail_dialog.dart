@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:syncronize/core/di/injection_container.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
+import 'package:syncronize/core/services/identidad_comercial.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/utils/date_formatter.dart';
 import 'package:syncronize/core/utils/resource.dart';
@@ -113,12 +114,20 @@ Future<void> _compartirVariante(
   final archivos = variante.archivos ?? const [];
   final foto = archivos.isNotEmpty ? archivos.first.url : null;
 
+  // 🔴 La ficha se presenta con el NOMBRE COMERCIAL y el color de la marca:
+  // `empresa.nombre` es la razón social.
+  final identidad = await resolverIdentidadComercial(
+    empresa: empresa,
+    sedeId: stock?.sedeId ?? sedeElegida,
+  );
+
   if (!context.mounted) return;
   Navigator.of(context).pop();
   await Navigator.push(
     context,
     MaterialPageRoute(
       builder: (_) => CompartirProductoPage(
+        empresaId: empresa.id,
         titulo: variante.nombre,
         codigo: variante.codigoEmpresa,
         fotoUrl: foto,
@@ -126,9 +135,11 @@ Future<void> _compartirVariante(
         plantillasIds: plantillasIds,
         precio: precio,
         precioAnterior: (lista != null && lista > precio) ? lista : null,
-        empresaNombre: empresa.nombre,
-        empresaTelefono: empresa.telefono,
-        empresaLogo: empresa.logo,
+        empresaNombre: identidad.nombre,
+        empresaTelefono: identidad.telefono,
+        empresaLogo: identidad.logoUrl,
+        empresaColor: identidad.color,
+        textoPie: identidad.textoPie,
       ),
     ),
   );

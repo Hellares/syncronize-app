@@ -26,11 +26,14 @@ import '../../domain/entities/atributo_plantilla.dart';
 /// desaparece.
 ///
 /// La fila va sin la columna del nombre: ya está en el título.
-List<Widget> seccionesDeAtributosSueltos(List sueltos) {
+///
+/// [color] deja que la ficha compartible pinte los rótulos con el color de la
+/// marca; sin él manda el azul del sistema, que es lo que quiere el detalle.
+List<Widget> seccionesDeAtributosSueltos(List sueltos, {Color? color}) {
   return [
     for (final av in sueltos) ...[
       const SizedBox(height: 4),
-      TituloSeccionAtributos('${av.atributo.nombre}'),
+      TituloSeccionAtributos('${av.atributo.nombre}', color: color),
       const SizedBox(height: 5),
       TablaAtributos([av], soloValor: true),
     ],
@@ -88,20 +91,25 @@ List<Widget> seccionesDeAtributosSueltos(List sueltos) {
 class TituloSeccionAtributos extends StatelessWidget {
   final String nombre;
 
-  const TituloSeccionAtributos(this.nombre, {super.key});
+  /// El color del rótulo. Null = el azul del sistema; la ficha compartible le
+  /// pasa el de la marca de la empresa.
+  final Color? color;
+
+  const TituloSeccionAtributos(this.nombre, {super.key, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final tinta = color ?? AppColors.blue1;
     return Row(
       children: [
-        Icon(Icons.folder_outlined, size: 12, color: AppColors.blue1),
+        Icon(Icons.folder_outlined, size: 12, color: tinta),
         const SizedBox(width: 4),
         Text(
           nombre.toUpperCase(),
           style: TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w700,
-            color: AppColors.blue1,
+            color: tinta,
             letterSpacing: 0.3,
           ),
         ),

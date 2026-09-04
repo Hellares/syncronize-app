@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/whatsapp_cliente_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/atributo_plantilla.dart';
@@ -24,6 +25,10 @@ class CompartirProductoPage extends StatefulWidget {
   /// 🔴 Recibe DATOS ya resueltos, no un `Producto`: la misma pantalla
   /// comparte un producto y una variante, que no comparten tipo. Quien la
   /// abre es el que sabe de qué sede sale el precio.
+  /// Para mandar la ficha desde el WhatsApp de la empresa hace falta saber de
+  /// qué empresa se trata.
+  final String empresaId;
+
   final String titulo;
   final String? codigo;
   final String? fotoUrl;
@@ -32,12 +37,18 @@ class CompartirProductoPage extends StatefulWidget {
   final double precio;
   final double? precioAnterior;
 
+  /// 🔴 El NOMBRE COMERCIAL, el logo y el color salen de la configuración de
+  /// documentos (`resolverIdentidadComercial`), no de `Empresa.nombre`, que es
+  /// la razón social.
   final String empresaNombre;
   final String? empresaTelefono;
   final String? empresaLogo;
+  final Color? empresaColor;
+  final String? textoPie;
 
   const CompartirProductoPage({
     super.key,
+    required this.empresaId,
     required this.titulo,
     required this.precio,
     required this.empresaNombre,
@@ -48,6 +59,8 @@ class CompartirProductoPage extends StatefulWidget {
     this.precioAnterior,
     this.empresaTelefono,
     this.empresaLogo,
+    this.empresaColor,
+    this.textoPie,
   });
 
   @override
@@ -96,40 +109,70 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
 
   double get _precio => widget.precio;
 
-  Future<void> _compartir() async {
+  /// El color de la marca, o el del sistema si la empresa no configuró uno.
+  Color get _marca => widget.empresaColor ?? AppColors.blue1;
+
+  /// Captura el lienzo y lo deja en un PNG temporal. null si algo falló.
+  Future<File?> _capturarFicha() async {
     setState(() => _enviando = true);
     try {
       final limite = _lienzo.currentContext?.findRenderObject();
-      if (limite is! RenderRepaintBoundary) return;
+      if (limite is! RenderRepaintBoundary) return null;
 
       // pixelRatio 3: el lienzo son 360 px logicos, asi que el PNG sale de
       // ~1080, que es lo que WhatsApp muestra sin recomprimir feo.
       final imagen = await limite.toImage(pixelRatio: 3);
       final bytes = await imagen.toByteData(format: ui.ImageByteFormat.png);
-      if (bytes == null) return;
+      if (bytes == null) return null;
 
       final dir = await getTemporaryDirectory();
       final archivo = File(
         '${dir.path}/ficha_${DateTime.now().millisecondsSinceEpoch}.png',
       );
       await archivo.writeAsBytes(bytes.buffer.asUint8List());
-
-      // El menu nativo: ahi el usuario elige WhatsApp y la imagen va como
-      // ADJUNTO. Un `wa.me` abre el chat pero no puede mandar archivos.
-      await Share.shareXFiles(
-        [XFile(archivo.path)],
-        text: _incluirPrecio && _precio > 0
-            ? '${widget.titulo} — S/ ${_precio.toStringAsFixed(2)}'
-            : widget.titulo,
-      );
+      return archivo;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return null;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo compartir: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('No se pudo armar la ficha: $e'), backgroundColor: Colors.red),
       );
+      return null;
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
+  }
+
+  String get _textoMensaje => _incluirPrecio && _precio > 0
+      ? '${widget.titulo} — S/ ${_precio.toStringAsFixed(2)}'
+      : widget.titulo;
+
+  Future<void> _compartir() async {
+    final archivo = await _capturarFicha();
+    if (archivo == null) return;
+    // El menu nativo: ahi el usuario elige la app y el contacto, y la imagen
+    // va como ADJUNTO. Un `wa.me` abre el chat pero no puede mandar archivos.
+    await Share.shareXFiles([XFile(archivo.path)], text: _textoMensaje);
+  }
+
+  /// A un número puntual. Con la línea de la empresa vinculada la ficha sale
+  /// sin salir de la app; si no, se abre WhatsApp con el texto.
+  Future<void> _enviarPorWhatsapp() async {
+    final archivo = await _capturarFicha();
+    if (archivo == null || !mounted) return;
+
+    await WhatsappClienteService.compartirArchivo(
+      context,
+      empresaId: widget.empresaId,
+      archivo: archivo,
+      nombreArchivo: 'ficha.png',
+      esPdf: false,
+      detalleAdjunto: 'La ficha se envía con el mensaje',
+      textoInicial: _incluirPrecio && _precio > 0
+          ? 'Hola, te comparto *${widget.titulo}*.\nPrecio: S/ ${_precio.toStringAsFixed(2)}'
+          : 'Hola, te comparto *${widget.titulo}*.',
+      compartirNativo: () =>
+          Share.shareXFiles([XFile(archivo.path)], text: _textoMensaje),
+    );
   }
 
   @override
@@ -163,6 +206,8 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
                     empresaNombre: widget.empresaNombre,
                     empresaTelefono: widget.empresaTelefono,
                     empresaLogo: widget.empresaLogo,
+                    color: _marca,
+                    textoPie: widget.textoPie,
                     incluirPrecio: _incluirPrecio,
                     incluirCaracteristicas: _incluirCaracteristicas,
                     incluirCodigo: _incluirCodigo,
@@ -194,22 +239,40 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _enviando ? null : _compartir,
-                      icon: _enviando
-                          ? const SizedBox(
-                              width: 14, height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.share_outlined, size: 16),
-                      label: Text(_enviando ? 'Preparando…' : 'Compartir'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.blue1,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _enviando ? null : _compartir,
+                          icon: _enviando
+                              ? const SizedBox(
+                                  width: 14, height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.share_outlined, size: 16),
+                          label: Text(_enviando ? 'Preparando…' : 'Compartir',
+                              style: const TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.blue1,
+                            side: const BorderSide(color: AppColors.blue1),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _enviando ? null : _enviarPorWhatsapp,
+                          icon: const Icon(Icons.send, size: 16),
+                          label: const Text('WhatsApp',
+                              style: TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF25D366),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

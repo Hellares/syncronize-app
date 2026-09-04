@@ -263,6 +263,32 @@ class EmpresaRemoteDataSource {
     );
   }
 
+  /// Manda un documento (PDF) con su texto desde el número de la empresa.
+  ///
+  /// Mismo criterio que la imagen: base64 SIN el prefijo `data:` y no se
+  /// guarda. El backend topea en 8 MB de base64 ≈ 6 MB de archivo.
+  ///
+  /// POST /api/empresas/:empresaId/whatsapp/enviar-documento
+  Future<void> enviarDocumentoWhatsapp({
+    required String empresaId,
+    required String numero,
+    required String base64,
+    required String nombreArchivo,
+    String? caption,
+    String mimetype = 'application/pdf',
+  }) async {
+    await _dioClient.post(
+      '${ApiConstants.empresas}/$empresaId/whatsapp/enviar-documento',
+      data: {
+        'numero': numero,
+        'base64': base64,
+        'nombreArchivo': nombreArchivo,
+        if (caption != null && caption.isNotEmpty) 'caption': caption,
+        'mimetype': mimetype,
+      },
+    );
+  }
+
   /// Crea la instancia y devuelve el QR para escanear
   /// (estado, qrBase64 data-uri, pairingCode)
   ///

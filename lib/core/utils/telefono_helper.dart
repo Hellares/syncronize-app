@@ -32,6 +32,19 @@ String? telefonoParaWhatsapp(String? telefono) {
   return digitos;
 }
 
+/// ¿Un número TIPEADO A MANO puede ser un celular?
+///
+/// 🔴 [telefonoParaWhatsapp] es a propósito permisivo —devuelve lo que sea que
+/// tenga dígitos, para no inventarle un prefijo a un número guardado raro—, y
+/// eso lo vuelve inútil como validación: `123` pasa. Cuando el número lo está
+/// escribiendo alguien en el momento hay que ser estricto, porque el error se
+/// puede corregir ahí mismo: un celular peruano son 9 dígitos, con código de
+/// país 11, y E.164 topea en 15.
+bool esCelularEscrito(String? telefono) {
+  final digitos = (telefono ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+  return digitos.length >= 9 && digitos.length <= 15;
+}
+
 /// El número para un `tel:`. Solo saca los espacios y separadores; no le pone
 /// código de país, porque para marcar dentro del país no hace falta y algunas
 /// centralitas lo rechazan.

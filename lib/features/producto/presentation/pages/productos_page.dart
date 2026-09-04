@@ -41,6 +41,7 @@ import '../widgets/producto_variantes_bottom_sheet.dart';
 import '../widgets/seleccionar_sede_stock_bottom_sheet.dart';
 import '../widgets/ajustar_stock_dialog.dart';
 import '../widgets/configurar_precios_dialog.dart';
+import '../../../../core/services/identidad_comercial.dart';
 import '../../../../core/services/storage_service.dart';
 // import '../../../../core/services/search_history_service.dart';
 // Imports para páginas de inventario/stock
@@ -420,10 +421,16 @@ class _ProductosPageState extends State<ProductosPage>
       final precio = p.precioEfectivoEnSede(sedeId) ?? 0;
       final lista = p.precioEnSede(sedeId);
       final imgs = p.imagenes;
+      // 🔴 La ficha se presenta con el NOMBRE COMERCIAL y el color de la marca:
+      // `empresa.nombre` es la razón social.
+      final identidad =
+          await resolverIdentidadComercial(empresa: empresa, sedeId: sedeId);
+      if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => CompartirProductoPage(
+            empresaId: empresa.id,
             titulo: p.nombre,
             codigo: p.codigoEmpresa,
             fotoUrl: (imgs != null && imgs.isNotEmpty) ? imgs.first : null,
@@ -432,9 +439,11 @@ class _ProductosPageState extends State<ProductosPage>
             precio: precio,
             // El de lista solo si hay rebaja vigente: sirve para tacharlo.
             precioAnterior: (lista != null && lista > precio) ? lista : null,
-            empresaNombre: empresa.nombre,
-            empresaTelefono: empresa.telefono,
-            empresaLogo: empresa.logo,
+            empresaNombre: identidad.nombre,
+            empresaTelefono: identidad.telefono,
+            empresaLogo: identidad.logoUrl,
+            empresaColor: identidad.color,
+            textoPie: identidad.textoPie,
           ),
         ),
       );

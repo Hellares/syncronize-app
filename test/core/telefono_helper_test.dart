@@ -36,6 +36,26 @@ void main() {
     });
   });
 
+  group('esCelularEscrito', () {
+    test('acepta un celular peruano, con o sin código y con separadores', () {
+      expect(esCelularEscrito('987654321'), isTrue);
+      expect(esCelularEscrito('987 654 321'), isTrue);
+      expect(esCelularEscrito('+51 987654321'), isTrue);
+      expect(esCelularEscrito('+34 612 345 678'), isTrue);
+    });
+
+    test('🔴 rechaza lo que telefonoParaWhatsapp deja pasar', () {
+      // `telefonoParaWhatsapp` es permisivo a propósito con lo que ya está
+      // guardado; para algo que se está tipeando, no alcanza.
+      expect(telefonoParaWhatsapp('123'), '123');
+      expect(esCelularEscrito('123'), isFalse);
+      expect(esCelularEscrito('7777777'), isFalse); // fijo de 7
+      expect(esCelularEscrito(null), isFalse);
+      expect(esCelularEscrito('sin numero'), isFalse);
+      expect(esCelularEscrito('9876543210123456'), isFalse); // 16 dígitos
+    });
+  });
+
   group('telefonoParaLlamar', () {
     test('limpia separadores y conserva el +', () {
       expect(telefonoParaLlamar('987 654 321'), '987654321');

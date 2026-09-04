@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/utils/telefono_helper.dart';
 import 'package:syncronize/core/utils/whatsapp_apps.dart';
 import 'package:syncronize/core/widgets/custom_button.dart';
 import 'package:syncronize/core/widgets/styled_dialog.dart';
@@ -12,9 +13,29 @@ import 'package:syncronize/core/widgets/styled_dialog.dart';
 /// Un atajo del cuadro: el rótulo del chip y la frase que agrega.
 typedef AtajoMensaje = ({String etiqueta, String texto});
 
-/// Lo que el cuadro devuelve: el texto, la imagen si eligieron una, y con
-/// cuál de las dos apps de WhatsApp abrir (null = la que decida el sistema).
-typedef MensajeRedactado = ({String texto, File? imagen, AppWhatsapp? app});
+/// Un archivo YA armado que viaja con el mensaje: la ficha del producto en
+/// PNG, el catálogo en PDF.
+///
+/// No es lo mismo que la imagen del picker: esta no se elige ni se quita
+/// —**es el motivo del mensaje**—, y puede ser un PDF, que el picker no sabe
+/// tomar.
+typedef AdjuntoMensaje = ({
+  File archivo,
+  String nombre,
+  /// Una línea para saber qué se manda: "6 productos · 240 KB".
+  String? detalle,
+  bool esPdf,
+});
+
+/// Lo que el cuadro devuelve: el texto, la imagen si eligieron una, el número
+/// escrito —solo cuando se pidió— y con cuál de las dos apps de WhatsApp abrir
+/// (null = la que decida el sistema).
+typedef MensajeRedactado = ({
+  String texto,
+  File? imagen,
+  AppWhatsapp? app,
+  String? numero,
+});
 
 /// Redacta el mensaje ANTES de abrir WhatsApp.
 ///
@@ -43,9 +64,20 @@ Future<MensajeRedactado?> mostrarDialogoMensajeWhatsapp(
   /// ninguna no hay nada que preguntar. Se ignora si [envioDirecto], que no
   /// abre ninguna app.
   List<AppWhatsapp> appsDisponibles = const [],
+
+  /// true ⇒ el destinatario NO se conoce y se escribe acá. Es el caso de
+  /// compartir una ficha o un catálogo: no sale de una ficha de cliente, sale
+  /// de quien preguntó por el producto.
+  bool pedirNumero = false,
+  String? numeroInicial,
+
+  /// El archivo que se manda con el mensaje, ya armado por quien abre el
+  /// cuadro.
+  AdjuntoMensaje? adjunto,
 }) async {
   final elegirApp = !envioDirecto && appsDisponibles.length > 1;
   final borrador = _BorradorMensaje(textoInicial)
+    ..numero = numeroInicial ?? ''
     // Preseleccionada la que se usó la última vez: quien escribe siempre
     // desde Business no tiene que corregir el selector cada vez. La primera
     // vez cae en la primera de la lista.
@@ -69,6 +101,8 @@ Future<MensajeRedactado?> mostrarDialogoMensajeWhatsapp(
         envioDirecto: envioDirecto,
         numeroEmpresa: numeroEmpresa,
         appsDisponibles: elegirApp ? appsDisponibles : const [],
+        pedirNumero: pedirNumero,
+        adjunto: adjunto,
       ),
     ],
     actions: [
@@ -92,10 +126,25 @@ Future<MensajeRedactado?> mostrarDialogoMensajeWhatsapp(
             final t = borrador.texto.trim();
             // Con imagen el texto puede ir vacío: la foto ES el mensaje.
             // Sin imagen y sin texto no hay nada que mandar.
-            if (t.isEmpty && borrador.imagen == null) return;
+            if (t.isEmpty && borrador.imagen == null && adjunto == null) return;
+            // El número se valida ACÁ y el cuadro no se cierra: cerrarlo y
+            // avisar después con un snackbar obliga a reescribir el mensaje
+            // entero por un dígito de menos.
+            if (pedirNumero) {
+              if (!esCelularEscrito(borrador.numero)) {
+                borrador.errorNumero.value = 'Escribí un celular válido';
+                return;
+              }
+              borrador.errorNumero.value = null;
+            }
             Navigator.pop(
               context,
-              (texto: t, imagen: borrador.imagen, app: borrador.app),
+              (
+                texto: t,
+                imagen: borrador.imagen,
+                app: borrador.app,
+                numero: pedirNumero ? borrador.numero.trim() : null,
+              ),
             );
           },
         ),
@@ -116,6 +165,12 @@ class _BorradorMensaje {
 
   /// Con cuál de las dos apps abrir. null = la que decida el sistema.
   AppWhatsapp? app;
+
+  /// El celular escrito a mano, cuando el destinatario no sale de una ficha.
+  String numero = '';
+
+  /// El error del número, para pintarlo debajo del campo sin cerrar el cuadro.
+  final ValueNotifier<String?> errorNumero = ValueNotifier(null);
 }
 
 class _MensajeForm extends StatefulWidget {
@@ -125,6 +180,8 @@ class _MensajeForm extends StatefulWidget {
     required this.envioDirecto,
     this.numeroEmpresa,
     this.appsDisponibles = const [],
+    this.pedirNumero = false,
+    this.adjunto,
   });
 
   final _BorradorMensaje borrador;
@@ -132,6 +189,8 @@ class _MensajeForm extends StatefulWidget {
   final bool envioDirecto;
   final String? numeroEmpresa;
   final List<AppWhatsapp> appsDisponibles;
+  final bool pedirNumero;
+  final AdjuntoMensaje? adjunto;
 
   @override
   State<_MensajeForm> createState() => _MensajeFormState();
@@ -139,11 +198,13 @@ class _MensajeForm extends StatefulWidget {
 
 class _MensajeFormState extends State<_MensajeForm> {
   late final TextEditingController _ctrl;
+  late final TextEditingController _ctrlNumero;
 
   @override
   void initState() {
     super.initState();
     _ctrl = TextEditingController(text: widget.borrador.texto);
+    _ctrlNumero = TextEditingController(text: widget.borrador.numero);
     // El caret al final, explícito. Con `autofocus` Flutter ya lo deja ahí
     // —lo verifiqué quitando esta línea y el test sigue pasando—, pero el
     // controller nace con la selección en -1 y depender de ese default en la
@@ -154,6 +215,7 @@ class _MensajeFormState extends State<_MensajeForm> {
   @override
   void dispose() {
     _ctrl.dispose();
+    _ctrlNumero.dispose();
     super.dispose();
   }
 
@@ -308,15 +370,139 @@ class _MensajeFormState extends State<_MensajeForm> {
     setState(() {});
   }
 
+  /// El campo del celular, cuando el destinatario no sale de una ficha.
+  ///
+  /// Va ARRIBA del mensaje: es lo primero que hay que decidir, y si queda
+  /// abajo se escribe el texto entero antes de darse cuenta de que falta.
+  Widget _campoNumero() {
+    return ValueListenableBuilder<String?>(
+      valueListenable: widget.borrador.errorNumero,
+      builder: (context, error, _) => TextField(
+        controller: _ctrlNumero,
+        autofocus: true,
+        keyboardType: TextInputType.phone,
+        style: const TextStyle(fontSize: 12),
+        decoration: InputDecoration(
+          isDense: true,
+          labelText: 'Celular del cliente',
+          labelStyle: const TextStyle(fontSize: 11),
+          hintText: '987 654 321',
+          hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+          errorText: error,
+          errorStyle: const TextStyle(fontSize: 10),
+          prefixIcon: Icon(Icons.phone_outlined,
+              size: 16, color: Colors.grey.shade500),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 34, minHeight: 34),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF25D366), width: 1.2),
+          ),
+        ),
+        onChanged: (v) {
+          widget.borrador.numero = v;
+          if (error != null) widget.borrador.errorNumero.value = null;
+        },
+      ),
+    );
+  }
+
+  /// El archivo que ya está armado: se muestra, no se elige.
+  ///
+  /// 🔴 Sin la línea vinculada NO viaja —`wa.me` solo prellena texto—, y eso
+  /// se dice acá adentro. Callarlo termina con el usuario creyendo que mandó
+  /// el catálogo cuando solo mandó el saludo.
+  Widget _tarjetaAdjunto(AdjuntoMensaje adjunto) {
+    final viaja = widget.envioDirecto;
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: viaja
+            ? const Color(0xFF25D366).withValues(alpha: 0.07)
+            : Colors.orange.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: viaja
+              ? const Color(0xFF25D366).withValues(alpha: 0.35)
+              : Colors.orange.withValues(alpha: 0.45),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        children: [
+          if (adjunto.esPdf)
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(Icons.picture_as_pdf,
+                  size: 22, color: Colors.red.shade400),
+            )
+          else
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.file(adjunto.archivo,
+                  width: 40, height: 40, fit: BoxFit.cover),
+            ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppSubtitle(
+                  adjunto.nombre,
+                  font: AppFont.amazonEmberMedium,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  color: AppColors.blue3,
+                ),
+                const SizedBox(height: 2),
+                AppSubtitle(
+                  viaja
+                      ? (adjunto.detalle ?? 'Se envía con el mensaje')
+                      : 'WhatsApp no acepta archivos por enlace: se abre el '
+                          'chat con el texto y el archivo se comparte aparte',
+                  fontSize: 9,
+                  maxLines: 3,
+                  color: viaja ? Colors.grey.shade600 : Colors.orange.shade900,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final adjunto = widget.adjunto;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (widget.pedirNumero) ...[
+          _campoNumero(),
+          const SizedBox(height: 10),
+        ],
+        if (adjunto != null) ...[
+          _tarjetaAdjunto(adjunto),
+          const SizedBox(height: 10),
+        ],
         TextField(
           controller: _ctrl,
-          autofocus: true,
+          // Con el número por escribir el foco va ahí, no en el mensaje.
+          autofocus: !widget.pedirNumero,
           maxLines: 5,
           minLines: 3,
           textCapitalization: TextCapitalization.sentences,
@@ -341,25 +527,29 @@ class _MensajeFormState extends State<_MensajeForm> {
         // archivos, así que sin vinculación no hay forma de mandar la imagen
         // y ofrecer el botón sería mentir.
         if (widget.envioDirecto) ...[
-          const SizedBox(height: 8),
-          if (_imagen != null)
-            _buildMiniatura()
-          else
-            Row(
-              children: [
-                _botonAdjuntar(
-                  Icons.photo_library_outlined,
-                  'Galería',
-                  ImageSource.gallery,
-                ),
-                const SizedBox(width: 8),
-                _botonAdjuntar(
-                  Icons.photo_camera_outlined,
-                  'Cámara',
-                  ImageSource.camera,
-                ),
-              ],
-            ),
+          // Con un adjunto ya armado no se ofrece elegir otro: WhatsApp manda
+          // un archivo con su texto, y dos serían dos mensajes.
+          if (adjunto == null) ...[
+            const SizedBox(height: 8),
+            if (_imagen != null)
+              _buildMiniatura()
+            else
+              Row(
+                children: [
+                  _botonAdjuntar(
+                    Icons.photo_library_outlined,
+                    'Galería',
+                    ImageSource.gallery,
+                  ),
+                  const SizedBox(width: 8),
+                  _botonAdjuntar(
+                    Icons.photo_camera_outlined,
+                    'Cámara',
+                    ImageSource.camera,
+                  ),
+                ],
+              ),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [

@@ -18,9 +18,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/services/identidad_comercial.dart';
+import '../../../../core/services/whatsapp_cliente_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../empresa/domain/entities/empresa_info.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../producto/domain/entities/producto.dart';
@@ -70,11 +73,10 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
 
   int get _elegidos => _items.where((i) => i.elegido).length;
 
-  ({String id, String nombre, String? telefono, String? ruc, String? logo})? get _empresa {
+  EmpresaInfo? get _empresa {
     final estado = context.read<EmpresaContextCubit>().state;
     if (estado is! EmpresaContextLoaded) return null;
-    final e = estado.context.empresa;
-    return (id: e.id, nombre: e.nombre, telefono: e.telefono, ruc: e.ruc, logo: e.logo);
+    return estado.context.empresa;
   }
 
   /// La sede del catálogo: su nombre y dirección van al membrete, como en la
@@ -180,9 +182,48 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
 
   // ───────────────────────────── Armar y enviar ────────────────────────────
 
+  /// Comparte el catálogo por el menú del sistema: sirve para cualquier app y
+  /// para elegir el contacto ahí.
   Future<void> _armarYCompartir() async {
+    final armado = await _armarPdf();
+    if (armado == null) return;
+    await Share.shareXFiles(
+      [XFile(armado.archivo.path)],
+      text: 'Catálogo de ${armado.marca}',
+    );
+  }
+
+  /// Lo manda por WhatsApp a un número que se escribe en el momento: quien
+  /// pregunta por un producto no siempre es un cliente cargado.
+  Future<void> _armarYEnviarPorWhatsapp() async {
     final empresa = _empresa;
-    if (empresa == null || _elegidos == 0) return;
+    if (empresa == null) return;
+    final armado = await _armarPdf();
+    if (armado == null || !mounted) return;
+
+    await WhatsappClienteService.compartirArchivo(
+      context,
+      empresaId: empresa.id,
+      archivo: armado.archivo,
+      nombreArchivo: 'catalogo_${armado.marca.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}.pdf',
+      esPdf: true,
+      detalleAdjunto:
+          '${armado.productos} ${armado.productos == 1 ? 'producto' : 'productos'} · ${armado.peso}',
+      textoInicial: 'Hola, te comparto nuestro catálogo de *${armado.marca}*.',
+      // El respaldo real del archivo cuando la empresa no tiene su línea
+      // vinculada: el enlace de WhatsApp no lleva adjuntos.
+      compartirNativo: () => Share.shareXFiles(
+        [XFile(armado.archivo.path)],
+        text: 'Catálogo de ${armado.marca}',
+      ),
+    );
+  }
+
+  /// Arma el PDF y lo deja en un archivo temporal. null si se canceló o falló.
+  Future<({File archivo, String marca, int productos, String peso})?>
+      _armarPdf() async {
+    final empresa = _empresa;
+    if (empresa == null || _elegidos == 0) return null;
 
     // Con muchos ítems se avisa y se deja decidir, en vez de recortar en
     // silencio o dejar la pantalla colgada un minuto sin explicación.
@@ -202,13 +243,20 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
           ],
         ),
       );
-      if (seguir != true || !mounted) return;
+      if (seguir != true || !mounted) return null;
     }
 
     setState(() { _trabajando = true; _progreso = 'Descargando imágenes…'; });
     try {
       final elegidos = _items.where((i) => i.elegido).toList();
-      final logoUrl = empresa.logo ?? '';
+      // 🔴 El membrete va con el NOMBRE COMERCIAL, el logo y el color que la
+      // empresa configuró para sus documentos: `empresa.nombre` es la razón
+      // social ("JAYLI FLORES S.A.C." cuando la marca es "JAYLILAND").
+      final identidad = await resolverIdentidadComercial(
+        empresa: empresa,
+        sedeId: widget.sedeId,
+      );
+      final logoUrl = identidad.logoUrl ?? '';
       final imagenes = await descargarImagenes(
         [
           ...elegidos.map((i) => i.fotoUrl ?? ''),
@@ -220,16 +268,19 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
         },
       );
 
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() => _progreso = 'Armando el PDF…');
       final bytes = await construirCatalogoPdf(
         items: elegidos,
-        empresaNombre: empresa.nombre,
-        empresaTelefono: empresa.telefono,
-        empresaRuc: empresa.ruc,
+        empresaNombre: identidad.nombre,
+        empresaTelefono: identidad.telefono,
+        empresaRuc: identidad.ruc,
+        empresaDireccion: identidad.direccion,
         sedeNombre: _sede.nombre,
         sedeDireccion: _sede.direccion,
         logo: imagenes[logoUrl],
+        colorPrimario: identidad.colorPdf,
+        textoPie: identidad.textoPie,
         imagenes: imagenes,
         incluirPrecio: _incluirPrecio,
         incluirCaracteristicas: _incluirCaracteristicas,
@@ -240,19 +291,26 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
       final archivo = File('${dir.path}/catalogo_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await archivo.writeAsBytes(bytes);
 
-      await Share.shareXFiles(
-        [XFile(archivo.path)],
-        text: 'Catálogo de ${empresa.nombre}',
+      return (
+        archivo: archivo,
+        marca: identidad.nombre,
+        productos: elegidos.length,
+        peso: _peso(bytes.length),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return null;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No se pudo armar el catálogo: $e'), backgroundColor: Colors.red),
       );
+      return null;
     } finally {
       if (mounted) setState(() { _trabajando = false; _progreso = ''; });
     }
   }
+
+  static String _peso(int bytes) => bytes < 1024 * 1024
+      ? '${(bytes / 1024).round()} KB'
+      : '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
   // ──────────────────────────────── Pantalla ───────────────────────────────
 
@@ -424,6 +482,25 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            // A un número puntual: con la línea de la empresa vinculada el PDF
+            // sale solo; si no, se abre WhatsApp con el texto.
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: (_trabajando || _elegidos == 0)
+                    ? null
+                    : _armarYEnviarPorWhatsapp,
+                icon: const Icon(Icons.send, size: 16),
+                label: const Text('Enviar por WhatsApp',
+                    style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
           ],
         ),

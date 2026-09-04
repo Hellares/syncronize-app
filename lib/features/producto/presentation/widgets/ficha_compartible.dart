@@ -8,6 +8,11 @@
 /// imagen que todavía no cargó sale en blanco en la captura. Por eso la foto
 /// del producto se precarga con `precacheImage` en la pantalla que la muestra
 /// y acá se dibuja con `gaplessPlayback`.
+///
+/// 🔴 El nombre de arriba es el NOMBRE COMERCIAL y el color es el que la
+/// empresa configuró para sus documentos: los dos llegan resueltos desde
+/// `resolverIdentidadComercial`, no de `Empresa.nombre` (que es la razón
+/// social) ni del azul del sistema.
 library;
 
 import 'package:flutter/material.dart';
@@ -39,10 +44,17 @@ class FichaCompartible extends StatelessWidget {
   final double? precioAnterior;
   final String simboloMoneda;
 
-  /// El nombre y el teléfono con los que la empresa se presenta.
+  /// El nombre COMERCIAL y el teléfono con los que la empresa se presenta.
   final String empresaNombre;
   final String? empresaTelefono;
   final String? empresaLogo;
+
+  /// El color de la marca. Sale de la configuración de documentos, así que una
+  /// empresa con la marca en rojo no manda fichas azules.
+  final Color color;
+
+  /// El cierre configurado ("Gracias por su preferencia").
+  final String? textoPie;
 
   final bool incluirPrecio;
   final bool incluirCaracteristicas;
@@ -62,6 +74,8 @@ class FichaCompartible extends StatelessWidget {
     this.simboloMoneda = 'S/',
     this.empresaTelefono,
     this.empresaLogo,
+    this.color = AppColors.blue1,
+    this.textoPie,
     this.incluirPrecio = true,
     this.incluirCaracteristicas = true,
     this.incluirCodigo = true,
@@ -70,6 +84,8 @@ class FichaCompartible extends StatelessWidget {
   String get _foto => fotoUrl ?? '';
 
   String _money(double v) => '$simboloMoneda ${v.toStringAsFixed(2)}';
+
+  bool get _hayRebaja => precioAnterior != null && precioAnterior! > precio;
 
   @override
   Widget build(BuildContext context) {
@@ -100,41 +116,42 @@ class FichaCompartible extends StatelessWidget {
                   titulo,
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: Color(0xFF111827),
                     height: 1.2,
                   ),
                 ),
                 if (incluirCodigo && (codigo ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    'Código $codigo',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                  const SizedBox(height: 6),
+                  // El código en una pastilla y no suelto: al lado del nombre
+                  // en gris parecía parte del nombre.
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Cód. $codigo',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    ),
                   ),
                 ],
                 if (incluirPrecio) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   _precio(),
                 ],
                 if (secciones.isNotEmpty || sueltos.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    'CARACTERÍSTICAS',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: .6,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 16),
+                  _rotuloCaracteristicas(),
+                  const SizedBox(height: 8),
                   for (final (titulo, vals) in secciones) ...[
-                    TituloSeccionAtributos(titulo),
+                    TituloSeccionAtributos(titulo, color: color),
                     const SizedBox(height: 4),
                     TablaAtributos(vals),
                     const SizedBox(height: 8),
                   ],
-                  ...seccionesDeAtributosSueltos(sueltos),
+                  ...seccionesDeAtributosSueltos(sueltos, color: color),
                 ],
               ],
             ),
@@ -148,33 +165,44 @@ class FichaCompartible extends StatelessWidget {
   Widget _cabecera() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      color: AppColors.blue1,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      color: color,
       child: Row(
         children: [
-          if ((empresaLogo ?? '').isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Image.network(
-                empresaLogo!,
-                width: 26,
-                height: 26,
-                fit: BoxFit.cover,
-                gaplessPlayback: true,
-                // Un logo que no carga NO puede romper la ficha entera.
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          if ((empresaLogo ?? '').isNotEmpty) ...[
+            // El logo sobre fondo blanco: la mayoría vienen recortados sobre
+            // blanco y sobre la franja de color se veían sucios.
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.network(
+                  empresaLogo!,
+                  width: 26,
+                  height: 26,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                  // Un logo que no carga NO puede romper la ficha entera.
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
               ),
             ),
-          if ((empresaLogo ?? '').isNotEmpty) const SizedBox(width: 8),
+            const SizedBox(width: 9),
+          ],
           Expanded(
             child: Text(
               empresaNombre,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
                 color: Colors.white,
+                letterSpacing: .2,
               ),
             ),
           ),
@@ -213,31 +241,87 @@ class FichaCompartible extends StatelessWidget {
     );
   }
 
+  Widget _rotuloCaracteristicas() {
+    return Row(
+      children: [
+        Container(width: 16, height: 2, color: color),
+        const SizedBox(width: 6),
+        Text(
+          'CARACTERÍSTICAS',
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .6,
+            color: Colors.grey.shade500,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _precio() {
-    final hayRebaja = precioAnterior != null && precioAnterior! > precio;
+    // El descuento en porcentaje: "antes S/ 120" dice poco, "-25%" se entiende
+    // de un vistazo y es lo que hace que la ficha se reenvíe.
+    final descuento = _hayRebaja
+        ? (((precioAnterior! - precio) / precioAnterior!) * 100).round()
+        : 0;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
-          _money(precio),
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            color: hayRebaja ? const Color(0xFFDC2626) : AppColors.blue1,
-            height: 1,
+        // 🔴 `FittedBox` y no un `Text` a secas: un precio de cinco cifras con
+        // el anterior tachado al lado desborda la fila, y en una ficha que se
+        // CAPTURA el desborde viaja adentro del PNG. Así se achica y entra.
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _money(precio),
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 27,
+                fontWeight: FontWeight.w800,
+                color: _hayRebaja ? const Color(0xFFDC2626) : color,
+                height: 1,
+              ),
+            ),
           ),
         ),
-        if (hayRebaja) ...[
+        if (_hayRebaja) ...[
           const SizedBox(width: 8),
           Padding(
             padding: const EdgeInsets.only(bottom: 3),
-            child: Text(
-              _money(precioAnterior!),
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade500,
-                decoration: TextDecoration.lineThrough,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _money(precioAnterior!),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+                if (descuento > 0) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '-$descuento%',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -247,9 +331,10 @@ class FichaCompartible extends StatelessWidget {
 
   Widget _pie() {
     final tel = (empresaTelefono ?? '').trim();
+    final cierre = (textoPie ?? '').trim();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
@@ -257,14 +342,29 @@ class FichaCompartible extends StatelessWidget {
       child: Row(
         children: [
           if (tel.isNotEmpty) ...[
-            Icon(Icons.phone_outlined, size: 12, color: Colors.grey.shade600),
+            Icon(Icons.phone_outlined, size: 13, color: color),
             const SizedBox(width: 5),
-            Text(tel, style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-            const Spacer(),
+            Text(
+              tel,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(width: 10),
           ],
-          Text(
-            'Consultá disponibilidad',
-            style: TextStyle(fontSize: 9.5, color: Colors.grey.shade500),
+          // 🔴 Flexible y no un `Text` suelto: el pie lo escribe la empresa y
+          // uno largo desbordaba la fila. En una pantalla se ve la franja
+          // amarilla; acá se CAPTURA y el cliente recibe la ficha rota.
+          Expanded(
+            child: Text(
+              cierre.isEmpty ? 'Consulte disponibilidad' : cierre,
+              textAlign: tel.isEmpty ? TextAlign.left : TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 9.5, color: Colors.grey.shade500),
+            ),
           ),
         ],
       ),
