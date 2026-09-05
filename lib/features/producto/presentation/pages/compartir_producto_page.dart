@@ -31,6 +31,10 @@ class CompartirProductoPage extends StatefulWidget {
 
   final String titulo;
   final String? codigo;
+
+  /// La del producto. En una variante es la del padre: la variante no tiene
+  /// descripción propia.
+  final String? descripcion;
   /// 🔴 TODAS las fotos: cuando hay varias, cada una suele ser un COLOR o un
   /// DIBUJO distinto del mismo artículo. Antes se mandaba la primera sin
   /// preguntar y el resto no existía.
@@ -56,6 +60,7 @@ class CompartirProductoPage extends StatefulWidget {
     required this.precio,
     required this.empresaNombre,
     this.codigo,
+    this.descripcion,
     this.fotos = const [],
     this.atributosValores = const [],
     this.plantillasIds = const [],
@@ -201,6 +206,7 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
                   child: FichaCompartible(
                     titulo: widget.titulo,
                     codigo: widget.codigo,
+                    descripcion: widget.descripcion,
                     fotoUrl: _foto,
                     atributosValores: widget.atributosValores,
                     plantillasIds: widget.plantillasIds,

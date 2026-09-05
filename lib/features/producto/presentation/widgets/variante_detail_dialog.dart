@@ -40,6 +40,10 @@ void showVarianteDetailDialog({
   required ProductoVariante variante,
   List<String> plantillasIds = const [],
   List<AtributoPlantilla> plantillas = const [],
+  /// La del PRODUCTO: una variante no tiene descripción propia. Va a la ficha
+  /// compartible. Quien abre el diálogo desde la lista no la tiene —la fila del
+  /// listado es la forma liviana— y ahí la ficha sale sin descripción.
+  String? descripcionProducto,
 }) {
   showDialog<void>(
     context: context,
@@ -69,6 +73,7 @@ void showVarianteDetailDialog({
               variante,
               plantillasIds,
               plantillas,
+              descripcionProducto,
             ),
           ),
         ),
@@ -97,6 +102,7 @@ Future<void> _compartirVariante(
   ProductoVariante variante,
   List<String> plantillasIds,
   List<AtributoPlantilla> plantillas,
+  String? descripcionProducto,
 ) async {
   final empresaState = context.read<EmpresaContextCubit>().state;
   if (empresaState is! EmpresaContextLoaded) return;
@@ -130,6 +136,7 @@ Future<void> _compartirVariante(
         empresaId: empresa.id,
         titulo: variante.nombre,
         codigo: variante.codigoEmpresa,
+        descripcion: descripcionProducto,
         fotos: fotos,
         atributosValores: variante.atributosValores,
         plantillasIds: plantillasIds,

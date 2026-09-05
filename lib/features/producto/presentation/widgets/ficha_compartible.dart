@@ -30,6 +30,9 @@ class FichaCompartible extends StatelessWidget {
   /// y para una variante, que no comparten tipo.
   final String titulo;
   final String? codigo;
+
+  /// La descripción del producto. Vacía o null = no se dibuja nada.
+  final String? descripcion;
   final String? fotoUrl;
 
   /// Los `AtributoValor` (de producto o de variante) y el orden de secciones
@@ -67,6 +70,7 @@ class FichaCompartible extends StatelessWidget {
     required this.precio,
     required this.empresaNombre,
     this.codigo,
+    this.descripcion,
     this.fotoUrl,
     this.atributosValores = const [],
     this.plantillasIds = const [],
@@ -140,6 +144,22 @@ class FichaCompartible extends StatelessWidget {
                 if (incluirPrecio) ...[
                   const SizedBox(height: 12),
                   _precio(),
+                ],
+                // Después del precio y antes de las características, que es
+                // el orden en el que se lee una ficha: qué es, cuánto sale,
+                // de qué se trata, y recién ahí el detalle.
+                if ((descripcion ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    descripcion!.trim(),
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.35,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
                 ],
                 if (secciones.isNotEmpty || sueltos.isNotEmpty) ...[
                   const SizedBox(height: 16),

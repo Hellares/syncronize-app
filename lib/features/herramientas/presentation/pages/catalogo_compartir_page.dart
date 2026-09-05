@@ -137,6 +137,8 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
             id: v.id,
             titulo: v.nombre,
             codigo: v.codigoEmpresa,
+            // La variante no tiene descripción propia: va la del padre.
+            descripcion: p.descripcion,
             // Sin fotos propias hereda las del padre, como en la lista.
             fotos: propias.isNotEmpty ? propias : p.fotos(miniaturas: true),
             precio: v.precioEfectivoEnSede(widget.sedeId) ?? 0,
@@ -149,6 +151,7 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
           id: p.id,
           titulo: p.nombre,
           codigo: p.codigoEmpresa,
+          descripcion: p.descripcion,
           fotos: p.fotos(miniaturas: true),
           precio: p.precioEfectivoEnSede(widget.sedeId) ?? 0,
           stock: (p.stockEnSede(widget.sedeId) ?? 0).toDouble(),

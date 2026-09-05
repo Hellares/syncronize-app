@@ -21,6 +21,9 @@ class ProductoVariantesSection extends StatefulWidget {
   final ProductoVariante? selectedVariante;
   final String empresaId;
   final String productoId;
+
+  /// Para la ficha compartible de cada variante: la descripción es del PRODUCTO.
+  final String? descripcionProducto;
   final VoidCallback? onAtributosChanged;
 
   /// Las secciones que tiene guardadas el PRODUCTO. Se usan para agrupar la
@@ -38,6 +41,7 @@ class ProductoVariantesSection extends StatefulWidget {
     this.selectedVariante,
     required this.empresaId,
     required this.productoId,
+    this.descripcionProducto,
     this.onAtributosChanged,
     this.plantillasAtributosIds = const [],
     this.plantillas = const [],
@@ -319,6 +323,7 @@ class _ProductoVariantesSectionState extends State<ProductoVariantesSection> {
         variante: _getVarianteCompleta(variante),
         plantillasIds: widget.plantillasAtributosIds,
         plantillas: widget.plantillas,
+        descripcionProducto: widget.descripcionProducto,
       ),
       borderRadius: BorderRadius.circular(6),
       child: Container(

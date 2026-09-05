@@ -151,6 +151,32 @@ void main() {
     expect(tarjetasDe([it]).single.etiqueta, isNull);
   });
 
+  test('la descripcion sale, y si esta vacia no se dibuja nada', () async {
+    final con = ItemCatalogo(
+      id: 'd1',
+      titulo: 'EDREDON',
+      precio: 10,
+      stock: 5,
+      descripcion: 'Microfibra ultrasuave con relleno siliconado.',
+    );
+    final sin = ItemCatalogo(
+      id: 'd2',
+      titulo: 'COBERTOR',
+      precio: 20,
+      stock: 5,
+      // Vacia, no null: un texto opcional que el usuario borro llega asi.
+      descripcion: '   ',
+    );
+
+    final blob = blobDe(await construirCatalogoPdf(
+      items: [con, sin],
+      empresaNombre: 'JAYLILAND',
+      imagenes: const {},
+    ));
+    expect(blob, contains('Microfibra'));
+    expect(blob, contains('COBERTOR'));
+  });
+
   test('un color de marca distinto no rompe el documento', () async {
     final bytes = await construirCatalogoPdf(
       items: items(),

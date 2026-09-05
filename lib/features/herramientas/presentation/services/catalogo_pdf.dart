@@ -32,6 +32,10 @@ class ItemCatalogo {
   final String titulo;
   final String? codigo;
 
+  /// La descripción del producto. Vacía o null = no se dibuja nada, ni el
+  /// espacio: una tarjeta con un hueco donde iría un texto se ve rota.
+  final String? descripcion;
+
   /// 🔴 TODAS sus fotos, no una. Con varias elegidas sale **una tarjeta por
   /// foto**, con los mismos datos: son el mismo producto en otro color, y
   /// quedarse con la primera dejaba el resto del surtido invisible.
@@ -52,6 +56,7 @@ class ItemCatalogo {
     required this.precio,
     required this.stock,
     this.codigo,
+    this.descripcion,
     List<String> fotos = const [],
     this.caracteristicas = const [],
     bool? elegido,
@@ -302,6 +307,19 @@ Future<Uint8List> construirCatalogoPdf({
                               style: pw.TextStyle(fontSize: 6, color: ambar)),
                         ),
                     ],
+                  ),
+                ],
+                if ((it.descripcion ?? '').trim().isNotEmpty) ...[
+                  pw.SizedBox(height: 5),
+                  pw.Text(
+                    it.descripcion!.trim(),
+                    maxLines: 3,
+                    overflow: pw.TextOverflow.clip,
+                    style: pw.TextStyle(
+                      fontSize: 6.5,
+                      color: grisOscuro,
+                      lineSpacing: 0.8,
+                    ),
                   ),
                 ],
                 if (incluirCaracteristicas && rasgos.isNotEmpty) ...[

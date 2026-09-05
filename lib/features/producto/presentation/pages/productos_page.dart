@@ -432,6 +432,7 @@ class _ProductosPageState extends State<ProductosPage>
             empresaId: empresa.id,
             titulo: p.nombre,
             codigo: p.codigoEmpresa,
+            descripcion: p.descripcion,
             // TODAS: cada foto suele ser un color o un dibujo distinto.
             fotos: p.fotos(),
             atributosValores: p.atributosValores ?? const [],

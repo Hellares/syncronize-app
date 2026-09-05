@@ -336,6 +336,7 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
                                 selectedVariante: selectedVariante,
                                 empresaId: empresaId,
                                 productoId: producto.id,
+                                descripcionProducto: producto.descripcion,
                                 // Para agrupar la ficha de cada variante con
                                 // las mismas secciones que el producto. El
                                 // catálogo ya lo cargó esta pantalla: pasarlo
