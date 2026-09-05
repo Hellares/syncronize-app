@@ -227,6 +227,15 @@ class ProductoVariante extends Equatable with StockPorSedeMixin {
 }
 
 /// Información de archivo/imagen de variante
+/// Todas las fotos de una variante, sin repetir. Mismo criterio que
+/// `Producto.fotos`: la variante solo tiene `archivos`.
+extension FotosDeVariante on ProductoVariante {
+  List<String> fotos({bool miniaturas = false}) => <String>{
+        for (final a in archivos ?? const <ProductoVarianteArchivo>[])
+          if (miniaturas) (a.urlThumbnail ?? a.url) else a.url,
+      }.where((u) => u.isNotEmpty).toList();
+}
+
 class ProductoVarianteArchivo extends Equatable {
   final String id;
   final String url;

@@ -420,7 +420,6 @@ class _ProductosPageState extends State<ProductosPage>
       final p = result.data;
       final precio = p.precioEfectivoEnSede(sedeId) ?? 0;
       final lista = p.precioEnSede(sedeId);
-      final imgs = p.imagenes;
       // 🔴 La ficha se presenta con el NOMBRE COMERCIAL y el color de la marca:
       // `empresa.nombre` es la razón social.
       final identidad =
@@ -434,10 +433,7 @@ class _ProductosPageState extends State<ProductosPage>
             titulo: p.nombre,
             codigo: p.codigoEmpresa,
             // TODAS: cada foto suele ser un color o un dibujo distinto.
-            fotos: <String>{
-              ...?p.archivos?.map((a) => a.url),
-              ...?imgs,
-            }.toList(),
+            fotos: p.fotos(),
             atributosValores: p.atributosValores ?? const [],
             plantillasIds: p.plantillasAtributosIds,
             precio: precio,

@@ -27,6 +27,7 @@ import '../../../empresa/domain/entities/empresa_info.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../producto/domain/entities/producto.dart';
+import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../producto/domain/entities/producto_filtros.dart';
 import '../../../producto/domain/usecases/get_producto_usecase.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
@@ -129,15 +130,15 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
       final variantes = p.variantes ?? const [];
       if (p.tieneVariantes && variantes.isNotEmpty) {
         for (final v in variantes) {
-          final propias = _fotos(archivos: v.archivos);
+          // 🔴 Miniaturas: el catálogo las mete en 4 cm y las de tamaño
+          // completo solo engordan el PDF.
+          final propias = v.fotos(miniaturas: true);
           nuevos.add(ItemCatalogo(
             id: v.id,
             titulo: v.nombre,
             codigo: v.codigoEmpresa,
             // Sin fotos propias hereda las del padre, como en la lista.
-            fotos: propias.isNotEmpty
-                ? propias
-                : _fotos(archivos: p.archivos, imagenes: p.imagenes),
+            fotos: propias.isNotEmpty ? propias : p.fotos(miniaturas: true),
             precio: v.precioEfectivoEnSede(widget.sedeId) ?? 0,
             stock: (v.stockEnSede(widget.sedeId) ?? 0).toDouble(),
             caracteristicas: _caracteristicas(v.atributosValores),
@@ -148,7 +149,7 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
           id: p.id,
           titulo: p.nombre,
           codigo: p.codigoEmpresa,
-          fotos: _fotos(archivos: p.archivos, imagenes: p.imagenes),
+          fotos: p.fotos(miniaturas: true),
           precio: p.precioEfectivoEnSede(widget.sedeId) ?? 0,
           stock: (p.stockEnSede(widget.sedeId) ?? 0).toDouble(),
           caracteristicas: _caracteristicas(p.atributosValores ?? const []),
@@ -173,20 +174,6 @@ class _CatalogoCompartirPageState extends State<CatalogoCompartirPage> {
     } finally {
       if (mounted) setState(() { _trabajando = false; _progreso = ''; });
     }
-  }
-
-  /// TODAS las fotos, sin repetir.
-  ///
-  /// 🔴 Cuando un producto tiene varias, cada una suele ser un COLOR o un
-  /// DIBUJO distinto del mismo artículo, al mismo precio. Quedarse con la
-  /// primera --lo que hacía antes-- dejaba el resto del surtido invisible.
-  List<String> _fotos({List<dynamic>? archivos, List<String>? imagenes}) {
-    final urls = <String>[
-      for (final a in archivos ?? const [])
-        (a.urlThumbnail as String?) ?? (a.url as String),
-      ...?imagenes,
-    ].where((u) => u.isNotEmpty);
-    return urls.toSet().toList();
   }
 
   List<(String, String)> _caracteristicas(List<dynamic> valores) {

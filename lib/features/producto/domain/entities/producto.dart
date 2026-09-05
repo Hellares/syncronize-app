@@ -170,6 +170,29 @@ class Producto extends Equatable with StockPorSedeMixin {
     return null;
   }
 
+  /// TODAS las fotos del producto, sin repetir.
+  ///
+  /// 🔴 `imagenes` y `archivos` son LA MISMA foto por dos caminos: `archivos`
+  /// trae `url` + `urlThumbnail` --que apunta a `/thumbnails/…-thumb.webp`-- y
+  /// `imagenes` la url plana. **Mezclar las dos listas duplica cada foto** (una
+  /// sube dos veces, dos suben cuatro) y un `Set` no lo arregla porque las
+  /// cadenas son distintas. Con `archivos` cargados, mandan los archivos;
+  /// `imagenes` es el respaldo de lo viejo, que no tiene fila de archivo.
+  ///
+  /// [miniaturas] devuelve los thumbnails, que es lo que quiere una grilla; sin
+  /// eso van las de tamaño completo, que es lo que quiere una ficha.
+  List<String> fotos({bool miniaturas = false}) {
+    final desdeArchivos = <String>[
+      for (final a in archivos ?? const <ProductoArchivo>[])
+        if (miniaturas) (a.urlThumbnail ?? a.url) else a.url,
+    ].where((u) => u.isNotEmpty).toList();
+    if (desdeArchivos.isNotEmpty) return desdeArchivos.toSet().toList();
+    return (imagenes ?? const <String>[])
+        .where((u) => u.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
   /// Obtiene el thumbnail principal
   String? get thumbnailPrincipal {
     if (archivos != null && archivos!.isNotEmpty) {
