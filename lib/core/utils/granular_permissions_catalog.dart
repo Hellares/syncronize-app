@@ -30,6 +30,7 @@ class GranularPermissionId {
   static const ventaEditarPrecio = 'venta.editar-precio';
 
   static const productoEditarCosto = 'producto.editar-costo';
+  static const productoAltaRapidaVenta = 'producto.alta-rapida-venta';
 
   static const devolucionCrear = 'devolucion.crear';
 }
@@ -69,6 +70,15 @@ const List<GranularPermission> kGranularPermissionsCatalog = [
     id: GranularPermissionId.productoEditarCosto,
     label: 'Editar costo de productos',
     description: 'Modificar el costo registrado del producto.',
+    category: 'Producto',
+  ),
+  GranularPermission(
+    id: GranularPermissionId.productoAltaRapidaVenta,
+    label: 'Crear productos desde Venta Rápida',
+    description:
+        'Dar de alta un producto sin salir del mostrador, indicando solo '
+        'nombre, precio de venta y cantidad. No habilita ver ni cargar el '
+        'costo: la ficha se completa después desde Inventario.',
     category: 'Producto',
   ),
 
