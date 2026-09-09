@@ -37,6 +37,7 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
   late final TextEditingController _cantidad;
   late final TextEditingController _precio;
   late final TextEditingController _descuento;
+  late final TextEditingController _bonificada;
   late final TextEditingController _factor;
   late final TextEditingController _nuevoPrecioVenta;
 
@@ -52,6 +53,11 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
     _precio = TextEditingController(
         text: l.precioUnitario != null ? _num(l.precioCarga) : '');
     _descuento = TextEditingController(text: _num(l.descuento));
+    // El regalo se escribe en la misma unidad que la cantidad (1 SACO gratis).
+    _bonificada = TextEditingController(
+        text: l.cantidadBonificada > 0
+            ? _num(l.cantidadBonificadaAtomica / l.factorCarga)
+            : '');
     _factor = TextEditingController(
         text: l.factorCompra != null ? _num(l.factorCompra!) : '');
     // El campo se escribe en unidad de PRESENTACIÓN (S/9 el kilo) y la línea lo
@@ -70,6 +76,7 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
     _cantidad.dispose();
     _precio.dispose();
     _descuento.dispose();
+    _bonificada.dispose();
     _factor.dispose();
     _nuevoPrecioVenta.dispose();
     super.dispose();
@@ -95,6 +102,7 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
       cantidad: _leer(_cantidad),
       precio: _leer(_precio),
       usaUnidadCompra: _usaUnidadCompra,
+      bonificada: _leer(_bonificada),
       factor: factorEscrito > 0 ? factorEscrito : null,
     ).copyWith(
       descuento: _leer(_descuento),
@@ -123,6 +131,10 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
       _usaUnidadCompra = aUnidadDeCompra;
       if (nuevoFactor > 0) {
         _cantidad.text = _num(actual.cantidadAtomica / nuevoFactor);
+        if (actual.cantidadBonificadaAtomica > 0) {
+          _bonificada.text =
+              _num(actual.cantidadBonificadaAtomica / nuevoFactor);
+        }
         if (actual.precioAtomico > 0) {
           _precio.text = _num(actual.precioAtomico * nuevoFactor);
         }
@@ -148,6 +160,16 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
     }
     if (linea.sinCosto) {
       _avisar('Falta el precio de compra');
+      return;
+    }
+    // El regalo va DENTRO de lo recibido: 11 con 1 gratis, no 12. Y un
+    // descuento mayor al importe dejaria un costo negativo en el inventario.
+    if (linea.cantidadBonificadaAtomica > linea.cantidadAtomica) {
+      _avisar('El regalo no puede superar la cantidad recibida');
+      return;
+    }
+    if (linea.subtotal < 0) {
+      _avisar('El descuento supera el importe de la linea');
       return;
     }
     // 🔴 Bloqueante, igual que en el formulario de a una línea: con el costo
@@ -250,6 +272,27 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
                           onChanged: (_) => setState(() {}),
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Regalo y descuento. El regalo va DENTRO de la cantidad
+                  // (10+1 se carga como 11 con 1 gratis) y el descuento es
+                  // plata sobre lo que sí se paga: los dos pueden convivir.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: CustomText(
+                          controller: _bonificada,
+                          borderColor: AppColors.blue1,
+                          label: simboloCarga != null
+                              ? 'Gratis en $simboloCarga'
+                              : 'Vienen gratis',
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: CustomText(
@@ -263,6 +306,7 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
                       ),
                     ],
                   ),
+                  if (l.conPromo) _buildResumenPromo(l),
                   // Solo cuando lo que se escribe NO es lo que se guarda: con
                   // unidades iguales sería un renglón repitiendo el campo.
                   if (l.factorCarga > 1) _buildEquivalencia(l),
@@ -419,6 +463,47 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
   /// Qué entra realmente al stock, en la unidad en la que se guarda. Sin esto,
   /// cargar 3 sacos y ver "150" recién en la tabla se lee como un error de
   /// tipeo, y con un granel el salto de 15 a 15000 asusta todavía más.
+  /// La cuenta a la vista: el regalo no se paga pero SÍ entra al stock, así
+  /// que abarata a todas las unidades. Es el mismo número que el proveedor
+  /// imprime como "precio prorrateado" en su factura.
+  Widget _buildResumenPromo(LineaCompraDraft l) {
+    if (l.cantidadBonificadaAtomica > l.cantidadAtomica) {
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'El regalo no puede superar lo recibido: en 10+1 la cantidad es 11, no 10.',
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.amber.shade900),
+        ),
+      );
+    }
+    final simbolo = l.simboloCarga ?? 'und';
+    final pagadas = (l.cantidadAtomica - l.cantidadBonificadaAtomica) /
+        (l.factorCarga > 0 ? l.factorCarga : 1);
+    final recibidas =
+        l.cantidadAtomica / (l.factorCarga > 0 ? l.factorCarga : 1);
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.blue1.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'Pagas ${_num(pagadas)} · Entran al stock ${_num(recibidas)} $simbolo '
+        '· Costo real S/ ${(l.costoAtomicoProrrateado * l.factorCarga).toStringAsFixed(4)}',
+        style: const TextStyle(fontSize: 11, color: Colors.black87),
+      ),
+    );
+  }
+
   Widget _buildEquivalencia(LineaCompraDraft l) {
     final simboloVenta = widget.linea.unidadVentaSimbolo ?? 'UNID';
     return Padding(

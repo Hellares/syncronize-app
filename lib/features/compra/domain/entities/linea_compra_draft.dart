@@ -29,6 +29,17 @@ class LineaCompraDraft extends Equatable {
 
   final double descuento;
 
+  /// De [cantidad], cuántas vinieron de REGALO. La promo "10+1" del proveedor
+  /// es cantidad 11 + bonificada 1: las 11 entran al stock porque llegaron,
+  /// pero se pagan 10, así que el costo unitario que toca el inventario es el
+  /// PRORRATEADO entre las 11 — el mismo número que el proveedor imprime en
+  /// su línea de promoción.
+  ///
+  /// 🔴 Va en la MISMA unidad que [cantidad]: en sacos si el toggle de
+  /// unidad de compra está prendido. Es distinta del [descuento], que es plata
+  /// sobre lo que sí se paga; las dos pueden convivir en la misma línea.
+  final int cantidadBonificada;
+
   /// La línea se carga en la unidad de COMPRA del producto (saco, paquete) y
   /// el backend convierte ×factor antes de persistir.
   final bool usaUnidadCompra;
@@ -74,6 +85,7 @@ class LineaCompraDraft extends Equatable {
     this.cantidad = 1,
     this.precioUnitario,
     this.descuento = 0,
+    this.cantidadBonificada = 0,
     this.usaUnidadCompra = false,
     this.factorCompra,
     this.nuevoPrecioVenta,
@@ -95,7 +107,16 @@ class LineaCompraDraft extends Equatable {
   /// proveedor ni con qué actualizar el costo del producto.
   bool get sinCosto => precioUnitario == null || precioUnitario! <= 0;
 
-  double get subtotal => cantidad * (precioUnitario ?? 0) - descuento;
+  /// Unidades que se PAGAN: el regalo no entra en la cuenta.
+  int get cantidadPagada {
+    final pagada = cantidad - cantidadBonificada;
+    return pagada > 0 ? pagada : 0;
+  }
+
+  /// La línea trae regalo o rebaja del proveedor.
+  bool get conPromo => cantidadBonificada > 0 || descuento > 0;
+
+  double get subtotal => cantidadPagada * (precioUnitario ?? 0) - descuento;
 
   // ─── Unidades ─────────────────────────────────────────────────────────
   // `cantidad` y `precioUnitario` viven en la unidad en que se CARGA la línea:
@@ -163,12 +184,30 @@ class LineaCompraDraft extends Equatable {
   }
 
   /// Unidades atómicas que entran con esta línea (3 sacos de 50 → 150).
-  int get cantidadAtomica {
-    if (cantidad <= 0) return 0;
+  int get cantidadAtomica => _aAtomica(cantidad);
+
+  /// Las de regalo, en atómica. 1 saco gratis de 50 son 50 unidades, no 1.
+  int get cantidadBonificadaAtomica => _aAtomica(cantidadBonificada);
+
+  int _aAtomica(int v) {
+    if (v <= 0) return 0;
     if (usaUnidadCompra && soportaUnidadCompra) {
-      return (cantidad * factorEfectivo).round();
+      return (v * factorEfectivo).round();
     }
-    return cantidad;
+    return v;
+  }
+
+  /// 🔴 Costo REAL por unidad atómica recibida: el regalo abarata a TODAS
+  /// las unidades, no a sí mismo, y el descuento también. Es lo que el backend
+  /// mete al lote y al promedio ponderado (`total / cantidad`), y por eso es
+  /// esto —y no [precioAtomico], que es el de LISTA— lo que hay que usar para
+  /// proyectar el costo y para avisar que se vendería bajo costo.
+  double get costoAtomicoProrrateado {
+    final recibidas = cantidadAtomica;
+    if (recibidas <= 0 || precioAtomico <= 0) return precioAtomico;
+    final pagadas = recibidas - cantidadBonificadaAtomica;
+    final importe = pagadas * precioAtomico - descuento;
+    return importe > 0 ? importe / recibidas : 0;
   }
 
   // ─── Qué le pasa al producto con esta compra ──────────────────────────
@@ -177,7 +216,7 @@ class LineaCompraDraft extends Equatable {
   /// entre lo que ya hay en la sede y lo que entra. El backend hace la misma
   /// cuenta al confirmar; esto es el preview.
   double? get costoProyectado {
-    final precioNuevo = precioAtomico;
+    final precioNuevo = costoAtomicoProrrateado;
     final cantNueva = cantidadAtomica;
     if (precioNuevo <= 0 || cantNueva <= 0) return costoActualSede;
     final stockPrev = stockActualSede ?? 0;
@@ -224,7 +263,7 @@ class LineaCompraDraft extends Equatable {
   /// de venta. Es el aviso que evita seguir vendiendo bajo costo sin enterarse
   /// cuando el proveedor sube los precios.
   bool get costoSuperaVenta {
-    final precioCompra = precioAtomico;
+    final precioCompra = costoAtomicoProrrateado;
     if (precioCompra <= 0) return false; // todavía no hay precio de compra
     final costo = costoProyectado ?? precioCompra;
     final venta = precioVentaEfectivo;
@@ -242,10 +281,15 @@ class LineaCompraDraft extends Equatable {
   ///   atómica (150 cm a su costo equivalente). Da lo mismo y pasa el @IsInt.
   /// - En presentación (15 kg a S/8) → se guarda en atómica (15000 g a
   ///   S/0.008). La cantidad se MULTIPLICA y el precio se DIVIDE.
+  ///
+  /// 🔴 [bonificada] viaja por el MISMO camino que [cantidad]: si la línea
+  /// se aplana a unidad atómica, el regalo también. Convertir una y no la otra
+  /// deja "1 saco gratis" valiendo 1 gramo y el descuento sale 50 veces chico.
   LineaCompraDraft conCarga({
     required double cantidad,
     required double precio,
     required bool usaUnidadCompra,
+    double bonificada = 0,
     double? factor,
   }) {
     final factorUsado = (factor != null && factor > 0) ? factor : factorEfectivo;
@@ -256,6 +300,7 @@ class LineaCompraDraft extends Equatable {
       if (esEntera) {
         return copyWith(
           cantidad: cantidad.round(),
+          cantidadBonificada: bonificada.round(),
           precioUnitario: precio,
           usaUnidadCompra: true,
           factorCompra: factorUsado,
@@ -263,6 +308,7 @@ class LineaCompraDraft extends Equatable {
       }
       return copyWith(
         cantidad: (cantidad * factorUsado).round(),
+        cantidadBonificada: (bonificada * factorUsado).round(),
         precioUnitario:
             double.parse((precio / factorUsado).toStringAsFixed(4)),
         usaUnidadCompra: false,
@@ -273,6 +319,7 @@ class LineaCompraDraft extends Equatable {
     final pres = presentacion;
     return copyWith(
       cantidad: pres.cantidadAUnidadDeVenta(cantidad).round(),
+      cantidadBonificada: pres.cantidadAUnidadDeVenta(bonificada).round(),
       // 🔴 Seis decimales: un precio POR UNIDAD no es un monto. S/6.73 el kilo
       // son S/0.006727 el gramo, y a dos decimales queda 0.01 — un 48% de más
       // multiplicado por cada gramo del saco.
@@ -358,6 +405,7 @@ class LineaCompraDraft extends Equatable {
     int? cantidad,
     double? precioUnitario,
     double? descuento,
+    int? cantidadBonificada,
     bool? usaUnidadCompra,
     double? factorCompra,
     double? nuevoPrecioVenta,
@@ -373,6 +421,7 @@ class LineaCompraDraft extends Equatable {
           ? null
           : (precioUnitario ?? this.precioUnitario),
       descuento: descuento ?? this.descuento,
+      cantidadBonificada: cantidadBonificada ?? this.cantidadBonificada,
       usaUnidadCompra: usaUnidadCompra ?? this.usaUnidadCompra,
       factorCompra: factorCompra ?? this.factorCompra,
       nuevoPrecioVenta: limpiarNuevoPrecioVenta
@@ -400,6 +449,7 @@ class LineaCompraDraft extends Equatable {
         // 0 y se frena por `precioUnitario <= 0` antes de crear la compra.
         'precioUnitario': precioUnitario ?? 0,
         'descuento': descuento,
+        if (cantidadBonificada > 0) 'cantidadBonificada': cantidadBonificada,
         if (usaUnidadCompra) 'usaUnidadCompra': true,
         // El empaque viaja SIEMPRE que exista, no solo con el toggle prendido:
         // sin él, reabrir la línea en el editor ya no ofrecería comprar por
@@ -445,6 +495,7 @@ class LineaCompraDraft extends Equatable {
           ? aDouble(item['precioUnitario'])
           : null,
       descuento: aDouble(item['descuento']) ?? 0,
+      cantidadBonificada: (item['cantidadBonificada'] as num?)?.round() ?? 0,
       usaUnidadCompra: item['usaUnidadCompra'] == true,
       factorCompra: aDouble(item['factorCompra']),
       nuevoPrecioVenta: aDouble(item['nuevoPrecioVenta']),
@@ -466,6 +517,7 @@ class LineaCompraDraft extends Equatable {
         cantidad,
         precioUnitario,
         descuento,
+        cantidadBonificada,
         usaUnidadCompra,
         factorCompra,
         nuevoPrecioVenta,

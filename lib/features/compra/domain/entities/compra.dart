@@ -75,6 +75,10 @@ class CompraDetalle extends Equatable {
   final int cantidad;
   final double precioUnitario;
   final double descuento;
+
+  /// De [cantidad], cuántas vinieron de REGALO (promo 10+1 → 11 y 1). Entran
+  /// al stock igual, pero no se pagan: el costo queda prorrateado entre todas.
+  final int cantidadBonificada;
   final double porcentajeIGV;
   final double igv;
   final double subtotal;
@@ -116,6 +120,7 @@ class CompraDetalle extends Equatable {
     required this.cantidad,
     required this.precioUnitario,
     this.descuento = 0,
+    this.cantidadBonificada = 0,
     this.porcentajeIGV = 18,
     this.igv = 0,
     this.subtotal = 0,

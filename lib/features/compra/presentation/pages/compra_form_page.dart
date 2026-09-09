@@ -113,13 +113,21 @@ class _CompraFormViewState extends State<_CompraFormView> {
         (sum, g) => sum + ((g['monto'] as num?)?.toDouble() ?? 0),
       );
 
-  /// Lo tecleado en las líneas: `cantidad × precio − descuento`, sin IGV
-  /// encima. Es el número que el usuario reconoce de la factura.
+  /// Unidades que se PAGAN de una línea: las de regalo entran al stock pero
+  /// no a la cuenta. Espeja `(cantidad - bonificada)` de `calcularDetalle`.
+  static double _cantidadPagada(Map<String, dynamic> d) {
+    final cantidad = (d['cantidad'] as num?)?.toDouble() ?? 0;
+    final gratis = (d['cantidadBonificada'] as num?)?.toDouble() ?? 0;
+    final pagada = cantidad - gratis;
+    return pagada > 0 ? pagada : 0;
+  }
+
+  /// Lo tecleado en las líneas: `(cantidad − regalo) × precio − descuento`,
+  /// sin IGV encima. Es el número que el usuario reconoce de la factura.
   double get _brutoMercaderia => _detalles.fold(0.0, (sum, d) {
-        final cantidad = (d['cantidad'] as num?)?.toDouble() ?? 0;
         final precio = (d['precioUnitario'] as num?)?.toDouble() ?? 0;
         final descuento = (d['descuento'] as num?)?.toDouble() ?? 0;
-        return sum + cantidad * precio - descuento;
+        return sum + _cantidadPagada(d) * precio - descuento;
       });
 
   /// ¿El IGV se suma ENCIMA de lo tecleado o ya viene adentro?
@@ -132,10 +140,9 @@ class _CompraFormViewState extends State<_CompraFormView> {
   /// cifra sobre la que se reparten los gastos y de la que sale el
   /// `precioCosto` al confirmar, y lleva el IGV adentro en los dos casos.
   double _totalLinea(Map<String, dynamic> d) {
-    final cantidad = (d['cantidad'] as num?)?.toDouble() ?? 0;
     final precio = (d['precioUnitario'] as num?)?.toDouble() ?? 0;
     final descuento = (d['descuento'] as num?)?.toDouble() ?? 0;
-    final bruto = cantidad * precio - descuento;
+    final bruto = _cantidadPagada(d) * precio - descuento;
     if (!_igvVaEncima) return round2(bruto);
     // Sin porcentaje explícito manda el default del backend (18).
     final pct = (d['porcentajeIGV'] as num?)?.toDouble() ?? 18;
@@ -203,6 +210,11 @@ class _CompraFormViewState extends State<_CompraFormView> {
             'cantidad': d['cantidad'],
             'precioUnitario': d['precioUnitario'],
             'descuento': d['descuento'] ?? 0,
+            // Va en la MISMA unidad que `cantidad` de esta línea; con el saco
+            // prendido el backend la convierte con el mismo factor.
+            if ((d['cantidadBonificada'] as num?) != null &&
+                (d['cantidadBonificada'] as num) > 0)
+              'cantidadBonificada': d['cantidadBonificada'],
             if (d['porcentajeIGV'] != null) 'porcentajeIGV': d['porcentajeIGV'],
             if (d['usaUnidadCompra'] == true) 'usaUnidadCompra': true,
             // Override puntual del empaque (ej. saco de 40 en vez de 50).
@@ -1006,7 +1018,9 @@ class _CompraFormViewState extends State<_CompraFormView> {
           cantidad is int ? cantidad.toDouble() : (cantidad as num).toDouble();
       final precioNum =
           precio is int ? precio.toDouble() : (precio as num).toDouble();
-      final subtotal = cantidadNum * precioNum - descuento;
+      final gratis = (d['cantidadBonificada'] as num?)?.toDouble() ?? 0.0;
+      final pagadasNum = cantidadNum - gratis > 0 ? cantidadNum - gratis : 0.0;
+      final subtotal = pagadasNum * precioNum - descuento;
 
       final usaUC = d['usaUnidadCompra'] == true;
       final simboloUC = d['unidadCompraSimbolo'] as String?;
@@ -1091,6 +1105,17 @@ class _CompraFormViewState extends State<_CompraFormView> {
                         fontSize: 8,
                         color: Colors.green.shade700,
                         fontStyle: FontStyle.italic),
+                  ),
+                // El regalo entra al stock pero no se paga: el costo real por
+                // unidad es el prorrateado entre TODAS las recibidas.
+                if (gratis > 0)
+                  Text(
+                    '+${_fmtCant(gratis)} gratis → se pagan '
+                    '${_fmtCant(pagadasNum)} de ${_fmtCant(cantidadNum)}',
+                    style: TextStyle(
+                        fontSize: 8,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w600),
                   ),
                 if (descuento > 0)
                   Text('desc. -${descuento.toStringAsFixed(2)}',

@@ -65,6 +65,12 @@ Map<String, dynamic> itemDesdeDetalleGuardado(
     'precioUnitario':
         porUnidadDeCompra ? _precioPorUnidadDeCompra(d, precioIncluyeIgv) : d.precioUnitario,
     'descuento': d.descuento,
+    // 🔴 El regalo se guarda en unidad ATÓMICA igual que la cantidad, así
+    // que vuelve por el mismo divisor: con el saco prendido, en sacos.
+    if (d.cantidadBonificada > 0)
+      'cantidadBonificada': porUnidadDeCompra
+          ? (d.cantidadBonificada / factor).round()
+          : d.cantidadBonificada,
     // Viaja de vuelta o el backend lo recalcula con el 18 por defecto: una
     // línea exonerada cambiaría de impuesto sola al guardar.
     'porcentajeIGV': d.porcentajeIGV,
@@ -87,11 +93,15 @@ Map<String, dynamic> itemDesdeDetalleGuardado(
 /// es `total` cuando el precio lleva el IGV adentro y `subtotal` cuando el IGV
 /// va por encima (que es como entran las recepciones desde una OC).
 double _precioPorUnidadDeCompra(CompraDetalle d, bool precioIncluyeIgv) {
+  final factor = d.factorAplicado ?? 1;
+  final listado =
+      double.parse((d.precioUnitario * factor).toStringAsFixed(6));
   final cantidad = d.cantidadOriginal ?? 0;
-  if (cantidad <= 0) {
-    return double.parse(
-        (d.precioUnitario * (d.factorAplicado ?? 1)).toStringAsFixed(6));
-  }
+  if (cantidad <= 0) return listado;
+  // 🔴 La plata de la línea paga solo los paquetes que NO son regalo: con
+  // 10+1 sacos, repartir los S/1000 entre 11 devolvería S/90.90 el saco.
+  final pagados = cantidad - (factor > 0 ? d.cantidadBonificada / factor : 0);
+  if (pagados <= 0) return listado; // todo bonificado: la plata no dice nada
   final bruto = precioIncluyeIgv ? d.total : d.subtotal;
-  return double.parse(((bruto + d.descuento) / cantidad).toStringAsFixed(6));
+  return double.parse(((bruto + d.descuento) / pagados).toStringAsFixed(6));
 }

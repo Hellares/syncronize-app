@@ -826,6 +826,21 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                       color: Colors.green.shade700,
                     ),
                   ),
+                // Regalo del proveedor: las unidades entran al stock pero no
+                // se pagan, así que el costo real por unidad es el prorrateado
+                // entre TODAS — el número que el proveedor imprime en su
+                // línea de promoción.
+                if (d.cantidadBonificada > 0 && d.cantidad > 0)
+                  Text(
+                    '${d.cantidadBonificada} de regalo: se pagan '
+                    '${d.cantidad - d.cantidadBonificada} de ${d.cantidad} → costo '
+                    '${(d.total / d.cantidad).toStringAsFixed(4)}/u',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
                 // Explica por qué el costo del producto no es el precio que
                 // facturó el proveedor.
                 if (d.gastoProrrateado > 0 && d.cantidad > 0)

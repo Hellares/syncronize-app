@@ -7,6 +7,7 @@ import 'package:syncronize/features/compra/domain/entities/linea_compra_draft.da
 void main() {
   LineaCompraDraft linea({
     int cantidad = 1,
+    int cantidadBonificada = 0,
     double? precio,
     bool usaUnidadCompra = false,
     double? factorCompra,
@@ -23,6 +24,7 @@ void main() {
         unidadVentaSimbolo: 'g',
         unidadPresentacionSimbolo: factorPresentacion != null ? 'kg' : null,
         cantidad: cantidad,
+        cantidadBonificada: cantidadBonificada,
         precioUnitario: precio,
         usaUnidadCompra: usaUnidadCompra,
         factorCompra: factorCompra,
@@ -326,6 +328,107 @@ void main() {
       expect(l.cantidad, 7);
       expect(l.precioUnitario, 2.4);
       expect(l.usaUnidadCompra, isFalse);
+    });
+  });
+
+  /// Bonificacion: la promo "10+1" del proveedor.
+  ///
+  /// Los numeros salen de una factura real de Deltron (09-09-2026), que en su
+  /// propia linea de promocion declara el "precio prorrateado": $12.36 la
+  /// webcam y $3.25 el mouse. Ese es el costo que tiene que llegar al
+  /// inventario, y es el que el backend calcula como `total / cantidad`.
+  group('bonificacion (unidades de regalo)', () {
+    test('promo 10+1: entran 11, se pagan 10, el costo se prorratea', () {
+      final l = linea(cantidad: 11, cantidadBonificada: 1, precio: 13.6);
+
+      expect(l.cantidadAtomica, 11); // las 11 entran al stock
+      expect(l.cantidadPagada, 10);
+      expect(l.subtotal, closeTo(136, 0.001)); // 10 x 13.60
+      expect(l.costoAtomicoProrrateado, closeTo(12.3636, 0.0001));
+      expect(l.precioAtomico, 13.6); // el de LISTA no cambia
+    });
+
+    test('promo 5+1: entran 6, se pagan 5', () {
+      final l = linea(cantidad: 6, cantidadBonificada: 1, precio: 3.9);
+
+      expect(l.subtotal, closeTo(19.5, 0.001));
+      expect(l.costoAtomicoProrrateado, closeTo(3.25, 0.0001));
+    });
+
+    test('sin regalo el costo prorrateado es el de lista', () {
+      final l = linea(cantidad: 10, precio: 5);
+
+      expect(l.subtotal, 50);
+      expect(l.costoAtomicoProrrateado, 5);
+    });
+
+    test('el regalo abarata el costo PROYECTADO, no el precio de lista', () {
+      final conRegalo =
+          linea(cantidad: 11, cantidadBonificada: 1, precio: 13.6, stockActual: 0);
+      final sinRegalo = linea(cantidad: 11, precio: 13.6, stockActual: 0);
+
+      expect(conRegalo.costoProyectado, closeTo(12.3636, 0.0001));
+      expect(sinRegalo.costoProyectado, closeTo(13.6, 0.0001));
+    });
+
+    test('con regalo el costo deja de superar la venta', () {
+      // 13.60 de lista contra una venta de 13.00 seria perdida; prorrateado
+      // (12.3636) no lo es, y bloquear ahi seria un falso positivo.
+      final l = linea(
+        cantidad: 11,
+        cantidadBonificada: 1,
+        precio: 13.6,
+        precioVentaActual: 13,
+        stockActual: 0,
+      );
+
+      expect(l.costoSuperaVenta, isFalse);
+      expect(linea(cantidad: 11, precio: 13.6, precioVentaActual: 13, stockActual: 0)
+          .costoSuperaVenta, isTrue);
+    });
+
+    test('bonificar todo deja la linea en cero y el stock entra igual', () {
+      final l = linea(cantidad: 3, cantidadBonificada: 3, precio: 20);
+
+      expect(l.cantidadAtomica, 3);
+      expect(l.subtotal, 0);
+      expect(l.costoAtomicoProrrateado, 0);
+    });
+
+    test('el regalo y el descuento conviven', () {
+      final l = linea(cantidad: 11, cantidadBonificada: 1, precio: 13.6)
+          .copyWith(descuento: 6);
+
+      expect(l.subtotal, closeTo(130, 0.001)); // 10 x 13.60 - 6
+      expect(l.costoAtomicoProrrateado, closeTo(11.8182, 0.0001));
+    });
+
+    test('POR SACO el regalo se convierte con el MISMO factor', () {
+      // 10 sacos de 50 + 1 saco de regalo: entran 550 u, se pagan 500.
+      final l = linea(
+        cantidad: 11,
+        cantidadBonificada: 1,
+        precio: 100,
+        usaUnidadCompra: true,
+        factorCompra: 50,
+        unidadCompraSimbolo: 'SACO',
+      );
+
+      expect(l.cantidadAtomica, 550);
+      expect(l.cantidadBonificadaAtomica, 50); // 1 saco, no 1 unidad
+      expect(l.subtotal, closeTo(1000, 0.001));
+      expect(l.costoAtomicoProrrateado, closeTo(1.8182, 0.0001)); // 1000 / 550
+    });
+
+    test('el mapa de la pagina conserva el regalo en los dos sentidos', () {
+      final l = linea(cantidad: 11, cantidadBonificada: 1, precio: 13.6);
+      final vuelta = LineaCompraDraft.desdeItemMap(l.toItemMap());
+
+      expect(l.toItemMap()['cantidadBonificada'], 1);
+      expect(vuelta!.cantidadBonificada, 1);
+      // Sin regalo la clave no viaja: el backend le pone 0 por defecto.
+      expect(linea(cantidad: 5, precio: 2).toItemMap()
+          .containsKey('cantidadBonificada'), isFalse);
     });
   });
 }
