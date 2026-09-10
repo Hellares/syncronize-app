@@ -29,6 +29,13 @@ class EmpresaPermissions extends Equatable {
   final bool canEditarPrecioVenta;   // Cambiar el precio al cobrar
   final bool canEditarCostoProducto; // Editar el costo del producto
 
+  /// Dar de alta un producto desde Venta Rapida: nombre, precio y cantidad.
+  ///
+  /// Es DELIBERADAMENTE independiente de [canManageProducts] y de
+  /// [canEditarCostoProducto]: se le da a un cajero o tecnico para que la cola
+  /// no se frene, sin abrirle el producto entero ni los costos.
+  final bool canAltaRapidaVenta;
+
   // Cotizaciones - Separado en VIEW y MANAGE
   final bool canViewCotizaciones;   // Ver lista de cotizaciones
   final bool canManageCotizaciones; // Crear, editar, eliminar cotizaciones
@@ -102,6 +109,7 @@ class EmpresaPermissions extends Equatable {
     this.canDescuentoLibre = false,
     this.canEditarPrecioVenta = false,
     this.canEditarCostoProducto = false,
+    this.canAltaRapidaVenta = false,
     required this.canViewCotizaciones,
     required this.canManageCotizaciones,
     required this.canViewVentas,
@@ -160,6 +168,7 @@ class EmpresaPermissions extends Equatable {
         canDescuentoLibre,
         canEditarPrecioVenta,
         canEditarCostoProducto,
+        canAltaRapidaVenta,
         canViewCotizaciones,
         canManageCotizaciones,
         canViewVentas,

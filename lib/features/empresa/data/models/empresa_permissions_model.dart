@@ -15,6 +15,7 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
     super.canDescuentoLibre,
     super.canEditarPrecioVenta,
     super.canEditarCostoProducto,
+    super.canAltaRapidaVenta,
     required super.canViewCotizaciones,
     required super.canManageCotizaciones,
     required super.canViewVentas,
@@ -67,6 +68,7 @@ class EmpresaPermissionsModel extends EmpresaPermissions {
       canEditarPrecioVenta: json['canEditarPrecioVenta'] as bool? ?? false,
       canEditarCostoProducto:
           json['canEditarCostoProducto'] as bool? ?? false,
+      canAltaRapidaVenta: json['canAltaRapidaVenta'] as bool? ?? false,
       canViewCotizaciones: json['canViewCotizaciones'] as bool? ?? false,
       canManageCotizaciones: json['canManageCotizaciones'] as bool? ?? false,
       canViewVentas: json['canViewVentas'] as bool? ?? false,

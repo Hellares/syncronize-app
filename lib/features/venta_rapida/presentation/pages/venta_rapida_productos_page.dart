@@ -16,6 +16,7 @@ import '../../../producto/domain/entities/producto_filtros.dart';
 import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../producto/presentation/widgets/producto_selector/producto_selector_view.dart';
 import '../bloc/venta_rapida_cubit.dart';
+import '../widgets/alta_rapida_producto_dialog.dart';
 
 /// Pantalla de selección de productos para Venta Rápida. Toda la UI vive en
 /// `ProductoSelectorView<VentaRapidaCubit, VentaRapidaState>` — esta page
@@ -111,7 +112,10 @@ class _VentaRapidaProductosPageState extends State<VentaRapidaProductosPage> {
                 ),
             ),
           ],
-          child: _VentaRapidaProductosView(sedeId: sedeId),
+          child: _VentaRapidaProductosView(
+            sedeId: sedeId,
+            empresaId: empresaId,
+          ),
         );
       },
     );
@@ -120,7 +124,37 @@ class _VentaRapidaProductosPageState extends State<VentaRapidaProductosPage> {
 
 class _VentaRapidaProductosView extends StatelessWidget {
   final String sedeId;
-  const _VentaRapidaProductosView({required this.sedeId});
+  final String empresaId;
+  const _VentaRapidaProductosView({
+    required this.sedeId,
+    required this.empresaId,
+  });
+
+  /// Da de alta el producto que se acaba de buscar y lo mete al carrito.
+  ///
+  /// 🔴 El alta devuelve el producto RELEIDO, con su `stocksPorSede` ya
+  /// cargado: agregarlo sin eso lo rechaza el carrito con "no tiene precio
+  /// configurado en esta sede".
+  Future<void> _altaRapida(BuildContext context, String nombre) async {
+    final cubit = context.read<VentaRapidaCubit>();
+    final creado = await showAltaRapidaProductoDialog(
+      context,
+      empresaId: empresaId,
+      sedeId: sedeId,
+      nombreInicial: nombre,
+    );
+    if (creado == null || !context.mounted) return;
+    cubit.agregarProducto(creado);
+    // La lista sigue filtrada por lo tecleado y el producto nuevo no esta en
+    // ella hasta recargar; el feedback de que entro es el carrito.
+    context.read<ProductoListCubit>().reload(sedeId: sedeId);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${creado.nombre} creado y agregado'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   Future<void> _verificarCajaYNavegar(BuildContext context) async {
     final result = await locator<GetCajaActivaUseCase>()();
@@ -152,6 +186,14 @@ class _VentaRapidaProductosView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<VentaRapidaCubit>();
+    // 🔴 El alta rápida solo se OFRECE con el granular
+    // `producto.alta-rapida-venta`. El endpoint lo valida igual; esto evita
+    // mostrar un botón que va a rebotar con 403. Los admin lo tienen por
+    // definición.
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final puedeAltaRapida = empresaState is EmpresaContextLoaded &&
+        empresaState.context.permissions.canAltaRapidaVenta;
+
     return ProductoSelectorView<VentaRapidaCubit, VentaRapidaState>(
       sedeId: sedeId,
       snapshotBuilder: (s) => (
@@ -180,6 +222,8 @@ class _VentaRapidaProductosView extends StatelessWidget {
       atajoIcono: Icons.request_quote_outlined,
       atajoTooltip: 'Nueva cotización',
       onAtajo: () => context.pushReplacement('/empresa/cotizaciones/nueva'),
+      onAltaRapida:
+          puedeAltaRapida ? (nombre) => _altaRapida(context, nombre) : null,
       // Selector de sede activa (solo visible si hay >1 sede operable).
       topExtraBuilder: (_, __) => const Padding(
         padding: EdgeInsets.fromLTRB(12, 8, 12, 0),

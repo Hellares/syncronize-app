@@ -134,6 +134,13 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
   /// que muestra precios de venta y no sirve para elegir qué reponer.
   final Future<void> Function(ProductoListItem producto)? onAbrirVariantes;
 
+  /// Da de alta un producto que no está en el catálogo, con lo que el usuario
+  /// venía escribiendo en el buscador.
+  ///
+  /// null = el flujo no lo ofrece, y el botón no aparece. El gate del permiso
+  /// vive en el LLAMADOR: este widget solo dibuja lo que le dan.
+  final Future<void> Function(String nombreTecleado)? onAltaRapida;
+
   const ProductoSelectorView({
     super.key,
     required this.sedeId,
@@ -153,6 +160,7 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
     this.filtrosBase = const ProductoFiltros(isActive: true, esInsumo: false),
     this.modoCompra = false,
     this.onAbrirVariantes,
+    this.onAltaRapida,
   });
 
   @override
@@ -989,9 +997,34 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                                         ),
                                       ],
                                     )
-                                  : const Text(
-                                      'No se encontraron productos',
-                                      style: TextStyle(color: Colors.grey),
+                                  : Column(
+                                      children: [
+                                        const Text(
+                                          'No se encontraron productos',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                        // Dar de alta lo que se acaba de
+                                        // buscar, sin salir del mostrador. El
+                                        // callback llega null cuando el flujo
+                                        // no lo ofrece o el usuario no tiene
+                                        // el permiso, y ahi no se dibuja nada.
+                                        if (widget.onAltaRapida != null &&
+                                            hayBusquedaLocal) ...[
+                                          const SizedBox(height: 14),
+                                          TextButton.icon(
+                                            onPressed: () => widget
+                                                .onAltaRapida!(_localQuery),
+                                            icon: const Icon(Icons.add, size: 16),
+                                            label: Text(
+                                              'Crear "$_localQuery"',
+                                              style: const TextStyle(fontSize: 12),
+                                            ),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: AppColors.blue1,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                             ),
                           ),

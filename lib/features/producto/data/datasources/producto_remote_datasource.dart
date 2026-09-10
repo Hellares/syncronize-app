@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
+import '../models/producto_list_item_model.dart';
 import '../models/producto_model.dart';
 import '../models/producto_variante_model.dart';
 import '../models/producto_atributo_model.dart';
@@ -26,6 +27,39 @@ class ProductoRemoteDataSource {
     );
 
     return ProductoModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// Alta RAPIDA de producto desde Venta Rapida: nombre, precio y cantidad.
+  ///
+  /// POST /api/productos/alta-rapida
+  ///
+  /// 🔴 NO reusa `crearProducto`: ese valida el rol contra una lista blanca
+  /// (SUPER_ADMIN / EMPRESA_ADMIN / VENDEDOR), y el sentido del alta rapida es
+  /// que un CAJERO o TECNICO con el granular `producto.alta-rapida-venta` no
+  /// frene la cola. El endpoint hace producto + fila de stock + precio en UNA
+  /// transaccion y devuelve el producto RELEIDO, con `stocksPorSede` ya
+  /// cargado: sin eso el carrito lo rechaza con "no tiene precio configurado
+  /// en esta sede".
+  Future<ProductoListItemModel> altaRapidaVenta({
+    required String empresaId,
+    required String sedeId,
+    required String nombre,
+    required double precio,
+    required double cantidad,
+  }) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.productos}/alta-rapida',
+      data: {
+        'empresaId': empresaId,
+        'sedeId': sedeId,
+        'nombre': nombre,
+        'precio': precio,
+        'cantidad': cantidad,
+      },
+    );
+    return ProductoListItemModel.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 
   /// Obtiene lista paginada de productos con filtros
