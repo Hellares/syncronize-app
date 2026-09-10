@@ -20,7 +20,13 @@ class HistorialComprasProductoPanel extends StatefulWidget {
   final String empresaId;
   final String productoId;
   final String? varianteId;
-  final double precioCompra; // costo unitario atómico que está ingresando
+  /// Costo unitario atomico que se esta ingresando, **YA EN SOLES**.
+  ///
+  /// 🔴 El historial viene en soles (convertido con el TC congelado de cada
+  /// compra), asi que lo que se compara contra el tiene que estar en la misma
+  /// moneda. Cargando en dolares sin convertir, la variacion daba -73% habiendo
+  /// comprado al mismo precio.
+  final double precioCompra;
   final double? precioVenta; // precio de venta en la sede (para margen)
 
   const HistorialComprasProductoPanel({
@@ -514,8 +520,16 @@ class _HistorialComprasProductoPanelState
                   )
                 : _celda('—', cellBold,
                     align: TextAlign.right, maxLines: 1, onTap: onTap)),
-          _celda('S/ ${c.costoUnitario.toStringAsFixed(2)}', cellBold,
-              align: TextAlign.right, maxLines: 1, onTap: onTap),
+          (c.moneda != 'PEN' && c.costoUnitarioOriginal != null)
+              ? _celdaDual(
+                  'S/ ${c.costoUnitario.toStringAsFixed(2)}',
+                  '${_money(c.moneda, c.costoUnitarioOriginal!)} · TC ${c.tipoCambio ?? ''}',
+                  cellBold,
+                  cellTiny,
+                  onTap: onTap,
+                )
+              : _celda('S/ ${c.costoUnitario.toStringAsFixed(2)}', cellBold,
+                  align: TextAlign.right, maxLines: 1, onTap: onTap),
         ],
       );
     }

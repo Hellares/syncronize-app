@@ -47,7 +47,16 @@ class HistorialCompraItem {
   final String proveedor;
   final String moneda;
   final int cantidad;
+  /// 🔴 EN SOLES: `total/cantidad x tipoCambio` con el TC congelado de su
+  /// compra. Es la unica base comparable entre compras y contra el costo del
+  /// producto, que tampoco tiene moneda.
   final double costoUnitario;
+
+  /// El TC de esa compra. null en una compra en soles.
+  final double? tipoCambio;
+
+  /// Lo que facturo el proveedor, en SU moneda. Igual al anterior en PEN.
+  final double? costoUnitarioOriginal;
   final double total;
 
   /// Si la compra se hizo en unidad de compra (saco, paquete, caja...).
@@ -68,6 +77,8 @@ class HistorialCompraItem {
     required this.moneda,
     required this.cantidad,
     required this.costoUnitario,
+    this.tipoCambio,
+    this.costoUnitarioOriginal,
     required this.total,
     this.usaUnidadCompra = false,
     this.cantidadOriginal,
@@ -96,6 +107,12 @@ class HistorialCompraItem {
       moneda: json['moneda'] as String? ?? 'PEN',
       cantidad: (json['cantidad'] as num?)?.toInt() ?? 0,
       costoUnitario: HistorialComprasResult._toDouble(json['costoUnitario']),
+      tipoCambio: json['tipoCambio'] != null
+          ? HistorialComprasResult._toDouble(json['tipoCambio'])
+          : null,
+      costoUnitarioOriginal: json['costoUnitarioOriginal'] != null
+          ? HistorialComprasResult._toDouble(json['costoUnitarioOriginal'])
+          : null,
       total: HistorialComprasResult._toDouble(json['total']),
       usaUnidadCompra: json['usaUnidadCompra'] == true,
       cantidadOriginal: HistorialComprasResult._toDoubleN(json['cantidadOriginal']),

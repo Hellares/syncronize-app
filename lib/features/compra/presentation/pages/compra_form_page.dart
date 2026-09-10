@@ -389,6 +389,9 @@ class _CompraFormViewState extends State<_CompraFormView> {
       context: context,
       linea: linea,
       empresaId: widget.empresaId,
+      // Para que el historial (que viene en soles) se compare contra un costo
+      // en la misma moneda. En una compra en soles el factor es 1.
+      tipoCambio: _enMonedaExtranjera && _tipoCambio > 0 ? _tipoCambio : 1,
     );
     if (editada == null || !mounted) return;
     setState(() => _detalles[index] = editada.toItemMap());

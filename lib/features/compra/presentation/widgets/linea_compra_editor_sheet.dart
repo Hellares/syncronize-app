@@ -13,20 +13,34 @@ Future<LineaCompraDraft?> showLineaCompraEditorSheet({
   required BuildContext context,
   required LineaCompraDraft linea,
   required String empresaId,
+  /// TC de la compra que se esta cargando. 1 en soles.
+  ///
+  /// 🔴 El historial del producto viene EN SOLES; sin esto, la variacion y el
+  /// margen comparaban un costo en dolares contra numeros en soles.
+  double tipoCambio = 1,
 }) {
   return showModalBottomSheet<LineaCompraDraft>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _LineaCompraEditorSheet(linea: linea, empresaId: empresaId),
+    builder: (_) => _LineaCompraEditorSheet(
+      linea: linea,
+      empresaId: empresaId,
+      tipoCambio: tipoCambio,
+    ),
   );
 }
 
 class _LineaCompraEditorSheet extends StatefulWidget {
   final LineaCompraDraft linea;
   final String empresaId;
+  final double tipoCambio;
 
-  const _LineaCompraEditorSheet({required this.linea, required this.empresaId});
+  const _LineaCompraEditorSheet({
+    required this.linea,
+    required this.empresaId,
+    this.tipoCambio = 1,
+  });
 
   @override
   State<_LineaCompraEditorSheet> createState() =>
@@ -316,7 +330,10 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
                     empresaId: widget.empresaId,
                     productoId: base.productoId,
                     varianteId: base.varianteId,
-                    precioCompra: l.precioAtomico,
+                    // 🔴 En SOLES y PRORRATEADO, que es la base del historial y
+                    // la del costo del producto. Con el precio de lista en
+                    // dolares, la variacion y el margen salian fantasia.
+                    precioCompra: l.costoAtomicoProrrateado * widget.tipoCambio,
                     precioVenta: base.precioVentaActualSede,
                   ),
                 ],
