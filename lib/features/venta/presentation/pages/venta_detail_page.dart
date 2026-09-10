@@ -61,6 +61,7 @@ import '../../../facturacion/domain/entities/tipo_nota.dart';
 import '../../../facturacion/presentation/widgets/crear_nota_dialog.dart';
 import '../../../facturacion/presentation/widgets/anular_comprobante_dialog.dart';
 
+import '../widgets/evidencia_venta_card.dart';
 class VentaDetailPage extends StatefulWidget {
   final String ventaId;
 
@@ -691,6 +692,11 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
             const SizedBox(height: 12),
             _buildNotasSection(v),
           ],
+          // Fotos de la venta. Se pueden sumar ACA y no solo al cobrar: la
+          // entrega suele pasar horas despues del cobro, y esa es justo la
+          // foto que sirve ante un reclamo.
+          const SizedBox(height: 12),
+          EvidenciaVentaCard(ventaId: v.id),
           const SizedBox(height: 12),
           FlujoDocumentosWidget(ventaId: v.id),
           const SizedBox(height: 80),

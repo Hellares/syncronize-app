@@ -1437,6 +1437,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     required String metodoYape, // YAPE | PLIN — método de la porción Yape
     bool aceptaRiesgoBancarizacion = false,
     String? ventaBajoCostoAutorizadaPorId,
+    /// Fotos ya subidas con `POST /ventas/evidencia` mientras se cobraba. Se
+    /// enganchan a la venta al crearla. Es evidencia INTERNA: no viaja al
+    /// comprobante ni al ticket del cliente.
+    List<String> evidenciaIds = const [],
   }) async {
     if (state.procesando) return null;
     if (state.items.isEmpty) {
@@ -1485,6 +1489,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
     final data = <String, dynamic>{
       'canalVenta': 'POS',
+      if (evidenciaIds.isNotEmpty) 'evidenciaIds': evidenciaIds,
       'sedeId': state.sedeId,
       'vendedorId': state.vendedorId,
       if (clienteId != null) 'clienteId': clienteId,
@@ -1657,6 +1662,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   Future<void> cobrar({
     bool aceptaRiesgoBancarizacion = false,
     String? ventaBajoCostoAutorizadaPorId,
+    /// Fotos ya subidas con `POST /ventas/evidencia` mientras se cobraba. Se
+    /// enganchan a la venta al crearla. Es evidencia INTERNA: no viaja al
+    /// comprobante ni al ticket del cliente.
+    List<String> evidenciaIds = const [],
   }) async {
     // Guard de re-entrada: evita doble-cobro si el cajero da doble-tap
     // antes de que el botón se deshabilite por rebuild.
@@ -1729,6 +1738,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
     final data = <String, dynamic>{
       'canalVenta': 'POS',
+      if (evidenciaIds.isNotEmpty) 'evidenciaIds': evidenciaIds,
       'sedeId': state.sedeId,
       'vendedorId': state.vendedorId,
       if (clienteId != null) 'clienteId': clienteId,

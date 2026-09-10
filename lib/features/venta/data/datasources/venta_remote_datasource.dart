@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/comprobante_condicion_card.dart';
@@ -11,6 +14,57 @@ class VentaRemoteDataSource {
   static const String _basePath = '/ventas';
 
   VentaRemoteDataSource(this._dioClient);
+
+  // --- Fotos de la venta (como se vendio, como se entrega) ------------
+  //
+  // Es evidencia INTERNA: no viaja al comprobante ni al ticket del cliente.
+  //
+  // 🔴 Van por `/ventas/...` y no por `/storage/upload`: ese exige
+  // `MANAGE_SETTINGS`, que es de administrador, y quien saca estas fotos es el
+  // CAJERO.
+
+  /// Sube una foto ANTES de que la venta exista; su id viaja en `evidenciaIds`.
+  Future<Map<String, dynamic>> subirEvidencia(String filePath) async {
+    final nombre = filePath.split(RegExp(r'[\\/]')).last;
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(File(filePath).path, filename: nombre),
+    });
+    final res = await _dioClient.post(
+      '$_basePath/evidencia',
+      data: form,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+    return res.data as Map<String, dynamic>;
+  }
+
+  /// Adjunta una foto a una venta YA hecha: la entrega suele pasar horas
+  /// despues del cobro, y ahi es cuando se saca la foto de como se entrego.
+  Future<Map<String, dynamic>> adjuntarEvidencia(
+    String ventaId,
+    String filePath,
+  ) async {
+    final nombre = filePath.split(RegExp(r'[\\/]')).last;
+    final form = FormData.fromMap({
+      'file': await MultipartFile.fromFile(File(filePath).path, filename: nombre),
+    });
+    final res = await _dioClient.post(
+      '$_basePath/$ventaId/evidencia',
+      data: form,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> getEvidencias(String ventaId) async {
+    final res = await _dioClient.get('$_basePath/$ventaId/evidencia');
+    final data = res.data;
+    if (data is! List) return const [];
+    return data.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> eliminarEvidencia(String ventaId, String archivoId) async {
+    await _dioClient.delete('$_basePath/$ventaId/evidencia/$archivoId');
+  }
 
   Future<VentaModel> crearVenta(Map<String, dynamic> data) async {
     final response = await _dioClient.post(_basePath, data: data);

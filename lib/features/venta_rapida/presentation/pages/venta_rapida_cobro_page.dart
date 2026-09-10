@@ -43,6 +43,7 @@ import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.da
 import '../../../venta/domain/entities/venta_detalle_input.dart';
 import '../bloc/venta_rapida_cubit.dart';
 
+import '../../../venta/presentation/widgets/evidencia_venta_card.dart';
 /// Resultado del guard de venta bajo costo. `cancelar=true` aborta el
 /// cobro; `autorizadoPorId` viaja al cubit cuando se autorizó manualmente
 /// una venta con margen negativo.
@@ -76,6 +77,14 @@ class _CobroView extends StatefulWidget {
 }
 
 class _CobroViewState extends State<_CobroView> {
+  /// Fotos ya subidas mientras se cobra. Viajan en `evidenciaIds` al cobrar.
+  List<String> _evidenciaIds = const [];
+
+  /// 🔴 Con una subida en vuelo su `archivoId` todavia no existe y la venta se
+  /// crearia SIN esa foto, asi que el boton de cobrar espera. Son segundos, y
+  /// el cajero ya la saco.
+  bool _subiendoFotos = false;
+
   final _efectivoCtrl = TextEditingController();
   final _efectivoFocus = FocusNode();
   // Segundo input principal: Yape (es el más usado en Perú).
@@ -473,6 +482,7 @@ class _CobroViewState extends State<_CobroView> {
     cubit.cobrar(
       aceptaRiesgoBancarizacion: aceptaRiesgo,
       ventaBajoCostoAutorizadaPorId: autorizacion.autorizadoPorId,
+      evidenciaIds: _evidenciaIds,
     );
   }
 
@@ -499,6 +509,7 @@ class _CobroViewState extends State<_CobroView> {
       await cubit.cobrar(
         aceptaRiesgoBancarizacion: aceptaRiesgo,
         ventaBajoCostoAutorizadaPorId: autorizadoPorId,
+        evidenciaIds: _evidenciaIds,
       );
       return;
     }
@@ -529,6 +540,7 @@ class _CobroViewState extends State<_CobroView> {
       metodoYape: metodoPrincipal,
       aceptaRiesgoBancarizacion: aceptaRiesgo,
       ventaBajoCostoAutorizadaPorId: autorizadoPorId,
+      evidenciaIds: _evidenciaIds,
     );
     if (res == null || !context.mounted) return;
     final ventaId = res['ventaId'] as String;
@@ -818,6 +830,9 @@ class _CobroViewState extends State<_CobroView> {
          state.numeroDocCliente == '00000000' ||
          (state.clienteId == null && state.clienteEmpresaId == null));
     final puedeCobrar = !state.procesando &&
+        // 🔴 Con una foto subiendo su `archivoId` no existe y la venta se
+        // crearia sin ella. Son segundos y el cajero ya la saco.
+        !_subiendoFotos &&
         faltante <= 0 &&
         state.items.isNotEmpty &&
         !faltaBanco &&
@@ -843,11 +858,13 @@ class _CobroViewState extends State<_CobroView> {
       },
     );
 
-    final etiquetaCobrar = faltante > 0
-        ? 'Falta S/ ${faltante.toStringAsFixed(2)}'
-        : (faltaBanco
-            ? 'Falta banco'
-            : (creditoSinCliente ? 'Falta cliente' : 'Cobrar'));
+    final etiquetaCobrar = _subiendoFotos
+        ? 'Subiendo fotos…'
+        : (faltante > 0
+            ? 'Falta S/ ${faltante.toStringAsFixed(2)}'
+            : (faltaBanco
+                ? 'Falta banco'
+                : (creditoSinCliente ? 'Falta cliente' : 'Cobrar')));
     final accionCobrar = NumpadAction(
       label: etiquetaCobrar,
       icon: (faltante > 0 || faltaBanco) ? null : Icons.check_circle_outline,
@@ -1586,6 +1603,21 @@ class _CobroViewState extends State<_CobroView> {
                       ),
                     ),
                   ),
+
+                // Fotos de la venta: como se vendio y como se entrega. Van
+                // ANTES del credito porque se sacan mientras se cobra, no al
+                // final.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: EvidenciaVentaCard(
+                    onIdsChange: (ids) => _evidenciaIds = ids,
+                    onSubiendoChange: (v) {
+                      if (v != _subiendoFotos) {
+                        setState(() => _subiendoFotos = v);
+                      }
+                    },
+                  ),
+                ),
 
                 // Sección crédito (cuotas + preview)
                 if (state.esCredito)
