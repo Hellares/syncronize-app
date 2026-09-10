@@ -180,6 +180,16 @@ class Compra extends Equatable {
   /// Suma de los gastos (fletes, intereses). Ya está incluida en [total];
   /// se expone aparte para poder mostrarla como renglón propio.
   final double totalGastos;
+
+  /// `total` × `tipoCambio`, CONGELADO. En una compra en soles es igual a
+  /// [total].
+  ///
+  /// 🔴 Es el valor con el que el costo entró al inventario y no se vuelve a
+  /// mover: el costo se mide al tipo de cambio del día de la compra, no al del
+  /// día que se pague. Lo único que se mueve después es la DEUDA, que se
+  /// cancela al tipo de cambio de cada pago; la brecha entre los dos es la
+  /// diferencia de cambio.
+  final double totalSoles;
   final DateTime fechaRecepcion;
   final EstadoCompra estado;
   final String? observaciones;
@@ -219,6 +229,7 @@ class Compra extends Equatable {
     this.impuestos = 0,
     this.total = 0,
     this.totalGastos = 0,
+    this.totalSoles = 0,
     required this.fechaRecepcion,
     this.estado = EstadoCompra.BORRADOR,
     this.observaciones,

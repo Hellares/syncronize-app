@@ -657,6 +657,30 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
               ),
             ],
           ),
+          // En moneda extranjera, a cuanto se reconocio en soles. Es el numero
+          // con el que el costo entro al inventario, congelado al tipo de
+          // cambio de ESE dia: lo unico que se mueve despues es la deuda.
+          if (_compra.moneda != 'PEN' && (_compra.tipoCambio ?? 0) > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'TC ${_compra.tipoCambio}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                  Text(
+                    '= S/ ${_compra.totalSoles.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

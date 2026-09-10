@@ -93,6 +93,21 @@ class _CompraFormViewState extends State<_CompraFormView> {
   String? _sedeId;
 
   String _moneda = 'PEN';
+
+  /// Tipo de cambio de la FACTURA del proveedor. Solo cuando la moneda no es
+  /// soles, y ahí es obligatorio: el backend rechaza la compra sin él.
+  ///
+  /// 🔴 Sin él, el costo del proveedor (US$12.36) entraría tal cual a
+  /// `ProductoStock.precioCosto`, que no tiene moneda —es soles y se compara
+  /// contra el precio de venta, que también lo es— y el producto quedaría con
+  /// un costo casi cuatro veces más barato.
+  final _tipoCambioController = TextEditingController();
+
+  bool get _enMonedaExtranjera => _moneda != 'PEN';
+  double get _tipoCambio =>
+      double.tryParse(_tipoCambioController.text.trim().replaceAll(',', '.')) ??
+      0;
+
   DateTime _fechaRecepcion = DateTime.now();
   String? _terminosPago;
   int? _diasCredito;
@@ -298,6 +313,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
   @override
   void dispose() {
     _observacionesController.dispose();
+    _tipoCambioController.dispose();
     _serieDocProveedorController.dispose();
     _numDocProveedorController.dispose();
     super.dispose();
@@ -309,6 +325,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
     _proveedorNombre = compra.nombreProveedor;
     _sedeId = compra.sedeId;
     _moneda = compra.moneda;
+    _tipoCambioController.text =
+        compra.tipoCambio != null ? _sinCeros(compra.tipoCambio!) : '';
     _terminosPago = compra.terminosPago;
     _diasCredito = compra.diasCredito;
     _fechaRecepcion = compra.fechaRecepcion;
@@ -421,6 +439,20 @@ class _CompraFormViewState extends State<_CompraFormView> {
       return;
     }
 
+    // Sin tipo de cambio no se sabe cuanto costo en soles, y el costo del
+    // inventario no tiene moneda: entraria en dolares. El backend lo rechaza;
+    // esto lo avisa antes de pegarle.
+    if (_enMonedaExtranjera && _tipoCambio <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'La compra es en $_moneda: falta el tipo de cambio del dia'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_detalles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -456,6 +488,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
         'proveedorId': _proveedorId,
         'sedeId': _sedeId,
         'moneda': _moneda,
+        // Se congela con la compra: es a cuanto costo ESE dia.
+        if (_enMonedaExtranjera) 'tipoCambio': _tipoCambio,
         'precioIncluyeIgv': _precioIncluyeIgv,
         'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
         if (_terminosPago != null) 'terminosPago': _terminosPago,
@@ -486,6 +520,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
         if (_diasCredito != null) 'diasCredito': _diasCredito,
         'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
         if (_moneda != 'PEN') 'moneda': _moneda,
+        if (_enMonedaExtranjera) 'tipoCambio': _tipoCambio,
         if (_tipoDocProveedor != null)
           'tipoDocumentoProveedor': _tipoDocProveedor,
         if (_serieDocProveedorController.text.trim().isNotEmpty)
@@ -521,6 +556,8 @@ class _CompraFormViewState extends State<_CompraFormView> {
         'proveedorId': _proveedorId,
         'sedeId': _sedeId,
         'moneda': _moneda,
+        // Se congela con la compra: es a cuanto costo ESE dia.
+        if (_enMonedaExtranjera) 'tipoCambio': _tipoCambio,
         'precioIncluyeIgv': _precioIncluyeIgv,
         'fechaRecepcion': DateFormatter.toUtcIso(_fechaRecepcion),
         if (_terminosPago != null) 'terminosPago': _terminosPago,
@@ -705,6 +742,45 @@ class _CompraFormViewState extends State<_CompraFormView> {
                           ),
                         ],
                       ),
+
+                      // El TC solo aparece cuando hace falta, y con el
+                      // equivalente en soles al lado: ese es el numero con el
+                      // que el costo entra al inventario, congelado a ESTE dia.
+                      if (_enMonedaExtranjera) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: CustomText(
+                                controller: _tipoCambioController,
+                                borderColor: AppColors.blue1,
+                                label: 'Tipo de cambio',
+                                hintText: '3.712',
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _tipoCambio > 0
+                                  ? AppSubtitle(
+                                      '= S/ ${(_totalCompra * _tipoCambio).toStringAsFixed(2)}',
+                                      fontSize: 12,
+                                      color: AppColors.blue1,
+                                      fontWeight: FontWeight.w700,
+                                    )
+                                  : AppSubtitle(
+                                      'Falta el tipo de cambio',
+                                      fontSize: 11,
+                                      color: Colors.orange.shade800,
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 12),
 
                       // Condición de pago (Contado / Crédito con vencimiento).
@@ -949,6 +1025,14 @@ class _CompraFormViewState extends State<_CompraFormView> {
         return null;
       },
     );
+  }
+
+  /// Un tipo de cambio como se escribe: 3.712, no 3.71200.
+  String _sinCeros(double v) {
+    if (v == v.truncateToDouble()) return v.toStringAsFixed(0);
+    var t = v.toStringAsFixed(4);
+    t = t.replaceFirst(RegExp(r'0+$'), '');
+    return t.replaceFirst(RegExp(r'\.$'), '');
   }
 
   /// Formatea una cantidad quitando el ".0" cuando es entera (2.0 → "2").

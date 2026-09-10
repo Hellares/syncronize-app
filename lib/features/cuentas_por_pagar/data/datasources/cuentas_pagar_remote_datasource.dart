@@ -64,6 +64,12 @@ class CuentasPagarRemoteDataSource {
     String? comprobanteUrl,
     String? fuente,
     String? bancoId,
+    /// TC del dia del pago. Obligatorio si la fuente y la deuda no comparten
+    /// moneda (una factura en dolares pagada desde una caja en soles).
+    double? tipoCambio,
+    /// Lo que este pago CANCELA de la deuda, en la moneda de la COMPRA.
+    /// `monto` sigue siendo lo que sale de la fuente.
+    double? montoAplicado,
   }) async {
     await _dioClient.post(
       '$_basePath/$compraId/pago',
@@ -76,6 +82,9 @@ class CuentasPagarRemoteDataSource {
         if (comprobanteUrl != null && comprobanteUrl.isNotEmpty) 'comprobanteUrl': comprobanteUrl,
         if (fuente != null) 'fuente': fuente,
         if (bancoId != null && bancoId.isNotEmpty) 'bancoId': bancoId,
+        if (tipoCambio != null && tipoCambio > 0) 'tipoCambio': tipoCambio,
+        if (montoAplicado != null && montoAplicado > 0)
+          'montoAplicado': montoAplicado,
       },
     );
   }

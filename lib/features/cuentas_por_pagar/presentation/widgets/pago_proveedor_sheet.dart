@@ -45,6 +45,7 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
   String _metodo = 'EFECTIVO';
   late final TextEditingController _montoCtrl;
   final _refCtrl = TextEditingController();
+  final _tcCtrl = TextEditingController();
   late final TextEditingController _bancoCtrl;
   late final TextEditingController _cuentaCtrl;
   bool _procesando = false;
@@ -60,19 +61,32 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
   bool get _esBancario =>
       _metodo == 'TRANSFERENCIA' || _metodo == 'YAPE' || _metodo == 'PLIN' || _metodo == 'TARJETA';
 
-  /// Compras en moneda distinta a soles deben pagarse desde una cuenta bancaria
-  /// (tesorería/caja son en PEN).
-  bool get _esMonedaExtranjera => widget.cuenta.moneda.toUpperCase() != 'PEN';
-
-  /// Cuentas bancarias compatibles con la moneda de la compra.
-  List<EmpresaBanco> get _bancosCompatibles => _bancos
-      .where((b) => (b.moneda ?? 'PEN').toUpperCase() == widget.cuenta.moneda.toUpperCase())
-      .toList();
-
-  String _defaultFuente(String metodo) {
-    if (_esMonedaExtranjera) return 'BANCO';
-    return metodo == 'EFECTIVO' ? 'TESORERIA' : 'BANCO';
+  /// De que moneda sale la plata: las cajas son en soles, el banco la suya.
+  String get _monedaFuente {
+    if (_fuente != 'BANCO') return 'PEN';
+    final b = _bancos.where((x) => x.id == _bancoId);
+    return (b.isEmpty ? 'PEN' : (b.first.moneda ?? 'PEN')).toUpperCase();
   }
+
+  /// 🔴 Que la fuente y la deuda no compartan moneda es lo NORMAL cuando el
+  /// proveedor factura en dolares y la empresa no maneja dolares: paga en
+  /// soles al tipo de cambio del dia. Antes se exigia una cuenta en la moneda
+  /// de la compra, que es justo lo que estas empresas no tienen.
+  bool get _conversion => _monedaFuente != widget.cuenta.moneda.toUpperCase();
+  double get _tc =>
+      double.tryParse(_tcCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+  double get _montoEscrito =>
+      double.tryParse(_montoCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+  /// Los soles que salen. El monto se escribe SIEMPRE en la moneda de la deuda.
+  double? get _saleDeLaFuente =>
+      _conversion && _tc > 0 ? (_montoEscrito * _tc * 100).round() / 100 : null;
+
+  /// Todas las cuentas: pagar una factura en dolares desde una en soles es
+  /// justamente lo que hay que poder hacer. La moneda va en la etiqueta.
+  List<EmpresaBanco> get _bancosCompatibles => _bancos;
+
+  String _defaultFuente(String metodo) =>
+      metodo == 'EFECTIVO' ? 'TESORERIA' : 'BANCO';
 
   @override
   void initState() {
@@ -124,6 +138,7 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
     _refCtrl.dispose();
     _bancoCtrl.dispose();
     _cuentaCtrl.dispose();
+    _tcCtrl.dispose();
     super.dispose();
   }
 
@@ -143,6 +158,11 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
       return;
     }
     monto = (monto * 100).round() / 100;
+    if (_conversion && _tc <= 0) {
+      _snack(
+          'La deuda es en ${widget.cuenta.moneda} y el pago sale en $_monedaFuente: falta el tipo de cambio del dia');
+      return;
+    }
     setState(() => _procesando = true);
 
     // Si adjuntó comprobante, súbelo primero para obtener la URL.
@@ -162,7 +182,12 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
     final err = await widget.cubit.registrarPago(
       widget.cuenta.id,
       metodoPago: _metodo,
-      monto: monto,
+      // 🔴 `monto` son los soles que SALEN de la fuente; `montoAplicado` lo
+      // que CANCELA de la deuda, en la moneda de la compra. Restarle soles a
+      // una deuda en dolares la dejaria pagada casi cuatro veces de mas.
+      monto: _conversion ? (monto * _tc * 100).round() / 100 : monto,
+      tipoCambio: _conversion ? _tc : null,
+      montoAplicado: _conversion ? monto : null,
       referencia: _refCtrl.text.trim().isEmpty ? null : _refCtrl.text.trim(),
       bancoDestino: _esBancario && _bancoCtrl.text.trim().isNotEmpty ? _bancoCtrl.text.trim() : null,
       cuentaDestino: _esBancario && _cuentaCtrl.text.trim().isNotEmpty ? _cuentaCtrl.text.trim() : null,
@@ -223,15 +248,14 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  /// Selector de fuente: Tesorería / Caja / Banco. EFECTIVO no permite Banco;
-  /// moneda extranjera fuerza Banco. Si Banco → dropdown de cuentas.
+  /// Selector de fuente: Tesorería / Caja / Banco. EFECTIVO no permite Banco.
+  /// Cualquier fuente sirve para una deuda en otra moneda: lo que se pide
+  /// cuando no coinciden es el tipo de cambio, no una cuenta especial.
   Widget _buildFuenteSelector() {
     final opciones = <DropdownItem<String>>[
-      if (!_esMonedaExtranjera) ...const [
-        DropdownItem(value: 'TESORERIA', label: 'Tesorería (Caja Central)'),
-        DropdownItem(value: 'CAJA', label: 'Caja (mi caja abierta)'),
-      ],
-      if (_esBancario || _esMonedaExtranjera)
+      const DropdownItem(value: 'TESORERIA', label: 'Tesorería (Caja Central)'),
+      const DropdownItem(value: 'CAJA', label: 'Caja (mi caja abierta)'),
+      if (_esBancario)
         const DropdownItem(value: 'BANCO', label: 'Banco (cuenta de la empresa)'),
     ];
 
@@ -387,7 +411,49 @@ class _PagoProveedorSheetState extends State<PagoProveedorSheet> {
                   controller: _montoCtrl,
                   fieldType: FieldType.number,
                   borderColor: AppColors.blueborder,
+                  onChanged: (_) => setState(() {}),
                 ),
+                // El monto se escribe en la moneda de la DEUDA (es lo que se
+                // le debe al proveedor) y los soles que salen se derivan con
+                // el TC de HOY, que no tiene por que ser el de la compra: esa
+                // brecha es la diferencia de cambio.
+                if (_conversion) ...[
+                  const SizedBox(height: 12),
+                  CustomText(
+                    label: 'Tipo de cambio del dia',
+                    hintText: '3.812',
+                    controller: _tcCtrl,
+                    fieldType: FieldType.number,
+                    borderColor: AppColors.blueborder,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _saleDeLaFuente != null
+                          ? AppColors.blue1.withValues(alpha: 0.06)
+                          : Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _saleDeLaFuente != null
+                          ? 'Cancela ${widget.cuenta.simbolo} ${_montoEscrito.toStringAsFixed(2)} de la deuda '
+                              '· salen S/ ${_saleDeLaFuente!.toStringAsFixed(2)}'
+                          : 'La deuda es en ${widget.cuenta.moneda} y la plata sale en $_monedaFuente: pone el tipo de cambio de hoy.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _saleDeLaFuente != null
+                            ? Colors.black87
+                            : Colors.amber.shade900,
+                        fontWeight: _saleDeLaFuente != null
+                            ? FontWeight.normal
+                            : FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 CustomText(
                   label: 'N° de operación / voucher (opcional)',

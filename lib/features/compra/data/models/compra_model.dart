@@ -130,6 +130,7 @@ class CompraModel extends Compra {
     super.impuestos,
     super.total,
     super.totalGastos,
+    super.totalSoles,
     required super.fechaRecepcion,
     super.estado,
     super.observaciones,
@@ -175,6 +176,10 @@ class CompraModel extends Compra {
       impuestos: double.parse((json['impuestos'] ?? 0).toString()),
       total: double.parse((json['total'] ?? 0).toString()),
       totalGastos: double.parse((json['totalGastos'] ?? 0).toString()),
+      // Las compras viejas (previas a la multimoneda) no lo traen; ahí el
+      // total ya es en soles porque no habia otra moneda posible.
+      totalSoles: double.parse(
+          (json['totalSoles'] ?? json['total'] ?? 0).toString()),
       fechaRecepcion: DateTime.parse(json['fechaRecepcion'] as String),
       estado: _estadoFromString(json['estado'] as String),
       observaciones: json['observaciones'] as String?,
