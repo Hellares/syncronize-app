@@ -99,7 +99,24 @@ class CompraItem extends Equatable {
 class PagoRealizado extends Equatable {
   final String id;
   final String metodoPago;
+
+  /// Lo que SALIO de la fuente, en la moneda de esa fuente: los soles de la
+  /// caja o el saldo que se le resto a la cuenta bancaria.
   final double monto;
+
+  /// Lo que este pago CANCELO de la deuda, en la moneda de la COMPRA.
+  ///
+  /// null cuando la fuente y la compra comparten moneda: ahi [monto] ya lo
+  /// dice. Se llena cuando difieren: una factura en dolares pagada desde la
+  /// caja en soles cancela US$242.49 y saca S/924.37.
+  ///
+  /// 🔴 Es esto lo que va con el simbolo de la COMPRA. Pintar [monto] con ese
+  /// simbolo dice "\$ 924.37" donde en realidad fueron soles.
+  final double? montoAplicado;
+
+  /// TC del dia del pago. No tiene por que ser el de la compra: esa brecha es
+  /// justamente la diferencia de cambio.
+  final double? tipoCambio;
   final String? referencia;
   final String? bancoDestino;
   final String? cuentaDestino;
@@ -111,6 +128,8 @@ class PagoRealizado extends Equatable {
     required this.id,
     required this.metodoPago,
     required this.monto,
+    this.montoAplicado,
+    this.tipoCambio,
     this.referencia,
     this.bancoDestino,
     this.cuentaDestino,
@@ -169,6 +188,23 @@ class CuentaPagarDetalle extends Equatable {
   final String? serieDocumentoProveedor;
   final String? numeroDocumentoProveedor;
   final String moneda;
+
+  /// `totalCompra` x el TC de la compra, CONGELADO: a cuanto se reconocio en
+  /// soles el dia que entro la mercaderia.
+  final double totalSoles;
+
+  /// El TC de la FACTURA. null en una compra en soles.
+  final double? tipoCambio;
+
+  /// Soles que de verdad salieron de caja o banco por esta compra.
+  final double pagadoSoles;
+
+  /// `pagadoSoles - totalSoles`, y SOLO con la deuda saldada. Positivo = se
+  /// pago mas caro en soles que el dia de la compra (perdida por diferencia de
+  /// cambio). No se registra en ningun lado: la plata real ya esta en la caja
+  /// dentro de los pagos, y anotarla otra vez seria contarla dos veces.
+  final double diferenciaCambio;
+
   final BancoPrincipal? bancoPrincipal;
   final List<CompraItem> detalles;
   final List<PagoRealizado> pagos;
@@ -195,6 +231,10 @@ class CuentaPagarDetalle extends Equatable {
     this.serieDocumentoProveedor,
     this.numeroDocumentoProveedor,
     this.moneda = 'PEN',
+    this.totalSoles = 0,
+    this.tipoCambio,
+    this.pagadoSoles = 0,
+    this.diferenciaCambio = 0,
     this.bancoPrincipal,
     this.detalles = const [],
     this.pagos = const [],

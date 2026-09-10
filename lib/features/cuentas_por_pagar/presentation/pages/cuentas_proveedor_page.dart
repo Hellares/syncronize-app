@@ -112,6 +112,9 @@ class _CuentasProveedorViewState extends State<_CuentasProveedorView> {
             if (state is CuentasPagarLoaded) {
               final pendientes = state.cuentas.where((c) => c.estado != 'PAGADA').toList();
               final vencidas = pendientes.where((c) => c.estado == 'VENCIDA').toList();
+              // Suma monedas distintas a proposito: SOLO se usa como bandera
+              // (`> 0` pinta el borde en rojo), nunca se imprime. Si algun dia
+              // se muestra, hay que separarlo por moneda como `deudaPorMoneda`.
               final totalVencido = vencidas.fold<double>(0, (s, c) => s + c.saldoPendiente);
               // Deuda separada por moneda (no se suman PEN y USD juntos).
               final deudaPorMoneda = <String, double>{};

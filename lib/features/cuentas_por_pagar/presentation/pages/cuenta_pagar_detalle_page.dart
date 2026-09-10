@@ -458,8 +458,50 @@ class _DetalleView extends StatelessWidget {
             _montoRow('Pagado', detalle.totalPagado, Colors.green.shade700),
             const Divider(height: 18),
             _montoRow('Saldo pendiente', detalle.saldoPendiente, _estadoColor, bold: true),
+            // En moneda extranjera: a cuanto se reconocio en soles (congelado
+            // al TC de la compra), cuanto salio de verdad, y la brecha entre
+            // los dos, que es la diferencia de cambio.
+            if (detalle.moneda != 'PEN') ...[
+              const Divider(height: 18),
+              _lineaSoles(
+                'Se reconocio en'
+                '${detalle.tipoCambio != null ? ' (TC ${detalle.tipoCambio})' : ''}',
+                'S/ ${detalle.totalSoles.toStringAsFixed(2)}',
+                Colors.grey.shade700,
+              ),
+              if (detalle.pagadoSoles > 0)
+                _lineaSoles(
+                  'Salieron de caja',
+                  'S/ ${detalle.pagadoSoles.toStringAsFixed(2)}',
+                  Colors.grey.shade700,
+                ),
+              if (detalle.diferenciaCambio != 0)
+                _lineaSoles(
+                  'Diferencia de cambio',
+                  '${detalle.diferenciaCambio > 0 ? '- ' : '+ '}'
+                      'S/ ${detalle.diferenciaCambio.abs().toStringAsFixed(2)}',
+                  detalle.diferenciaCambio > 0
+                      ? Colors.red.shade600
+                      : Colors.green.shade700,
+                ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Renglon chico para lo que va en SOLES aunque la compra sea en otra
+  /// moneda: el simbolo va escrito, no sale de `detalle.simbolo`.
+  Widget _lineaSoles(String label, String valor, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          Text(valor, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
@@ -587,7 +629,25 @@ class _DetalleView extends StatelessWidget {
           ),
           _buildComprobanteIcon(pago),
           const SizedBox(width: 4),
-          Text('${detalle.simbolo} ${pago.monto.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+          // 🔴 Lo que el pago CANCELO de la deuda, no los soles que salieron:
+          // `monto` esta en la moneda de la FUENTE y pintarlo con el simbolo de
+          // la compra decia "\$ 924.37" donde en realidad fueron soles.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${detalle.simbolo} ${(pago.montoAplicado ?? pago.monto).toStringAsFixed(2)}',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+              ),
+              if (pago.montoAplicado != null)
+                Text(
+                  'salieron S/ ${pago.monto.toStringAsFixed(2)}'
+                  '${pago.tipoCambio != null ? ' · TC ${pago.tipoCambio}' : ''}',
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                ),
+            ],
+          ),
           SizedBox(
             width: 28,
             child: PopupMenuButton<String>(

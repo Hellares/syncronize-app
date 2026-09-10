@@ -127,6 +127,15 @@ class CuentaPagarDetalleModel {
       serieDocumentoProveedor: json['serieDocumentoProveedor'] as String?,
       numeroDocumentoProveedor: json['numeroDocumentoProveedor'] as String?,
       moneda: json['moneda'] as String? ?? 'PEN',
+      // Compras anteriores a la multimoneda no los traen; ahi el total ya era
+      // en soles porque no habia otra moneda posible.
+      totalSoles: json['totalSoles'] != null
+          ? d(json['totalSoles'])
+          : d(json['totalCompra']),
+      tipoCambio: json['tipoCambio'] != null ? d(json['tipoCambio']) : null,
+      pagadoSoles: json['pagadoSoles'] != null ? d(json['pagadoSoles']) : 0,
+      diferenciaCambio:
+          json['diferenciaCambio'] != null ? d(json['diferenciaCambio']) : 0,
       bancoPrincipal: banco != null
           ? BancoPrincipal(
               nombreBanco: banco['nombreBanco'] as String? ?? '',
@@ -150,6 +159,9 @@ class CuentaPagarDetalleModel {
                 id: (e as Map<String, dynamic>)['id'] as String? ?? '',
                 metodoPago: e['metodoPago'] as String? ?? '',
                 monto: d(e['monto']),
+                montoAplicado:
+                    e['montoAplicado'] != null ? d(e['montoAplicado']) : null,
+                tipoCambio: e['tipoCambio'] != null ? d(e['tipoCambio']) : null,
                 referencia: e['referencia'] as String?,
                 bancoDestino: e['bancoDestino'] as String?,
                 cuentaDestino: e['cuentaDestino'] as String?,
