@@ -38,7 +38,10 @@ class CatalogoLocalSnapshot {
   /// 🔴 El delta-sync solo reemplaza productos que CAMBIARON, así que una
   /// entrada vieja de un producto que nadie tocó sobrevive para siempre. Este
   /// número es la única forma de forzar que se rearme el snapshot entero.
-  static const int currentVersion = 4;
+  /// v5 (12-09): `tipoVencimiento` y `diasVidaUtil`. Sin el bump, un catálogo
+  /// cacheado devolvería los productos con la política en NINGUNO y la línea
+  /// de compra dejaría de pedir la fecha de vencimiento — en silencio.
+  static const int currentVersion = 5;
 
   final int version;
   final List<ProductoListItem> productos;

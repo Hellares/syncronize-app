@@ -71,6 +71,11 @@ Map<String, dynamic> itemDesdeDetalleGuardado(
       'cantidadBonificada': porUnidadDeCompra
           ? (d.cantidadBonificada / factor).round()
           : d.cantidadBonificada,
+    // Al confirmar la compra, el backend la copia al Lote que crea: es lo
+    // que le permite al consumo FEFO sacar primero lo que caduca antes.
+    if (d.fechaVencimiento != null)
+      'fechaVencimiento':
+          d.fechaVencimiento!.toIso8601String().substring(0, 10),
     // Viaja de vuelta o el backend lo recalcula con el 18 por defecto: una
     // línea exonerada cambiaría de impuesto sola al guardar.
     'porcentajeIGV': d.porcentajeIGV,

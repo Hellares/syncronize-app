@@ -30,6 +30,14 @@ class ProductoFormController extends ChangeNotifier {
   String tipoAfectacionIgv = 'GRAVADO';
   bool aplicaIcbper = false;
 
+  /// Política de vencimiento: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD'.
+  ///
+  /// 🔑 La FECHA no va acá: vive en el LOTE. Un producto no vence, vence cada
+  /// entrega — se tipea al cargar la línea de compra.
+  String tipoVencimiento = 'NINGUNO';
+  final diasVidaUtilController = TextEditingController();
+  final diasAlertaVencimientoController = TextEditingController();
+
   /// Código de producto SUNAT (catálogos 25.1/25.2/25.3). null = sin código.
   String? codigoProductoSunat;
   final dimensionLargoController = TextEditingController();
@@ -411,6 +419,12 @@ class ProductoFormController extends ChangeNotifier {
     descuentoMaximoController.text = producto.descuentoMaximo?.toString() ?? '';
     tipoAfectacionIgv = producto.tipoAfectacionIgv ?? 'GRAVADO';
     aplicaIcbper = producto.aplicaIcbper ?? false;
+    tipoVencimiento = producto.tipoVencimiento ?? 'NINGUNO';
+    diasVidaUtilController.text =
+        producto.diasVidaUtil != null ? '${producto.diasVidaUtil}' : '';
+    diasAlertaVencimientoController.text = producto.diasAlertaVencimiento != null
+        ? '${producto.diasAlertaVencimiento}'
+        : '';
     codigoProductoSunat = producto.codigoProductoSunat;
 
     // Dimensiones

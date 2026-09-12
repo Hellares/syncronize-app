@@ -62,6 +62,17 @@ class Producto extends Equatable with StockPorSedeMixin {
   final String? tipoAfectacionIgv;
   final bool? aplicaIcbper;
 
+  /// Política de vencimiento: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD'.
+  /// 🔑 La FECHA vive en el LOTE, no acá: un producto no vence, vence cada
+  /// entrega.
+  final String? tipoVencimiento;
+
+  /// Vida útil en días: SUGIERE la fecha al cargar una línea de compra.
+  final int? diasVidaUtil;
+
+  /// Cuántos días antes del vencimiento empieza a avisar.
+  final int? diasAlertaVencimiento;
+
   /// Código de producto SUNAT (UNSPSC 8 dígitos, catálogos 25/25.1/25.2/25.3).
   /// Opcional: solo viaja al XML de facturación cuando está seteado.
   final String? codigoProductoSunat;
@@ -132,6 +143,9 @@ class Producto extends Equatable with StockPorSedeMixin {
     this.descuentoMaximo,
     this.tipoAfectacionIgv,
     this.aplicaIcbper,
+    this.tipoVencimiento,
+    this.diasVidaUtil,
+    this.diasAlertaVencimiento,
     this.codigoProductoSunat,
     required this.visibleMarketplace,
     required this.destacado,

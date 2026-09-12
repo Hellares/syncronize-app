@@ -230,6 +230,11 @@ class _CompraFormViewState extends State<_CompraFormView> {
             if ((d['cantidadBonificada'] as num?) != null &&
                 (d['cantidadBonificada'] as num) > 0)
               'cantidadBonificada': d['cantidadBonificada'],
+            // Al confirmar, el backend la copia al Lote que crea: es lo que
+            // le permite a FEFO sacar primero lo que caduca antes.
+            if (d['fechaVencimiento'] != null)
+              'fechaVencimiento':
+                  d['fechaVencimiento'].toString().substring(0, 10),
             if (d['porcentajeIGV'] != null) 'porcentajeIGV': d['porcentajeIGV'],
             if (d['usaUnidadCompra'] == true) 'usaUnidadCompra': true,
             // Override puntual del empaque (ej. saco de 40 en vez de 50).

@@ -32,6 +32,17 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   final String tipoAfectacionIgv; // GRAVADO, EXONERADO, INAFECTO
   final bool aplicaIcbper;
 
+  /// Qué significa el vencimiento de este producto:
+  /// 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD'.
+  ///
+  /// 🔑 La FECHA no está acá: vive en el LOTE. Un producto no vence, vence
+  /// cada entrega. Esto solo decide si la línea de compra PIDE la fecha, y qué
+  /// pasa al vender algo vencido.
+  final String tipoVencimiento;
+
+  /// Vida útil en días: SUGIERE la fecha al cargar la línea de compra.
+  final int? diasVidaUtil;
+
   // Unidad de compra (opcional). Cuando está seteada, el módulo de
   // compras puede ofrecer al usuario cargar la línea en esta unidad y
   // el backend convierte a unidad atómica antes de afectar stock.
@@ -74,6 +85,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     this.descuentoMaximo,
     this.tipoAfectacionIgv = 'GRAVADO',
     this.aplicaIcbper = false,
+    this.tipoVencimiento = 'NINGUNO',
+    this.diasVidaUtil,
     this.factorCompra,
     this.unidadCompraSimbolo,
     this.unidadMedidaSimbolo,
@@ -298,6 +311,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         descuentoMaximo,
         tipoAfectacionIgv,
         aplicaIcbper,
+        tipoVencimiento,
+        diasVidaUtil,
         factorCompra,
         unidadCompraSimbolo,
         unidadMedidaSimbolo,

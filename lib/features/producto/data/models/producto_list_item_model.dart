@@ -24,6 +24,8 @@ class ProductoListItemModel extends ProductoListItem {
     super.descuentoMaximo,
     super.tipoAfectacionIgv,
     super.aplicaIcbper,
+    super.tipoVencimiento,
+    super.diasVidaUtil,
     super.factorCompra,
     super.unidadCompraSimbolo,
     super.unidadMedidaSimbolo,
@@ -72,6 +74,10 @@ class ProductoListItemModel extends ProductoListItem {
           : null,
       tipoAfectacionIgv: json['tipoAfectacionIgv'] as String? ?? 'GRAVADO',
       aplicaIcbper: json['aplicaIcbper'] as bool? ?? false,
+      // 🔴 toJson/fromJson tienen que ser SIMÉTRICOS o el cache local devuelve
+      // productos sin la política y la línea de compra deja de pedir la fecha.
+      tipoVencimiento: json['tipoVencimiento'] as String? ?? 'NINGUNO',
+      diasVidaUtil: (json['diasVidaUtil'] as num?)?.toInt(),
       factorCompra: json['factorCompra'] != null
           ? double.tryParse(json['factorCompra'].toString())
           : null,
@@ -133,6 +139,8 @@ class ProductoListItemModel extends ProductoListItem {
       if (descuentoMaximo != null) 'descuentoMaximo': descuentoMaximo,
       'tipoAfectacionIgv': tipoAfectacionIgv,
       'aplicaIcbper': aplicaIcbper,
+      'tipoVencimiento': tipoVencimiento,
+      'diasVidaUtil': diasVidaUtil,
       if (factorCompra != null) 'factorCompra': factorCompra,
       if (unidadCompraSimbolo != null)
         'unidadCompra': {'simboloLocal': unidadCompraSimbolo},

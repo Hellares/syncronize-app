@@ -49,6 +49,7 @@ class CompraDetalleModel extends CompraDetalle {
     required super.precioUnitario,
     super.descuento,
     super.cantidadBonificada,
+    super.fechaVencimiento,
     super.porcentajeIGV,
     super.igv,
     super.subtotal,
@@ -79,6 +80,9 @@ class CompraDetalleModel extends CompraDetalle {
       precioUnitario: double.parse(json['precioUnitario'].toString()),
       descuento: double.parse((json['descuento'] ?? 0).toString()),
       cantidadBonificada: (json['cantidadBonificada'] as num?)?.round() ?? 0,
+      fechaVencimiento: json['fechaVencimiento'] != null
+          ? DateTime.tryParse(json['fechaVencimiento'].toString())
+          : null,
       porcentajeIGV: double.parse((json['porcentajeIGV'] ?? 18).toString()),
       igv: double.parse((json['igv'] ?? 0).toString()),
       subtotal: double.parse((json['subtotal'] ?? 0).toString()),

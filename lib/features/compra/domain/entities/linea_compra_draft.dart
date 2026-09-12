@@ -40,6 +40,22 @@ class LineaCompraDraft extends Equatable {
   /// sobre lo que sí se paga; las dos pueden convivir en la misma línea.
   final int cantidadBonificada;
 
+  /// Vencimiento impreso en el envase de ESTA entrega.
+  ///
+  /// 🔑 Va en la LÍNEA y no en el producto porque cada entrega vence distinto:
+  /// dos compras de la misma leche tienen fechas diferentes. Al confirmar la
+  /// compra viaja al Lote, y es lo que le permite al consumo FEFO sacar
+  /// primero lo que caduca antes.
+  final DateTime? fechaVencimiento;
+
+  /// Política del producto: 'NINGUNO' | 'CONSUMO_PREFERENTE' | 'CADUCIDAD'.
+  /// Decide si la línea PIDE la fecha. Solo capa de vista.
+  final String? tipoVencimiento;
+
+  /// Vida útil del producto en días: SUGIERE la fecha al cargar la línea.
+  /// La que vale es la que se tipea — la del envase.
+  final int? diasVidaUtil;
+
   /// La línea se carga en la unidad de COMPRA del producto (saco, paquete) y
   /// el backend convierte ×factor antes de persistir.
   final bool usaUnidadCompra;
@@ -86,6 +102,9 @@ class LineaCompraDraft extends Equatable {
     this.precioUnitario,
     this.descuento = 0,
     this.cantidadBonificada = 0,
+    this.fechaVencimiento,
+    this.tipoVencimiento,
+    this.diasVidaUtil,
     this.usaUnidadCompra = false,
     this.factorCompra,
     this.nuevoPrecioVenta,
@@ -395,6 +414,15 @@ class LineaCompraDraft extends Equatable {
               : producto.unidadMedidaSimbolo,
       factorPresentacion: presentacion.factor,
       unidadPresentacionSimbolo: presentacion.simboloVisible,
+      // Política de vencimiento del producto: decide si la línea PIDE la
+      // fecha. Con vida útil configurada viene sugerida (hoy + N), pero se
+      // puede pisar: la que vale es la impresa en el envase.
+      tipoVencimiento: producto.tipoVencimiento,
+      diasVidaUtil: producto.diasVidaUtil,
+      fechaVencimiento: (producto.tipoVencimiento != 'NINGUNO' &&
+              producto.diasVidaUtil != null)
+          ? DateTime.now().add(Duration(days: producto.diasVidaUtil!))
+          : null,
       costoActualSede: info?.precioCosto,
       precioVentaActualSede: info?.precio,
       stockActualSede: info?.cantidad,
@@ -406,6 +434,7 @@ class LineaCompraDraft extends Equatable {
     double? precioUnitario,
     double? descuento,
     int? cantidadBonificada,
+    DateTime? fechaVencimiento,
     bool? usaUnidadCompra,
     double? factorCompra,
     double? nuevoPrecioVenta,
@@ -417,6 +446,9 @@ class LineaCompraDraft extends Equatable {
       varianteId: varianteId,
       descripcion: descripcion,
       cantidad: cantidad ?? this.cantidad,
+      fechaVencimiento: fechaVencimiento ?? this.fechaVencimiento,
+      tipoVencimiento: tipoVencimiento,
+      diasVidaUtil: diasVidaUtil,
       precioUnitario: limpiarPrecioUnitario
           ? null
           : (precioUnitario ?? this.precioUnitario),
@@ -450,6 +482,12 @@ class LineaCompraDraft extends Equatable {
         'precioUnitario': precioUnitario ?? 0,
         'descuento': descuento,
         if (cantidadBonificada > 0) 'cantidadBonificada': cantidadBonificada,
+        // 🔴 toMap/fromMap SIMÉTRICOS: la línea se serializa para volver al
+        // editor, y si la fecha no vuelve el cajero la pierde al reabrirla.
+        if (fechaVencimiento != null)
+          'fechaVencimiento': fechaVencimiento!.toIso8601String(),
+        if (tipoVencimiento != null) 'tipoVencimiento': tipoVencimiento,
+        if (diasVidaUtil != null) 'diasVidaUtil': diasVidaUtil,
         if (usaUnidadCompra) 'usaUnidadCompra': true,
         // El empaque viaja SIEMPRE que exista, no solo con el toggle prendido:
         // sin él, reabrir la línea en el editor ya no ofrecería comprar por
@@ -496,6 +534,11 @@ class LineaCompraDraft extends Equatable {
           : null,
       descuento: aDouble(item['descuento']) ?? 0,
       cantidadBonificada: (item['cantidadBonificada'] as num?)?.round() ?? 0,
+      fechaVencimiento: item['fechaVencimiento'] != null
+          ? DateTime.tryParse(item['fechaVencimiento'].toString())
+          : null,
+      tipoVencimiento: item['tipoVencimiento'] as String?,
+      diasVidaUtil: (item['diasVidaUtil'] as num?)?.toInt(),
       usaUnidadCompra: item['usaUnidadCompra'] == true,
       factorCompra: aDouble(item['factorCompra']),
       nuevoPrecioVenta: aDouble(item['nuevoPrecioVenta']),

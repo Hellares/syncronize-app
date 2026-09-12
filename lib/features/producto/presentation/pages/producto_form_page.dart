@@ -57,6 +57,7 @@ import '../widgets/form_sections/producto_categorizacion_section.dart';
 import '../widgets/form_sections/producto_unidad_compra_section.dart';
 import '../widgets/form_sections/producto_unidad_presentacion_section.dart';
 import '../widgets/form_sections/producto_impuestos_section.dart';
+import '../widgets/form_sections/producto_vencimiento_section.dart';
 import '../widgets/form_sections/producto_variantes_banner.dart';
 import '../widgets/form_sections/producto_combo_banner.dart';
 import '../controllers/producto_form_controller.dart';
@@ -702,6 +703,15 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     onTipoAfectacionChanged: (v) => setState(() => _controller.tipoAfectacionIgv = v),
                     onAplicaIcbperChanged: (v) => setState(() => _controller.aplicaIcbper = v),
                     onCodigoProductoSunatChanged: (v) => setState(() => _controller.codigoProductoSunat = v),
+                  ),
+                  const SizedBox(height: 12),
+                  ProductoVencimientoSection(
+                    tipoVencimiento: _controller.tipoVencimiento,
+                    diasVidaUtilController: _controller.diasVidaUtilController,
+                    diasAlertaVencimientoController:
+                        _controller.diasAlertaVencimientoController,
+                    onTipoVencimientoChanged: (v) =>
+                        setState(() => _controller.tipoVencimiento = v),
                   ),
                   const SizedBox(height: 12),
                   _buildMultimediaSection(),

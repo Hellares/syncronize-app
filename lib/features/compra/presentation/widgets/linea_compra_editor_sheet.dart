@@ -61,6 +61,7 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
   void initState() {
     super.initState();
     final l = widget.linea;
+    _fechaVencimiento = l.fechaVencimiento;
     // Los campos van en la unidad en la que se COMPRA (15 kg a S/8.00), no en
     // la que se guarda (15000 g a S/0.008).
     _cantidad = TextEditingController(text: _num(l.cantidadCarga));
@@ -110,6 +111,11 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
   /// La línea como quedaría con lo que hay escrito AHORA. De acá salen el costo
   /// proyectado, las sugerencias y el aviso de vender bajo costo, así que se
   /// recalcula en cada tecla.
+  /// Vencimiento elegido en esta edición. Arranca en el de la línea (que la
+  /// factory sugirió con la vida útil del producto) y solo cambia si el cajero
+  /// toca el selector.
+  DateTime? _fechaVencimiento;
+
   LineaCompraDraft get _provisional {
     final factorEscrito = _leer(_factor);
     return widget.linea.conCarga(
@@ -120,6 +126,7 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
       factor: factorEscrito > 0 ? factorEscrito : null,
     ).copyWith(
       descuento: _leer(_descuento),
+      fechaVencimiento: _fechaVencimiento,
       nuevoPrecioVenta: _nuevoPrecioVentaPorUnidadDeVenta,
       limpiarNuevoPrecioVenta: _nuevoPrecioVentaPorUnidadDeVenta == null,
     );
@@ -320,6 +327,9 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
                       ),
                     ],
                   ),
+                  if (l.tipoVencimiento != null &&
+                      l.tipoVencimiento != 'NINGUNO')
+                    _buildVencimiento(l),
                   if (l.conPromo) _buildResumenPromo(l),
                   // Solo cuando lo que se escribe NO es lo que se guarda: con
                   // unidades iguales sería un renglón repitiendo el campo.
@@ -483,6 +493,81 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
   /// La cuenta a la vista: el regalo no se paga pero SÍ entra al stock, así
   /// que abarata a todas las unidades. Es el mismo número que el proveedor
   /// imprime como "precio prorrateado" en su factura.
+  /// La fecha de vencimiento de ESTA entrega.
+  ///
+  /// 🔑 Se pide en la LÍNEA y no en el producto porque cada entrega vence
+  /// distinto: dos compras de la misma leche tienen fechas diferentes. Con
+  /// vida útil configurada viene sugerida, pero se puede pisar — la que vale
+  /// es la impresa en el envase.
+  Widget _buildVencimiento(LineaCompraDraft l) {
+    final caduca = l.tipoVencimiento == 'CADUCIDAD';
+    final f = l.fechaVencimiento;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: InkWell(
+        onTap: () async {
+          final hoy = DateTime.now();
+          final elegida = await showDatePicker(
+            context: context,
+            initialDate: f ?? hoy.add(Duration(days: l.diasVidaUtil ?? 30)),
+            // Se admite una fecha pasada: puede estar cargándose una compra
+            // vieja, o mercadería que ya llegó vencida y hay que registrarla.
+            firstDate: DateTime(hoy.year - 2),
+            lastDate: DateTime(hoy.year + 10),
+            helpText: 'Vencimiento de esta entrega',
+          );
+          if (elegida == null) return;
+          setState(() => _fechaVencimiento = elegida);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: caduca ? Colors.red.shade50 : Colors.amber.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: caduca ? Colors.red.shade200 : Colors.amber.shade200,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.event_busy,
+                  size: 18,
+                  color: caduca ? Colors.red.shade700 : Colors.amber.shade800),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      f != null
+                          ? 'Vence el ${f.day.toString().padLeft(2, '0')}/'
+                              '${f.month.toString().padLeft(2, '0')}/${f.year}'
+                          : 'Sin fecha de vencimiento',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: caduca
+                            ? Colors.red.shade900
+                            : Colors.amber.shade900,
+                      ),
+                    ),
+                    Text(
+                      caduca
+                          ? 'Caduca: vencido NO se puede vender'
+                          : 'Consumo preferente: vencido pide autorización',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.edit_calendar, size: 16, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildResumenPromo(LineaCompraDraft l) {
     if (l.cantidadBonificadaAtomica > l.cantidadAtomica) {
       return Container(

@@ -58,6 +58,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
     bool? esCombo,
     bool? esInsumo,
     List<String>? plantillasAtributosIds,
+    String? tipoVencimiento,
+    int? diasVidaUtil,
+    int? diasAlertaVencimiento,
     bool? requiereIdentificador,
     String? etiquetaIdentificador,
     String? tipoPrecioCombo,
@@ -110,6 +113,12 @@ class ProductoRepositoryImpl implements ProductoRepository {
       // legítimo y con `isNotEmpty` no habría forma de guardarlo.
       if (plantillasAtributosIds != null)
         'plantillasAtributosIds': plantillasAtributosIds,
+        // Política de vencimiento. La FECHA no va acá: vive en el LOTE, y se
+        // captura en la línea de compra (cada entrega vence distinto).
+        if (tipoVencimiento != null) 'tipoVencimiento': tipoVencimiento,
+        if (diasVidaUtil != null) 'diasVidaUtil': diasVidaUtil,
+        if (diasAlertaVencimiento != null)
+          'diasAlertaVencimiento': diasAlertaVencimiento,
         if (requiereIdentificador != null)
           'requiereIdentificador': requiereIdentificador,
         if (etiquetaIdentificador != null)
@@ -237,6 +246,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
     bool? esCombo,
     bool? esInsumo,
     List<String>? plantillasAtributosIds,
+    String? tipoVencimiento,
+    int? diasVidaUtil,
+    int? diasAlertaVencimiento,
     bool? requiereIdentificador,
     String? etiquetaIdentificador,
     String? tipoPrecioCombo,
@@ -293,6 +305,12 @@ class ProductoRepositoryImpl implements ProductoRepository {
       // legítimo y con `isNotEmpty` no habría forma de guardarlo.
       if (plantillasAtributosIds != null)
         'plantillasAtributosIds': plantillasAtributosIds,
+        // Política de vencimiento. La FECHA no va acá: vive en el LOTE, y se
+        // captura en la línea de compra (cada entrega vence distinto).
+        if (tipoVencimiento != null) 'tipoVencimiento': tipoVencimiento,
+        if (diasVidaUtil != null) 'diasVidaUtil': diasVidaUtil,
+        if (diasAlertaVencimiento != null)
+          'diasAlertaVencimiento': diasAlertaVencimiento,
         if (requiereIdentificador != null)
           'requiereIdentificador': requiereIdentificador,
         if (etiquetaIdentificador != null)

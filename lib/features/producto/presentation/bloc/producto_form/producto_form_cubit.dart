@@ -165,6 +165,15 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
               : double.tryParse(controller.descuentoMaximoController.text),
           tipoAfectacionIgv: controller.tipoAfectacionIgv,
           aplicaIcbper: controller.aplicaIcbper,
+          tipoVencimiento: controller.tipoVencimiento,
+          // Solo viajan si el producto controla vencimiento: mandarlos con
+          // NINGUNO sería guardar una vida útil que no se usa para nada.
+          diasVidaUtil: controller.tipoVencimiento == 'NINGUNO'
+              ? null
+              : int.tryParse(controller.diasVidaUtilController.text),
+          diasAlertaVencimiento: controller.tipoVencimiento == 'NINGUNO'
+              ? null
+              : int.tryParse(controller.diasAlertaVencimientoController.text),
           codigoProductoSunat: controller.codigoProductoSunat ?? '',
           visibleMarketplace: controller.visibleMarketplace,
           destacado: controller.destacado,
@@ -212,6 +221,15 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
               : double.tryParse(controller.descuentoMaximoController.text),
           tipoAfectacionIgv: controller.tipoAfectacionIgv,
           aplicaIcbper: controller.aplicaIcbper,
+          tipoVencimiento: controller.tipoVencimiento,
+          // Solo viajan si el producto controla vencimiento: mandarlos con
+          // NINGUNO sería guardar una vida útil que no se usa para nada.
+          diasVidaUtil: controller.tipoVencimiento == 'NINGUNO'
+              ? null
+              : int.tryParse(controller.diasVidaUtilController.text),
+          diasAlertaVencimiento: controller.tipoVencimiento == 'NINGUNO'
+              ? null
+              : int.tryParse(controller.diasAlertaVencimientoController.text),
           codigoProductoSunat: controller.codigoProductoSunat,
           visibleMarketplace: controller.visibleMarketplace,
           destacado: controller.destacado,

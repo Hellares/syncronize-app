@@ -79,6 +79,11 @@ class CompraDetalle extends Equatable {
   /// De [cantidad], cuántas vinieron de REGALO (promo 10+1 → 11 y 1). Entran
   /// al stock igual, pero no se pagan: el costo queda prorrateado entre todas.
   final int cantidadBonificada;
+
+  /// Vencimiento de ESTA entrega. Al confirmar la compra viaja al Lote, y es
+  /// lo que le permite al consumo FEFO sacar primero lo que caduca antes.
+  final DateTime? fechaVencimiento;
+
   final double porcentajeIGV;
   final double igv;
   final double subtotal;
@@ -121,6 +126,7 @@ class CompraDetalle extends Equatable {
     required this.precioUnitario,
     this.descuento = 0,
     this.cantidadBonificada = 0,
+    this.fechaVencimiento,
     this.porcentajeIGV = 18,
     this.igv = 0,
     this.subtotal = 0,
