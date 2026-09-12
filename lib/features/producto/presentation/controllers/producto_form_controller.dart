@@ -37,6 +37,8 @@ class ProductoFormController extends ChangeNotifier {
   String tipoVencimiento = 'NINGUNO';
   final diasVidaUtilController = TextEditingController();
   final diasAlertaVencimientoController = TextEditingController();
+  /// % de la liquidación automática por vencimiento. Vacío = solo avisa.
+  final descuentoVencimientoPctController = TextEditingController();
 
   /// Código de producto SUNAT (catálogos 25.1/25.2/25.3). null = sin código.
   String? codigoProductoSunat;
@@ -425,6 +427,10 @@ class ProductoFormController extends ChangeNotifier {
     diasAlertaVencimientoController.text = producto.diasAlertaVencimiento != null
         ? '${producto.diasAlertaVencimiento}'
         : '';
+    descuentoVencimientoPctController.text =
+        producto.descuentoVencimientoPct != null
+            ? '${producto.descuentoVencimientoPct}'
+            : '';
     codigoProductoSunat = producto.codigoProductoSunat;
 
     // Dimensiones

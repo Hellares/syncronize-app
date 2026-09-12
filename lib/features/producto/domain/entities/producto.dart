@@ -70,8 +70,13 @@ class Producto extends Equatable with StockPorSedeMixin {
   /// Vida útil en días: SUGIERE la fecha al cargar una línea de compra.
   final int? diasVidaUtil;
 
-  /// Cuántos días antes del vencimiento empieza a avisar.
+  /// Cuántos días antes del vencimiento empieza a avisar. Null = 30.
   final int? diasAlertaVencimiento;
+
+  /// Liquidación AUTOMÁTICA por vencimiento: % de descuento sobre el precio de
+  /// venta que aplica el cron cuando un lote entra en la ventana de alerta, y
+  /// que saca solo cuando el lote se termina. Null o 0 = solo avisa.
+  final int? descuentoVencimientoPct;
 
   /// Código de producto SUNAT (UNSPSC 8 dígitos, catálogos 25/25.1/25.2/25.3).
   /// Opcional: solo viaja al XML de facturación cuando está seteado.
@@ -146,6 +151,7 @@ class Producto extends Equatable with StockPorSedeMixin {
     this.tipoVencimiento,
     this.diasVidaUtil,
     this.diasAlertaVencimiento,
+    this.descuentoVencimientoPct,
     this.codigoProductoSunat,
     required this.visibleMarketplace,
     required this.destacado,

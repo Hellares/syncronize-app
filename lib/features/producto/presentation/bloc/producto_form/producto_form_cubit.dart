@@ -174,6 +174,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           diasAlertaVencimiento: controller.tipoVencimiento == 'NINGUNO'
               ? null
               : int.tryParse(controller.diasAlertaVencimientoController.text),
+          descuentoVencimientoPct: controller.tipoVencimiento == 'NINGUNO'
+              ? null
+              : int.tryParse(controller.descuentoVencimientoPctController.text),
           codigoProductoSunat: controller.codigoProductoSunat ?? '',
           visibleMarketplace: controller.visibleMarketplace,
           destacado: controller.destacado,
@@ -230,6 +233,9 @@ class ProductoFormCubit extends Cubit<ProductoFormState> {
           diasAlertaVencimiento: controller.tipoVencimiento == 'NINGUNO'
               ? null
               : int.tryParse(controller.diasAlertaVencimientoController.text),
+          descuentoVencimientoPct: controller.tipoVencimiento == 'NINGUNO'
+              ? null
+              : int.tryParse(controller.descuentoVencimientoPctController.text),
           codigoProductoSunat: controller.codigoProductoSunat,
           visibleMarketplace: controller.visibleMarketplace,
           destacado: controller.destacado,

@@ -35,6 +35,7 @@ class ProductoModel extends Producto {
     super.tipoVencimiento,
     super.diasVidaUtil,
     super.diasAlertaVencimiento,
+    super.descuentoVencimientoPct,
     super.codigoProductoSunat,
     required super.visibleMarketplace,
     required super.destacado,
@@ -106,6 +107,8 @@ class ProductoModel extends Producto {
       tipoVencimiento: json['tipoVencimiento'] as String? ?? 'NINGUNO',
       diasVidaUtil: (json['diasVidaUtil'] as num?)?.toInt(),
       diasAlertaVencimiento: (json['diasAlertaVencimiento'] as num?)?.toInt(),
+      descuentoVencimientoPct:
+          (json['descuentoVencimientoPct'] as num?)?.toInt(),
       codigoProductoSunat: json['codigoProductoSunat'] as String?,
       visibleMarketplace: json['visibleMarketplace'] as bool? ?? true,
       destacado: json['destacado'] as bool? ?? false,
@@ -205,6 +208,7 @@ class ProductoModel extends Producto {
       'tipoVencimiento': tipoVencimiento,
       'diasVidaUtil': diasVidaUtil,
       'diasAlertaVencimiento': diasAlertaVencimiento,
+      'descuentoVencimientoPct': descuentoVencimientoPct,
       if (codigoProductoSunat != null)
         'codigoProductoSunat': codigoProductoSunat,
       'visibleMarketplace': visibleMarketplace,
@@ -312,6 +316,7 @@ class ProductoModel extends Producto {
       tipoVencimiento: entity.tipoVencimiento,
       diasVidaUtil: entity.diasVidaUtil,
       diasAlertaVencimiento: entity.diasAlertaVencimiento,
+      descuentoVencimientoPct: entity.descuentoVencimientoPct,
       codigoProductoSunat: entity.codigoProductoSunat,
       visibleMarketplace: entity.visibleMarketplace,
       destacado: entity.destacado,

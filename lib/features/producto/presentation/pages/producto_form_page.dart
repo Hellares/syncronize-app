@@ -710,6 +710,8 @@ class _ProductoFormViewState extends State<_ProductoFormView> {
                     diasVidaUtilController: _controller.diasVidaUtilController,
                     diasAlertaVencimientoController:
                         _controller.diasAlertaVencimientoController,
+                    descuentoVencimientoPctController:
+                        _controller.descuentoVencimientoPctController,
                     onTipoVencimientoChanged: (v) =>
                         setState(() => _controller.tipoVencimiento = v),
                   ),

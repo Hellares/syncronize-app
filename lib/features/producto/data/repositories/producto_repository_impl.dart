@@ -61,6 +61,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? tipoVencimiento,
     int? diasVidaUtil,
     int? diasAlertaVencimiento,
+    int? descuentoVencimientoPct,
     bool? requiereIdentificador,
     String? etiquetaIdentificador,
     String? tipoPrecioCombo,
@@ -119,6 +120,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (diasVidaUtil != null) 'diasVidaUtil': diasVidaUtil,
         if (diasAlertaVencimiento != null)
           'diasAlertaVencimiento': diasAlertaVencimiento,
+        // 0 viaja como 0 a propósito: es "apagar la liquidación automática".
+        if (descuentoVencimientoPct != null)
+          'descuentoVencimientoPct': descuentoVencimientoPct,
         if (requiereIdentificador != null)
           'requiereIdentificador': requiereIdentificador,
         if (etiquetaIdentificador != null)
@@ -249,6 +253,7 @@ class ProductoRepositoryImpl implements ProductoRepository {
     String? tipoVencimiento,
     int? diasVidaUtil,
     int? diasAlertaVencimiento,
+    int? descuentoVencimientoPct,
     bool? requiereIdentificador,
     String? etiquetaIdentificador,
     String? tipoPrecioCombo,
@@ -311,6 +316,9 @@ class ProductoRepositoryImpl implements ProductoRepository {
         if (diasVidaUtil != null) 'diasVidaUtil': diasVidaUtil,
         if (diasAlertaVencimiento != null)
           'diasAlertaVencimiento': diasAlertaVencimiento,
+        // 0 viaja como 0 a propósito: es "apagar la liquidación automática".
+        if (descuentoVencimientoPct != null)
+          'descuentoVencimientoPct': descuentoVencimientoPct,
         if (requiereIdentificador != null)
           'requiereIdentificador': requiereIdentificador,
         if (etiquetaIdentificador != null)

@@ -20,6 +20,10 @@ class ProductoVencimientoSection extends StatelessWidget {
   final String tipoVencimiento;
   final TextEditingController diasVidaUtilController;
   final TextEditingController diasAlertaVencimientoController;
+
+  /// % de descuento de la liquidación AUTOMÁTICA por vencimiento. Vacío o 0
+  /// = el sistema solo avisa.
+  final TextEditingController descuentoVencimientoPctController;
   final ValueChanged<String> onTipoVencimientoChanged;
 
   const ProductoVencimientoSection({
@@ -27,6 +31,7 @@ class ProductoVencimientoSection extends StatelessWidget {
     required this.tipoVencimiento,
     required this.diasVidaUtilController,
     required this.diasAlertaVencimientoController,
+    required this.descuentoVencimientoPctController,
     required this.onTipoVencimientoChanged,
   });
 
@@ -130,6 +135,35 @@ class ProductoVencimientoSection extends StatelessWidget {
               'La vida útil solo SUGIERE la fecha al recibir una compra. La que '
               'vale es la impresa en el envase, y se tipea en la línea.',
               style: TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            // Liquidación automática: el % en una fila con su explicación al
+            // lado, para que quede claro que 0 = solo avisar.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: CustomText(
+                    controller: descuentoVencimientoPctController,
+                    borderColor: AppColors.blue1,
+                    label: 'Liquidar solo (% desc.)',
+                    hintText: '0 = solo avisa',
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      'Cuando un lote entre en los días de aviso, el stock de '
+                      'esa sede pasa solo a liquidación con este descuento, y '
+                      'sale solo cuando ese lote se termina.',
+                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
