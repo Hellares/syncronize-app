@@ -365,6 +365,48 @@ class CompraRemoteDataSource {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Saca un lote del inventario (venció, se rompió, se perdió). Baja el lote
+  /// Y el stock en una transacción del backend. Sin [cantidad] se da de baja
+  /// todo lo que queda, que es el caso normal.
+  ///
+  /// POST /empresas/:empresaId/lotes/:id/baja — exige MANAGE_PRODUCTS.
+  Future<Map<String, dynamic>> darDeBajaLote({
+    required String empresaId,
+    required String loteId,
+    required String motivo,
+    int? cantidad,
+  }) async {
+    final response = await _dioClient.post(
+      '/empresas/$empresaId/lotes/$loteId/baja',
+      data: {
+        'motivo': motivo,
+        if (cantidad != null) 'cantidad': cantidad,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Corrige una fecha de vencimiento mal cargada. [fechaVencimiento] va como
+  /// `yyyy-MM-dd` (un DÍA, no un instante) o null para "no vence". Queda
+  /// rastro en las observaciones del lote.
+  ///
+  /// PATCH /empresas/:empresaId/lotes/:id/vencimiento — exige MANAGE_PRODUCTS.
+  Future<LoteModel> corregirVencimientoLote({
+    required String empresaId,
+    required String loteId,
+    required String? fechaVencimiento,
+    required String motivo,
+  }) async {
+    final response = await _dioClient.patch(
+      '/empresas/$empresaId/lotes/$loteId/vencimiento',
+      data: {
+        'fechaVencimiento': fechaVencimiento,
+        'motivo': motivo,
+      },
+    );
+    return LoteModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
   // ===== ANALYTICS =====
 
   Future<CompraResumenGeneralModel> getAnalyticsResumen({

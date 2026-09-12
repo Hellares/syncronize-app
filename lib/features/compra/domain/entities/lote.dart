@@ -5,6 +5,8 @@
 
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/fecha_calendario.dart' as fc;
+
 enum EstadoLote {
   ACTIVO,
   AGOTADO,
@@ -111,9 +113,20 @@ class Lote extends Equatable {
     return '';
   }
 
+  /// Días que faltan para el vencimiento, por DÍA de calendario (negativo =
+  /// ya pasó, null = no vence). Ver `core/utils/fecha_calendario.dart`: el
+  /// envase vale el día entero; compararlo como instante lo daba por vencido
+  /// desde la tarde anterior.
+  int? get diasParaVencer => fc.diasParaVencer(fechaVencimiento);
+
+  /// Ya pasó el día del envase.
+  bool get estaVencido => fc.estaVencido(fechaVencimiento);
+
+  /// Vence dentro de 30 días — o ya venció. Es el filtro de "hay que hacer
+  /// algo con este lote".
   bool get proximoAVencer {
-    if (fechaVencimiento == null) return false;
-    return fechaVencimiento!.difference(DateTime.now()).inDays <= 30;
+    final d = diasParaVencer;
+    return d != null && d <= 30;
   }
 
   @override

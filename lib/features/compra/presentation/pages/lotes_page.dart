@@ -164,11 +164,16 @@ class LotesPage extends StatelessWidget {
                               final lote = lotes[index];
                               return LoteListTile(
                                 lote: lote,
-                                onTap: () {
-                                  context.push(
+                                onTap: () async {
+                                  final cambio = await context.push<bool>(
                                     '/empresa/compras/lotes/${lote.id}',
                                     extra: lote,
                                   );
+                                  // Se dio de baja o se corrigió la fecha
+                                  // adentro: la lista tiene que reflejarlo.
+                                  if (cambio == true && context.mounted) {
+                                    context.read<LoteListCubit>().reload();
+                                  }
                                 },
                               );
                             },

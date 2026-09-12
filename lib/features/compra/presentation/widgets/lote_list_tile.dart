@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../../../core/utils/fecha_calendario.dart';
 import '../../domain/entities/lote.dart';
 
 class LoteListTile extends StatelessWidget {
@@ -27,7 +27,6 @@ class LoteListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -70,12 +69,23 @@ class LoteListTile extends StatelessWidget {
                 ),
               ],
             ),
+            // El día del envase por sus campos UTC (nunca a hora local: en
+            // Lima daría el día anterior), y el estado por DÍA de calendario.
             if (lote.fechaVencimiento != null)
               Text(
-                'Vence: ${dateFormat.format(lote.fechaVencimiento!)}',
+                lote.estaVencido
+                    ? 'VENCIDO el ${formatearDiaEnvase(lote.fechaVencimiento, anioCompleto: true)}'
+                    : lote.diasParaVencer == 0
+                        ? 'Vence HOY'
+                        : 'Vence: ${formatearDiaEnvase(lote.fechaVencimiento, anioCompleto: true)}'
+                            '${lote.proximoAVencer ? ' · ${lote.diasParaVencer} días' : ''}',
                 style: TextStyle(
                   fontSize: 11,
-                  color: lote.proximoAVencer ? Colors.red : Colors.grey,
+                  color: lote.estaVencido
+                      ? Colors.red
+                      : lote.proximoAVencer
+                          ? Colors.orange.shade800
+                          : Colors.grey,
                   fontWeight: lote.proximoAVencer ? FontWeight.bold : FontWeight.normal,
                 ),
               ),

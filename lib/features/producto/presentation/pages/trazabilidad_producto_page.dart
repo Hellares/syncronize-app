@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../../../../core/theme/gradient_container.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/fecha_calendario.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/smart_appbar.dart';
 
@@ -379,18 +380,62 @@ class _TrazabilidadProductoPageState extends State<TrazabilidadProductoPage> {
     ]);
   }
 
+  /// Los lotes en el orden en que SALEN (FEFO): primero los presentes —vence
+  /// antes, sale antes; los sin vencimiento al final, del más viejo al más
+  /// nuevo— y después los agotados. El primero lleva "SALE PRIMERO": es la
+  /// respuesta a "¿cuál se vende ahora?".
   Widget _buildSeccionLotes(List lotes) {
+    final todos = lotes.cast<Map<String, dynamic>>();
+    bool presente(Map<String, dynamic> l) {
+      final qty = (l['cantidadActual'] as num?)?.toInt() ?? 0;
+      final estado = l['estado']?.toString();
+      return qty > 0 && (estado == null || estado == 'ACTIVO' || estado == 'VENCIDO');
+    }
+
+    int fefo(Map<String, dynamic> a, Map<String, dynamic> b) {
+      final va = a['fechaVencimiento']?.toString();
+      final vb = b['fechaVencimiento']?.toString();
+      if (va != null && vb != null) return va.compareTo(vb);
+      if (va != null) return -1;
+      if (vb != null) return 1;
+      return (a['fechaIngreso']?.toString() ?? '')
+          .compareTo(b['fechaIngreso']?.toString() ?? '');
+    }
+
+    final presentes = todos.where(presente).toList()..sort(fefo);
+    final resto = todos.where((l) => !presente(l)).toList();
+    final ordenados = [...presentes, ...resto];
+
     return _seccion('Lotes', Icons.inventory, lotes.length, [
-      for (final l in lotes.cast<Map<String, dynamic>>())
+      for (var i = 0; i < ordenados.length; i++)
         _fila(
-          izqTop:
-              '${l['codigo'] ?? ''}${l['varianteNombre'] != null ? ' · ${l['varianteNombre']}' : ''}',
+          izqTop: [
+            '${ordenados[i]['codigo'] ?? ''}',
+            if (ordenados[i]['varianteNombre'] != null)
+              '${ordenados[i]['varianteNombre']}',
+            if (i == 0 && presentes.isNotEmpty) 'SALE PRIMERO',
+            if (_etiquetaVencimiento(ordenados[i]['fechaVencimiento']?.toString())
+                case final e?)
+              e,
+          ].join(' · '),
           izqSub:
-              '${l['proveedor'] ?? '—'} · ${_fecha(l['fechaIngreso'])}${l['fechaVencimiento'] != null ? ' · vence ${_fecha(l['fechaVencimiento'])}' : ''}',
-          derTop: '${l['cantidadActual']}/${l['cantidadInicial']}',
-          derSub: 'S/ ${_fmtCosto(l['precioCosto'])}',
+              '${ordenados[i]['proveedor'] ?? '—'} · ${_fecha(ordenados[i]['fechaIngreso'])}'
+              '${ordenados[i]['fechaVencimiento'] != null ? ' · vence ${formatearDiaEnvaseIso(ordenados[i]['fechaVencimiento']?.toString())}' : ''}',
+          derTop:
+              '${ordenados[i]['cantidadActual']}/${ordenados[i]['cantidadInicial']}',
+          derSub: 'S/ ${_fmtCosto(ordenados[i]['precioCosto'])}',
         ),
     ]);
+  }
+
+  /// "VENCIDO", "VENCE HOY" o "vence en N d" (≤ 30), por día de calendario.
+  String? _etiquetaVencimiento(String? iso) {
+    final d = diasParaVencerIso(iso);
+    if (d == null) return null;
+    if (d < 0) return 'VENCIDO';
+    if (d == 0) return 'VENCE HOY';
+    if (d <= 30) return 'vence en $d d';
+    return null;
   }
 
   Widget _buildSeccionFabricados(List lotesFab) {
