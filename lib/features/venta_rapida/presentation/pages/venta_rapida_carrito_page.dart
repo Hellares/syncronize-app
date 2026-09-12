@@ -587,6 +587,22 @@ class _CarritoView extends StatelessWidget {
                 onTap: () => Navigator.pop(ctx, 'descuento'),
               ),
             ],
+            // Tercer ítem en las dos ramas (tope: 4). De qué lote sale: para
+            // la mercadería comprada por encargo, que tiene dueño.
+            ListTile(
+              leading: const Icon(Icons.inventory_2_outlined,
+                  color: Color(0xFF043261)),
+              title: Text(item.loteId != null
+                  ? 'Lote ${item.loteCodigo ?? ''} · cambiar'
+                  : 'Elegir de qué lote sale'),
+              subtitle: Text(
+                item.loteId != null
+                    ? 'Atada a un lote concreto'
+                    : 'Sale primero lo que vence antes',
+                style: const TextStyle(fontSize: 11),
+              ),
+              onTap: () => Navigator.pop(ctx, 'lote'),
+            ),
             const SizedBox(height: 8),
           ],
         ),
@@ -604,6 +620,167 @@ class _CarritoView extends StatelessWidget {
       case 'descuento':
         await _mostrarDescuentoItem(context, index, item);
         break;
+      case 'lote':
+        await _mostrarSelectorLote(context, cubit, index);
+        break;
+    }
+  }
+
+  /// De qué lote sale UNA línea.
+  ///
+  /// 🔑 FEFO parte de que una unidad es intercambiable con otra. Cuando se le
+  /// compró a un proveedor puntual para un cliente puntual eso deja de ser
+  /// cierto: esa caja tiene dueño y su costo es otro. Se listan también los
+  /// VENCIDOS —siguen siendo mercadería del estante y el cajero tiene que
+  /// verlos para entender por qué la venta le pide autorización— y se avisa
+  /// cuando la elección deja atrás algo que caduca antes.
+  Future<void> _mostrarSelectorLote(
+    BuildContext context,
+    VentaRapidaCubit cubit,
+    int index,
+  ) async {
+    // Los lotes viajan DENTRO de la cotización: si la línea no se cotizó
+    // todavía, el cubit la pide acá.
+    final lotes = await cubit.lotesDe(index);
+    if (!context.mounted || index >= cubit.state.items.length) return;
+    final item = cubit.state.items[index];
+    if (lotes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Este producto no tiene lotes con mercadería en esta sede'),
+      ));
+      return;
+    }
+    final cantidad = item.cantidad.ceil();
+    final elegidoId = item.loteId;
+
+    // ¿La elección deja en el estante algo que caduca antes?
+    String? aviso;
+    if (elegidoId != null) {
+      LoteVendible? el;
+      for (final l in lotes) {
+        if (l.loteId == elegidoId) el = l;
+      }
+      if (el != null) {
+        final antes = lotes.where((l) {
+          if (l.loteId == el!.loteId || l.fechaVencimiento == null) return false;
+          if (el.fechaVencimiento == null) return true;
+          return l.fechaVencimiento!.isBefore(el.fechaVencimiento!);
+        }).length;
+        if (antes > 0) {
+          aviso = antes == 1
+              ? 'Queda un lote que caduca antes en el estante.'
+              : 'Quedan $antes lotes que caducan antes en el estante.';
+        }
+      }
+    }
+
+    final alto = MediaQuery.of(context).size.height * 0.8;
+    final r = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: alto),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'De qué lote sale',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, color: Color(0xFF043261)),
+                    ),
+                    Text(
+                      item.descripcion,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '$cantidad ${cantidad == 1 ? 'unidad' : 'unidades'} · el costo cambia con el lote',
+                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    // Volver a FEFO. Va PRIMERO y marcado como lo normal:
+                    // elegir a mano es la excepción.
+                    ListTile(
+                      dense: true,
+                      selected: elegidoId == null,
+                      selectedTileColor: const Color(0xFFF0F6FF),
+                      leading: Icon(
+                        elegidoId == null
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color: elegidoId == null
+                            ? const Color(0xFF043261)
+                            : Colors.grey,
+                        size: 20,
+                      ),
+                      title: const Text('Automático',
+                          style: TextStyle(fontSize: 13)),
+                      subtitle: Text(
+                        'Sale primero lo que vence antes · hoy sería ${lotes.first.codigo}',
+                        style: const TextStyle(fontSize: 10),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () => Navigator.pop(ctx, 'auto'),
+                    ),
+                    for (var i = 0; i < lotes.length; i++)
+                      _LoteTile(
+                        lote: lotes[i],
+                        salePrimero: i == 0,
+                        seleccionado: elegidoId == lotes[i].loteId,
+                        cantidadLinea: cantidad,
+                        onTap: () => Navigator.pop(ctx, lotes[i].loteId),
+                      ),
+                  ],
+                ),
+              ),
+              if (aviso != null)
+                Container(
+                  width: double.infinity,
+                  color: Colors.amber.shade50,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    '$aviso Si no es mercadería encargada, conviene sacar eso primero.',
+                    style: TextStyle(fontSize: 10, color: Colors.amber.shade900),
+                  ),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (r == null || !context.mounted) return;
+    if (r == 'auto') {
+      await cubit.elegirLote(index, null);
+      return;
+    }
+    for (final l in lotes) {
+      if (l.loteId == r) {
+        await cubit.elegirLote(index, l);
+        return;
+      }
     }
   }
 
@@ -1181,6 +1358,137 @@ class _Th extends StatelessWidget {
 /// una línea de 9px: sin esto el cajero ve un precio pelado y tiene que
 /// confiar. La bonificación se nombra porque explica por qué el costo es más
 /// bajo de lo que dice la factura por unidad.
+/// Una fila del selector de lote: código, de dónde viene, cuánto queda, a
+/// cuánto, y las dos cosas que el cajero tiene que saber ANTES de prometer un
+/// precio: si vence (o venció) y si el lote alcanza para la línea.
+class _LoteTile extends StatelessWidget {
+  final LoteVendible lote;
+  final bool salePrimero;
+  final bool seleccionado;
+  final int cantidadLinea;
+  final VoidCallback onTap;
+
+  const _LoteTile({
+    required this.lote,
+    required this.salePrimero,
+    required this.seleccionado,
+    required this.cantidadLinea,
+    required this.onTap,
+  });
+
+  /// El día del envase, por sus campos UTC: se guarda como medianoche UTC y
+  /// pasarlo a hora local daría el día anterior en Lima.
+  static String _diaEnvase(DateTime f) {
+    final u = f.toUtc();
+    return '${u.day.toString().padLeft(2, '0')}/${u.month.toString().padLeft(2, '0')}/${u.year.toString().substring(2)}';
+  }
+
+  static String _diaLocal(DateTime f) {
+    final l = f.toLocal();
+    return '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}';
+  }
+
+  Widget _badge(String texto, Color fondo, Color color) => Container(
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        decoration: BoxDecoration(
+          color: fondo,
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: Text(
+          texto,
+          style: TextStyle(
+              fontSize: 8, fontWeight: FontWeight.w700, color: color),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final dias = lote.diasParaVencer;
+    final vencido = dias != null && dias < 0;
+    final porVencer = dias != null && dias >= 0 && dias <= 30;
+    final alcanza = lote.cantidadActual >= cantidadLinea;
+    final azul = const Color(0xFF043261);
+
+    final detalle = [
+      lote.proveedorNombre,
+      lote.documentoProveedor ?? lote.compraCodigo,
+      if (lote.fechaIngreso != null) _diaLocal(lote.fechaIngreso!),
+      if (lote.fechaVencimiento != null && !vencido && !porVencer)
+        'vence ${_diaEnvase(lote.fechaVencimiento!)}',
+      if (lote.cantidadBonificada > 0)
+        '${lote.cantidadBonificada} de regalo en el costo',
+    ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+
+    return ListTile(
+      dense: true,
+      selected: seleccionado,
+      selectedTileColor: const Color(0xFFF0F6FF),
+      leading: Icon(
+        seleccionado ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: seleccionado ? azul : Colors.grey,
+        size: 20,
+      ),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              lote.codigo,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: azul),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (salePrimero) _badge('SALE PRIMERO', const Color(0xFFE8F2FF), azul),
+          if (vencido) _badge('VENCIDO', Colors.red.shade50, Colors.red.shade700),
+          if (porVencer)
+            _badge(dias == 0 ? 'VENCE HOY' : '${dias}d', Colors.amber.shade50,
+                Colors.amber.shade900),
+        ],
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (detalle.isNotEmpty)
+            Text(
+              detalle,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          // 🔴 Un lote que no alcanza no es un error, pero el cajero tiene que
+          // saber que el resto sale por FEFO y a otro costo ANTES de
+          // prometerle un precio al cliente.
+          if (!alcanza)
+            Text(
+              'Alcanza para ${lote.cantidadActual} de $cantidadLinea: el resto sale del siguiente',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.amber.shade900),
+            ),
+        ],
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            'S/ ${lote.costoUnitario.toStringAsFixed(2)}',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          Text(
+            'quedan ${lote.cantidadActual}',
+            style: const TextStyle(fontSize: 9, color: Colors.grey),
+          ),
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
 String _origenCorto(OrigenCostoLote o) {
   final f = o.fechaIngreso;
   return [
@@ -1441,6 +1749,28 @@ class _ItemRowState extends State<_ItemRow> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                ],
+                // Atada a un lote concreto (compra por encargo): se ve en la
+                // línea, esté o no a costo — también decide QUÉ caja sale.
+                if (item.loteId != null) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F2FF),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0x4D043261)),
+                    ),
+                    child: Text(
+                      'LOTE ${item.loteCodigo ?? ''}',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Color(0xFF043261),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ],
                 // 🔴 Con el modo prendido, una línea que quedó FUERA tiene que
                 // decirlo: cobrarle precio de lista a un cliente al que se le

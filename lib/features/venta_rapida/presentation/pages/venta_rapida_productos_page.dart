@@ -17,6 +17,7 @@ import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.da
 import '../../../producto/presentation/widgets/producto_selector/producto_selector_view.dart';
 import '../bloc/venta_rapida_cubit.dart';
 import '../widgets/alta_rapida_producto_dialog.dart';
+import '../widgets/vender_compra_sheet.dart';
 
 /// Pantalla de selección de productos para Venta Rápida. Toda la UI vive en
 /// `ProductoSelectorView<VentaRapidaCubit, VentaRapidaState>` — esta page
@@ -237,7 +238,70 @@ class _VentaRapidaProductosView extends StatelessWidget {
           children: [
             const SedeSwitcher(),
             if (puedeVenderACosto) const _InterruptorCosto(),
+            if (puedeVenderACosto) const _BotonVenderCompra(),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Vender una compra entera al costo de sus lotes (mercadería por encargo).
+/// Misma condición que el interruptor: exige `venta.editar-precio`.
+class _BotonVenderCompra extends StatelessWidget {
+  const _BotonVenderCompra();
+
+  Future<void> _abrir(BuildContext context) async {
+    final cubit = context.read<VentaRapidaCubit>();
+    final empresaId = cubit.state.empresaId;
+    if (empresaId == null) return;
+    final compra = await VenderCompraSheet.mostrar(
+      context,
+      empresaId: empresaId,
+      sedeId: cubit.state.sedeId,
+    );
+    if (compra == null || !context.mounted) return;
+    final n = await cubit.cargarCompra(compra);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(n == 0
+          ? 'Esa compra ya no tiene mercadería en stock'
+          : '$n ${n == 1 ? 'línea' : 'líneas'} de ${compra.codigo}, al costo de sus lotes'),
+      backgroundColor: n == 0 ? Colors.orange.shade800 : const Color(0xFF043261),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Material(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _abrir(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.inventory_2_outlined,
+                    size: 18, color: Colors.grey.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Vender una compra',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade500),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -17,6 +17,9 @@ import '../../../cliente_empresa/data/cache/cliente_empresa_catalogo_service.dar
 import '../../../cliente_empresa/domain/entities/cliente_empresa.dart';
 import '../../../combo/domain/entities/combo.dart';
 import '../../../combo/domain/repositories/combo_repository.dart';
+import '../../../compra/domain/entities/compra.dart';
+import '../../../producto/domain/entities/producto.dart';
+import '../../../producto/domain/entities/stock_por_sede_mixin.dart';
 import '../../../descuento/domain/entities/vip_precio.dart';
 import '../../../descuento/domain/usecases/obtener_politicas_vigentes_cliente.dart';
 import '../../../producto/domain/entities/precio_nivel.dart';
@@ -378,6 +381,155 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
   void limpiarVencidoNoAutorizado() =>
       emit(state.copyWith(clearVencidoNoAutorizado: true));
+
+  /// Arma el carrito con lo que QUEDA de una compra, al costo de SUS lotes.
+  ///
+  /// 🔑 El caso: se le compró a un proveedor puntual para un cliente puntual.
+  /// Cada línea entra con su `loteId`, que manda sobre FEFO: el cliente que
+  /// encargó esa compra paga lo que costó SU mercadería, y es SU caja la que
+  /// sale del depósito. Se arma con lo que queda de cada lote, no con lo que
+  /// se compró: parte ya puede estar vendida.
+  ///
+  /// 🔴 El precio de LISTA no viaja en la compra: se trae la ficha de cada
+  /// producto, porque es el precio al que la línea vuelve si el cajero la saca
+  /// del modo costo. Dejar el costo ahí hacía que "volver a precio de lista"
+  /// devolviera el costo (pasó en la web).
+  ///
+  /// Devuelve cuántas líneas entraron (0 = la compra ya no tiene stock).
+  Future<int> cargarCompra(Compra compra) async {
+    final sedeId = state.sedeId ?? '';
+    final empresaId = state.empresaId ?? compra.empresaId;
+
+    final detalles = (compra.detalles ?? const <CompraDetalle>[]).where((d) {
+      final lote = d.lote;
+      if (lote == null) return false;
+      if (d.productoId == null && d.varianteId == null) return false;
+      final queda = (lote['cantidadActual'] as num?)?.toInt() ?? 0;
+      final estado = lote['estado'] as String?;
+      // Presentes: ACTIVO y VENCIDO (sigue en el estante; si se puede vender
+      // lo decide el guard del cobro). BLOQUEADO y AGOTADO no se ofrecen.
+      return queda > 0 &&
+          (estado == null || estado == 'ACTIVO' || estado == 'VENCIDO');
+    }).toList();
+    if (detalles.isEmpty) return 0;
+
+    emit(state.copyWith(cargandoCostos: true, clearError: true));
+
+    // Las fichas, una por producto distinto y en paralelo. Si una no se puede
+    // leer, esa línea entra igual al costo: la venta del encargo no se cae.
+    final ids = detalles.map((d) => d.productoId).whereType<String>().toSet();
+    final fichas = <String, Producto>{};
+    await Future.wait(ids.map((id) async {
+      try {
+        fichas[id] = await locator<ProductoRemoteDataSource>()
+            .getProducto(productoId: id, empresaId: empresaId);
+      } catch (e) {
+        debugPrint('[VentaRapidaCompra] ficha $id no se pudo leer: $e');
+      }
+    }));
+    if (isClosed) return 0;
+
+    final nuevas = <VentaDetalleInput>[];
+    var sinPrecio = 0;
+    for (final d in detalles) {
+      final lote = d.lote!;
+      final ficha = d.productoId != null ? fichas[d.productoId] : null;
+      ProductoVariante? variante;
+      if (d.varianteId != null) {
+        for (final v in ficha?.variantes ?? const <ProductoVariante>[]) {
+          if (v.id == d.varianteId) variante = v;
+        }
+      }
+      // El stock (y el precio) viven en la fila de la variante cuando la hay.
+      StockPorSedeMixin? stock;
+      if (variante != null) {
+        stock = variante;
+      } else {
+        stock = ficha;
+      }
+      final cantidad = ((lote['cantidadActual'] as num?)?.toDouble() ?? 0);
+      final costo = double.tryParse('${lote['precioCosto']}') ?? 0;
+      final lista =
+          stock?.precioEfectivoEnSede(sedeId) ?? stock?.precioEnSede(sedeId);
+      if (lista == null || lista <= 0) sinPrecio++;
+      final icbperUnit =
+          (ficha?.aplicaIcbper ?? false) ? AppConstants.icbperPorUnidad : 0.0;
+      final niveles = d.varianteId != null
+          ? _nivelCacheService.peekVariante(d.varianteId!)
+          : (d.productoId != null ? _nivelCacheService.peek(d.productoId!) : null);
+
+      nuevas.add(VentaDetalleInput(
+        productoId: d.productoId,
+        varianteId: d.varianteId,
+        descripcion: d.descripcion,
+        cantidad: cantidad,
+        // Previsualización: el número final lo cotiza el servidor con el lote.
+        precioUnitario: costo,
+        // Sin precio configurado en la sede queda el costo —no cero, que
+        // sería regalarlo— y abajo se avisa cuántas quedaron así.
+        precioBase: (lista != null && lista > 0) ? lista : costo,
+        porcentajeIGV: ficha?.impuestoPorcentaje ?? state.impuestoPorcentaje,
+        precioIncluyeIgv: stock?.precioIncluyeIgvEnSede(sedeId) ?? true,
+        tipoAfectacion: _mapTipoAfectacion(ficha?.tipoAfectacionIgv ?? 'GRAVADO'),
+        icbper: icbperUnit * cantidad,
+        // El stock de la SEDE, no lo que queda del lote: pedir más unidades
+        // que las del lote es legítimo (el resto sale de otro y los tramos lo
+        // muestran); poner el lote acá daría un "sin stock" falso.
+        stockDisponible: stock?.stockEnSede(sedeId) ?? cantidad.toInt(),
+        niveles: niveles ?? const [],
+        precioCostoSnapshot: stock?.precioCostoEnSede(sedeId) ?? costo,
+        enLiquidacion: stock?.enLiquidacionEnSede(sedeId) ?? false,
+        requiereIdentificador: ficha?.requiereIdentificador ?? false,
+        etiquetaIdentificador: ficha?.etiquetaIdentificador,
+        factorPresentacion:
+            variante?.factorPresentacion ?? ficha?.factorPresentacion,
+        unidadPresentacionSimbolo: variante?.unidadPresentacionSimbolo ??
+            ficha?.unidadPresentacionSimbolo,
+        precioModo: PrecioModoCosto.lote,
+        loteId: lote['id'] as String?,
+        loteCodigo: lote['codigo'] as String?,
+      ));
+    }
+
+    // Se AGREGA a lo que haya: el cliente puede llevarse su encargo y algo
+    // más. El interruptor queda prendido para que lo que entre después
+    // también vaya a costo.
+    final desde = state.items.length;
+    emit(state.copyWith(
+      items: _repreciar([...state.items, ...nuevas]),
+      modoCosto: state.modoCosto ?? PrecioModoCosto.lote,
+      cargandoCostos: false,
+    ));
+
+    // Cotizar contra el servidor CON el lote: lo que se ve es lo que se cobra.
+    final cache = await _asegurarCostos(nuevas);
+    if (isClosed) return nuevas.length;
+    final lista = [...state.items];
+    for (var i = desde; i < desde + nuevas.length && i < lista.length; i++) {
+      lista[i] = _aCosto(lista[i], PrecioModoCosto.lote, cache);
+    }
+    emit(state.copyWith(
+      items: _repreciar(lista),
+      error: sinPrecio > 0
+          ? '$sinPrecio ${sinPrecio == 1 ? 'línea' : 'líneas'} sin precio de venta en esta sede: se queda al costo'
+          : null,
+    ));
+
+    // Los niveles después, como al agregar a mano: no reprecian mientras la
+    // línea esté a costo, pero tienen que estar cargados para cuando vuelva
+    // al precio de lista (mayoreo incluido).
+    for (final d in detalles) {
+      if (d.varianteId != null) {
+        if (_nivelCacheService.peekVariante(d.varianteId!) == null) {
+          _cargarNivelesVarianteYActualizar(d.varianteId!);
+        }
+      } else if (d.productoId != null &&
+          _nivelCacheService.peek(d.productoId!) == null) {
+        _cargarNivelesYActualizar(d.productoId!);
+      }
+    }
+    return nuevas.length;
+  }
 
   /// Re-resuelve y reaplica el precio VIP a todas las líneas del carrito.
   /// Combos, componentes de combo y órdenes de servicio quedan exentos
