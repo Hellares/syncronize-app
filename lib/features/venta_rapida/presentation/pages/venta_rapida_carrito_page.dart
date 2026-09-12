@@ -19,6 +19,7 @@ import '../../../producto/domain/entities/producto_list_item.dart';
 import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../auth/presentation/widgets/custom_text.dart';
 import '../../../venta/data/datasources/venta_remote_datasource.dart';
+import '../../../venta/domain/entities/costos_venta.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/venta_rapida_cubit.dart';
@@ -107,6 +108,75 @@ class _CarritoView extends StatelessWidget {
 
           return Column(
             children: [
+              // VENDER A COSTO: qué costo se está usando y sobre cuántas
+              // líneas. Relleno oscuro, el único del carrito: esto no es un
+              // nivel de precio más, es un modo autorizado.
+              if (state.modoCosto != null)
+                Material(
+                  color: const Color(0xFF043261),
+                  child: InkWell(
+                    onTap: () => _mostrarSelectorModoCosto(
+                        context, context.read<VentaRapidaCubit>()),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'MODO COSTO',
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${PrecioModoCosto.label(state.modoCosto!)} · '
+                              '${state.lineasACosto} de ${state.lineasCosteables} líneas',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Color(0xFFCFE2FB)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const Text('Cambiar',
+                              style: TextStyle(
+                                  fontSize: 10, color: Colors.white)),
+                          const Icon(Icons.chevron_right,
+                              size: 16, color: Colors.white),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              // Lo que se resigna vendiendo a costo. En ámbar y no en verde:
+              // no es un ahorro del cliente, es margen que no entra. Es el
+              // número que el dueño quiere ver antes de confirmar.
+              if (state.margenResignado > 0)
+                Container(
+                  width: double.infinity,
+                  color: Colors.amber.shade50,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Text(
+                    'Margen resignado: S/ ${state.margenResignado.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.amber.shade900,
+                    ),
+                  ),
+                ),
               // Header de tabla
               Container(
                 color: Colors.grey.shade100,
@@ -229,7 +299,7 @@ class _CarritoView extends StatelessWidget {
                             // en la orden de servicio, no en la venta).
                             onLongPress: item.esOrdenServicio
                                 ? null
-                                : () => _mostrarDescuentoItem(
+                                : () => _mostrarMenuLinea(
                                       context, row.index!, item,
                                     ),
                             child: item.esOrdenServicio
@@ -441,6 +511,204 @@ class _CarritoView extends StatelessWidget {
         context.read<VentaRapidaCubit>().actualizarDescuentoMonto(index, monto);
       },
     );
+  }
+
+  /// Menú de una línea suelta (mantené pulsado).
+  ///
+  /// 🔴 MÁXIMO 4 ítems: el quinto tira pantalla roja. Por eso "descuento" y
+  /// "vender a costo" son EXCLUYENTES y no se muestran juntos — que además es
+  /// lo correcto: una línea a costo no admite descuento (un centavo la manda a
+  /// pérdida y el backend la rechaza).
+  Future<void> _mostrarMenuLinea(
+    BuildContext context,
+    int index,
+    dynamic item,
+  ) async {
+    final cubit = context.read<VentaRapidaCubit>();
+    final puedeCosto = item.puedeVenderseACosto as bool;
+    final aCosto = item.esACosto as bool;
+
+    // Sin el granular no se ofrece: el endpoint de costos responde 403 y
+    // mostrarlo sería ofrecer algo que no funciona.
+    final empresaState = context.read<EmpresaContextCubit>().state;
+    final puedeEditarPrecio = empresaState is EmpresaContextLoaded &&
+        empresaState.context.permissions.canEditarPrecioVenta;
+
+    if (!puedeCosto || !puedeEditarPrecio) {
+      await _mostrarDescuentoItem(context, index, item);
+      return;
+    }
+
+    final accion = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Text(
+                item.descripcion as String,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Divider(height: 1),
+            if (aCosto) ...[
+              ListTile(
+                leading: const Icon(Icons.tune, color: Color(0xFF043261)),
+                title: const Text('Cambiar el costo que se cobra'),
+                onTap: () => Navigator.pop(ctx, 'modo'),
+              ),
+              ListTile(
+                leading: Icon(Icons.sell_outlined, color: Colors.grey.shade700),
+                title: const Text('Volver al precio de lista'),
+                onTap: () => Navigator.pop(ctx, 'quitar-costo'),
+              ),
+            ] else ...[
+              ListTile(
+                leading: const Icon(Icons.savings_outlined,
+                    color: Color(0xFF043261)),
+                title: const Text('Vender a costo'),
+                subtitle: const Text('Cobrar lo que costó esta unidad',
+                    style: TextStyle(fontSize: 11)),
+                onTap: () => Navigator.pop(ctx, 'a-costo'),
+              ),
+              ListTile(
+                leading: Icon(Icons.discount_outlined,
+                    color: Colors.orange.shade700),
+                title: const Text('Aplicar descuento'),
+                onTap: () => Navigator.pop(ctx, 'descuento'),
+              ),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (accion == null || !context.mounted) return;
+    switch (accion) {
+      case 'a-costo':
+      case 'quitar-costo':
+        await cubit.toggleLineaACosto(index);
+        break;
+      case 'modo':
+        await _mostrarSelectorModoCosto(context, cubit, soloIndex: index);
+        break;
+      case 'descuento':
+        await _mostrarDescuentoItem(context, index, item);
+        break;
+    }
+  }
+
+  /// Con qué costo se cobra. Los tres montos van con su PROCEDENCIA —
+  /// proveedor, fecha, factura — para que el cajero elija un hecho y no un
+  /// número pelado.
+  ///
+  /// 🔑 Cuando la compra no trajo flete, "con flete" y "sin flete" dan el
+  /// MISMO número. No es un error de la pantalla y el pie lo dice: es el caso
+  /// normal de un mayorista que no cobra envío.
+  Future<void> _mostrarSelectorModoCosto(
+    BuildContext context,
+    VentaRapidaCubit cubit, {
+    int? soloIndex,
+  }) async {
+    final items = cubit.state.items;
+    // Para el selector global se muestran los costos de una línea concreta:
+    // los montos son por producto, pero lo que se elige es el criterio, y con
+    // un ejemplo delante se elige mejor.
+    final muestra = soloIndex != null
+        ? items[soloIndex]
+        : (items.where((i) => i.esACosto).isNotEmpty
+            ? items.firstWhere((i) => i.esACosto)
+            : (items.where((i) => i.puedeVenderseACosto).isNotEmpty
+                ? items.firstWhere((i) => i.puedeVenderseACosto)
+                : null));
+    if (muestra == null) return;
+    final costos = cubit.costosDe(muestra);
+    final actual = soloIndex != null
+        ? muestra.precioModo
+        : cubit.state.modoCosto;
+
+    final elegido = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    muestra.descripcion,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: Color(0xFF043261)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (costos?.origen != null)
+                    Text(
+                      'Última compra: ${_origenCorto(costos!.origen!)}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            for (final m in PrecioModoCosto.todos)
+              ListTile(
+                dense: true,
+                enabled: costos?.precioDe(m) != null,
+                leading: Icon(
+                  actual == m
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: actual == m ? const Color(0xFF043261) : Colors.grey,
+                  size: 20,
+                ),
+                title: Text(PrecioModoCosto.label(m),
+                    style: const TextStyle(fontSize: 13)),
+                trailing: Text(
+                  costos?.precioDe(m) != null
+                      ? 'S/ ${costos!.precioDe(m)!.toStringAsFixed(2)}'
+                      : '—',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                onTap: () => Navigator.pop(ctx, m),
+              ),
+            Container(
+              width: double.infinity,
+              color: Colors.grey.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Los tres son CON IGV, igual que el precio de venta.'
+                '${(costos?.compraSinFlete ?? false) ? ' Esta compra no trajo flete: por eso los dos primeros dan lo mismo.' : ''}',
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (elegido == null) return;
+    await cubit.cambiarModoCosto(elegido, soloIndex: soloIndex);
   }
 
   /// Menú de edición de un componente de combo (mantené pulsado): sustituir,
@@ -909,6 +1177,21 @@ class _Th extends StatelessWidget {
   }
 }
 
+/// "DELTRON · 08-09 · F001-88214 · 1 de regalo". De dónde salió el costo, en
+/// una línea de 9px: sin esto el cajero ve un precio pelado y tiene que
+/// confiar. La bonificación se nombra porque explica por qué el costo es más
+/// bajo de lo que dice la factura por unidad.
+String _origenCorto(OrigenCostoLote o) {
+  final f = o.fechaIngreso;
+  return [
+    o.proveedorNombre,
+    if (f != null)
+      '${f.day.toString().padLeft(2, '0')}-${f.month.toString().padLeft(2, '0')}',
+    o.documentoProveedor ?? o.compraCodigo,
+    if (o.cantidadBonificada > 0) '${o.cantidadBonificada} de regalo',
+  ].whereType<String>().join(' · ');
+}
+
 class _ItemRow extends StatefulWidget {
   final int index;
   final dynamic item; // VentaDetalleInput
@@ -1098,6 +1381,69 @@ class _ItemRowState extends State<_ItemRow> {
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                 ),
+                // VENDER A COSTO: el único chip de relleno OSCURO del
+                // carrito. Los demás (mayor, oferta, liquidación) son pastel,
+                // porque son niveles de precio; esto no lo es — es un modo
+                // autorizado. Debajo, de qué compra salió el número, para que
+                // el cajero no tenga que confiar en un precio pelado.
+                if (item.esACosto) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF043261),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'COSTO',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (item.precioBase != null &&
+                          item.precioBase! > item.precioUnitario) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          'S/ ${item.precioBase!.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (item.costos?.origen != null)
+                    Text(
+                      _origenCorto(item.costos!.origen!),
+                      style: const TextStyle(
+                          fontSize: 9, color: Color(0xFF043261)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+                // 🔴 Con el modo prendido, una línea que quedó FUERA tiene que
+                // decirlo: cobrarle precio de lista a un cliente al que se le
+                // prometió costo es el peor final posible.
+                if (context.read<VentaRapidaCubit>().lineaSinCosto(item)) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Sin compras acá · va a precio de lista',
+                    style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.amber.shade900,
+                        fontWeight: FontWeight.w600),
+                    maxLines: 2,
+                  ),
+                ],
                 if (item.nivelAplicado != null) ...[
                   const SizedBox(height: 2),
                   Container(

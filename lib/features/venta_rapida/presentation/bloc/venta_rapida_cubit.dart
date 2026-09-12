@@ -25,6 +25,9 @@ import '../../../producto/domain/entities/producto_variante.dart';
 import '../../../producto/domain/entities/producto_stock.dart';
 import '../../../producto/domain/repositories/producto_stock_repository.dart';
 import '../../../producto/domain/services/precio_nivel_cache_service.dart';
+import '../../../producto/data/datasources/producto_remote_datasource.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../venta/domain/entities/costos_venta.dart';
 import '../../../venta/domain/entities/venta.dart';
 import '../../../venta/domain/entities/venta_detalle_input.dart';
 import '../../domain/entities/orden_cobrable.dart';
@@ -142,6 +145,188 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   /// con el precio viejo y la venta rebota con 409 PRECIO_DESACTUALIZADO.
   List<VentaDetalleInput> _repreciar(List<VentaDetalleInput> items) =>
       VentaDetalleInput.recalcularNivelesEnLote(items);
+
+  // ═══════════════════════════════════════════════════════════
+  // VENDER A COSTO
+  // ═══════════════════════════════════════════════════════════
+
+  /// Trae los costos que falten y devuelve el cache COMPLETO.
+  ///
+  /// Se devuelve en vez de leerse del state porque quien llama lo necesita en
+  /// el mismo paso para aplicar el modo: el `emit` no actualiza `state` para
+  /// la línea siguiente de forma sincrónica y confiable.
+  Future<Map<String, CostosVenta>> _asegurarCostos(
+    List<VentaDetalleInput> lineas,
+  ) async {
+    final sedeId = state.sedeId;
+    if (sedeId == null) return state.costos;
+
+    final faltan = <({String? productoId, String? varianteId})>[];
+    final vistos = <String>{};
+    for (final it in lineas) {
+      if (!it.puedeVenderseACosto) continue;
+      final k = CostosVenta.clave(it.productoId, it.varianteId);
+      if (state.costos.containsKey(k) || !vistos.add(k)) continue;
+      faltan.add((productoId: it.productoId, varianteId: it.varianteId));
+    }
+    if (faltan.isEmpty) return state.costos;
+
+    emit(state.copyWith(cargandoCostos: true, clearError: true));
+    try {
+      final res = await locator<ProductoRemoteDataSource>().getCostosVenta(
+        sedeId: sedeId,
+        items: faltan,
+      );
+      final merge = Map<String, CostosVenta>.from(state.costos);
+      for (final c in res) {
+        merge[CostosVenta.clave(c.productoId, c.varianteId)] = c;
+      }
+      emit(state.copyWith(costos: merge, cargandoCostos: false));
+      return merge;
+    } catch (e) {
+      emit(state.copyWith(
+        cargandoCostos: false,
+        error: 'No se pudieron cargar los costos',
+      ));
+      debugPrint('[VentaRapidaCosto] fetch de costos FALLÓ: $e');
+      return state.costos;
+    }
+  }
+
+  /// Pone (o saca) una línea del modo costo.
+  ///
+  /// 🔴 Cuando no hay costo para ese modo, la línea NO entra: se queda a
+  /// precio de lista y la UI lo dice. Caer al precio de lista en silencio
+  /// después de prometerle el costo al cliente es el peor final posible.
+  VentaDetalleInput _aCosto(
+    VentaDetalleInput it,
+    String? modo,
+    Map<String, CostosVenta> cache,
+  ) {
+    if (modo == null) {
+      if (!it.esACosto) return it;
+      // Al salir, vuelve a su precio vigente: `recalcularPrecioPorNiveles`
+      // ya no ve `precioModo` y reprecia normal.
+      return it
+          .copyWith(clearPrecioModo: true)
+          .recalcularPrecioPorNiveles(it.cantidad);
+    }
+    if (!it.puedeVenderseACosto) return it;
+    final costos = cache[CostosVenta.clave(it.productoId, it.varianteId)];
+    final precio = costos?.precioDe(modo);
+    if (precio == null) return it;
+    return it.copyWith(
+      precioModo: modo,
+      costos: costos,
+      precioUnitario: precio,
+      // El descuento se limpia: un centavo sobre una línea a costo la manda a
+      // pérdida y el backend la rechaza.
+      descuento: 0,
+      descuentoManual: 0,
+      clearNivelAplicado: true,
+    );
+  }
+
+  /// El interruptor grande: prende o apaga el modo para TODO el carrito.
+  Future<void> toggleModoCosto({String modoInicial = PrecioModoCosto.lote}) async {
+    if (state.modoCosto != null) {
+      final apagados = [
+        for (final it in state.items) _aCosto(it, null, state.costos),
+      ];
+      emit(state.copyWith(clearModoCosto: true, items: _repreciar(apagados)));
+      return;
+    }
+    final cache = await _asegurarCostos(state.items);
+    final aplicados = [
+      for (final it in state.items) _aCosto(it, modoInicial, cache),
+    ];
+    emit(state.copyWith(modoCosto: modoInicial, items: _repreciar(aplicados)));
+  }
+
+  /// Cambia el costo con el que se cobra: de todo el carrito, o de una línea.
+  ///
+  /// Sin [soloIndex] se reaplica SOLO a las que ya están a costo: cambiar de
+  /// modo no debería arrastrar al carrito líneas que el cajero sacó a mano.
+  Future<void> cambiarModoCosto(String modo, {int? soloIndex}) async {
+    final objetivo = soloIndex != null
+        ? [state.items[soloIndex]]
+        : state.items;
+    final cache = await _asegurarCostos(objetivo);
+    final nuevos = <VentaDetalleInput>[];
+    for (var i = 0; i < state.items.length; i++) {
+      final it = state.items[i];
+      if (soloIndex != null) {
+        nuevos.add(i == soloIndex ? _aCosto(it, modo, cache) : it);
+      } else {
+        nuevos.add(it.esACosto ? _aCosto(it, modo, cache) : it);
+      }
+    }
+    emit(state.copyWith(
+      modoCosto: soloIndex == null ? modo : state.modoCosto,
+      items: _repreciar(nuevos),
+    ));
+  }
+
+  /// Saca o mete UNA línea, desde su propio botón. Es lo que permite llevarse
+  /// la lista del proveedor a costo y el accesorio a precio normal en la
+  /// misma venta.
+  Future<void> toggleLineaACosto(int index) async {
+    if (index < 0 || index >= state.items.length) return;
+    final linea = state.items[index];
+
+    if (linea.esACosto) {
+      final nuevos = [...state.items];
+      nuevos[index] = _aCosto(linea, null, state.costos);
+      emit(state.copyWith(items: _repreciar(nuevos)));
+      return;
+    }
+    final modo = state.modoCosto ?? PrecioModoCosto.lote;
+    final cache = await _asegurarCostos([linea]);
+    final nuevos = [...state.items];
+    nuevos[index] = _aCosto(linea, modo, cache);
+    emit(state.copyWith(modoCosto: modo, items: _repreciar(nuevos)));
+  }
+
+  /// Con el interruptor prendido, lo que se agrega DESPUÉS también entra a
+  /// costo. Sin esto el cajero prende el modo, sigue tipeando productos y los
+  /// nuevos se cobran a precio de lista sin que nada lo diga.
+  ///
+  /// 🔴 La condición de corte es "ya se consultó su costo", no "ya tiene
+  /// precioModo": un producto SIN compras nunca va a poder entrar al modo, y
+  /// con la otra condición esto se llamaría para siempre. Consultado y sin
+  /// costo ⇒ se queda a precio de lista y la línea lo dice.
+  Future<void> _aplicarCostoALoNuevo() async {
+    final modo = state.modoCosto;
+    if (modo == null) return;
+    final pendientes = state.items
+        .where((i) => i.puedeVenderseACosto && !i.esACosto)
+        .toList();
+    if (pendientes.isEmpty) return;
+
+    final cache = await _asegurarCostos(pendientes);
+    final nuevos = [
+      for (final it in state.items)
+        (it.puedeVenderseACosto && !it.esACosto)
+            ? _aCosto(it, modo, cache)
+            : it,
+    ];
+    emit(state.copyWith(items: _repreciar(nuevos)));
+  }
+
+  /// Si una línea quedó fuera del modo porque su producto no tiene costo con
+  /// el modo activo. La UI la marca para que nadie cobre lista creyendo que
+  /// cobra costo.
+  bool lineaSinCosto(VentaDetalleInput it) {
+    final modo = state.modoCosto;
+    if (modo == null || it.esACosto || !it.puedeVenderseACosto) return false;
+    final c = state.costos[CostosVenta.clave(it.productoId, it.varianteId)];
+    // Sin consultar todavía no se sabe: no se marca.
+    return c != null && c.precioDe(modo) == null;
+  }
+
+  /// Los costos de una línea, para el selector de modo.
+  CostosVenta? costosDe(VentaDetalleInput it) =>
+      state.costos[CostosVenta.clave(it.productoId, it.varianteId)];
 
   /// Re-resuelve y reaplica el precio VIP a todas las líneas del carrito.
   /// Combos, componentes de combo y órdenes de servicio quedan exentos
@@ -385,6 +570,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     emit(state.copyWith(
         items: _repreciar([...state.items, itemConNivel]), clearError: true));
 
+    // Con el interruptor de costo prendido, lo que entra después también va a
+    // costo. Si no, el cajero lo prende, sigue tipeando y los nuevos se cobran
+    // a precio de lista sin que nada lo diga.
+    _aplicarCostoALoNuevo();
+
     // Si todavía no tenemos los niveles cacheados, los pedimos al backend.
     if (nivelesEnCache == null) {
       _cargarNivelesYActualizar(producto.id);
@@ -471,6 +661,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         : item;
     emit(state.copyWith(
         items: _repreciar([...state.items, itemConNivel]), clearError: true));
+
+    // Igual que en `agregarProducto`: con el modo prendido, lo nuevo entra a
+    // costo solo.
+    _aplicarCostoALoNuevo();
 
     if (nivelesEnCache == null) {
       _cargarNivelesVarianteYActualizar(variante.id);
@@ -971,6 +1165,15 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       ));
       return;
     }
+    // 🔴 Una linea A COSTO no admite descuento: un centavo la manda a
+    // perdida y el backend la rechaza con 400.
+    if (actual.esACosto) {
+      emit(state.copyWith(
+        error:
+            'Esa linea ya se esta vendiendo a costo: no admite ademas un descuento',
+      ));
+      return;
+    }
     final monto = (actual.cantidad * actual.precioUnitario) * (porcentaje / 100);
     final lista = [...state.items];
     lista[index] = _conDescuentoManual(actual, monto);
@@ -979,6 +1182,13 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
 
   void actualizarDescuentoMonto(int index, double monto) {
     if (index < 0 || index >= state.items.length) return;
+    if (state.items[index].esACosto) {
+      emit(state.copyWith(
+        error:
+            'Esa linea ya se esta vendiendo a costo: no admite ademas un descuento',
+      ));
+      return;
+    }
     if (state.items[index].esOrdenServicio) {
       emit(state.copyWith(
         error: 'El descuento de una orden de servicio se aplica en la orden, no en la venta',
@@ -998,6 +1208,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       // Las líneas de orden de servicio se eximen del descuento global
       // (su precio ES el saldo de la orden — el backend lo valida exacto).
       if (item.esOrdenServicio) return item;
+      // Y las que se venden a costo: un descuento encima es vender bajo costo.
+      if (item.esACosto) return item;
       final manual = (item.cantidad * item.precioUnitario) * (porcentaje / 100);
       return _conDescuentoManual(item, manual);
     }).toList();

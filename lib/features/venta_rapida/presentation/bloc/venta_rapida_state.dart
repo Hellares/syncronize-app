@@ -85,6 +85,21 @@ class VentaRapidaState extends Equatable {
   /// cantidadSolicitada, stockDisponible}.
   final List<Map<String, dynamic>>? stockInsuficiente;
 
+  // ── Vender a costo ──
+
+  /// Modo con el que está prendido el interruptor de "vender a costo".
+  /// Null = apagado. Es el modo con el que entran las líneas nuevas; cada
+  /// línea puede salirse por su cuenta.
+  final String? modoCosto;
+
+  /// Los tres costos por ítem, cacheados por clave (`CostosVenta.clave`). Se
+  /// piden una vez por producto y se reusan mientras dure el carrito: el costo
+  /// no cambia entre que se prende el interruptor y se cobra.
+  final Map<String, CostosVenta> costos;
+
+  /// True mientras se están pidiendo costos al backend.
+  final bool cargandoCostos;
+
   const VentaRapidaState({
     this.empresaId,
     this.sedeId,
@@ -115,6 +130,9 @@ class VentaRapidaState extends Equatable {
     this.comboPendienteOferta,
     this.preciosDesactualizados,
     this.stockInsuficiente,
+    this.modoCosto,
+    this.costos = const {},
+    this.cargandoCostos = false,
   });
 
   // Totales calculados
@@ -147,6 +165,29 @@ class VentaRapidaState extends Equatable {
         0.0,
         (s, i) =>
             s + ((i.precioBase ?? i.precioUnitario) - i.precioUnitario) * i.cantidad,
+      );
+
+  /// Cuántas líneas se están cobrando a costo.
+  int get lineasACosto => items.where((i) => i.esACosto).length;
+
+  /// Cuántas líneas del carrito PODRÍAN ir a costo (excluye servicios,
+  /// órdenes y combos). Es el denominador de "3 de 4 líneas".
+  int get lineasCosteables => items.where((i) => i.puedeVenderseACosto).length;
+
+  /// Margen que se está resignando por vender a costo, contra el precio de
+  /// lista.
+  ///
+  /// 🔴 NO es el `margenSnapshot` que va a quedar guardado: ese se mide contra
+  /// el costo PROMEDIO del inventario, que es con el que el kardex valora la
+  /// salida. Este es el número que el dueño quiere ver antes de confirmar —
+  /// cuánto deja de ganar respecto de lo que habría cobrado normalmente.
+  double get margenResignado => items.where((i) => i.esACosto).fold(
+        0.0,
+        (s, i) {
+          final lista = i.precioBase ?? i.precioUnitario;
+          final dif = lista - i.precioUnitario;
+          return s + (dif > 0 ? dif * i.cantidad : 0);
+        },
       );
 
   /// Adelantos ya pagados de las órdenes de servicio en el carrito. El
@@ -205,6 +246,10 @@ class VentaRapidaState extends Equatable {
     bool clearPreciosDesactualizados = false,
     List<Map<String, dynamic>>? stockInsuficiente,
     bool clearStockInsuficiente = false,
+    String? modoCosto,
+    bool clearModoCosto = false,
+    Map<String, CostosVenta>? costos,
+    bool? cargandoCostos,
   }) {
     return VentaRapidaState(
       empresaId: empresaId ?? this.empresaId,
@@ -250,6 +295,10 @@ class VentaRapidaState extends Equatable {
       stockInsuficiente: clearStockInsuficiente
           ? null
           : (stockInsuficiente ?? this.stockInsuficiente),
+      // Sin el flag no se puede apagar el modo: `?? this.x` nunca vuelve a null.
+      modoCosto: clearModoCosto ? null : (modoCosto ?? this.modoCosto),
+      costos: costos ?? this.costos,
+      cargandoCostos: cargandoCostos ?? this.cargandoCostos,
     );
   }
 
@@ -263,5 +312,6 @@ class VentaRapidaState extends Equatable {
         condicionPago, numeroCuotas, frecuenciaDias, plazoDias, conEnvio,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
         preciosDesactualizados, stockInsuficiente,
+        modoCosto, costos, cargandoCostos,
       ];
 }

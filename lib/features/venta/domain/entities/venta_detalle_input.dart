@@ -3,6 +3,7 @@ import '../../../producto/domain/entities/precio_nivel.dart';
 import '../../../descuento/domain/entities/vip_precio.dart';
 import '../../../descuento/domain/entities/politica_descuento.dart'
     show EstrategiaMayor;
+import 'costos_venta.dart';
 
 /// Modelo tipado para items del formulario de venta.
 /// A diferencia de [VentaDetalle], no incluye campos calculados
@@ -208,6 +209,22 @@ class VentaDetalleInput {
   /// de combo). Solo capa de vista — no viaja al backend.
   final MayoreoCombinado? mayoreo;
 
+  /// VENDER A COSTO: con qué costo se cobra esta línea.
+  /// 'COSTO_LOTE' | 'COSTO_LOTE_SIN_FLETE' | 'COSTO_PROMEDIO'. Null = precio
+  /// normal.
+  ///
+  /// 🔴 Es lo ÚNICO que viaja: el precio lo pone el servidor desde el costo de
+  /// la compra. `precioUnitario` se actualiza igual para que el carrito
+  /// muestre lo que se va a cobrar, pero es una previsualización — mandar el
+  /// número no serviría, porque `aplicarPreciosBackendNivel` recalcula toda
+  /// línea y rebota la venta con 409 si difiere.
+  final String? precioModo;
+
+  /// Los tres costos de esta línea y de qué compra salieron. Solo capa de
+  /// vista: es lo que deja mostrar "DELTRON · 08-09 · F001-88214" al lado del
+  /// precio en vez de un número pelado.
+  final CostosVenta? costos;
+
   const VentaDetalleInput({
     this.productoId,
     this.varianteId,
@@ -248,7 +265,22 @@ class VentaDetalleInput {
     this.unidadPresentacionSimbolo,
     this.vipIntents = const [],
     this.mayoreo,
+    this.precioModo,
+    this.costos,
   });
+
+  /// True si esta línea se está cobrando a costo.
+  bool get esACosto => precioModo != null;
+
+  /// Si esta línea PUEDE venderse a costo. Se excluyen las que no tienen costo
+  /// de inventario (servicios, órdenes) y las que ya tienen su propio deal de
+  /// precio (un combo y sus componentes) — el backend rechaza las mismas.
+  bool get puedeVenderseACosto =>
+      ordenServicioId == null &&
+      servicioId == null &&
+      comboId == null &&
+      origenComboId == null &&
+      (productoId != null || varianteId != null);
 
   /// True si el precio actual de la línea proviene de una política VIP.
   bool get esPrecioVip =>
@@ -357,6 +389,9 @@ class VentaDetalleInput {
         },
         if (origenComboId != null) 'origenComboId': origenComboId,
         if (origenComboNombre != null) 'origenComboNombre': origenComboNombre,
+        // VENDER A COSTO: viaja el MODO, no el precio. El servidor ignora
+        // `precioUnitario` en esta línea y pone el costo de la compra.
+        if (precioModo != null) 'precioModo': precioModo,
       };
 
   VentaDetalleInput copyWith({
@@ -399,9 +434,14 @@ class VentaDetalleInput {
     String? unidadPresentacionSimbolo,
     List<VipPrecioIntent>? vipIntents,
     MayoreoCombinado? mayoreo,
+    String? precioModo,
+    CostosVenta? costos,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
     bool clearMayoreo = false,
+    /// Sacar la línea del modo costo. Sin este flag no se puede: el patrón
+    /// `?? this.x` nunca deja volver a null.
+    bool clearPrecioModo = false,
   }) {
     return VentaDetalleInput(
       productoId: productoId ?? this.productoId,
@@ -449,6 +489,8 @@ class VentaDetalleInput {
           unidadPresentacionSimbolo ?? this.unidadPresentacionSimbolo,
       vipIntents: vipIntents ?? this.vipIntents,
       mayoreo: clearMayoreo ? null : (mayoreo ?? this.mayoreo),
+      precioModo: clearPrecioModo ? null : (precioModo ?? this.precioModo),
+      costos: costos ?? this.costos,
     );
   }
 
@@ -601,6 +643,11 @@ class VentaDetalleInput {
     double cantidad, {
     Map<String, double>? cantidadesGrupo,
   }) {
+    // 🔴 Una línea A COSTO no se reprecia por niveles: su precio sale del costo
+    // de la compra y no depende de cuántas unidades se lleven. Sin esta salida,
+    // subir la cantidad la devolvía al precio de lista sin avisar.
+    if (esACosto) return copyWith(cantidad: cantidad);
+
     final base = precioBase ?? precioUnitario;
 
     // 1) Precio "normal" (base / nivel por mayor), igual que antes.

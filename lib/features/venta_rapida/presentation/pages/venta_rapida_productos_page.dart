@@ -193,6 +193,11 @@ class _VentaRapidaProductosView extends StatelessWidget {
     final empresaState = context.read<EmpresaContextCubit>().state;
     final puedeAltaRapida = empresaState is EmpresaContextLoaded &&
         empresaState.context.permissions.canAltaRapidaVenta;
+    // Vender a costo revive `venta.editar-precio`, un granular que ya estaba
+    // en el catálogo: vender a costo ES cambiar el precio al cobrar.
+    // ⚠️ Dárselo a un cajero le muestra el costo de TODO el catálogo.
+    final puedeVenderACosto = empresaState is EmpresaContextLoaded &&
+        empresaState.context.permissions.canEditarPrecioVenta;
 
     return ProductoSelectorView<VentaRapidaCubit, VentaRapidaState>(
       sedeId: sedeId,
@@ -224,11 +229,90 @@ class _VentaRapidaProductosView extends StatelessWidget {
       onAtajo: () => context.pushReplacement('/empresa/cotizaciones/nueva'),
       onAltaRapida:
           puedeAltaRapida ? (nombre) => _altaRapida(context, nombre) : null,
-      // Selector de sede activa (solo visible si hay >1 sede operable).
-      topExtraBuilder: (_, __) => const Padding(
-        padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
-        child: SedeSwitcher(),
+      // Selector de sede activa + el interruptor de "vender a costo".
+      topExtraBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SedeSwitcher(),
+            if (puedeVenderACosto) const _InterruptorCosto(),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Cobrar los productos a lo que costaron.
+///
+/// 🔴 Solo se OFRECE con el granular `venta.editar-precio`: el endpoint de
+/// costos lo valida igual, y mostrar el interruptor sin él sería ofrecer algo
+/// que rebota con 403. Los admin lo tienen por definición.
+class _InterruptorCosto extends StatelessWidget {
+  const _InterruptorCosto();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<VentaRapidaCubit, VentaRapidaState>(
+      buildWhen: (a, b) =>
+          a.modoCosto != b.modoCosto ||
+          a.cargandoCostos != b.cargandoCostos ||
+          a.lineasACosto != b.lineasACosto,
+      builder: (context, state) {
+        final activo = state.modoCosto != null;
+        return Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Material(
+            color: activo ? const Color(0xFF043261) : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: state.cargandoCostos
+                  ? null
+                  : () => context.read<VentaRapidaCubit>().toggleModoCosto(),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.savings_outlined,
+                      size: 18,
+                      color: activo ? Colors.white : Colors.grey.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        state.cargandoCostos
+                            ? 'Buscando costos…'
+                            : activo
+                                ? 'Vendiendo a costo · ${state.lineasACosto} '
+                                    '${state.lineasACosto == 1 ? 'línea' : 'líneas'}'
+                                : 'Vender a costo',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: activo ? Colors.white : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                    Switch(
+                      value: activo,
+                      onChanged: state.cargandoCostos
+                          ? null
+                          : (_) => context
+                              .read<VentaRapidaCubit>()
+                              .toggleModoCosto(),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

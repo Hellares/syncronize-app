@@ -9,6 +9,7 @@ import '../models/producto_atributo_model.dart';
 import '../models/regla_compatibilidad_model.dart';
 import '../models/resultado_compatibilidad_model.dart';
 import '../../domain/entities/producto_filtros.dart';
+import '../../../venta/domain/entities/costos_venta.dart';
 
 /// Data source remoto para operaciones de productos
 @lazySingleton
@@ -60,6 +61,40 @@ class ProductoRemoteDataSource {
     return ProductoListItemModel.fromJson(
       response.data as Map<String, dynamic>,
     );
+  }
+
+  /// Los tres costos con los que se puede vender "a lo que me costó", para
+  /// TODAS las líneas del carrito de una.
+  ///
+  /// POST /api/productos/costos-venta
+  ///
+  /// 🔑 Es POST y no GET porque pregunta por el carrito completo: línea por
+  /// línea serían N requests al prender el interruptor. Un 403 acá significa
+  /// que este usuario no tiene el granular `venta.editar-precio`, no que el
+  /// endpoint falló.
+  Future<List<CostosVenta>> getCostosVenta({
+    required String sedeId,
+    required List<({String? productoId, String? varianteId})> items,
+  }) async {
+    final response = await _dioClient.post(
+      '${ApiConstants.productos}/costos-venta',
+      data: {
+        'sedeId': sedeId,
+        'items': [
+          for (final i in items)
+            {
+              if (i.productoId != null) 'productoId': i.productoId,
+              if (i.varianteId != null) 'varianteId': i.varianteId,
+            },
+        ],
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    final lista = (data['items'] as List?) ?? const [];
+    return [
+      for (final m in lista)
+        CostosVenta.fromMap(Map<String, dynamic>.from(m as Map)),
+    ];
   }
 
   /// Obtiene lista paginada de productos con filtros
