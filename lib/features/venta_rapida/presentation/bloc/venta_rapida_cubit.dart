@@ -161,21 +161,29 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final sedeId = state.sedeId;
     if (sedeId == null) return state.costos;
 
-    final faltan = <({String? productoId, String? varianteId})>[];
+    // 🔴 NO se cachea por producto: desde que los lotes se consumen, el costo
+    // DEPENDE DE LA CANTIDAD —vender 3 puede salir todo del lote barato y
+    // vender 5 arrastra 2 del caro—, así que un cache por producto serviría un
+    // precio viejo apenas se toca el "+". Se vuelve a pedir.
+    final pedir = <({String? productoId, String? varianteId, int cantidad})>[];
     final vistos = <String>{};
     for (final it in lineas) {
       if (!it.puedeVenderseACosto) continue;
       final k = CostosVenta.clave(it.productoId, it.varianteId);
-      if (state.costos.containsKey(k) || !vistos.add(k)) continue;
-      faltan.add((productoId: it.productoId, varianteId: it.varianteId));
+      if (!vistos.add(k)) continue;
+      pedir.add((
+        productoId: it.productoId,
+        varianteId: it.varianteId,
+        cantidad: it.cantidad.ceil().clamp(1, 1 << 30),
+      ));
     }
-    if (faltan.isEmpty) return state.costos;
+    if (pedir.isEmpty) return state.costos;
 
     emit(state.copyWith(cargandoCostos: true, clearError: true));
     try {
       final res = await locator<ProductoRemoteDataSource>().getCostosVenta(
         sedeId: sedeId,
-        items: faltan,
+        items: pedir,
       );
       final merge = Map<String, CostosVenta>.from(state.costos);
       for (final c in res) {
@@ -1135,6 +1143,26 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final lista = [...state.items];
     lista[index] = nueva;
     emit(state.copyWith(items: _repreciar(lista), clearError: true));
+
+    // 🔴 Una línea A COSTO hay que RECOTIZARLA al cambiar la cantidad: el
+    // costo depende de cuántas unidades salen, porque decide de qué lotes se
+    // toman. Sin esto, subir de 3 a 5 dejaría el precio del lote barato sobre
+    // dos unidades que salen de uno más caro.
+    if (nueva.esACosto) _recotizarLinea(index);
+  }
+
+  /// Vuelve a pedir el costo de UNA línea y lo reaplica. Se llama cuando su
+  /// cantidad cambió.
+  Future<void> _recotizarLinea(int index) async {
+    if (index < 0 || index >= state.items.length) return;
+    final linea = state.items[index];
+    final modo = linea.precioModo;
+    if (modo == null) return;
+    final cache = await _asegurarCostos([linea]);
+    if (isClosed || index >= state.items.length) return;
+    final lista = [...state.items];
+    lista[index] = _aCosto(lista[index], modo, cache);
+    emit(state.copyWith(items: _repreciar(lista)));
   }
 
   /// Setea el descuento MANUAL de una línea (por ítem / global) preservando

@@ -1421,7 +1421,19 @@ class _ItemRowState extends State<_ItemRow> {
                       ],
                     ],
                   ),
-                  if (item.costos?.origen != null)
+                  // 🔑 Sale de VARIOS lotes: se muestra el reparto. Es la
+                  // respuesta a "¿que pasa si vendo mas de lo que compre?" —
+                  // las unidades de mas costaron otra cosa y aca se ve cuales
+                  // y a cuanto.
+                  if (item.costos?.esMixto == true)
+                    Text(
+                      item.costos!.desglose,
+                      style: const TextStyle(
+                          fontSize: 9, color: Color(0xFF043261)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  else if (item.costos?.origen != null)
                     Text(
                       _origenCorto(item.costos!.origen!),
                       style: const TextStyle(

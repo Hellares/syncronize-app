@@ -74,7 +74,7 @@ class ProductoRemoteDataSource {
   /// endpoint falló.
   Future<List<CostosVenta>> getCostosVenta({
     required String sedeId,
-    required List<({String? productoId, String? varianteId})> items,
+    required List<({String? productoId, String? varianteId, int cantidad})> items,
   }) async {
     final response = await _dioClient.post(
       '${ApiConstants.productos}/costos-venta',
@@ -85,6 +85,8 @@ class ProductoRemoteDataSource {
             {
               if (i.productoId != null) 'productoId': i.productoId,
               if (i.varianteId != null) 'varianteId': i.varianteId,
+              // La cantidad MANDA: decide de que lotes sale la mercaderia.
+              'cantidad': i.cantidad,
             },
         ],
       },

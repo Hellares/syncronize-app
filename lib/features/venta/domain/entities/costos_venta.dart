@@ -83,22 +83,76 @@ class OrigenCostoLote extends Equatable {
   List<Object?> get props => [loteId, loteCodigo, fechaIngreso, compraId];
 }
 
+/// Una porción del pedido que sale de un lote concreto.
+class TramoCosto extends Equatable {
+  final String loteId;
+  final String loteCodigo;
+  final int cantidad;
+  final double costoUnitario;
+  final DateTime? fechaVencimiento;
+  final double? costoUnitarioSinFlete;
+  final String? proveedorNombre;
+  final String? documentoProveedor;
+
+  const TramoCosto({
+    required this.loteId,
+    required this.loteCodigo,
+    required this.cantidad,
+    required this.costoUnitario,
+    this.fechaVencimiento,
+    this.costoUnitarioSinFlete,
+    this.proveedorNombre,
+    this.documentoProveedor,
+  });
+
+  factory TramoCosto.fromMap(Map<String, dynamic> m) => TramoCosto(
+        loteId: m['loteId'] as String? ?? '',
+        loteCodigo: m['loteCodigo'] as String? ?? '',
+        cantidad: (m['cantidad'] as num?)?.toInt() ?? 0,
+        costoUnitario: (m['costoUnitario'] as num?)?.toDouble() ?? 0,
+        fechaVencimiento: m['fechaVencimiento'] != null
+            ? DateTime.tryParse(m['fechaVencimiento'].toString())
+            : null,
+        costoUnitarioSinFlete:
+            (m['costoUnitarioSinFlete'] as num?)?.toDouble(),
+        proveedorNombre: m['proveedorNombre'] as String?,
+        documentoProveedor: m['documentoProveedor'] as String?,
+      );
+
+  @override
+  List<Object?> get props => [loteId, cantidad, costoUnitario];
+}
+
 /// Los tres costos con los que se puede vender "a lo que me costó".
 ///
 /// 🔑 Los tres son CON IGV, igual que el precio de venta. Si la compra vino con
 /// factura, vender a costo es neutro; si el proveedor no dio factura, ese IGV
 /// sale del bolsillo del vendedor.
+///
+/// 🔑 `costoLote` es el de LAS UNIDADES QUE VAN A SALIR: promedio ponderado de
+/// los lotes que el consumo FEFO va a tomar, no "el costo de la última
+/// compra". Si se venden más unidades de las que trajo esa compra, las de más
+/// costaron otra cosa y el precio lo refleja.
 class CostosVenta extends Equatable {
   final String? productoId;
   final String? varianteId;
 
+  /// Unidades sobre las que se calculo: el costo DEPENDE de cuantas se llevan.
+  final int cantidad;
+
+  /// De que lotes sale, en orden de consumo.
+  final List<TramoCosto> tramos;
+
+  /// Unidades que ningun lote respalda. > 0 el backend rechaza el cobro.
+  final int sinCubrir;
+
   /// `ProductoStock.precioCosto`: la mezcla de todas las compras.
   final double? costoPromedio;
 
-  /// `Lote.precioCosto` de la última compra: flete adentro.
+  /// Lo que costaron las unidades que van a salir, por unidad, flete adentro.
   final double? costoLote;
 
-  /// El neto de esa factura, sin el flete.
+  /// Lo mismo, descontando el flete prorrateado de cada lote.
   final double? costoLoteSinFlete;
 
   final OrigenCostoLote? origen;
@@ -106,15 +160,32 @@ class CostosVenta extends Equatable {
   const CostosVenta({
     this.productoId,
     this.varianteId,
+    this.cantidad = 1,
+    this.tramos = const [],
+    this.sinCubrir = 0,
     this.costoPromedio,
     this.costoLote,
     this.costoLoteSinFlete,
     this.origen,
   });
 
+  /// Sale de mas de un lote: la UI muestra el reparto ("3 a 11.80 + 2 a 24.36").
+  bool get esMixto => tramos.length > 1;
+
+  /// "3 a S/ 11.80 + 2 a S/ 24.36"
+  String get desglose => tramos
+      .map((t) => '${t.cantidad} a S/ ${t.costoUnitario.toStringAsFixed(2)}')
+      .join(' + ');
+
   factory CostosVenta.fromMap(Map<String, dynamic> m) => CostosVenta(
         productoId: m['productoId'] as String?,
         varianteId: m['varianteId'] as String?,
+        cantidad: (m['cantidad'] as num?)?.toInt() ?? 1,
+        tramos: [
+          for (final t in (m['tramos'] as List?) ?? const [])
+            TramoCosto.fromMap(Map<String, dynamic>.from(t as Map)),
+        ],
+        sinCubrir: (m['sinCubrir'] as num?)?.toInt() ?? 0,
         costoPromedio: (m['costoPromedio'] as num?)?.toDouble(),
         costoLote: (m['costoLote'] as num?)?.toDouble(),
         costoLoteSinFlete: (m['costoLoteSinFlete'] as num?)?.toDouble(),
