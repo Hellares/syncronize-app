@@ -85,6 +85,13 @@ class VentaRapidaState extends Equatable {
   /// cantidadSolicitada, stockDisponible}.
   final List<Map<String, dynamic>>? stockInsuficiente;
 
+  /// Líneas que pasaron su fecha de consumo preferente y el backend rechazó
+  /// con 400 `VENTA_VENCIDO_NO_AUTORIZADA`. La página pide la autorización
+  /// gerencial (o la confirmación explícita del admin) y reintenta.
+  ///
+  /// Cada item: {descripcion, lote, vencio, unidades}.
+  final List<Map<String, dynamic>>? vencidoNoAutorizado;
+
   // ── Vender a costo ──
 
   /// Modo con el que está prendido el interruptor de "vender a costo".
@@ -130,6 +137,7 @@ class VentaRapidaState extends Equatable {
     this.comboPendienteOferta,
     this.preciosDesactualizados,
     this.stockInsuficiente,
+    this.vencidoNoAutorizado,
     this.modoCosto,
     this.costos = const {},
     this.cargandoCostos = false,
@@ -246,6 +254,8 @@ class VentaRapidaState extends Equatable {
     bool clearPreciosDesactualizados = false,
     List<Map<String, dynamic>>? stockInsuficiente,
     bool clearStockInsuficiente = false,
+    List<Map<String, dynamic>>? vencidoNoAutorizado,
+    bool clearVencidoNoAutorizado = false,
     String? modoCosto,
     bool clearModoCosto = false,
     Map<String, CostosVenta>? costos,
@@ -295,6 +305,9 @@ class VentaRapidaState extends Equatable {
       stockInsuficiente: clearStockInsuficiente
           ? null
           : (stockInsuficiente ?? this.stockInsuficiente),
+      vencidoNoAutorizado: clearVencidoNoAutorizado
+          ? null
+          : (vencidoNoAutorizado ?? this.vencidoNoAutorizado),
       // Sin el flag no se puede apagar el modo: `?? this.x` nunca vuelve a null.
       modoCosto: clearModoCosto ? null : (modoCosto ?? this.modoCosto),
       costos: costos ?? this.costos,
@@ -311,7 +324,7 @@ class VentaRapidaState extends Equatable {
         docSinResultado,
         condicionPago, numeroCuotas, frecuenciaDias, plazoDias, conEnvio,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
-        preciosDesactualizados, stockInsuficiente,
+        preciosDesactualizados, stockInsuficiente, vencidoNoAutorizado,
         modoCosto, costos, cargandoCostos,
       ];
 }

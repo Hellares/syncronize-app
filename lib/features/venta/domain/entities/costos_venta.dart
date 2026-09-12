@@ -123,6 +123,83 @@ class TramoCosto extends Equatable {
   List<Object?> get props => [loteId, cantidad, costoUnitario];
 }
 
+/// Un lote del que se PUEDE vender esta línea, para que el cajero elija.
+/// Espejo de `LoteVendible` del backend.
+///
+/// Llegan en el orden en que FEFO los tomaría: el primero es el que sale si
+/// nadie elige nada. Vienen también los VENCIDOS: siguen siendo mercadería
+/// del estante, y esconderlos dejaría al cajero sin entender por qué la
+/// venta le pide autorización.
+class LoteVendible extends Equatable {
+  final String loteId;
+  final String codigo;
+
+  /// Lo que QUEDA: el tope de lo que ese lote puede cubrir.
+  final int cantidadActual;
+  final double costoUnitario;
+  final double? costoUnitarioSinFlete;
+  final DateTime? fechaIngreso;
+
+  /// El día del envase. Se guarda como medianoche UTC de ese día: para saber
+  /// QUÉ día es hay que leer los campos UTC, nunca `.toLocal()` (en Lima da
+  /// el día anterior).
+  final DateTime? fechaVencimiento;
+  final String? proveedorNombre;
+  final String? compraId;
+  final String? compraCodigo;
+  final String? documentoProveedor;
+  final int cantidadBonificada;
+
+  const LoteVendible({
+    required this.loteId,
+    required this.codigo,
+    required this.cantidadActual,
+    required this.costoUnitario,
+    this.costoUnitarioSinFlete,
+    this.fechaIngreso,
+    this.fechaVencimiento,
+    this.proveedorNombre,
+    this.compraId,
+    this.compraCodigo,
+    this.documentoProveedor,
+    this.cantidadBonificada = 0,
+  });
+
+  factory LoteVendible.fromMap(Map<String, dynamic> m) => LoteVendible(
+        loteId: m['loteId'] as String? ?? '',
+        codigo: m['codigo'] as String? ?? '',
+        cantidadActual: (m['cantidadActual'] as num?)?.toInt() ?? 0,
+        costoUnitario: (m['costoUnitario'] as num?)?.toDouble() ?? 0,
+        costoUnitarioSinFlete:
+            (m['costoUnitarioSinFlete'] as num?)?.toDouble(),
+        fechaIngreso: m['fechaIngreso'] != null
+            ? DateTime.tryParse(m['fechaIngreso'].toString())
+            : null,
+        fechaVencimiento: m['fechaVencimiento'] != null
+            ? DateTime.tryParse(m['fechaVencimiento'].toString())
+            : null,
+        proveedorNombre: m['proveedorNombre'] as String?,
+        compraId: m['compraId'] as String?,
+        compraCodigo: m['compraCodigo'] as String?,
+        documentoProveedor: m['documentoProveedor'] as String?,
+        cantidadBonificada: (m['cantidadBonificada'] as num?)?.toInt() ?? 0,
+      );
+
+  /// Días que faltan para el vencimiento, por DÍA de calendario (negativo =
+  /// ya pasó, null = no vence). El envase vale el día entero.
+  int? get diasParaVencer {
+    final f = fechaVencimiento;
+    if (f == null) return null;
+    final hoy = DateTime.now();
+    final hoyDia = DateTime.utc(hoy.year, hoy.month, hoy.day);
+    final venceDia = DateTime.utc(f.year, f.month, f.day);
+    return venceDia.difference(hoyDia).inDays;
+  }
+
+  @override
+  List<Object?> get props => [loteId, cantidadActual, costoUnitario];
+}
+
 /// Los tres costos con los que se puede vender "a lo que me costó".
 ///
 /// 🔑 Los tres son CON IGV, igual que el precio de venta. Si la compra vino con
@@ -137,8 +214,17 @@ class CostosVenta extends Equatable {
   final String? productoId;
   final String? varianteId;
 
+  /// El lote elegido a mano para esa línea, o null si va en automático. Es
+  /// parte de la clave: dos líneas del mismo producto con lotes distintos
+  /// son dos costos distintos.
+  final String? loteId;
+
   /// Unidades sobre las que se calculo: el costo DEPENDE de cuantas se llevan.
   final int cantidad;
+
+  /// Todos los lotes de los que se puede sacar esta línea, en orden FEFO. Es
+  /// lo que alimenta el selector de lote.
+  final List<LoteVendible> lotesDisponibles;
 
   /// De que lotes sale, en orden de consumo.
   final List<TramoCosto> tramos;
@@ -160,7 +246,9 @@ class CostosVenta extends Equatable {
   const CostosVenta({
     this.productoId,
     this.varianteId,
+    this.loteId,
     this.cantidad = 1,
+    this.lotesDisponibles = const [],
     this.tramos = const [],
     this.sinCubrir = 0,
     this.costoPromedio,
@@ -180,7 +268,12 @@ class CostosVenta extends Equatable {
   factory CostosVenta.fromMap(Map<String, dynamic> m) => CostosVenta(
         productoId: m['productoId'] as String?,
         varianteId: m['varianteId'] as String?,
+        loteId: m['loteId'] as String?,
         cantidad: (m['cantidad'] as num?)?.toInt() ?? 1,
+        lotesDisponibles: [
+          for (final l in (m['lotesDisponibles'] as List?) ?? const [])
+            LoteVendible.fromMap(Map<String, dynamic>.from(l as Map)),
+        ],
         tramos: [
           for (final t in (m['tramos'] as List?) ?? const [])
             TramoCosto.fromMap(Map<String, dynamic>.from(t as Map)),
@@ -224,7 +317,22 @@ class CostosVenta extends Equatable {
           ? 'v:$varianteId'
           : 'p:${productoId ?? ''}';
 
+  /// Clave de una LÍNEA: el producto más el lote elegido. Espejo de
+  /// `CostoVentaService.claveDeLinea`.
+  ///
+  /// 🔴 Dos líneas del mismo producto con lotes distintos son dos costos
+  /// distintos. Sin el lote en la clave, la compra de CETI y la de DELTRON
+  /// en el mismo carrito leían el mismo costo.
+  static String claveDeLinea(
+    String? productoId,
+    String? varianteId,
+    String? loteId,
+  ) =>
+      '${clave(productoId, varianteId)}@${loteId ?? ''}';
+
   @override
-  List<Object?> get props =>
-      [productoId, varianteId, costoPromedio, costoLote, costoLoteSinFlete, origen];
+  List<Object?> get props => [
+        productoId, varianteId, loteId, costoPromedio, costoLote,
+        costoLoteSinFlete, origen,
+      ];
 }

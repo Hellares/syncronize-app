@@ -16,6 +16,7 @@ import '../../../../core/widgets/custom_dropdown.dart';
 import '../widgets/cobro_yape_sheet.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../../core/widgets/numpad/numpad_controller.dart';
 import '../../../../core/widgets/numpad/pos_numpad.dart';
 import '../../../../core/widgets/pagos_section_widget.dart'
@@ -425,6 +426,7 @@ class _CobroViewState extends State<_CobroView> {
         state.pagos
             .every((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN');
     if (soloYapePlin) {
+      _ultimoCobro = (aceptaRiesgo: false, bajoCostoId: null, viaYape: true);
       await _cobrarConValidacionYape(context);
       return;
     }
@@ -470,20 +472,132 @@ class _CobroViewState extends State<_CobroView> {
     // porción Yape con api-yape (QR + espera/manual).
     final hayYapePlin = state.pagos
         .any((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN');
-    if (hayYapePlin) {
+    // Se recuerda con qué se cobró para poder REINTENTAR igual si el backend
+    // pide la autorización de vencidos: sin esto el reintento volvería a
+    // pasar por el diálogo de bajo costo y el de bancarización.
+    _ultimoCobro = (
+      aceptaRiesgo: aceptaRiesgo,
+      bajoCostoId: autorizacion.autorizadoPorId,
+      viaYape: hayYapePlin,
+    );
+    await _ejecutarCobro(context);
+  }
+
+  /// Lo último que se intentó cobrar y con qué: para reintentar con la
+  /// autorización de vencidos adjunta sin repetir los diálogos previos.
+  ({bool aceptaRiesgo, String? bajoCostoId, bool viaYape})? _ultimoCobro;
+
+  /// Dispara el cobro con lo recordado en [_ultimoCobro], por el camino que
+  /// corresponda (Yape/Plin con validación, o directo).
+  Future<void> _ejecutarCobro(
+    BuildContext context, {
+    String? vencidoAuthId,
+  }) async {
+    final args = _ultimoCobro;
+    if (args == null) return;
+    final cubit = context.read<VentaRapidaCubit>();
+    if (args.viaYape) {
       await _cobrarConValidacionYape(
         context,
-        aceptaRiesgo: aceptaRiesgo,
-        autorizadoPorId: autorizacion.autorizadoPorId,
+        aceptaRiesgo: args.aceptaRiesgo,
+        autorizadoPorId: args.bajoCostoId,
+        vencidoAuthId: vencidoAuthId,
       );
       return;
     }
-
-    cubit.cobrar(
-      aceptaRiesgoBancarizacion: aceptaRiesgo,
-      ventaBajoCostoAutorizadaPorId: autorizacion.autorizadoPorId,
+    await cubit.cobrar(
+      aceptaRiesgoBancarizacion: args.aceptaRiesgo,
+      ventaBajoCostoAutorizadaPorId: args.bajoCostoId,
+      ventaVencidaAutorizadaPorId: vencidoAuthId,
       evidenciaIds: _evidenciaIds,
     );
+  }
+
+  /// El día del envase, leído de los campos UTC del ISO que manda el backend
+  /// ("2026-10-01T00:00:00.000Z" → "01/10/26"). Nunca `.toLocal()`: en Lima
+  /// daría el día anterior.
+  String _diaCalendario(Object? iso) {
+    final s = iso?.toString() ?? '';
+    if (s.length < 10) return s;
+    return '${s.substring(8, 10)}/${s.substring(5, 7)}/${s.substring(2, 4)}';
+  }
+
+  /// El backend rechazó con `VENTA_VENCIDO_NO_AUTORIZADA`: hay líneas que
+  /// pasaron su fecha de consumo preferente (pierde calidad, no daña — lo
+  /// que CADUCA se frena seco y ni llega acá).
+  ///
+  /// 🔑 A quien tiene el rol no se le piden credenciales —autorizarse a sí
+  /// mismo es legítimo justamente porque lo tiene— pero SÍ se le avisa qué
+  /// está vendiendo: hacerlo en silencio sería peor que pedir una contraseña.
+  /// Cualquier otro rol abre el diálogo de autorización gerencial. Se
+  /// reintenta con `ventaVencidaAutorizadaPorId`, y queda registrado.
+  Future<void> _manejarVencido(
+    BuildContext context,
+    List<Map<String, dynamic>> lineas,
+  ) async {
+    final cubit = context.read<VentaRapidaCubit>();
+    cubit.limpiarVencidoNoAutorizado();
+
+    final detalle = lineas
+        .map((l) =>
+            '• ${l['descripcion']} — lote ${l['lote']}, venció el ${_diaCalendario(l['vencio'])}')
+        .join('\n');
+
+    final ctxState = context.read<EmpresaContextCubit>().state;
+    final authState = context.read<AuthBloc>().state;
+    final esAdmin = ctxState is EmpresaContextLoaded &&
+        ctxState.context.esAdminEmpresa &&
+        authState is Authenticated;
+
+    String? autorizadoPorId;
+    if (esAdmin) {
+      final ok = await ConfirmDialog.show(
+        context: context,
+        type: ConfirmDialogType.warning,
+        icon: Icons.event_busy_rounded,
+        title: 'Producto pasado de fecha',
+        barrierDismissible: false,
+        customContent: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Estás vendiendo mercadería que pasó su fecha de consumo '
+              'preferente. Pierde calidad, no hace daño — pero es una '
+              'decisión, y queda registrada con tu nombre.',
+              style: TextStyle(fontSize: 11, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Text(detalle, style: const TextStyle(fontSize: 11)),
+            ),
+          ],
+        ),
+        confirmText: 'Vender igual',
+      );
+      if (ok != true || !context.mounted) return;
+      autorizadoPorId = authState.user.id;
+    } else {
+      // Mismo catálogo de operaciones que el bajo costo: la exige el mismo
+      // rol gerencial, y el backend valida el rol del autorizador igual.
+      final auth = await showAutorizacionDialog(
+        context,
+        operacion: 'VENTA_BAJO_COSTO',
+        titulo: 'Autorizar venta de producto pasado de fecha',
+        descripcion: 'Un GERENTE o ADMINISTRADOR debe autorizar.\n$detalle',
+      );
+      if (auth == null || !auth.authorized || !context.mounted) return;
+      autorizadoPorId = auth.autorizadoPorId;
+    }
+
+    await _ejecutarCobro(context, vencidoAuthId: autorizadoPorId);
   }
 
   /// Flujo de cobro Yape/Plin con validación api-yape: crea la venta (con la
@@ -493,6 +607,7 @@ class _CobroViewState extends State<_CobroView> {
     BuildContext context, {
     bool aceptaRiesgo = false,
     String? autorizadoPorId,
+    String? vencidoAuthId,
   }) async {
     final cubit = context.read<VentaRapidaCubit>();
     final state = cubit.state;
@@ -509,6 +624,7 @@ class _CobroViewState extends State<_CobroView> {
       await cubit.cobrar(
         aceptaRiesgoBancarizacion: aceptaRiesgo,
         ventaBajoCostoAutorizadaPorId: autorizadoPorId,
+        ventaVencidaAutorizadaPorId: vencidoAuthId,
         evidenciaIds: _evidenciaIds,
       );
       return;
@@ -540,6 +656,7 @@ class _CobroViewState extends State<_CobroView> {
       metodoYape: metodoPrincipal,
       aceptaRiesgoBancarizacion: aceptaRiesgo,
       ventaBajoCostoAutorizadaPorId: autorizadoPorId,
+      ventaVencidaAutorizadaPorId: vencidoAuthId,
       evidenciaIds: _evidenciaIds,
     );
     if (res == null || !context.mounted) return;
@@ -1106,6 +1223,12 @@ class _CobroViewState extends State<_CobroView> {
           // stock primero. Mostrar dialog con cantidades pedidas vs
           // disponibles + acción "Ajustar al disponible".
           _mostrarDialogStockInsuficiente(context, state.stockInsuficiente!);
+        }
+        if (state.vencidoNoAutorizado != null) {
+          // Hay producto pasado de su fecha de consumo preferente. Se
+          // resuelve al rebote porque de qué lote sale cada unidad lo sabe
+          // el servidor: se pide la autorización y se reintenta.
+          _manejarVencido(context, state.vencidoNoAutorizado!);
         }
         if (state.error != null) {
           ScaffoldMessenger.of(context).showSnackBar(

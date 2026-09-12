@@ -165,16 +165,25 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     // DEPENDE DE LA CANTIDAD —vender 3 puede salir todo del lote barato y
     // vender 5 arrastra 2 del caro—, así que un cache por producto serviría un
     // precio viejo apenas se toca el "+". Se vuelve a pedir.
-    final pedir = <({String? productoId, String? varianteId, int cantidad})>[];
+    // Una consulta por LÍNEA (producto + lote elegido): dos líneas del mismo
+    // producto con lotes distintos son dos costos distintos. Las que van en
+    // automático se piden una sola vez.
+    final pedir = <({
+      String? productoId,
+      String? varianteId,
+      int cantidad,
+      String? loteId,
+    })>[];
     final vistos = <String>{};
     for (final it in lineas) {
       if (!it.puedeVenderseACosto) continue;
-      final k = CostosVenta.clave(it.productoId, it.varianteId);
+      final k = CostosVenta.claveDeLinea(it.productoId, it.varianteId, it.loteId);
       if (!vistos.add(k)) continue;
       pedir.add((
         productoId: it.productoId,
         varianteId: it.varianteId,
         cantidad: it.cantidad.ceil().clamp(1, 1 << 30),
+        loteId: it.loteId,
       ));
     }
     if (pedir.isEmpty) return state.costos;
@@ -187,7 +196,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       );
       final merge = Map<String, CostosVenta>.from(state.costos);
       for (final c in res) {
-        merge[CostosVenta.clave(c.productoId, c.varianteId)] = c;
+        merge[CostosVenta.claveDeLinea(c.productoId, c.varianteId, c.loteId)] = c;
       }
       emit(state.copyWith(costos: merge, cargandoCostos: false));
       return merge;
@@ -220,7 +229,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
           .recalcularPrecioPorNiveles(it.cantidad);
     }
     if (!it.puedeVenderseACosto) return it;
-    final costos = cache[CostosVenta.clave(it.productoId, it.varianteId)];
+    final costos =
+        cache[CostosVenta.claveDeLinea(it.productoId, it.varianteId, it.loteId)];
     final precio = costos?.precioDe(modo);
     if (precio == null) return it;
     return it.copyWith(
@@ -327,14 +337,47 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   bool lineaSinCosto(VentaDetalleInput it) {
     final modo = state.modoCosto;
     if (modo == null || it.esACosto || !it.puedeVenderseACosto) return false;
-    final c = state.costos[CostosVenta.clave(it.productoId, it.varianteId)];
+    final c = state
+        .costos[CostosVenta.claveDeLinea(it.productoId, it.varianteId, it.loteId)];
     // Sin consultar todavía no se sabe: no se marca.
     return c != null && c.precioDe(modo) == null;
   }
 
-  /// Los costos de una línea, para el selector de modo.
-  CostosVenta? costosDe(VentaDetalleInput it) =>
-      state.costos[CostosVenta.clave(it.productoId, it.varianteId)];
+  /// Los costos de una línea, para el selector de modo y el de lote.
+  CostosVenta? costosDe(VentaDetalleInput it) => state
+      .costos[CostosVenta.claveDeLinea(it.productoId, it.varianteId, it.loteId)];
+
+  /// Ata una línea a un lote concreto, o la suelta (null = automático/FEFO).
+  ///
+  /// 🔑 La mercadería comprada por encargo tiene dueño: elegir el lote es
+  /// elegir de qué caja sale y a qué costo. Si la línea está a costo se
+  /// recotiza, porque el costo es el de ESE lote.
+  Future<void> elegirLote(int index, LoteVendible? lote) async {
+    if (index < 0 || index >= state.items.length) return;
+    final lista = [...state.items];
+    lista[index] = lote == null
+        ? lista[index].copyWith(clearLote: true)
+        : lista[index].copyWith(loteId: lote.loteId, loteCodigo: lote.codigo);
+    emit(state.copyWith(items: lista, clearError: true));
+    if (lista[index].esACosto) await _recotizarLinea(index);
+  }
+
+  /// Los lotes de una línea para el selector. Si todavía no se cotizó (el
+  /// modo costo está apagado) los pide: elegir un lote es elegir un costo, y
+  /// sin el costo delante la elección es a ciegas.
+  Future<List<LoteVendible>> lotesDe(int index) async {
+    if (index < 0 || index >= state.items.length) return const [];
+    final it = state.items[index];
+    final ya = costosDe(it);
+    if (ya != null) return ya.lotesDisponibles;
+    final cache = await _asegurarCostos([it]);
+    return cache[CostosVenta.claveDeLinea(it.productoId, it.varianteId, it.loteId)]
+            ?.lotesDisponibles ??
+        const [];
+  }
+
+  void limpiarVencidoNoAutorizado() =>
+      emit(state.copyWith(clearVencidoNoAutorizado: true));
 
   /// Re-resuelve y reaplica el precio VIP a todas las líneas del carrito.
   /// Combos, componentes de combo y órdenes de servicio quedan exentos
@@ -1677,6 +1720,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     required String metodoYape, // YAPE | PLIN — método de la porción Yape
     bool aceptaRiesgoBancarizacion = false,
     String? ventaBajoCostoAutorizadaPorId,
+    /// Mismo contrato que `cobrar()`: quién autorizó vender algo pasado de
+    /// fecha. Campo aparte del de bajo costo.
+    String? ventaVencidaAutorizadaPorId,
     /// Fotos ya subidas con `POST /ventas/evidencia` mientras se cobraba. Se
     /// enganchan a la venta al crearla. Es evidencia INTERNA: no viaja al
     /// comprobante ni al ticket del cliente.
@@ -1751,6 +1797,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         'aceptaRiesgoBancarizacion': true,
       if (ventaBajoCostoAutorizadaPorId != null)
         'ventaBajoCostoAutorizadaPorId': ventaBajoCostoAutorizadaPorId,
+      if (ventaVencidaAutorizadaPorId != null)
+        'ventaVencidaAutorizadaPorId': ventaVencidaAutorizadaPorId,
       if (pagosNoYape.isNotEmpty) ...{
         'metodoPago': pagosNoYape.first['metodo'],
         'montoRecibido': montoNoYape,
@@ -1786,6 +1834,12 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         : await _repository.cobrar(data: data);
     if (isClosed) return null;
     if (result is! Success<Venta>) {
+      // Los rebotes por lotes (vencido sin autorizar, lote agotado) se
+      // manejan igual que en `cobrar()`: la página reintenta por este mismo
+      // camino con la autorización adjunta.
+      if (result is Error<Venta> && await _manejarRebotePorLotes(result)) {
+        return null;
+      }
       emit(state.copyWith(
         procesando: false,
         error: result is Error<Venta>
@@ -1902,6 +1956,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   Future<void> cobrar({
     bool aceptaRiesgoBancarizacion = false,
     String? ventaBajoCostoAutorizadaPorId,
+    /// Quién autorizó vender un producto pasado de su fecha de consumo
+    /// preferente (400 `VENTA_VENCIDO_NO_AUTORIZADA` en el intento anterior).
+    /// 🔴 Campo APARTE del de bajo costo: son dos decisiones distintas.
+    String? ventaVencidaAutorizadaPorId,
     /// Fotos ya subidas con `POST /ventas/evidencia` mientras se cobraba. Se
     /// enganchan a la venta al crearla. Es evidencia INTERNA: no viaja al
     /// comprobante ni al ticket del cliente.
@@ -2001,6 +2059,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       if (aceptaRiesgoBancarizacion) 'aceptaRiesgoBancarizacion': true,
       if (ventaBajoCostoAutorizadaPorId != null)
         'ventaBajoCostoAutorizadaPorId': ventaBajoCostoAutorizadaPorId,
+      if (ventaVencidaAutorizadaPorId != null)
+        'ventaVencidaAutorizadaPorId': ventaVencidaAutorizadaPorId,
       if (state.pagos.isNotEmpty) ...{
         'metodoPago': state.pagos.first['metodo'],
         'montoRecibido': state.totalPagado,
@@ -2062,6 +2122,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       //  - SALDO_ORDEN_DESACTUALIZADO: costo/adelanto cambiaron — se quita
       //    para que al re-agregarla cargue los montos vigentes (parchear
       //    solo el precio dejaría un adelanto stale en la línea).
+      if (await _manejarRebotePorLotes(result)) return;
       if (result.errorCode == 'ORDEN_YA_COBRADA' ||
           result.errorCode == 'SALDO_ORDEN_DESACTUALIZADO') {
         final idsAfectados = <String>{
@@ -2095,6 +2156,53 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         error: result.message,
       ));
     }
+  }
+
+  /// Los dos rebotes del backend que tienen que ver con LOTES, compartidos
+  /// por `cobrar()` y por el camino Yape. Devuelve true si lo manejó.
+  ///
+  /// - 400 `VENTA_VENCIDO_NO_AUTORIZADA`: hay líneas que pasaron su fecha de
+  ///   consumo preferente. No se puede anticipar en el cliente —de qué lote
+  ///   sale cada unidad lo sabe el servidor—, así que se resuelve al rebote:
+  ///   la página pide la autorización (o la confirmación del admin) y
+  ///   reintenta con `ventaVencidaAutorizadaPorId`.
+  /// - 409 `LOTE_NO_DISPONIBLE`: el lote elegido se agotó (o se dio de baja)
+  ///   entre cotizar y cobrar. La línea vuelve a automático y se recotiza:
+  ///   nunca se cobra en silencio un número que el cajero no vio.
+  Future<bool> _manejarRebotePorLotes(Error<Venta> result) async {
+    if (result.errorCode == 'VENTA_VENCIDO_NO_AUTORIZADA') {
+      final lineas = (result.details?['lineas'] as List?)
+              ?.whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList() ??
+          <Map<String, dynamic>>[];
+      emit(state.copyWith(procesando: false, vencidoNoAutorizado: lineas));
+      return true;
+    }
+    if (result.errorCode == 'LOTE_NO_DISPONIBLE') {
+      final loteId = result.details?['loteId'] as String?;
+      final afectadas = <int>[
+        for (var i = 0; i < state.items.length; i++)
+          if (loteId != null && state.items[i].loteId == loteId) i,
+      ];
+      final lista = [
+        for (var i = 0; i < state.items.length; i++)
+          afectadas.contains(i)
+              ? state.items[i].copyWith(clearLote: true)
+              : state.items[i],
+      ];
+      emit(state.copyWith(
+        procesando: false,
+        items: lista,
+        error:
+            '${result.message} La línea volvió a automático: revisá el precio.',
+      ));
+      for (final i in afectadas) {
+        if (lista[i].esACosto) await _recotizarLinea(i);
+      }
+      return true;
+    }
+    return false;
   }
 
   /// Sincroniza el carrito con los precios actuales del backend después de

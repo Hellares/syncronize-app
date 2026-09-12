@@ -225,6 +225,18 @@ class VentaDetalleInput {
   /// precio en vez de un número pelado.
   final CostosVenta? costos;
 
+  /// Vender de ESTE lote, en vez del que elegiría FEFO.
+  ///
+  /// 🔑 Para la mercadería comprada POR ENCARGO: se le compró a un proveedor
+  /// puntual para un cliente puntual, así que esa caja tiene dueño y su costo
+  /// es otro. Sin esto se le cobraría el costo del lote más viejo y se
+  /// descontaría la mercadería del otro cliente. Viaja al backend, que lo
+  /// respeta tanto en el precio (a costo) como en el consumo de stock.
+  final String? loteId;
+
+  /// Código del lote elegido, para mostrarlo en la línea. Solo capa de vista.
+  final String? loteCodigo;
+
   const VentaDetalleInput({
     this.productoId,
     this.varianteId,
@@ -267,6 +279,8 @@ class VentaDetalleInput {
     this.mayoreo,
     this.precioModo,
     this.costos,
+    this.loteId,
+    this.loteCodigo,
   });
 
   /// True si esta línea se está cobrando a costo.
@@ -392,6 +406,8 @@ class VentaDetalleInput {
         // VENDER A COSTO: viaja el MODO, no el precio. El servidor ignora
         // `precioUnitario` en esta línea y pone el costo de la compra.
         if (precioModo != null) 'precioModo': precioModo,
+        // El lote elegido manda sobre FEFO: en el precio y en el consumo.
+        if (loteId != null) 'loteId': loteId,
       };
 
   VentaDetalleInput copyWith({
@@ -436,12 +452,16 @@ class VentaDetalleInput {
     MayoreoCombinado? mayoreo,
     String? precioModo,
     CostosVenta? costos,
+    String? loteId,
+    String? loteCodigo,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
     bool clearMayoreo = false,
     /// Sacar la línea del modo costo. Sin este flag no se puede: el patrón
     /// `?? this.x` nunca deja volver a null.
     bool clearPrecioModo = false,
+    /// Soltar el lote elegido (la línea vuelve a automático / FEFO).
+    bool clearLote = false,
   }) {
     return VentaDetalleInput(
       productoId: productoId ?? this.productoId,
@@ -491,6 +511,8 @@ class VentaDetalleInput {
       mayoreo: clearMayoreo ? null : (mayoreo ?? this.mayoreo),
       precioModo: clearPrecioModo ? null : (precioModo ?? this.precioModo),
       costos: costos ?? this.costos,
+      loteId: clearLote ? null : (loteId ?? this.loteId),
+      loteCodigo: clearLote ? null : (loteCodigo ?? this.loteCodigo),
     );
   }
 

@@ -164,6 +164,9 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
       // autoexplicativo — se muestra tal cual.
       'SALDO_ORDEN_DESACTUALIZADO',
       'ORDEN_YA_COBRADA',
+      // El lote elegido a mano ya no tiene unidades (se vendió o se dio de
+      // baja entre cotizar y cobrar). El cubit suelta la línea y recotiza.
+      'LOTE_NO_DISPONIBLE',
     };
     if (!codigosEstructurados.contains(code)) {
       return null;
@@ -193,7 +196,12 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
               : 'Los precios cambiaron. Refrescá el carrito.'),
       statusCode: 409,
       errorCode: code as String,
-      details: {'divergencias': divergencias, 'ordenes': ordenes},
+      details: {
+        'divergencias': divergencias,
+        'ordenes': ordenes,
+        // LOTE_NO_DISPONIBLE: qué lote, para soltar exactamente esa línea.
+        if (body['loteId'] is String) 'loteId': body['loteId'],
+      },
     );
   }
 
