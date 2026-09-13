@@ -236,10 +236,20 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         cache[CostosVenta.claveDeLinea(it.productoId, it.varianteId, it.loteId)];
     final precio = costos?.precioDe(modo);
     if (precio == null) return it;
+    // 🔴 NUNCA por encima del precio público vigente. `precioBase` es el
+    // efectivo de la sede —liquidación u oferta si están activas—, así que un
+    // producto liquidado por debajo del costo se sigue cobrando a la
+    // liquidación: prender el interruptor no puede SUBIRLE el precio al
+    // cliente. El servidor vuelve a topar con el precio que le toca a ESE
+    // cliente (niveles y VIP incluidos), así que esto puede quedar por encima
+    // de lo que se termine cobrando, nunca por debajo.
+    final publico = it.precioBase;
+    final topado =
+        (publico != null && publico > 0 && publico < precio) ? publico : precio;
     return it.copyWith(
       precioModo: modo,
       costos: costos,
-      precioUnitario: precio,
+      precioUnitario: topado,
       // El descuento se limpia: un centavo sobre una línea a costo la manda a
       // pérdida y el backend la rechaza.
       descuento: 0,
