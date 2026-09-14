@@ -41,6 +41,24 @@ enum TipoMovimientoStock {
   salidaRobo,
   salidaDonacion;
 
+  /// Lo que se puede registrar con el ajuste manual de stock. Espejo de
+  /// `TIPOS_AJUSTE_MANUAL` del backend (`producto-stock/tipos-ajuste-manual.ts`),
+  /// que rechaza el resto.
+  ///
+  /// 🔴 Antes el dialogo ofrecia los 30 tipos y arrancaba con "Entrada por
+  /// compra" elegido: sin compra detras, esa entrada quedaba SIN lote. Reservas,
+  /// transferencias, garantia y produccion tienen su propio flujo, que mueve
+  /// otra cosa ademas del stock.
+  static const ajustesManuales = <TipoMovimientoStock>[
+    ajusteEntrada,
+    ajusteEncontrado,
+    ajusteSalida,
+    ajusteMerma,
+    ajustePerdida,
+    salidaBaja,
+    salidaDonacion,
+  ];
+
   /// Nombre legible en espanol
   String get label {
     switch (this) {

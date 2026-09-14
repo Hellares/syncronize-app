@@ -32,7 +32,9 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
   final _motivoController = TextEditingController();
   final _numeroDocumentoController = TextEditingController();
 
-  TipoMovimientoStock _tipoSeleccionado = TipoMovimientoStock.entradaCompra;
+  // Sin tipo elegido de entrada: arrancaba en "Entrada por compra", y así un
+  // ajuste común quedaba registrado como compra y SIN lote.
+  TipoMovimientoStock? _tipoSeleccionado;
   String? _tipoDocumentoSeleccionado;
 
   final List<String> _tiposDocumento = [
@@ -162,7 +164,9 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
       label: 'Tipo de movimiento',
       hintText: 'Seleccione un tipo',
       value: _tipoSeleccionado,
-      items: TipoMovimientoStock.values.map((tipo) {
+      validator: (value) =>
+          value == null ? 'Seleccione un tipo de movimiento' : null,
+      items: TipoMovimientoStock.ajustesManuales.map((tipo) {
         return DropdownItem<TipoMovimientoStock>(
           value: tipo,
           label: tipo.label,
@@ -360,18 +364,19 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
 
   Widget _buildPreviewSection() {
     final cantidadText = _cantidadController.text;
-    if (cantidadText.isEmpty) {
+    final tipo = _tipoSeleccionado;
+    if (cantidadText.isEmpty || tipo == null) {
       return const SizedBox.shrink();
     }
 
     final cantidad = int.tryParse(cantidadText) ?? 0;
-    final nuevoStock = _tipoSeleccionado.esEntrada
+    final nuevoStock = tipo.esEntrada
         ? widget.stock.stockActual + cantidad
         : widget.stock.stockActual - cantidad;
 
     final color = nuevoStock < 0
         ? Colors.red
-        : _tipoSeleccionado.esEntrada
+        : tipo.esEntrada
             ? Colors.green
             : Colors.orange;
 
@@ -395,7 +400,7 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
           Row(
             children: [
               Icon(
-                _tipoSeleccionado.esEntrada
+                tipo.esEntrada
                     ? Icons.arrow_downward
                     : Icons.arrow_upward,
                 size: 16,
@@ -421,13 +426,18 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
       return;
     }
 
+    // El validator del dropdown ya lo exige y muestra el mensaje; esto es para
+    // que el compilador sepa que no es null.
+    final tipo = _tipoSeleccionado;
+    if (tipo == null) return;
+
     final cantidad = int.parse(_cantidadController.text);
-    final cantidadFinal = _tipoSeleccionado.esEntrada ? cantidad : -cantidad;
+    final cantidadFinal = tipo.esEntrada ? cantidad : -cantidad;
 
     context.read<AjustarStockCubit>().ajustarStock(
           stockId: widget.stock.id,
           empresaId: widget.empresaId,
-          tipo: _tipoSeleccionado,
+          tipo: tipo,
           cantidad: cantidadFinal,
           motivo: _motivoController.text.isNotEmpty
               ? _motivoController.text
