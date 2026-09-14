@@ -88,12 +88,18 @@ class EvidenciaVentaCard extends StatefulWidget {
 
   final int max;
 
+  /// Sin la tarjeta ni el título: solo la leyenda y el botón en una fila. Para
+  /// el cobro, donde cada renglón cuenta. El detalle de la venta usa la
+  /// tarjeta completa.
+  final bool compacto;
+
   const EvidenciaVentaCard({
     super.key,
     this.ventaId,
     this.onIdsChange,
     this.onSubiendoChange,
     this.max = 6,
+    this.compacto = false,
   });
 
   @override
@@ -206,8 +212,11 @@ class _EvidenciaVentaCardState extends State<EvidenciaVentaCard> {
     );
   }
 
+  static const _leyenda = 'Cómo se vendió y cómo se entrega. Uso interno.';
+
   @override
   Widget build(BuildContext context) {
+    if (widget.compacto) return _buildCompacto();
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -233,18 +242,13 @@ class _EvidenciaVentaCardState extends State<EvidenciaVentaCard> {
                       ),
                     ),
                     Text(
-                      'Cómo se vendió y cómo se entrega. Uso interno.',
+                      _leyenda,
                       style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                     ),
                   ],
                 ),
               ),
-              TextButton.icon(
-                onPressed: _enVuelo > 0 ? null : _agregar,
-                icon: const Icon(Icons.add_a_photo_outlined, size: 16),
-                label: const Text('Agregar', style: TextStyle(fontSize: 11)),
-                style: TextButton.styleFrom(foregroundColor: AppColors.blue1),
-              ),
+              _botonAgregar(),
             ],
           ),
           if (_cargando)
@@ -259,89 +263,149 @@ class _EvidenciaVentaCardState extends State<EvidenciaVentaCard> {
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             )
           else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final foto in _items)
-                  Stack(
-                    children: [
-                      GestureDetector(
-                        onTap: () => _verGrande(foto),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            foto.miniatura,
-                            width: 64,
-                            height: 64,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 64,
-                              height: 64,
-                              color: Colors.grey.shade200,
-                              child: Icon(Icons.broken_image_outlined,
-                                  size: 18, color: Colors.grey.shade400),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 2,
-                        top: 2,
-                        child: GestureDetector(
-                          onTap: () => _quitar(foto),
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.55),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.close,
-                                size: 11, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                for (var i = 0; i < _enVuelo; i++)
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _error!,
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.amber.shade900),
+            _miniaturas(),
+          if (_error != null) _aviso(),
+        ],
+      ),
+    );
+  }
+
+  /// Modo compacto (pantalla de cobro): sin la tarjeta ni el título, solo la
+  /// leyenda y el botón en una fila, con el estilo de los otros rótulos del
+  /// cobro. Ahí cada renglón cuenta y la tarjeta ocupaba el alto de dos campos
+  /// de pago.
+  Widget _buildCompacto() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _leyenda,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
             ),
-        ],
+            _botonAgregar(compacto: true),
+          ],
+        ),
+        // Las miniaturas aparecen recién cuando hay algo: vacío no ocupa lugar.
+        if (_items.isNotEmpty || _enVuelo > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: _miniaturas(),
+          ),
+        if (_error != null) _aviso(),
+      ],
+    );
+  }
+
+  Widget _botonAgregar({bool compacto = false}) {
+    return TextButton.icon(
+      onPressed: _enVuelo > 0 ? null : _agregar,
+      icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+      label: const Text('Agregar', style: TextStyle(fontSize: 11)),
+      style: compacto
+          // Sin el alto mínimo de 48 del botón de Material: devolvía el
+          // espacio que se le sacó a la tarjeta.
+          ? TextButton.styleFrom(
+              foregroundColor: AppColors.blue1,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            )
+          : TextButton.styleFrom(foregroundColor: AppColors.blue1),
+    );
+  }
+
+  Widget _miniaturas() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final foto in _items)
+          Stack(
+            children: [
+              GestureDetector(
+                onTap: () => _verGrande(foto),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    foto.miniatura,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 64,
+                      height: 64,
+                      color: Colors.grey.shade200,
+                      child: Icon(Icons.broken_image_outlined,
+                          size: 18, color: Colors.grey.shade400),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 2,
+                top: 2,
+                child: GestureDetector(
+                  onTap: () => _quitar(foto),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      shape: BoxShape.circle,
+                    ),
+                    child:
+                        const Icon(Icons.close, size: 11, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        for (var i = 0; i < _enVuelo; i++)
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _aviso() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          _error!,
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.amber.shade900),
+        ),
       ),
     );
   }

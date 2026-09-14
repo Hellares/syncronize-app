@@ -1729,10 +1729,12 @@ class _CobroViewState extends State<_CobroView> {
 
                 // Fotos de la venta: como se vendio y como se entrega. Van
                 // ANTES del credito porque se sacan mientras se cobra, no al
-                // final.
+                // final. Compactas: solo el rotulo y el boton, alineados con
+                // los otros rotulos del cobro (izquierda 12).
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.fromLTRB(6, 2, 0, 2),
                   child: EvidenciaVentaCard(
+                    compacto: true,
                     onIdsChange: (ids) => _evidenciaIds = ids,
                     onSubiendoChange: (v) {
                       if (v != _subiendoFotos) {
