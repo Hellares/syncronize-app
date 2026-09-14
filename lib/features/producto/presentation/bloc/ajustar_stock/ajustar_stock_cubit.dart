@@ -23,6 +23,7 @@ class AjustarStockCubit extends Cubit<AjustarStockState> {
     String? observaciones,
     String? tipoDocumento,
     String? numeroDocumento,
+    String? loteId,
   }) async {
     emit(const AjustarStockProcessing());
 
@@ -35,6 +36,7 @@ class AjustarStockCubit extends Cubit<AjustarStockState> {
       observaciones: observaciones,
       tipoDocumento: tipoDocumento,
       numeroDocumento: numeroDocumento,
+      loteId: loteId,
     );
 
     if (isClosed) return;

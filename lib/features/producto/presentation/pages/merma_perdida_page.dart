@@ -17,6 +17,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../empresa/domain/entities/sede.dart';
 import '../../domain/entities/movimiento_stock.dart';
+import '../widgets/lote_salida_selector.dart';
 
 /// Page showing waste/loss (merma y perdida) summary and allowing to register new ones.
 class MermaPerdidaPage extends StatefulWidget {
@@ -534,10 +535,19 @@ class _RegistrarMermaSheetState extends State<_RegistrarMermaSheet> {
 
   String _selectedTipo = 'Merma';
 
+  /// Lote del que sale entero, o null = automatico.
+  String? _loteId;
+
   @override
   void initState() {
     super.initState();
     _selectedSedeId = widget.sedeId;
+    // El reparto por lote se recalcula con la cantidad.
+    _cantidadController.addListener(_refrescar);
+  }
+
+  void _refrescar() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -573,6 +583,8 @@ class _RegistrarMermaSheetState extends State<_RegistrarMermaSheet> {
           'motivo': _motivoController.text.trim(),
           if (_observacionesController.text.trim().isNotEmpty)
             'observaciones': _observacionesController.text.trim(),
+          // Sale entero de ese lote (ver LoteSalidaSelector).
+          if (_loteId != null) 'loteId': _loteId,
         },
       );
 
@@ -691,6 +703,15 @@ class _RegistrarMermaSheetState extends State<_RegistrarMermaSheet> {
                   return null;
                 },
               ),
+              // De que lote sale. No se dibuja con el motor de lotes apagado.
+              if (_selectedProductoStockId != null &&
+                  _selectedProductoStockId!.isNotEmpty)
+                LoteSalidaSelector(
+                  productoStockId: _selectedProductoStockId!,
+                  cantidad: int.tryParse(_cantidadController.text) ?? 0,
+                  loteId: _loteId,
+                  onChanged: (v) => setState(() => _loteId = v),
+                ),
               const SizedBox(height: 12),
 
               // Motivo
@@ -743,11 +764,16 @@ class _RegistrarMermaSheetState extends State<_RegistrarMermaSheet> {
         setState(() {
           _selectedProductoStockId =
               (data['id'] ?? data['_id'] ?? '').toString();
+          // El lote elegido era del producto anterior.
+          _loteId = null;
         });
       }
     } catch (_) {
       // Stock entry may not exist
-      setState(() => _selectedProductoStockId = null);
+      setState(() {
+        _selectedProductoStockId = null;
+        _loteId = null;
+      });
     }
   }
 }

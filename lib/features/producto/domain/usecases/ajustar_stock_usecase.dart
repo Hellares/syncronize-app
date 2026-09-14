@@ -20,6 +20,7 @@ class AjustarStockUseCase {
     String? observaciones,
     String? tipoDocumento,
     String? numeroDocumento,
+    String? loteId,
   }) async {
     return await _repository.ajustarStock(
       stockId: stockId,
@@ -30,6 +31,7 @@ class AjustarStockUseCase {
       observaciones: observaciones,
       tipoDocumento: tipoDocumento,
       numeroDocumento: numeroDocumento,
+      loteId: loteId,
     );
   }
 }

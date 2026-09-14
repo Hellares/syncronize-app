@@ -231,6 +231,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
     String? observaciones,
     String? tipoDocumento,
     String? numeroDocumento,
+    String? loteId,
   }) async {
     if (!await _networkInfo.isConnected) {
       return Error(
@@ -249,6 +250,7 @@ class ProductoStockRepositoryImpl implements ProductoStockRepository {
         observaciones: observaciones,
         tipoDocumento: tipoDocumento,
         numeroDocumento: numeroDocumento,
+        loteId: loteId,
       );
       return Success(stock);
     } catch (e) {

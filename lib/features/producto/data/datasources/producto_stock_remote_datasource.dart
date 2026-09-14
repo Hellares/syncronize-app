@@ -157,6 +157,7 @@ class ProductoStockRemoteDataSource {
     String? observaciones,
     String? tipoDocumento,
     String? numeroDocumento,
+    String? loteId,
   }) async {
     final response = await _dioClient.put(
       '/producto-stock/$stockId/ajustar',
@@ -167,6 +168,8 @@ class ProductoStockRemoteDataSource {
         if (observaciones != null) 'observaciones': observaciones,
         if (tipoDocumento != null) 'tipoDocumento': tipoDocumento,
         if (numeroDocumento != null) 'numeroDocumento': numeroDocumento,
+        // Solo en una salida: sale entero de ese lote (ver LoteSalidaSelector).
+        if (loteId != null) 'loteId': loteId,
       },
     );
 

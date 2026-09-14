@@ -10,6 +10,7 @@ import '../../domain/entities/movimiento_stock.dart';
 import '../../domain/entities/producto_stock.dart';
 import '../bloc/ajustar_stock/ajustar_stock_cubit.dart';
 import '../bloc/ajustar_stock/ajustar_stock_state.dart';
+import 'lote_salida_selector.dart';
 
 /// Dialog para ajustar el stock de un producto
 class AjustarStockDialog extends StatefulWidget {
@@ -37,6 +38,9 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
   TipoMovimientoStock? _tipoSeleccionado;
   String? _tipoDocumentoSeleccionado;
 
+  /// Lote del que sale entero, o null = automatico. Solo cuenta en una salida.
+  String? _loteId;
+
   final List<String> _tiposDocumento = [
     'FACTURA',
     'BOLETA',
@@ -48,6 +52,17 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
     'COMPRA',
     'OTRO',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // La vista previa y el reparto por lote dependen de la cantidad.
+    _cantidadController.addListener(_refrescar);
+  }
+
+  void _refrescar() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -131,6 +146,17 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
                           _buildDropdownTipoMovimiento(),
                           const SizedBox(height: 8),
                           _buildCantidadField(),
+                          // De que lote sale. Solo en una salida; sin motor de
+                          // lotes no se dibuja.
+                          if (_tipoSeleccionado?.esSalida == true)
+                            LoteSalidaSelector(
+                              productoStockId: widget.stock.id,
+                              cantidad:
+                                  int.tryParse(_cantidadController.text) ?? 0,
+                              loteId: _loteId,
+                              onChanged: (v) => setState(() => _loteId = v),
+                              borderColor: AppColors.blue1,
+                            ),
                           const SizedBox(height: 8),
                           _buildDropdownTipoDocumento(),
                           const SizedBox(height: 8),
@@ -439,6 +465,8 @@ class _AjustarStockDialogState extends State<AjustarStockDialog> {
           empresaId: widget.empresaId,
           tipo: tipo,
           cantidad: cantidadFinal,
+          // Una entrada crea su propio lote: el elegido solo viaja en una salida.
+          loteId: tipo.esSalida ? _loteId : null,
           motivo: _motivoController.text.isNotEmpty
               ? _motivoController.text
               : null,

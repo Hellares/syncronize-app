@@ -62,7 +62,8 @@ abstract class ProductoStockRepository {
     String? motivo,
   });
 
-  /// Ajusta el stock (entrada o salida)
+  /// Ajusta el stock (entrada o salida). [loteId]: lote del que sale entero,
+  /// solo en una salida.
   Future<Resource<ProductoStock>> ajustarStock({
     required String stockId,
     required String empresaId,
@@ -72,6 +73,7 @@ abstract class ProductoStockRepository {
     String? observaciones,
     String? tipoDocumento,
     String? numeroDocumento,
+    String? loteId,
   });
 
   /// Actualiza los precios de un ProductoStock
