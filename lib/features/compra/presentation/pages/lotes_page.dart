@@ -8,7 +8,7 @@ import 'package:syncronize/core/widgets/smart_appbar.dart';
 import '../../../../core/di/injection_container.dart';
 import '../bloc/lote_list/lote_list_cubit.dart';
 import '../bloc/lote_list/lote_list_state.dart';
-import '../widgets/lote_list_tile.dart';
+import '../widgets/lotes_tabla.dart';
 
 class LotesPage extends StatelessWidget {
   final String empresaId;
@@ -30,6 +30,11 @@ class LotesPage extends StatelessWidget {
             foregroundColor: AppColors.white,
             title: 'Lotes',
             actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 18),
+                tooltip: 'Actualizar',
+                onPressed: () => context.read<LoteListCubit>().reload(),
+              ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.filter_list, size: 18),
                 onSelected: (value) {
@@ -88,6 +93,8 @@ class LotesPage extends StatelessWidget {
           body: GradientContainer(
             child: Column(
               children: [
+                // El buscador vive FUERA del BlocBuilder: si se reconstruyera
+                // con cada carga perdería el foco mientras se escribe.
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: CustomSearchField(
@@ -97,6 +104,11 @@ class LotesPage extends StatelessWidget {
                       context.read<LoteListCubit>().search(value);
                     },
                   ),
+                ),
+                BlocBuilder<LoteListCubit, LoteListState>(
+                  builder: (context, state) => state is LoteListLoaded
+                      ? _BarraResumen(state: state)
+                      : const SizedBox.shrink(),
                 ),
                 Expanded(
                   child: BlocBuilder<LoteListCubit, LoteListState>(
@@ -127,9 +139,7 @@ class LotesPage extends StatelessWidget {
                       }
 
                       if (state is LoteListLoaded) {
-                        final lotes = state.filteredLotes;
-
-                        if (lotes.isEmpty) {
+                        if (state.lotes.isEmpty) {
                           return Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -138,7 +148,7 @@ class LotesPage extends StatelessWidget {
                                     size: 64, color: Colors.grey),
                                 const SizedBox(height: 16),
                                 Text(
-                                  state.searchQuery != null
+                                  state.hayFiltro
                                       ? 'No se encontraron lotes'
                                       : 'No hay lotes registrados',
                                   style: const TextStyle(
@@ -155,29 +165,23 @@ class LotesPage extends StatelessWidget {
                           );
                         }
 
-                        return RefreshIndicator(
-                          onRefresh: () =>
-                              context.read<LoteListCubit>().reload(),
-                          child: ListView.builder(
-                            itemCount: lotes.length,
-                            itemBuilder: (context, index) {
-                              final lote = lotes[index];
-                              return LoteListTile(
-                                lote: lote,
-                                onTap: () async {
-                                  final cambio = await context.push<bool>(
-                                    '/empresa/compras/lotes/${lote.id}',
-                                    extra: lote,
-                                  );
-                                  // Se dio de baja o se corrigió la fecha
-                                  // adentro: la lista tiene que reflejarlo.
-                                  if (cambio == true && context.mounted) {
-                                    context.read<LoteListCubit>().reload();
-                                  }
-                                },
-                              );
-                            },
-                          ),
+                        return LotesTabla(
+                          lotes: state.lotes,
+                          hasNext: state.hasNext,
+                          cargandoMas: state.cargandoMas,
+                          onCargarMas: () =>
+                              context.read<LoteListCubit>().loadMore(),
+                          onTap: (lote) async {
+                            final cambio = await context.push<bool>(
+                              '/empresa/compras/lotes/${lote.id}',
+                              extra: lote,
+                            );
+                            // Se dio de baja o se corrigió la fecha adentro:
+                            // la tabla tiene que reflejarlo.
+                            if (cambio == true && context.mounted) {
+                              context.read<LoteListCubit>().reload();
+                            }
+                          },
                         );
                       }
 
@@ -224,5 +228,78 @@ class LotesPage extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+/// Cuántos lotes se ven de cuántos hay, y el filtro activo con su ✕ para
+/// quitarlo (así se sabe por qué la tabla muestra lo que muestra).
+class _BarraResumen extends StatelessWidget {
+  final LoteListLoaded state;
+
+  const _BarraResumen({required this.state});
+
+  static String? _nombreEstado(String? estado) {
+    switch (estado) {
+      case 'ACTIVO':
+        return 'Activos';
+      case 'AGOTADO':
+        return 'Agotados';
+      case 'VENCIDO':
+        return 'Vencidos';
+      case 'BLOQUEADO':
+        return 'Bloqueados';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtro = state.proximosVencer
+        ? 'Próximos a vencer'
+        : _nombreEstado(state.estadoFilter);
+    final texto = state.proximosVencer
+        ? '${state.lotes.length} ${state.lotes.length == 1 ? 'lote' : 'lotes'}'
+        : 'Mostrando ${state.lotes.length} de ${state.total} '
+            '${state.total == 1 ? 'lote' : 'lotes'}';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              texto,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
+          ),
+          if (filtro != null)
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              // Quitar el filtro vuelve a TODOS los estados (y sale de
+              // "Próximos a vencer").
+              onTap: () => context.read<LoteListCubit>().filterByEstado(null),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.blue1.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      filtro,
+                      style: const TextStyle(
+                          fontSize: 10, color: AppColors.blue1),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.close, size: 12, color: AppColors.blue1),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

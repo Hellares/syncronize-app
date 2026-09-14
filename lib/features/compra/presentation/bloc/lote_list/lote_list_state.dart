@@ -16,55 +16,58 @@ class LoteListLoading extends LoteListState {
   const LoteListLoading();
 }
 
+/// Los lotes cargados hasta ahora.
+///
+/// 🔴 La búsqueda y el estado se aplican en el BACKEND, no acá: antes se
+/// filtraba en el app sobre la única página cargada (10 lotes) y un lote que no
+/// estaba en esa página "no existía".
 class LoteListLoaded extends LoteListState {
   final List<Lote> lotes;
+
+  /// Cuántos cumplen el filtro en total (no solo los cargados).
+  final int total;
+  final bool hasNext;
+  final bool cargandoMas;
   final String? searchQuery;
   final String? estadoFilter;
 
+  /// Mostrando "Próximos a vencer": otro endpoint, sin paginar.
+  final bool proximosVencer;
+
   const LoteListLoaded({
     required this.lotes,
+    this.total = 0,
+    this.hasNext = false,
+    this.cargandoMas = false,
     this.searchQuery,
     this.estadoFilter,
+    this.proximosVencer = false,
   });
 
-  List<Lote> get filteredLotes {
-    var filtered = lotes;
-
-    if (estadoFilter != null && estadoFilter!.isNotEmpty) {
-      filtered = filtered.where((l) => l.estado.name == estadoFilter).toList();
-    }
-
-    if (searchQuery != null && searchQuery!.isNotEmpty) {
-      final query = searchQuery!.toLowerCase();
-      filtered = filtered.where((l) {
-        return l.codigo.toLowerCase().contains(query) ||
-            l.nombreProducto.toLowerCase().contains(query) ||
-            (l.numeroLote?.toLowerCase().contains(query) ?? false) ||
-            (l.nombreProveedor?.toLowerCase().contains(query) ?? false);
-      }).toList();
-    }
-
-    return filtered;
-  }
-
-  List<Lote> get lotesActivos =>
-      filteredLotes.where((l) => l.esActivo).toList();
-
-  List<Lote> get lotesProximosVencer =>
-      filteredLotes.where((l) => l.proximoAVencer && l.esActivo).toList();
+  bool get hayFiltro =>
+      searchQuery != null || estadoFilter != null || proximosVencer;
 
   @override
-  List<Object?> get props => [lotes, searchQuery, estadoFilter];
+  List<Object?> get props =>
+      [lotes, total, hasNext, cargandoMas, searchQuery, estadoFilter, proximosVencer];
 
+  /// Solo los datos de la página. 🔴 Los filtros NO pasan por acá: un
+  /// `copyWith(estadoFilter: null)` con `??` conservaba el anterior, y así
+  /// "Todos" y borrar la búsqueda no limpiaban nada.
   LoteListLoaded copyWith({
     List<Lote>? lotes,
-    String? searchQuery,
-    String? estadoFilter,
+    int? total,
+    bool? hasNext,
+    bool? cargandoMas,
   }) {
     return LoteListLoaded(
       lotes: lotes ?? this.lotes,
-      searchQuery: searchQuery ?? this.searchQuery,
-      estadoFilter: estadoFilter ?? this.estadoFilter,
+      total: total ?? this.total,
+      hasNext: hasNext ?? this.hasNext,
+      cargandoMas: cargandoMas ?? this.cargandoMas,
+      searchQuery: searchQuery,
+      estadoFilter: estadoFilter,
+      proximosVencer: proximosVencer,
     );
   }
 }

@@ -132,3 +132,24 @@ class Lote extends Equatable {
   @override
   List<Object?> get props => [id, estado, cantidadActual];
 }
+
+/// Una página del listado de lotes (el backend pagina por cursor).
+///
+/// 🔴 Antes el app pedía sin `limit` ni `cursor` y el backend devolvía sus 10
+/// por defecto: la pantalla nunca mostraba más de 10 lotes, y la búsqueda y
+/// el filtro por estado solo miraban esos 10.
+class LotesPagina {
+  final List<Lote> lotes;
+  final bool hasNext;
+  final String? nextCursor;
+
+  /// Cuántos lotes cumplen el filtro en total, no solo los de esta página.
+  final int total;
+
+  const LotesPagina({
+    required this.lotes,
+    required this.hasNext,
+    this.nextCursor,
+    required this.total,
+  });
+}

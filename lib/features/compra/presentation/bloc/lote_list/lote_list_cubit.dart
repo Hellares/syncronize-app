@@ -19,45 +19,109 @@ class LoteListCubit extends Cubit<LoteListState> {
     this._marcarLotesVencidosUseCase,
   ) : super(const LoteListInitial());
 
-  String? _currentEmpresaId;
+  /// Lotes por pedido. La tabla muestra muchos a la vez; el resto llega con
+  /// "Cargar más".
+  static const int pageSize = 50;
+
+  String? _empresaId;
   String? _sedeId;
   String? _productoStockId;
-  String? _estadoFilter;
-  bool _showProximosVencer = false;
+  String? _estado;
+  String? _search;
+  bool _proximosVencer = false;
+  String? _nextCursor;
+
+  /// Descarta respuestas viejas: si se cambia el filtro con una carga en
+  /// vuelo, la que llega tarde no pisa la nueva.
+  int _pedido = 0;
 
   Future<void> loadLotes({
     required String empresaId,
     String? sedeId,
     String? productoStockId,
     String? estado,
+    String? search,
   }) async {
     if (empresaId.isEmpty) {
       emit(const LoteListError('ID de empresa no válido'));
       return;
     }
-
-    _currentEmpresaId = empresaId;
+    _empresaId = empresaId;
     _sedeId = sedeId;
     _productoStockId = productoStockId;
-    _estadoFilter = estado;
-    _showProximosVencer = false;
+    _estado = estado;
+    _search = search;
+    _proximosVencer = false;
+    await _cargarPrimeraPagina();
+  }
 
+  Future<void> _cargarPrimeraPagina() async {
+    final pedido = ++_pedido;
+    _nextCursor = null;
     emit(const LoteListLoading());
 
     final result = await _getLotesUseCase(
-      empresaId: empresaId,
-      sedeId: sedeId,
-      productoStockId: productoStockId,
-      estado: estado,
+      empresaId: _empresaId!,
+      sedeId: _sedeId,
+      productoStockId: _productoStockId,
+      estado: _estado,
+      search: _search,
+      limit: pageSize,
     );
+    if (isClosed || pedido != _pedido) return;
 
-    if (result is Success<List<Lote>>) {
+    if (result is Success<LotesPagina>) {
+      _nextCursor = result.data.nextCursor;
       emit(LoteListLoaded(
-        lotes: result.data,
-        estadoFilter: estado,
+        lotes: result.data.lotes,
+        total: result.data.total,
+        hasNext: result.data.hasNext,
+        searchQuery: _search,
+        estadoFilter: _estado,
       ));
-    } else if (result is Error<List<Lote>>) {
+    } else if (result is Error<LotesPagina>) {
       emit(LoteListError(result.message));
+    }
+  }
+
+  /// La página siguiente, con el mismo filtro.
+  Future<void> loadMore() async {
+    final actual = state;
+    if (actual is! LoteListLoaded ||
+        !actual.hasNext ||
+        actual.cargandoMas ||
+        actual.proximosVencer ||
+        _nextCursor == null) {
+      return;
+    }
+    final pedido = _pedido;
+    emit(actual.copyWith(cargandoMas: true));
+
+    final result = await _getLotesUseCase(
+      empresaId: _empresaId!,
+      sedeId: _sedeId,
+      productoStockId: _productoStockId,
+      estado: _estado,
+      search: _search,
+      limit: pageSize,
+      cursor: _nextCursor,
+    );
+    if (isClosed || pedido != _pedido) return;
+
+    if (result is Success<LotesPagina>) {
+      final nuevos = result.data.lotes;
+      _nextCursor = result.data.nextCursor;
+      emit(actual.copyWith(
+        lotes: [...actual.lotes, ...nuevos],
+        total: result.data.total,
+        // El backend marca `hasNext` cuando la página vino LLENA: si la
+        // siguiente vino vacía, ya no había más.
+        hasNext: result.data.hasNext && nuevos.isNotEmpty,
+        cargandoMas: false,
+      ));
+    } else {
+      // Se queda con lo cargado y el botón vuelve a estar disponible.
+      emit(actual.copyWith(cargandoMas: false));
     }
   }
 
@@ -65,55 +129,62 @@ class LoteListCubit extends Cubit<LoteListState> {
     required String empresaId,
     int dias = 30,
   }) async {
-    _currentEmpresaId = empresaId;
-    _showProximosVencer = true;
-
+    _empresaId = empresaId;
+    _proximosVencer = true;
+    final pedido = ++_pedido;
+    _nextCursor = null;
     emit(const LoteListLoading());
 
     final result = await _getLotesProximosVencerUseCase(
       empresaId: empresaId,
       dias: dias,
     );
+    if (isClosed || pedido != _pedido) return;
 
     if (result is Success<List<Lote>>) {
-      emit(LoteListLoaded(lotes: result.data));
+      emit(LoteListLoaded(
+        lotes: result.data,
+        total: result.data.length,
+        proximosVencer: true,
+      ));
     } else if (result is Error<List<Lote>>) {
       emit(LoteListError(result.message));
     }
   }
 
   Future<void> reload() async {
-    if (_currentEmpresaId == null) return;
-    if (_showProximosVencer) {
-      await loadProximosVencer(empresaId: _currentEmpresaId!);
+    if (_empresaId == null) return;
+    if (_proximosVencer) {
+      await loadProximosVencer(empresaId: _empresaId!);
     } else {
-      await loadLotes(
-        empresaId: _currentEmpresaId!,
-        sedeId: _sedeId,
-        productoStockId: _productoStockId,
-        estado: _estadoFilter,
-      );
+      await _cargarPrimeraPagina();
     }
   }
 
-  void search(String query) {
-    final currentState = state;
-    if (currentState is! LoteListLoaded) return;
-    emit(currentState.copyWith(
-      searchQuery: query.isEmpty ? null : query,
-    ));
+  /// La búsqueda va al BACKEND (código, número de lote, proveedor o nombre del
+  /// producto). Vacía = sin búsqueda.
+  Future<void> search(String query) async {
+    if (_empresaId == null) return;
+    final q = query.trim();
+    final nueva = q.isEmpty ? null : q;
+    if (nueva == _search && !_proximosVencer) return;
+    _search = nueva;
+    _proximosVencer = false;
+    await _cargarPrimeraPagina();
   }
 
-  void filterByEstado(String? estado) {
-    final currentState = state;
-    if (currentState is! LoteListLoaded) return;
-    emit(currentState.copyWith(estadoFilter: estado));
+  /// null = todos los estados. También sale de "Próximos a vencer".
+  Future<void> filterByEstado(String? estado) async {
+    if (_empresaId == null) return;
+    _estado = estado;
+    _proximosVencer = false;
+    await _cargarPrimeraPagina();
   }
 
   Future<bool> marcarVencidos() async {
-    if (_currentEmpresaId == null) return false;
+    if (_empresaId == null) return false;
     final result = await _marcarLotesVencidosUseCase(
-      empresaId: _currentEmpresaId!,
+      empresaId: _empresaId!,
     );
     if (result is Success) {
       await reload();

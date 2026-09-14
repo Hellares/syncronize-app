@@ -171,19 +171,31 @@ class CompraRepositoryImpl implements CompraRepository {
   // ===== LOTES =====
 
   @override
-  Future<Resource<List<Lote>>> getLotes({
+  Future<Resource<LotesPagina>> getLotes({
     required String empresaId,
     String? sedeId,
     String? productoStockId,
     String? estado,
     String? search,
-  }) => _execute(() => _remoteDataSource.getLotes(
-        empresaId: empresaId,
-        sedeId: sedeId,
-        productoStockId: productoStockId,
-        estado: estado,
-        search: search,
-      ));
+    int limit = 50,
+    String? cursor,
+  }) => _execute(() async {
+        final pagina = await _remoteDataSource.getLotes(
+          empresaId: empresaId,
+          sedeId: sedeId,
+          productoStockId: productoStockId,
+          estado: estado,
+          search: search,
+          limit: limit,
+          cursor: cursor,
+        );
+        return LotesPagina(
+          lotes: pagina.lotes,
+          hasNext: pagina.hasNext,
+          nextCursor: pagina.nextCursor,
+          total: pagina.total,
+        );
+      });
 
   @override
   Future<Resource<Lote>> getLote({

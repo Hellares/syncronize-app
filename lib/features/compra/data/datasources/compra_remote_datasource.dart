@@ -236,26 +236,40 @@ class CompraRemoteDataSource {
 
   // ===== LOTES =====
 
-  Future<List<LoteModel>> getLotes({
+  /// Una página de lotes. El backend pagina por cursor (máximo 100 por
+  /// pedido) y, sin `limit`, devuelve solo 10.
+  Future<({List<LoteModel> lotes, bool hasNext, String? nextCursor, int total})>
+      getLotes({
     required String empresaId,
     String? sedeId,
     String? productoStockId,
     String? estado,
     String? search,
+    int limit = 50,
+    String? cursor,
   }) async {
     final response = await _dioClient.get(
       '/empresas/$empresaId/lotes',
       queryParameters: {
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
         if (sedeId != null) 'sedeId': sedeId,
         if (productoStockId != null) 'productoStockId': productoStockId,
         if (estado != null) 'estado': estado,
         if (search != null) 'search': search,
       },
     );
-    final data = response.data['data'] as List;
-    return data
+    final body = response.data as Map<String, dynamic>;
+    final meta = (body['meta'] as Map<String, dynamic>?) ?? const {};
+    final lotes = (body['data'] as List)
         .map((json) => LoteModel.fromJson(json as Map<String, dynamic>))
         .toList();
+    return (
+      lotes: lotes,
+      hasNext: meta['hasNext'] == true,
+      nextCursor: meta['nextCursor'] as String?,
+      total: (meta['total'] as num?)?.toInt() ?? lotes.length,
+    );
   }
 
   Future<LoteModel> getLote({

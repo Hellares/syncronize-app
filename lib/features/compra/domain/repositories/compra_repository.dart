@@ -100,12 +100,15 @@ abstract class CompraRepository {
   });
 
   // ===== LOTES =====
-  Future<Resource<List<Lote>>> getLotes({
+  /// Una página de lotes: [limit] por pedido y [cursor] para la siguiente.
+  Future<Resource<LotesPagina>> getLotes({
     required String empresaId,
     String? sedeId,
     String? productoStockId,
     String? estado,
     String? search,
+    int limit,
+    String? cursor,
   });
 
   Future<Resource<Lote>> getLote({

@@ -9,12 +9,15 @@ class GetLotesUseCase {
 
   GetLotesUseCase(this._repository);
 
-  Future<Resource<List<Lote>>> call({
+  /// Una página de lotes. [cursor] null = la primera.
+  Future<Resource<LotesPagina>> call({
     required String empresaId,
     String? sedeId,
     String? productoStockId,
     String? estado,
     String? search,
+    int limit = 50,
+    String? cursor,
   }) async {
     return await _repository.getLotes(
       empresaId: empresaId,
@@ -22,6 +25,8 @@ class GetLotesUseCase {
       productoStockId: productoStockId,
       estado: estado,
       search: search,
+      limit: limit,
+      cursor: cursor,
     );
   }
 }
