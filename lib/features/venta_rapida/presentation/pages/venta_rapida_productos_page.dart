@@ -17,6 +17,7 @@ import '../../../producto/presentation/bloc/producto_list/producto_list_cubit.da
 import '../../../producto/presentation/widgets/producto_selector/producto_selector_view.dart';
 import '../bloc/venta_rapida_cubit.dart';
 import '../widgets/alta_rapida_producto_dialog.dart';
+import '../widgets/fila_vender_a_costo.dart';
 import '../widgets/vender_compra_sheet.dart';
 
 /// Pantalla de selección de productos para Venta Rápida. Toda la UI vive en
@@ -237,8 +238,13 @@ class _VentaRapidaProductosView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SedeSwitcher(),
-            if (puedeVenderACosto) const _InterruptorCosto(),
-            if (puedeVenderACosto) const _BotonVenderCompra(),
+            // Interruptor y "Vender compra" en UNA fila: son las dos entradas
+            // a vender a costo y se leen juntas.
+            if (puedeVenderACosto)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: _FilaCosto(),
+              ),
           ],
         ),
       ),
@@ -246,12 +252,17 @@ class _VentaRapidaProductosView extends StatelessWidget {
   }
 }
 
-/// Vender una compra entera al costo de sus lotes (mercadería por encargo).
-/// Misma condición que el interruptor: exige `venta.editar-precio`.
-class _BotonVenderCompra extends StatelessWidget {
-  const _BotonVenderCompra();
+/// Conecta [FilaVenderACosto] con el cubit: cobrar los productos a lo que
+/// costaron, o cargar una compra entera al costo de sus lotes (mercadería por
+/// encargo).
+///
+/// 🔴 Solo se OFRECE con el granular `venta.editar-precio`: el endpoint de
+/// costos lo valida igual, y mostrar el interruptor sin él sería ofrecer algo
+/// que rebota con 403. Los admin lo tienen por definición.
+class _FilaCosto extends StatelessWidget {
+  const _FilaCosto();
 
-  Future<void> _abrir(BuildContext context) async {
+  Future<void> _venderCompra(BuildContext context) async {
     final cubit = context.read<VentaRapidaCubit>();
     final empresaId = cubit.state.empresaId;
     if (empresaId == null) return;
@@ -273,110 +284,18 @@ class _BotonVenderCompra extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Material(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => _abrir(context),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                Icon(Icons.inventory_2_outlined,
-                    size: 18, color: Colors.grey.shade700),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Vender una compra',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                ),
-                Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade500),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Cobrar los productos a lo que costaron.
-///
-/// 🔴 Solo se OFRECE con el granular `venta.editar-precio`: el endpoint de
-/// costos lo valida igual, y mostrar el interruptor sin él sería ofrecer algo
-/// que rebota con 403. Los admin lo tienen por definición.
-class _InterruptorCosto extends StatelessWidget {
-  const _InterruptorCosto();
-
-  @override
-  Widget build(BuildContext context) {
     return BlocBuilder<VentaRapidaCubit, VentaRapidaState>(
       buildWhen: (a, b) =>
           a.modoCosto != b.modoCosto ||
           a.cargandoCostos != b.cargandoCostos ||
           a.lineasACosto != b.lineasACosto,
-      builder: (context, state) {
-        final activo = state.modoCosto != null;
-        return Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Material(
-            color: activo ? const Color(0xFF043261) : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: state.cargandoCostos
-                  ? null
-                  : () => context.read<VentaRapidaCubit>().toggleModoCosto(),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.savings_outlined,
-                      size: 18,
-                      color: activo ? Colors.white : Colors.grey.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        state.cargandoCostos
-                            ? 'Buscando costos…'
-                            : activo
-                                ? 'Vendiendo a costo · ${state.lineasACosto} '
-                                    '${state.lineasACosto == 1 ? 'línea' : 'líneas'}'
-                                : 'Vender a costo',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: activo ? Colors.white : Colors.grey.shade700,
-                        ),
-                      ),
-                    ),
-                    Switch(
-                      value: activo,
-                      onChanged: state.cargandoCostos
-                          ? null
-                          : (_) => context
-                              .read<VentaRapidaCubit>()
-                              .toggleModoCosto(),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+      builder: (context, state) => FilaVenderACosto(
+        activo: state.modoCosto != null,
+        cargando: state.cargandoCostos,
+        lineasACosto: state.lineasACosto,
+        onToggle: () => context.read<VentaRapidaCubit>().toggleModoCosto(),
+        onVenderCompra: () => _venderCompra(context),
+      ),
     );
   }
 }
