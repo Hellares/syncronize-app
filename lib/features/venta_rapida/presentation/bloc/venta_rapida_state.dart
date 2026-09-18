@@ -92,6 +92,13 @@ class VentaRapidaState extends Equatable {
   /// Cada item: {descripcion, lote, vencio, unidades}.
   final List<Map<String, dynamic>>? vencidoNoAutorizado;
 
+  /// La MISMA cajera cobró hace menos de 3 min una venta con los mismos
+  /// productos (409 `VENTA_REPETIDA`; caso 814/815: la rehizo para agregarle
+  /// cliente y envío). La página pregunta si es otra venta o abre la anterior.
+  ///
+  /// {id, codigo, nombreCliente, total, estado, segundos}.
+  final Map<String, dynamic>? ventaRepetida;
+
   // ── Vender a costo ──
 
   /// Modo con el que está prendido el interruptor de "vender a costo".
@@ -138,6 +145,7 @@ class VentaRapidaState extends Equatable {
     this.preciosDesactualizados,
     this.stockInsuficiente,
     this.vencidoNoAutorizado,
+    this.ventaRepetida,
     this.modoCosto,
     this.costos = const {},
     this.cargandoCostos = false,
@@ -256,6 +264,8 @@ class VentaRapidaState extends Equatable {
     bool clearStockInsuficiente = false,
     List<Map<String, dynamic>>? vencidoNoAutorizado,
     bool clearVencidoNoAutorizado = false,
+    Map<String, dynamic>? ventaRepetida,
+    bool clearVentaRepetida = false,
     String? modoCosto,
     bool clearModoCosto = false,
     Map<String, CostosVenta>? costos,
@@ -308,6 +318,8 @@ class VentaRapidaState extends Equatable {
       vencidoNoAutorizado: clearVencidoNoAutorizado
           ? null
           : (vencidoNoAutorizado ?? this.vencidoNoAutorizado),
+      ventaRepetida:
+          clearVentaRepetida ? null : (ventaRepetida ?? this.ventaRepetida),
       // Sin el flag no se puede apagar el modo: `?? this.x` nunca vuelve a null.
       modoCosto: clearModoCosto ? null : (modoCosto ?? this.modoCosto),
       costos: costos ?? this.costos,
@@ -325,6 +337,6 @@ class VentaRapidaState extends Equatable {
         condicionPago, numeroCuotas, frecuenciaDias, plazoDias, conEnvio,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
         preciosDesactualizados, stockInsuficiente, vencidoNoAutorizado,
-        modoCosto, costos, cargandoCostos,
+        ventaRepetida, modoCosto, costos, cargandoCostos,
       ];
 }

@@ -426,7 +426,12 @@ class _CobroViewState extends State<_CobroView> {
         state.pagos
             .every((p) => p['metodo'] == 'YAPE' || p['metodo'] == 'PLIN');
     if (soloYapePlin) {
-      _ultimoCobro = (aceptaRiesgo: false, bajoCostoId: null, viaYape: true);
+      _ultimoCobro = (
+        aceptaRiesgo: false,
+        bajoCostoId: null,
+        viaYape: true,
+        repetidaConfirmada: false,
+      );
       await _cobrarConValidacionYape(context);
       return;
     }
@@ -479,13 +484,22 @@ class _CobroViewState extends State<_CobroView> {
       aceptaRiesgo: aceptaRiesgo,
       bajoCostoId: autorizacion.autorizadoPorId,
       viaYape: hayYapePlin,
+      repetidaConfirmada: false,
     );
     await _ejecutarCobro(context);
   }
 
   /// Lo último que se intentó cobrar y con qué: para reintentar con la
   /// autorización de vencidos adjunta sin repetir los diálogos previos.
-  ({bool aceptaRiesgo, String? bajoCostoId, bool viaYape})? _ultimoCobro;
+  /// `repetidaConfirmada` también se recuerda: si después del aviso de venta
+  /// repetida el backend pide la autorización de vencidos, el reintento tiene
+  /// que llevar las DOS (si no, volvería a preguntar en bucle).
+  ({
+    bool aceptaRiesgo,
+    String? bajoCostoId,
+    bool viaYape,
+    bool repetidaConfirmada,
+  })? _ultimoCobro;
 
   /// Dispara el cobro con lo recordado en [_ultimoCobro], por el camino que
   /// corresponda (Yape/Plin con validación, o directo).
@@ -502,6 +516,7 @@ class _CobroViewState extends State<_CobroView> {
         aceptaRiesgo: args.aceptaRiesgo,
         autorizadoPorId: args.bajoCostoId,
         vencidoAuthId: vencidoAuthId,
+        ventaRepetidaConfirmada: args.repetidaConfirmada,
       );
       return;
     }
@@ -510,7 +525,89 @@ class _CobroViewState extends State<_CobroView> {
       ventaBajoCostoAutorizadaPorId: args.bajoCostoId,
       ventaVencidaAutorizadaPorId: vencidoAuthId,
       evidenciaIds: _evidenciaIds,
+      ventaRepetidaConfirmada: args.repetidaConfirmada,
     );
+  }
+
+  /// El backend rechazó con `VENTA_REPETIDA`: esta misma cajera cobró hace
+  /// menos de 3 min una venta con los mismos productos. Caso 814/815: la
+  /// rehizo para agregarle cliente y envío, y el stock salió dos veces —
+  /// eso se hace sobre la venta anterior. No bloquea: dos clientes pueden
+  /// llevar lo mismo, y "Es otra, cobrar" reintenta con la confirmación.
+  Future<void> _manejarVentaRepetida(
+    BuildContext context,
+    Map<String, dynamic> venta,
+  ) async {
+    context.read<VentaRapidaCubit>().limpiarVentaRepetida();
+    final id = venta['id'] as String?;
+    final codigo = venta['codigo'] as String? ?? 'la venta anterior';
+    final cliente = venta['nombreCliente'] as String? ?? '';
+    final total = (venta['total'] as num?)?.toDouble();
+    final segundos = (venta['segundos'] as num?)?.toInt();
+    final hace = segundos == null
+        ? 'Hace un momento'
+        : segundos < 60
+            ? 'Hace $segundos s'
+            : 'Hace ${segundos ~/ 60} min';
+
+    final r = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.warning,
+      icon: Icons.content_copy_rounded,
+      title: '¿Es otra venta?',
+      customContent: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$hace cobraste una venta con los MISMOS productos:',
+            style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Text(
+              [
+                codigo,
+                if (cliente.isNotEmpty) cliente,
+                if (total != null) 'S/ ${total.toStringAsFixed(2)}',
+              ].join(' · '),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Si querías agregarle el cliente o el envío, hacelo sobre esa '
+            'venta: no hace falta cobrar de nuevo.',
+            style: TextStyle(fontSize: 11, color: AppColors.textPrimary),
+          ),
+        ],
+      ),
+      confirmText: 'Es otra, cobrar',
+      cancelText: 'Ver la anterior',
+    );
+    if (!context.mounted) return;
+    if (r == true) {
+      final args = _ultimoCobro;
+      if (args == null) return;
+      _ultimoCobro = (
+        aceptaRiesgo: args.aceptaRiesgo,
+        bajoCostoId: args.bajoCostoId,
+        viaYape: args.viaYape,
+        repetidaConfirmada: true,
+      );
+      await _ejecutarCobro(context);
+    } else if (r == false && id != null) {
+      // El carrito queda como está: si era otra venta, se vuelve y se cobra.
+      context.push('/empresa/ventas/$id');
+    }
+    // null (cerró el diálogo): no se cobra nada.
   }
 
   /// El día del envase, leído de los campos UTC del ISO que manda el backend
@@ -608,6 +705,7 @@ class _CobroViewState extends State<_CobroView> {
     bool aceptaRiesgo = false,
     String? autorizadoPorId,
     String? vencidoAuthId,
+    bool ventaRepetidaConfirmada = false,
   }) async {
     final cubit = context.read<VentaRapidaCubit>();
     final state = cubit.state;
@@ -626,6 +724,7 @@ class _CobroViewState extends State<_CobroView> {
         ventaBajoCostoAutorizadaPorId: autorizadoPorId,
         ventaVencidaAutorizadaPorId: vencidoAuthId,
         evidenciaIds: _evidenciaIds,
+        ventaRepetidaConfirmada: ventaRepetidaConfirmada,
       );
       return;
     }
@@ -658,6 +757,7 @@ class _CobroViewState extends State<_CobroView> {
       ventaBajoCostoAutorizadaPorId: autorizadoPorId,
       ventaVencidaAutorizadaPorId: vencidoAuthId,
       evidenciaIds: _evidenciaIds,
+      ventaRepetidaConfirmada: ventaRepetidaConfirmada,
     );
     if (res == null || !context.mounted) return;
     final ventaId = res['ventaId'] as String;
@@ -1229,6 +1329,11 @@ class _CobroViewState extends State<_CobroView> {
           // resuelve al rebote porque de qué lote sale cada unidad lo sabe
           // el servidor: se pide la autorización y se reintenta.
           _manejarVencido(context, state.vencidoNoAutorizado!);
+        }
+        if (state.ventaRepetida != null) {
+          // La misma cajera acaba de cobrar lo mismo (caso 814/815): se
+          // pregunta si es otra venta o se abre la anterior.
+          _manejarVentaRepetida(context, state.ventaRepetida!);
         }
         if (state.error != null) {
           ScaffoldMessenger.of(context).showSnackBar(

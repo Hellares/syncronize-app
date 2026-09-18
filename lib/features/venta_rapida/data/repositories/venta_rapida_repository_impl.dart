@@ -184,6 +184,9 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
       // El lote elegido a mano ya no tiene unidades (se vendió o se dio de
       // baja entre cotizar y cobrar). El cubit suelta la línea y recotiza.
       'LOTE_NO_DISPONIBLE',
+      // La misma cajera cobró hace menos de 3 min una venta con los mismos
+      // productos: la página pregunta si es otra o abre la anterior.
+      'VENTA_REPETIDA',
     };
     if (!codigosEstructurados.contains(code)) {
       return null;
@@ -218,6 +221,9 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
         'ordenes': ordenes,
         // LOTE_NO_DISPONIBLE: qué lote, para soltar exactamente esa línea.
         if (body['loteId'] is String) 'loteId': body['loteId'],
+        // VENTA_REPETIDA: la venta anterior, para mostrarla y poder abrirla.
+        if (body['venta'] is Map)
+          'venta': Map<String, dynamic>.from(body['venta'] as Map),
       },
     );
   }

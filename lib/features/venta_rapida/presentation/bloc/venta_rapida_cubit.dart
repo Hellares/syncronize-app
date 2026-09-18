@@ -402,6 +402,24 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   void limpiarVencidoNoAutorizado() =>
       emit(state.copyWith(clearVencidoNoAutorizado: true));
 
+  void limpiarVentaRepetida() =>
+      emit(state.copyWith(clearVentaRepetida: true));
+
+  /// 409 `VENTA_REPETIDA`, compartido por `cobrar()` y el camino Yape: la
+  /// página pregunta y reintenta con `ventaRepetidaConfirmada`, o abre la
+  /// venta anterior. Devuelve true si lo manejó.
+  bool _manejarReboteVentaRepetida(Error<Venta> result) {
+    if (result.errorCode != 'VENTA_REPETIDA') return false;
+    final venta = result.details?['venta'];
+    emit(state.copyWith(
+      procesando: false,
+      ventaRepetida: venta is Map
+          ? Map<String, dynamic>.from(venta)
+          : <String, dynamic>{'mensaje': result.message},
+    ));
+    return true;
+  }
+
   /// Arma el carrito con lo que QUEDA de una compra, al costo de SUS lotes.
   ///
   /// 🔑 El caso: se le compró a un proveedor puntual para un cliente puntual.
@@ -1899,6 +1917,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     /// enganchan a la venta al crearla. Es evidencia INTERNA: no viaja al
     /// comprobante ni al ticket del cliente.
     List<String> evidenciaIds = const [],
+    /// Mismo contrato que `cobrar()`: la cajera confirmó que es OTRA venta.
+    bool ventaRepetidaConfirmada = false,
   }) async {
     if (state.procesando) return null;
     if (state.items.isEmpty) {
@@ -1971,6 +1991,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         'ventaBajoCostoAutorizadaPorId': ventaBajoCostoAutorizadaPorId,
       if (ventaVencidaAutorizadaPorId != null)
         'ventaVencidaAutorizadaPorId': ventaVencidaAutorizadaPorId,
+      // Mismo criterio que en cobrar(): aviso de venta repetida.
+      'avisarVentaRepetida': true,
+      if (ventaRepetidaConfirmada) 'ventaRepetidaConfirmada': true,
       if (pagosNoYape.isNotEmpty) ...{
         'metodoPago': pagosNoYape.first['metodo'],
         'montoRecibido': montoNoYape,
@@ -2009,7 +2032,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       // Los rebotes por lotes (vencido sin autorizar, lote agotado) se
       // manejan igual que en `cobrar()`: la página reintenta por este mismo
       // camino con la autorización adjunta.
-      if (result is Error<Venta> && await _manejarRebotePorLotes(result)) {
+      if (result is Error<Venta> &&
+          (_manejarReboteVentaRepetida(result) ||
+              await _manejarRebotePorLotes(result))) {
         return null;
       }
       emit(state.copyWith(
@@ -2161,6 +2186,9 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     /// enganchan a la venta al crearla. Es evidencia INTERNA: no viaja al
     /// comprobante ni al ticket del cliente.
     List<String> evidenciaIds = const [],
+    /// La cajera vio el aviso de venta repetida (409 `VENTA_REPETIDA`) y
+    /// confirmó que es OTRA venta.
+    bool ventaRepetidaConfirmada = false,
   }) async {
     // Guard de re-entrada: evita doble-cobro si el cajero da doble-tap
     // antes de que el botón se deshabilite por rebuild.
@@ -2258,6 +2286,10 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
         'ventaBajoCostoAutorizadaPorId': ventaBajoCostoAutorizadaPorId,
       if (ventaVencidaAutorizadaPorId != null)
         'ventaVencidaAutorizadaPorId': ventaVencidaAutorizadaPorId,
+      // Este app sabe mostrar el aviso de venta repetida (el backend solo
+      // lo controla si se le pide: la web y los APKs viejos no lo manejan).
+      'avisarVentaRepetida': true,
+      if (ventaRepetidaConfirmada) 'ventaRepetidaConfirmada': true,
       if (state.pagos.isNotEmpty) ...{
         'metodoPago': state.pagos.first['metodo'],
         'montoRecibido': state.totalPagado,
@@ -2319,6 +2351,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       //  - SALDO_ORDEN_DESACTUALIZADO: costo/adelanto cambiaron — se quita
       //    para que al re-agregarla cargue los montos vigentes (parchear
       //    solo el precio dejaría un adelanto stale en la línea).
+      if (_manejarReboteVentaRepetida(result)) return;
       if (await _manejarRebotePorLotes(result)) return;
       if (result.errorCode == 'ORDEN_YA_COBRADA' ||
           result.errorCode == 'SALDO_ORDEN_DESACTUALIZADO') {
