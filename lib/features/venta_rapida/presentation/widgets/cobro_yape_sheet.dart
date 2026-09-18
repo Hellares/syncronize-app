@@ -93,6 +93,10 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
   bool _procesando = false; // aprobando manual / dialog abierto
   bool _cerrado = false;
   final _refCtrl = TextEditingController(text: '00000');
+  // Yapes que ya entraron por el monto del tramo ANTES de la venta (el cobro
+  // automático no los toma): la cajera elige uno con el comprobante del cliente.
+  List<YapePrevio> _previos = const [];
+  String? _previoSel; // id del Yape del buzón elegido
 
   double get _pendiente => _r2(widget.montoTotal - _acumulado);
   double _r2(double v) => (v * 100).round() / 100;
@@ -164,6 +168,8 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       _qrUrl = null;
       _procesando = false;
       _refCtrl.text = '00000';
+      _previos = const [];
+      _previoSel = null;
     });
 
     // Creamos el charge (trae el QR) → mostramos contenido tras UNA llamada.
@@ -178,6 +184,7 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       _payAmount = cobro?['payAmount'] as double?;
       _qrUrl = qr as String?;
     });
+    _cargarPrevios();
 
     // Baseline para auto-avance (aún no entró pago, no cambia el monto).
     final prog = await widget.cubit.progresoVentaYape(widget.ventaId);
@@ -218,23 +225,41 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
     Navigator.of(context).pop(true);
   }
 
+  /// Yapes que ya entraron por el monto de este tramo ANTES de la venta. Si
+  /// el elegido ya no está (lo tomó otra caja), se deselecciona.
+  Future<void> _cargarPrevios() async {
+    final lista =
+        await widget.cubit.pagosYapePrevios(widget.ventaId, _chunkMonto);
+    if (!mounted || _cerrado) return;
+    setState(() {
+      _previos = lista;
+      if (!lista.any((p) => p.id == _previoSel)) _previoSel = null;
+    });
+  }
+
   /// El cajero verifica el comprobante del cliente y aprueba el chunk QR actual.
+  /// Con un Yape del buzón elegido, el backend guarda SU referencia real.
   Future<void> _aprobarChunk() async {
     setState(() => _procesando = true);
-    final ok = await widget.cubit.confirmarPagoManualYape(
+    final error = await widget.cubit.confirmarPagoManualYape(
       ventaId: widget.ventaId,
       monto: _chunkMonto,
       metodo: _chunkMetodo,
-      referencia: _refCtrl.text.trim().isEmpty ? '00000' : _refCtrl.text.trim(),
+      yapePagoId: _previoSel,
+      referencia: _previoSel != null
+          ? null
+          : (_refCtrl.text.trim().isEmpty ? '00000' : _refCtrl.text.trim()),
     );
     if (!mounted) return;
-    if (ok) {
+    if (error == null) {
       _avanzar();
     } else {
       setState(() => _procesando = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo registrar el pago')),
+        SnackBar(content: Text(error)),
       );
+      // Si el Yape elegido lo tomó otra caja, la lista se actualiza.
+      if (_previoSel != null) _cargarPrevios();
     }
   }
 
@@ -257,7 +282,7 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       return;
     }
     // Efectivo/Tarjeta/Transferencia → registrar directo y avanzar.
-    final ok = await widget.cubit.confirmarPagoManualYape(
+    final error = await widget.cubit.confirmarPagoManualYape(
       ventaId: widget.ventaId,
       monto: monto,
       metodo: metodo,
@@ -266,12 +291,12 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
       aceptaRiesgoBancarizacion: true, // el cajero confirma el cierre
     );
     if (!mounted) return;
-    if (ok) {
+    if (error == null) {
       _avanzar(monto);
     } else {
       setState(() => _procesando = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo registrar el pago')),
+        SnackBar(content: Text(error)),
       );
     }
   }
@@ -488,106 +513,117 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
         ),
         child: SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                // Progreso de saldo (si se cobra en partes: varios métodos o
-                // chunks por límite por transacción).
-                if (_acumulado > 0 ||
-                    widget.tramos.length > 1 ||
-                    widget.montoTotal > widget.maxPorTransaccion) ...[
-                  AppSubtitle(
-                    'Cobrado S/ ${_acumulado.toStringAsFixed(2)} de ${widget.montoTotal.toStringAsFixed(2)}  ·  falta S/ ${_pendiente.toStringAsFixed(2)}',
-                    fontSize: 11,
-                    color: AppColors.blueGrey,
-                  ),
-                  const SizedBox(height: 6),
-                ],
-                AppTitle(_chunkMetodo, fontSize: 18, color: AppColors.blue1),
-                const SizedBox(height: 8),
-                if (_iniciando)
-                  const SizedBox(
-                    height: 440,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else ...[
-                  AppSubtitle(
-                    _qrUrl != null
-                        ? 'Escanea el QR y paga exactamente:'
-                        : 'Pide al cliente que pague exactamente:',
-                    fontSize: 11,
-                    color: AppColors.blueGrey,
-                    textAlign: TextAlign.center,
-                  ),
-                  if (_qrUrl != null) ...[
-                    const SizedBox(height: 12),
-                    _buildQr(),
-                  ],
-                  const SizedBox(height: 10),
-                  AppTitle(
-                    'S/ ${monto.toStringAsFixed(2)}',
-                    fontSize: 34,
-                    color: AppColors.blue1,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildEstado(),
-                  const SizedBox(height: 16),
-                  CustomText(
-                    label: 'N° de operación (opcional)',
-                    controller: _refCtrl,
-                    fieldType: FieldType.number,
-                    hintText: 'N° op.',
-                    borderColor: AppColors.blueborder,
-                    maxLength: 12,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: CustomButton(
-                          text: 'Cancelar',
-                          isOutlined: true,
-                          borderColor: Colors.grey.shade400,
-                          textColor: Colors.grey.shade700,
-                          enableShadows: false,
-                          onPressed: _procesando ? null : _cancelar,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: CustomButton(
-                          text: _chunkMonto < _pendiente - 0.001
-                              ? 'Aprobar y seguir'
-                              : 'Aprobar pago',
-                          backgroundColor: AppColors.blue1,
-                          textColor: AppColors.white,
-                          isLoading: _procesando,
-                          onPressed: _procesando ? null : _aprobarChunk,
-                        ),
-                      ),
-                    ],
-                  ),
-                  TextButton.icon(
-                    onPressed: _procesando ? null : _pagarOtroMedio,
-                    icon: const Icon(Icons.swap_horiz, size: 16),
-                    label: const Text(
-                      'Pagar con otro medio',
-                      style: TextStyle(fontSize: 12),
+          // Scrollea si no entra: con la lista de Yapes previos la hoja puede
+          // pasar el alto de un celular chico.
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
+                  // Progreso de saldo (si se cobra en partes: varios métodos o
+                  // chunks por límite por transacción).
+                  if (_acumulado > 0 ||
+                      widget.tramos.length > 1 ||
+                      widget.montoTotal > widget.maxPorTransaccion) ...[
+                    AppSubtitle(
+                      'Cobrado S/ ${_acumulado.toStringAsFixed(2)} de ${widget.montoTotal.toStringAsFixed(2)}  ·  falta S/ ${_pendiente.toStringAsFixed(2)}',
+                      fontSize: 11,
+                      color: AppColors.blueGrey,
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  AppTitle(_chunkMetodo, fontSize: 18, color: AppColors.blue1),
+                  const SizedBox(height: 8),
+                  if (_iniciando)
+                    const SizedBox(
+                      height: 440,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else ...[
+                    AppSubtitle(
+                      _qrUrl != null
+                          ? 'Escanea el QR y paga exactamente:'
+                          : 'Pide al cliente que pague exactamente:',
+                      fontSize: 11,
+                      color: AppColors.blueGrey,
+                      textAlign: TextAlign.center,
+                    ),
+                    if (_qrUrl != null) ...[
+                      const SizedBox(height: 12),
+                      _buildQr(),
+                    ],
+                    const SizedBox(height: 10),
+                    AppTitle(
+                      'S/ ${monto.toStringAsFixed(2)}',
+                      fontSize: 34,
+                      color: AppColors.blue1,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildEstado(),
+                    if (_previos.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildPrevios(),
+                    ],
+                    const SizedBox(height: 16),
+                    // Con un Yape del buzón elegido, la referencia sale de él.
+                    if (_previoSel == null) ...[
+                      CustomText(
+                        label: 'N° de operación (opcional)',
+                        controller: _refCtrl,
+                        fieldType: FieldType.number,
+                        hintText: 'N° op.',
+                        borderColor: AppColors.blueborder,
+                        maxLength: 12,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomButton(
+                            text: 'Cancelar',
+                            isOutlined: true,
+                            borderColor: Colors.grey.shade400,
+                            textColor: Colors.grey.shade700,
+                            enableShadows: false,
+                            onPressed: _procesando ? null : _cancelar,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: CustomButton(
+                            text: _chunkMonto < _pendiente - 0.001
+                                ? 'Aprobar y seguir'
+                                : 'Aprobar pago',
+                            backgroundColor: AppColors.blue1,
+                            textColor: AppColors.white,
+                            isLoading: _procesando,
+                            onPressed: _procesando ? null : _aprobarChunk,
+                          ),
+                        ),
+                      ],
+                    ),
+                    TextButton.icon(
+                      onPressed: _procesando ? null : _pagarOtroMedio,
+                      icon: const Icon(Icons.swap_horiz, size: 16),
+                      label: const Text(
+                        'Pagar con otro medio',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -632,6 +668,99 @@ class _CobroYapeSheetState extends State<CobroYapeSheet> {
         ),
       ),
     );
+  }
+
+  /// Yapes que ya entraron por este monto ANTES de abrir el cobro. La cajera
+  /// lo confirma con el comprobante en el celular del cliente y toca uno;
+  /// tocarlo de nuevo lo suelta. Nunca se elige solo.
+  Widget _buildPrevios() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      decoration: BoxDecoration(
+        color: AppColors.blue1.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.blueborder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppSubtitle(
+            'Ya entró un Yape por este monto. ¿Es alguno de estos?',
+            fontSize: 11,
+            color: AppColors.blue1,
+          ),
+          const SizedBox(height: 4),
+          // La hoja no scrollea: la lista se queda en ~3 filas y scrollea sola.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 150),
+            child: SingleChildScrollView(
+              child: Column(children: _previos.map(_filaPrevio).toList()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filaPrevio(YapePrevio p) {
+    final sel = _previoSel == p.id;
+    final detalle = [
+      if (p.recibido != null) _hace(p.recibido!),
+      if (p.calzaNombre) 'coincide el nombre',
+    ].join(' · ');
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: _procesando
+          ? null
+          : () => setState(() => _previoSel = sel ? null : p.id),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              sel ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              size: 20,
+              color: sel ? AppColors.blue1 : Colors.grey.shade500,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppSubtitle(
+                    p.remitente,
+                    fontSize: 12,
+                    color: AppColors.blue1,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (detalle.isNotEmpty)
+                    AppSubtitle(
+                      detalle,
+                      fontSize: 10,
+                      color: p.calzaNombre ? AppColors.green : AppColors.blueGrey,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            AppSubtitle(
+              'S/ ${p.monto.toStringAsFixed(2)}',
+              fontSize: 12,
+              color: AppColors.blue1,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _hace(DateTime recibido) {
+    final min = DateTime.now().difference(recibido).inMinutes;
+    if (min < 1) return 'hace un momento';
+    if (min < 60) return 'hace $min min';
+    return 'hace ${min ~/ 60} h';
   }
 
   Widget _buildEstado() {

@@ -47,6 +47,16 @@ part 'venta_rapida_state.dart';
 /// errores de redondeo a 2 decimales en cada línea).
 const double _kPenPaymentTolerance = 0.01;
 
+/// Yape que ya entró al buzón por el monto del cobro ANTES de la venta
+/// (`calzaNombre`: el remitente calza con el cliente de la venta).
+typedef YapePrevio = ({
+  String id,
+  String remitente,
+  double monto,
+  DateTime? recibido,
+  bool calzaNombre,
+});
+
 @lazySingleton
 class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   final CobrarVentaRapidaUseCase _cobrarUseCase;
@@ -2053,14 +2063,35 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     return (estado: '', montoRecibido: 0.0);
   }
 
+  /// Yapes que YA entraron por el monto de este tramo y siguen sin usar: el
+  /// cliente pagó ANTES de la venta, así que el cobro automático no los toma.
+  /// La cajera elige uno en la hoja. Lista vacía si no hay o si falla.
+  Future<List<YapePrevio>> pagosYapePrevios(String ventaId, double monto) async {
+    final r = await _repository.pagosYapePrevios(ventaId, monto: monto);
+    if (r is! Success<List<Map<String, dynamic>>>) return const [];
+    return r.data.map((p) {
+      final nombre = (p['senderName'] as String?)?.trim() ?? '';
+      return (
+        id: p['id'] as String,
+        remitente: nombre.isEmpty ? 'Sin nombre' : nombre,
+        monto: (p['amount'] as num?)?.toDouble() ?? 0.0,
+        recibido: DateTime.tryParse(p['receivedAt']?.toString() ?? '')?.toLocal(),
+        calzaNombre: p['calzaNombre'] == true,
+      );
+    }).toList();
+  }
+
   /// Registra el pago manualmente (fallback con el screenshot del Yape) y
-  /// marca la venta pagada. Devuelve true si quedó registrado.
-  Future<bool> confirmarPagoManualYape({
+  /// marca la venta pagada. Con `yapePagoId` (un Yape del buzón elegido en
+  /// la hoja) el backend lo verifica y guarda SU referencia real. Devuelve
+  /// null si quedó registrado, o el mensaje de error.
+  Future<String?> confirmarPagoManualYape({
     required String ventaId,
     required double monto,
     required String metodo, // YAPE | PLIN | EFECTIVO | TARJETA | TRANSFERENCIA
     String? referencia,
     String? banco,
+    String? yapePagoId,
     bool aceptaRiesgoBancarizacion = false,
   }) async {
     final result = await _repository.registrarPago(ventaId, {
@@ -2068,9 +2099,13 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       'monto': monto,
       if (referencia != null && referencia.isNotEmpty) 'referencia': referencia,
       if (banco != null && banco.isNotEmpty) 'banco': banco,
+      if (yapePagoId != null) 'yapePagoId': yapePagoId,
       if (aceptaRiesgoBancarizacion) 'aceptaRiesgoBancarizacion': true,
     });
-    return result is Success<Venta>;
+    if (result is Success<Venta>) return null;
+    return result is Error<Venta>
+        ? result.message
+        : 'No se pudo registrar el pago';
   }
 
   /// Cancela el cobro Yape/Plin pendiente (cajero pulsa "Cancelar" en la hoja):

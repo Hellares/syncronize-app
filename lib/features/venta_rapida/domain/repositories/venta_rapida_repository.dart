@@ -25,6 +25,13 @@ abstract class VentaRapidaRepository {
   /// { habilitado, payAmount?, chargeId?, qrYapeUrl?, qrPlinUrl? }.
   Future<Resource<Map<String, dynamic>>> cobroYape(String ventaId, {double? monto});
 
+  /// Yapes que ya entraron al buzón por el monto del cobro y siguen sin usar
+  /// (el cliente pagó ANTES de la venta) — la cajera elige uno en la hoja.
+  Future<Resource<List<Map<String, dynamic>>>> pagosYapePrevios(
+    String ventaId, {
+    double? monto,
+  });
+
   /// Estado actual de la venta (polling de respaldo de la hoja Yape).
   Future<Resource<String>> estadoVenta(String ventaId);
 

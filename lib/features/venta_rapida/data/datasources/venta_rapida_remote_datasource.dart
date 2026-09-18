@@ -41,6 +41,24 @@ class VentaRapidaRemoteDataSource {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Yapes que YA entraron al buzón por el monto del cobro y siguen sin usar:
+  /// el cliente pagó ANTES de la venta (el cobro automático no los empareja).
+  /// Devuelve la lista `pagos`: { id, senderName, amount, provider,
+  /// receivedAt, calzaNombre }.
+  Future<List<Map<String, dynamic>>> pagosYapePrevios(
+    String ventaId, {
+    double? monto,
+  }) async {
+    final response = await _dioClient.get(
+      '/ventas/$ventaId/cobro-yape/pagos-previos',
+      queryParameters: monto != null ? {'monto': monto} : null,
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return ((data['pagos'] as List?) ?? const [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
   /// Devuelve el estado actual de una venta (para el polling de respaldo de la
   /// hoja Yape: si el FCM tarda/se pierde, confirmamos por aquí).
   Future<String> estadoVenta(String ventaId) async {

@@ -75,6 +75,23 @@ class VentaRapidaRepositoryImpl implements VentaRapidaRepository {
   }
 
   @override
+  Future<Resource<List<Map<String, dynamic>>>> pagosYapePrevios(
+    String ventaId, {
+    double? monto,
+  }) async {
+    if (!await _network.isConnected) {
+      return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final data = await _remote.pagosYapePrevios(ventaId, monto: monto);
+      return Success(data);
+    } catch (e) {
+      return _errorHandler.handleException(e,
+          context: 'VentaRapida.pagosYapePrevios');
+    }
+  }
+
+  @override
   Future<Resource<Map<String, dynamic>>> progresoVenta(String ventaId) async {
     if (!await _network.isConnected) {
       return Error('No hay conexion a internet', errorCode: 'NETWORK_ERROR');
