@@ -1,4 +1,5 @@
 import '../../../../core/utils/resource.dart';
+import '../entities/permisos_por_rol.dart';
 import '../entities/registro_usuario_response.dart';
 import '../entities/usuario.dart';
 import '../entities/usuario_filtros.dart';
@@ -72,4 +73,9 @@ abstract class UsuarioRepository {
     required String empresaId,
     required String usuarioId,
   });
+
+  /// Qué permite cada rol y qué suma cada permiso especial, calculado por el
+  /// backend. La ficha de usuario lo usa para ofrecer solo lo que ese
+  /// usuario va a poder ver.
+  Future<Resource<PermisosPorRol>> getPermisosPorRol();
 }

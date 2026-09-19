@@ -1,3 +1,4 @@
+import '../../features/empresa/domain/entities/empresa_permissions.dart';
 import '../../features/empresa/presentation/widgets/accesos_rapidos_section.dart'
     show AccesosRapidosCatalogo;
 
@@ -160,4 +161,114 @@ class MenuDrawerCatalogo {
   /// Todos los ids del árbol, para validar y para tests.
   static List<String> get todosLosIds =>
       [for (final (_, items) in secciones) ...items.map((i) => i.$1)];
+
+  /// Si el ítem del menú le aparece a quien tenga estos permisos, SIN contar
+  /// lo que el admin le haya ocultado.
+  ///
+  /// Es la ÚNICA definición: el drawer la usa para pintar cada ítem y la ficha
+  /// de usuario para ofrecer solo las casillas que ese rol puede ver. Antes el
+  /// drawer tenía sus reglas y la ficha listaba todo, así que a un técnico se
+  /// le podía "ocultar" Caja —que nunca iba a ver— sin ningún aviso.
+  ///
+  /// Cada regla incluye la de su sección: un ítem no aparece si su sección
+  /// está cerrada. Un id sin regla se considera visible (y el test lo marca).
+  static bool puedeVer(String id, EmpresaPermissions p) {
+    final regla = reglas[id];
+    return regla == null || regla(p);
+  }
+
+  static bool _ventas(EmpresaPermissions p) =>
+      p.canViewCotizaciones ||
+      p.canViewVentas ||
+      p.canViewDevoluciones ||
+      p.canViewDiscounts ||
+      p.canViewReports;
+
+  static bool _servicios(EmpresaPermissions p) =>
+      p.canViewServices ||
+      p.canManageOrders ||
+      p.canManageServices ||
+      p.canManageSettings;
+
+  static bool _tesoreria(EmpresaPermissions p) =>
+      p.canViewCaja || p.canManageCaja || p.canViewReports || p.canManageSettings;
+
+  static bool _facturacion(EmpresaPermissions p) =>
+      p.canManageInvoices || p.canViewReports;
+
+  /// La sección Inventario entera es de quien gestiona productos.
+  static bool _inventario(EmpresaPermissions p) => p.canManageProducts;
+
+  static final Map<String, bool Function(EmpresaPermissions)> reglas = {
+    // ── Ventas ──
+    AccesosRapidosCatalogo.ventaRapida: (p) => _ventas(p) && p.canManageVentas,
+    AccesosRapidosCatalogo.ventaAvanzada: (p) =>
+        _ventas(p) && p.canManageVentas,
+    AccesosRapidosCatalogo.cotizaciones: (p) =>
+        _ventas(p) && p.canViewCotizaciones,
+    AccesosRapidosCatalogo.ventas: (p) => _ventas(p) && p.canViewVentas,
+    AccesosRapidosCatalogo.colaPos: (p) => _ventas(p) && p.canViewVentas,
+    ventasDevoluciones: (p) => _ventas(p) && p.canViewDevoluciones,
+    ventasReportes: (p) => _ventas(p) && p.canViewStatistics,
+    ventasPoliticasDescuento: (p) => _ventas(p) && p.canViewDiscounts,
+    ventasTipoCambio: (p) => _ventas(p) && p.canViewVentas,
+
+    // ── Servicios ──
+    AccesosRapidosCatalogo.servicios: (p) => _servicios(p) && p.canViewServices,
+    AccesosRapidosCatalogo.ordenesServicio: (p) =>
+        _servicios(p) && p.canManageOrders,
+    serviciosCitas: (p) => _servicios(p) && p.canManageOrders,
+    serviciosHistorialCliente: (p) => _servicios(p) && p.canManageOrders,
+    serviciosPlantillas: (p) => _servicios(p) && p.canManageServices,
+    serviciosTercerizacion: (p) => _servicios(p) && p.canManageOrders,
+    serviciosVinculaciones: (p) => _servicios(p) && p.canManageSettings,
+
+    // ── Tesorería ──
+    AccesosRapidosCatalogo.caja: (p) => _tesoreria(p) && p.canViewCaja,
+    AccesosRapidosCatalogo.monitorCajas: (p) => _tesoreria(p) && p.canViewCaja,
+    AccesosRapidosCatalogo.historialCajas: (p) =>
+        _tesoreria(p) && p.canViewCaja,
+    AccesosRapidosCatalogo.tesoreria: (p) => _tesoreria(p) && p.canViewCaja,
+    tesoreriaConsolidado: (p) => _tesoreria(p) && p.canViewCaja,
+    AccesosRapidosCatalogo.cajaChica: (p) => _tesoreria(p) && p.canManageCaja,
+    tesoreriaGastosRecurrentes: (p) =>
+        _tesoreria(p) && p.canViewGastosRecurrentes,
+    tesoreriaCuentasBancarias: (p) => _tesoreria(p) && p.canViewReports,
+    tesoreriaCuentasRecaudacion: (p) => _tesoreria(p) && p.canViewReports,
+    tesoreriaAgentesBancarios: (p) => _tesoreria(p) && p.canManageSettings,
+    AccesosRapidosCatalogo.cuentasPorCobrar: (p) =>
+        _tesoreria(p) && p.canViewReports,
+
+    // ── Facturación SUNAT ──
+    AccesosRapidosCatalogo.facturacion: (p) =>
+        _facturacion(p) && p.canManageInvoices,
+    AccesosRapidosCatalogo.guiasRemision: (p) =>
+        _facturacion(p) && p.canManageInvoices,
+    facturacionCatalogosGre: (p) => _facturacion(p) && p.canManageSettings,
+    facturacionAnulaciones: (p) => _facturacion(p) && p.canManageSettings,
+    AccesosRapidosCatalogo.flujoDocs: (p) => _facturacion(p) && p.canViewVentas,
+    facturacionCorrelativos: (p) => _facturacion(p) && p.canViewReports,
+
+    // ── Inventario ──
+    invStockSede: _inventario,
+    invAlertasStock: _inventario,
+    invTransferencias: _inventario,
+    invIncidenciasTransferencia: _inventario,
+    invReportesIncidencia: _inventario,
+    invKardex: _inventario,
+    invProduccion: _inventario,
+    invAbrirBultos: _inventario,
+    invTrazabilidad: _inventario,
+    invInventarioFisico: _inventario,
+    invStockUbicacion: _inventario,
+    invGestionUbicaciones: _inventario,
+    invStockMinMax: _inventario,
+    invMerma: _inventario,
+    invValorizacion: _inventario,
+    invReorden: _inventario,
+    invRotacion: _inventario,
+    invHistorialPrecios: _inventario,
+    AccesosRapidosCatalogo.monitorProductos: _inventario,
+    invCodigosBarras: _inventario,
+  };
 }

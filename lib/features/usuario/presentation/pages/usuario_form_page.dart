@@ -27,7 +27,10 @@ import '../../../empresa/presentation/widgets/accesos_rapidos_section.dart'
 import '../../../../core/utils/granular_permissions_catalog.dart';
 import '../../../../core/utils/menu_drawer_catalogo.dart';
 import '../../../../core/utils/rol_presets.dart';
+import '../../../empresa/domain/entities/empresa_permissions.dart';
+import '../../domain/entities/permisos_por_rol.dart';
 import '../../domain/entities/usuario_filtros.dart';
+import '../../domain/usecases/get_permisos_por_rol_usecase.dart';
 import '../bloc/usuario_form/usuario_form_cubit.dart';
 import '../bloc/usuario_form/usuario_form_state.dart';
 import '../widgets/asignar_rol_dialog.dart' show SedeOption;
@@ -67,6 +70,10 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
   /// Permisos granulares activos (catálogo extensible).
   final Set<String> _permisosEspeciales = {};
 
+  /// Qué permite cada rol, según el backend. Null mientras carga o si falló:
+  /// en ese caso la ficha ofrece todas las casillas, como antes.
+  PermisosPorRol? _permisosPorRol;
+
   /// Sedes activas disponibles de la empresa (leídas del EmpresaContext).
   List<SedeOption> _sedesDisponibles = [];
   /// IDs de sedes seleccionadas para asignar al nuevo usuario.
@@ -90,10 +97,11 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
     super.initState();
     _cubit = locator<UsuarioFormCubit>();
     _loadEmpresaId();
-    // Default: TODOS los accesos rápidos arrancan desmarcados (ocultos).
-    // El admin marca explícitamente los que quiere que el usuario vea —
-    // política conservadora: por defecto el usuario nuevo no ve ningún
-    // acceso rápido en su dashboard hasta que el admin lo habilite.
+    _cargarPermisosPorRol();
+    // Hasta que se elige el rol, los accesos rápidos arrancan desmarcados.
+    // Al elegirlo se aplica su configuración estándar (`_aplicarPresetDelRol`):
+    // antes había que tocar el botón a mano, y el técnico que no lo tocaba
+    // quedaba sin ningún acceso, "Órdenes de Servicio" incluido.
     _accesosRapidosOcultos.addAll(
       AccesosRapidosCatalogo.items.map((e) => e.$1),
     );
@@ -107,6 +115,20 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
   void _loadEmpresaId() {
     final localStorage = locator<LocalStorageService>();
     _empresaId = localStorage.getString(StorageConstants.tenantId);
+  }
+
+  Future<void> _cargarPermisosPorRol() async {
+    final result = await locator<GetPermisosPorRolUseCase>()();
+    if (!mounted || result is! Success<PermisosPorRol>) return;
+    setState(() => _permisosPorRol = result.data);
+  }
+
+  /// Permisos que tendrá el usuario con el rol y los permisos especiales
+  /// elegidos. Null = todavía no se sabe, y se ofrece todo.
+  EmpresaPermissions? get _permisosDelUsuario {
+    final rol = _selectedRol;
+    if (rol == null) return null;
+    return _permisosPorRol?.paraUsuario(rol.value, _permisosEspeciales);
   }
 
   /// Carga sedes activas del EmpresaContext. Si la empresa tiene una
@@ -664,6 +686,9 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
               borderColor: AppColors.blue2,
               onChanged: (value) {
                 setState(() => _selectedRol = value);
+                // Se parte de la configuración estándar del rol; el admin
+                // ajusta encima. El botón de abajo la vuelve a aplicar.
+                _aplicarPresetDelRol();
               },
             ),
             if (_selectedRol != null) ...[
@@ -893,9 +918,23 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
   /// negocios. Administración y Catálogos quedaron afuera: ya las cierran los
   /// permisos del rol, y sumarlas era ruido.
   Widget _buildMenuDrawerSeleccion() {
-    final ids = MenuDrawerCatalogo.todosLosIds;
-    final visiblesCount =
-        ids.where((id) => !_accesosRapidosOcultos.contains(id)).length;
+    // Solo las opciones que este rol ve en el menú: ocultar las demás no
+    // cambia nada y confunde.
+    final permisos = _permisosDelUsuario;
+    final secciones = [
+      for (final (seccion, items) in MenuDrawerCatalogo.secciones)
+        (
+          seccion,
+          items
+              .where((e) =>
+                  permisos == null || MenuDrawerCatalogo.puedeVer(e.$1, permisos))
+              .toList(),
+        ),
+    ].where((s) => s.$2.isNotEmpty).toList();
+    final visiblesCount = secciones
+        .expand((s) => s.$2)
+        .where((e) => !_accesosRapidosOcultos.contains(e.$1))
+        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -914,7 +953,7 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
             style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 4),
-          for (final (seccion, items) in MenuDrawerCatalogo.secciones) ...[
+          for (final (seccion, items) in secciones) ...[
             Padding(
               padding: const EdgeInsets.only(top: 6, bottom: 2),
               child: Row(
@@ -978,8 +1017,15 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
   }
 
   Widget _buildAccesosRapidosSeleccion() {
-    final totalAccesos = AccesosRapidosCatalogo.items.length;
-    final visiblesCount = totalAccesos - _accesosRapidosOcultos.length;
+    // Solo los accesos que este rol puede ver: a un técnico ya no se le
+    // ofrece "Venta Rápida" ni "Caja".
+    final permisos = _permisosDelUsuario;
+    final accesos = AccesosRapidosCatalogo.items
+        .where((e) =>
+            permisos == null || AccesosRapidosCatalogo.puedeVer(e.$1, permisos))
+        .toList();
+    final visiblesCount =
+        accesos.where((e) => !_accesosRapidosOcultos.contains(e.$1)).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -998,11 +1044,16 @@ class _UsuarioFormPageState extends State<UsuarioFormPage> {
             style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 4),
+          if (accesos.isEmpty)
+            Text(
+              'Con este rol no tiene accesos rápidos en el dashboard.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
           // Grid de 2 columnas con checkboxes compactos.
           Wrap(
             spacing: 4,
             runSpacing: 0,
-            children: AccesosRapidosCatalogo.items.map((entry) {
+            children: accesos.map((entry) {
               final id = entry.$1;
               final label = entry.$2;
               final visible = !_accesosRapidosOcultos.contains(id);

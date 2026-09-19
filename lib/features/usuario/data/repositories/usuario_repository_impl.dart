@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/network/network_info.dart';
 import '../../../../core/utils/resource.dart';
+import '../../domain/entities/permisos_por_rol.dart';
 import '../../domain/entities/registro_usuario_response.dart';
 import '../../domain/entities/usuario.dart';
 import '../../domain/entities/usuario_filtros.dart';
@@ -192,6 +193,23 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
         usuarioId: usuarioId,
       );
       return Success(null);
+    } catch (e) {
+      final message = e.toString().replaceFirst('Exception: ', '');
+      return Error(message);
+    }
+  }
+
+  @override
+  Future<Resource<PermisosPorRol>> getPermisosPorRol() async {
+    if (!await _networkInfo.isConnected) {
+      return Error(
+        'No hay conexión a internet',
+        errorCode: 'NETWORK_ERROR',
+      );
+    }
+
+    try {
+      return Success(await _remoteDataSource.getPermisosPorRol());
     } catch (e) {
       final message = e.toString().replaceFirst('Exception: ', '');
       return Error(message);

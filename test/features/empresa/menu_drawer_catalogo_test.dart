@@ -71,6 +71,7 @@ void main() {
 
   _guardiaListaCompartida();
   _paridadConElBackend();
+  _drawerUsaLasReglasDelCatalogo(fuente);
 
   test('el árbol no tiene ids repetidos', () {
     final ids = MenuDrawerCatalogo.todosLosIds;
@@ -164,5 +165,52 @@ void _paridadConElBackend() {
       isEmpty,
       reason: 'Ids que el backend acepta y ya no existen en el app',
     );
+  });
+}
+
+/// La regla de cada ítem ocultable vive en `MenuDrawerCatalogo.reglas`, y la
+/// ficha de usuario la usa para ofrecer solo lo que ese rol ve en el menú.
+///
+/// 🔴 Si un ítem del drawer vuelve a tener su propio `visible: can(...)`, las
+/// dos se pueden separar y la ficha vuelve a ofrecer casillas que no hacen
+/// nada —o a esconder las que sí—. Por eso el drawer tiene que usar `ver(id)`.
+void _drawerUsaLasReglasDelCatalogo(String fuente) {
+  test('🔴 cada ítem del árbol usa ver(id) en el drawer, con su mismo id', () {
+    final lineas = fuente.split('\n');
+    final enArbol = MenuDrawerCatalogo.todosLosIds.toSet();
+    final porNombre = <String, String>{};
+    for (final archivo in [
+      'lib/core/utils/menu_drawer_catalogo.dart',
+      'lib/features/empresa/presentation/widgets/accesos_rapidos_section.dart',
+    ]) {
+      for (final m in RegExp(r"static const (\w+) =\s*'([^']+)';")
+          .allMatches(File(archivo).readAsStringSync())) {
+        porNombre[m.group(1)!] = m.group(2)!;
+      }
+    }
+
+    final sinRegla = <String>[];
+    var revisados = 0;
+    for (var i = 0; i < lineas.length; i++) {
+      final m = RegExp(r'^(\s*)tile\($').firstMatch(lineas[i]);
+      if (m == null) continue;
+      final cierre = '${m.group(1)})';
+      var j = i;
+      while (lineas[j] != '$cierre,' && lineas[j] != cierre) {
+        j++;
+      }
+      final bloque = lineas.sublist(i, j + 1).join('\n');
+      final oc = RegExp(
+        r'ocultableId: ((MenuDrawerCatalogo|AccesosRapidosCatalogo)\.(\w+)),',
+      ).firstMatch(bloque);
+      if (oc == null || !enArbol.contains(porNombre[oc.group(3)])) continue;
+      revisados++;
+      if (!bloque.contains('visible: ver(${oc.group(1)}),')) {
+        sinRegla.add(oc.group(1)!);
+      }
+    }
+
+    expect(revisados, MenuDrawerCatalogo.todosLosIds.length);
+    expect(sinRegla, isEmpty);
   });
 }

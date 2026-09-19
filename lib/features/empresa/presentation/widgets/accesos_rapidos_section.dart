@@ -11,9 +11,10 @@ import '../../domain/entities/empresa_permissions.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
 
-/// Item de acceso rápido. Cada uno declara qué permiso necesita; si el
-/// usuario actual no lo tiene, la card se oculta. La lista visible se
-/// reorganiza en filas de 5 — sin huecos ni cards inútiles.
+/// Item de acceso rápido. El permiso que necesita está en
+/// [AccesosRapidosCatalogo.reglas]; si el usuario actual no lo tiene, la card
+/// se oculta. La lista visible se reorganiza en filas de 5 — sin huecos ni
+/// cards inútiles.
 ///
 /// El `id` es estable y se usa para guardar las preferencias del
 /// usuario en `UsuarioSedeRol.accesosRapidosOcultos`. NO cambiarlos
@@ -24,7 +25,6 @@ class _AccesoItem {
   final String label;
   final Color color;
   final String route;
-  final bool Function(EmpresaPermissions p) puedeVer;
   final int badge;
 
   const _AccesoItem({
@@ -33,9 +33,10 @@ class _AccesoItem {
     required this.label,
     required this.color,
     required this.route,
-    required this.puedeVer,
     this.badge = 0,
   });
+
+  bool puedeVer(EmpresaPermissions p) => AccesosRapidosCatalogo.puedeVer(id, p);
 }
 
 /// Catálogo público de IDs disponibles. Lo usa `usuario_form_page` para
@@ -87,6 +88,48 @@ class AccesosRapidosCatalogo {
     (sorteos, 'Sorteos'),
     (config, 'Configuración'),
   ];
+
+  /// Si el acceso le aparece a quien tenga estos permisos, SIN contar lo que
+  /// el admin le haya ocultado.
+  ///
+  /// Es la ÚNICA definición: el dashboard la usa para pintar las cards y la
+  /// ficha de usuario para ofrecer solo las casillas que ese rol puede ver.
+  /// Antes la ficha listaba los 21 para cualquier rol, y a un técnico se le
+  /// marcó "Venta Rápida" —que nunca iba a ver— y se le desmarcó "Órdenes de
+  /// Servicio", sin que nada avisara. Un id sin regla se considera visible (y
+  /// el test lo marca).
+  static bool puedeVer(String id, EmpresaPermissions p) {
+    final regla = reglas[id];
+    return regla == null || regla(p);
+  }
+
+  static final Map<String, bool Function(EmpresaPermissions)> reglas = {
+    ventaRapida: (p) => p.canManageVentas,
+    ventaAvanzada: (p) => p.canManageVentas,
+    colaPos: (p) => p.canViewVentas,
+    ventas: (p) => p.canViewVentas,
+    cotizaciones: (p) => p.canViewCotizaciones,
+    sorteos: (p) => p.canViewVentas,
+    caja: (p) => p.canViewCaja,
+    monitorCajas: (p) => p.canViewCaja,
+    historialCajas: (p) => p.canViewCaja,
+    // Consolida el dinero de TODAS las sedes: es una vista de gestión, no de
+    // mostrador.
+    tesoreria: (p) => p.canViewReports || p.canViewStatistics,
+    cajaChica: (p) => p.canViewCaja,
+    // Es la deuda de los clientes: la misma llave que ver ventas.
+    cuentasPorCobrar: (p) => p.canViewVentas,
+    finanzas: (p) => p.canViewReports || p.canViewStatistics,
+    facturacion: (p) => p.canManageInvoices,
+    productos: (p) => p.canViewProducts,
+    servicios: (p) => p.canViewServices,
+    monitorProductos: (p) => p.canViewProducts,
+    ordenesServicio: (p) => p.canManageOrders,
+    flujoDocs: (p) => p.canViewVentas,
+    // La GRE es un documento electrónico: misma llave que facturación.
+    guiasRemision: (p) => p.canManageInvoices,
+    config: (p) => p.canManageSettings,
+  };
 }
 
 class AccesosRapidosSection extends StatefulWidget {
@@ -305,7 +348,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'V. Rápida',
           color: AppColors.green,
           route: '/empresa/venta-rapida',
-          puedeVer: (p) => p.canManageVentas,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.ventaAvanzada,
@@ -313,7 +355,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'V. Avanzada',
           color: AppColors.green,
           route: '/empresa/ventas/nueva',
-          puedeVer: (p) => p.canManageVentas,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.colaPos,
@@ -321,7 +362,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Cola POS',
           color: AppColors.orange,
           route: '/empresa/cola-pos',
-          puedeVer: (p) => p.canViewVentas,
           badge: colaPosCount,
         ),
         _AccesoItem(
@@ -330,7 +370,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: esOperativoVentas ? 'Mis Ventas' : 'Ventas',
           color: Colors.indigo,
           route: '/empresa/ventas',
-          puedeVer: (p) => p.canViewVentas,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.cotizaciones,
@@ -338,7 +377,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Cotizaciones',
           color: Colors.purple,
           route: '/empresa/cotizaciones',
-          puedeVer: (p) => p.canViewCotizaciones,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.sorteos,
@@ -346,7 +384,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Sorteos',
           color: Colors.deepPurple,
           route: '/empresa/sorteos',
-          puedeVer: (p) => p.canViewVentas,
         ),
 
         // Caja & finanzas
@@ -356,7 +393,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Caja',
           color: AppColors.blue1,
           route: '/empresa/caja',
-          puedeVer: (p) => p.canViewCaja,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.monitorCajas,
@@ -364,7 +400,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Monitor Cajas',
           color: Colors.deepOrange,
           route: '/empresa/caja/monitor',
-          puedeVer: (p) => p.canViewCaja,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.historialCajas,
@@ -372,7 +407,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Historial Cajas',
           color: Colors.brown,
           route: '/empresa/caja/historial',
-          puedeVer: (p) => p.canViewCaja,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.tesoreria,
@@ -380,9 +414,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Tesorería',
           color: Colors.teal,
           route: '/empresa/tesoreria',
-          // Consolida el dinero de TODAS las sedes: es una vista de gestión,
-          // no de mostrador.
-          puedeVer: (p) => p.canViewReports || p.canViewStatistics,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.cajaChica,
@@ -390,7 +421,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Caja Chica',
           color: Colors.deepPurple,
           route: '/empresa/caja-chica',
-          puedeVer: (p) => p.canViewCaja,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.cuentasPorCobrar,
@@ -398,8 +428,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Por Cobrar',
           color: Colors.redAccent,
           route: '/empresa/cuentas-por-cobrar',
-          // Es la deuda de los clientes: la misma llave que ver ventas.
-          puedeVer: (p) => p.canViewVentas,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.finanzas,
@@ -407,7 +435,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Finanzas',
           color: Colors.deepPurple,
           route: '/empresa/resumen-financiero',
-          puedeVer: (p) => p.canViewReports || p.canViewStatistics,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.facturacion,
@@ -415,7 +442,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Facturación',
           color: Colors.teal,
           route: '/empresa/monitor-facturacion',
-          puedeVer: (p) => p.canManageInvoices,
         ),
 
         // Catálogo
@@ -425,7 +451,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Productos',
           color: Colors.blue.shade800,
           route: '/empresa/productos',
-          puedeVer: (p) => p.canViewProducts,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.servicios,
@@ -433,7 +458,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Servicios',
           color: Colors.blue,
           route: '/empresa/servicios',
-          puedeVer: (p) => p.canViewServices,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.monitorProductos,
@@ -441,7 +465,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Monitor Prod.',
           color: Colors.deepOrange,
           route: '/empresa/monitor-productos',
-          puedeVer: (p) => p.canViewProducts,
         ),
 
         // Operativo / herramientas
@@ -451,7 +474,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Órdenes Serv.',
           color: Colors.orange.shade700,
           route: '/empresa/ordenes',
-          puedeVer: (p) => p.canManageOrders,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.flujoDocs,
@@ -459,7 +481,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Flujo Docs',
           color: Colors.deepPurple,
           route: '/empresa/flujo-documentos',
-          puedeVer: (p) => p.canViewVentas,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.guiasRemision,
@@ -467,8 +488,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Guías Remisión',
           color: Colors.indigo,
           route: '/empresa/guias-remision',
-          // La GRE es un documento electrónico: misma llave que facturación.
-          puedeVer: (p) => p.canManageInvoices,
         ),
         _AccesoItem(
           id: AccesosRapidosCatalogo.config,
@@ -476,7 +495,6 @@ class _AccesosRapidosSectionState extends State<AccesosRapidosSection> {
           label: 'Configuración',
           color: Colors.blueGrey,
           route: '/empresa/configuracion',
-          puedeVer: (p) => p.canManageSettings,
         ),
       ];
   }

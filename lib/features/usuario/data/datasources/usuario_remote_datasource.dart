@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/usuario_filtros.dart';
+import '../models/permisos_por_rol_model.dart';
 import '../models/registro_usuario_response_model.dart';
 
 /// DataSource remoto para usuarios
@@ -67,6 +68,15 @@ class UsuarioRemoteDataSource {
     );
 
     return response.data as Map<String, dynamic>;
+  }
+
+  /// Qué permite cada rol y qué suma cada permiso especial.
+  Future<PermisosPorRolModel> getPermisosPorRol() async {
+    final response = await _dioClient.get(
+      '${ApiConstants.usuarios}/permisos-por-rol',
+    );
+
+    return PermisosPorRolModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Actualiza un usuario

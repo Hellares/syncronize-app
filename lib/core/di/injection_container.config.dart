@@ -1505,6 +1505,8 @@ import '../../features/usuario/domain/repositories/usuario_repository.dart'
     as _i662;
 import '../../features/usuario/domain/usecases/delete_usuario_usecase.dart'
     as _i353;
+import '../../features/usuario/domain/usecases/get_permisos_por_rol_usecase.dart'
+    as _i99;
 import '../../features/usuario/domain/usecases/get_usuario_usecase.dart'
     as _i1039;
 import '../../features/usuario/domain/usecases/get_usuarios_usecase.dart'
@@ -2599,6 +2601,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i353.DeleteUsuarioUseCase>(
       () => _i353.DeleteUsuarioUseCase(gh<_i662.UsuarioRepository>()),
+    );
+    gh.factory<_i99.GetPermisosPorRolUseCase>(
+      () => _i99.GetPermisosPorRolUseCase(gh<_i662.UsuarioRepository>()),
     );
     gh.factory<_i1039.GetUsuarioUseCase>(
       () => _i1039.GetUsuarioUseCase(gh<_i662.UsuarioRepository>()),

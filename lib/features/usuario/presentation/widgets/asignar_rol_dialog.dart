@@ -7,10 +7,15 @@ import 'package:syncronize/core/widgets/monto_selector_slider.dart';
 import 'package:syncronize/core/widgets/custom_checkbox_tile.dart';
 import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/features/auth/presentation/widgets/widgets.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/granular_permissions_catalog.dart';
+import '../../../../core/utils/resource.dart';
 import '../../../../core/utils/rol_presets.dart';
+import '../../../empresa/domain/entities/empresa_permissions.dart';
+import '../../domain/entities/permisos_por_rol.dart';
 import '../../domain/entities/usuario.dart';
 import '../../domain/entities/usuario_filtros.dart';
+import '../../domain/usecases/get_permisos_por_rol_usecase.dart';
 import '../../../empresa/presentation/widgets/accesos_rapidos_section.dart'
     show AccesosRapidosCatalogo;
 
@@ -48,9 +53,24 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
   /// `UsuarioSedeRol.permisos`.
   final Set<String> _permisosEspeciales = {};
 
+  /// Qué permite cada rol, según el backend. Null mientras carga o si falló:
+  /// en ese caso se ofrecen todas las casillas, como antes.
+  PermisosPorRol? _permisosPorRol;
+
+  Future<void> _cargarPermisosPorRol() async {
+    final result = await locator<GetPermisosPorRolUseCase>()();
+    if (!mounted || result is! Success<PermisosPorRol>) return;
+    setState(() => _permisosPorRol = result.data);
+  }
+
+  /// Permisos que tendrá con el rol y los permisos especiales elegidos.
+  EmpresaPermissions? get _permisosDelUsuario =>
+      _permisosPorRol?.paraUsuario(_rolSeleccionado.value, _permisosEspeciales);
+
   @override
   void initState() {
     super.initState();
+    _cargarPermisosPorRol();
     // Inicializar con el rol actual del usuario
     _rolSeleccionado = _getRolFromString(widget.usuario.rolEnEmpresa);
 
@@ -116,6 +136,14 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
   /// marcados (= ningún oculto). Si el usuario tenía configurado algo
   /// previo, se precarga desde `widget.usuario.sedes`.
   Widget _buildAccesosRapidosSeleccion() {
+    // Solo los accesos que este rol puede ver. Así se configuró a un técnico
+    // con "Venta Rápida" marcada —que nunca iba a ver— y "Órdenes de Servicio"
+    // desmarcada, sin que nada lo delatara.
+    final permisos = _permisosDelUsuario;
+    final accesos = AccesosRapidosCatalogo.items
+        .where((e) =>
+            permisos == null || AccesosRapidosCatalogo.puedeVer(e.$1, permisos))
+        .toList();
     return GradientContainer(
       borderWidth: 0.6,
       borderColor: AppColors.blueborder,
@@ -167,10 +195,15 @@ class _AsignarRolDialogState extends State<AsignarRolDialog> {
             style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 6),
+          if (accesos.isEmpty)
+            Text(
+              'Con este rol no tiene accesos rápidos en el dashboard.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
           Wrap(
             spacing: 4,
             runSpacing: 0,
-            children: AccesosRapidosCatalogo.items.map((entry) {
+            children: accesos.map((entry) {
               final id = entry.$1;
               final label = entry.$2;
               final visible = !_accesosRapidosOcultos.contains(id);

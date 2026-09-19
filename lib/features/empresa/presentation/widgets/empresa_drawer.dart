@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/gradient_background.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
+import '../../domain/entities/empresa_permissions.dart';
 import '../../../../core/utils/menu_drawer_catalogo.dart';
 import 'accesos_rapidos_section.dart' show AccesosRapidosCatalogo;
 
@@ -164,6 +165,13 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
   }) {
     bool can(bool? v) => v ?? false;
 
+    // Ítems que el admin puede ocultar desde la ficha de usuario: su regla
+    // vive en `MenuDrawerCatalogo.reglas`, que es la misma que usa la ficha
+    // para ofrecer solo lo que ese rol puede ver.
+    bool ver(String id) =>
+        permissions is EmpresaPermissions &&
+        MenuDrawerCatalogo.puedeVer(id, permissions);
+
     // Helper: tile rápido
     _TileNode tile({
       required String title,
@@ -219,7 +227,12 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
         title: 'Productos',
         icon: Icons.inventory,
         iconColor: AppColors.blue2,
-        visible: can(permissions?.canManageProducts),
+        // Con solo VER productos (técnico, cajero, vendedor) queda el listado,
+        // que ya abrían desde el acceso rápido: la pantalla esconde el alta y
+        // el backend rechaza las escrituras. El resto de la sección es
+        // administración del catálogo.
+        visible: can(permissions?.canViewProducts) ||
+            can(permissions?.canManageProducts),
         children: [
           tile(
             title: 'Productos',
@@ -231,66 +244,77 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Combos',
             icon: Icons.inventory_2,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/combos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/combos?empresaId=$empresaId')),
           ),
           tile(
             title: 'Categorías',
             icon: Icons.category,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/categorias'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/categorias')),
           ),
           tile(
             title: 'Marcas',
             icon: Icons.label,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/marcas'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/marcas')),
           ),
           tile(
             title: 'Unidades de Medida',
             icon: Icons.straighten,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/unidades-medida'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/unidades-medida')),
           ),
           tile(
             title: 'Atributos',
             icon: Icons.tune,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/atributos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/atributos')),
           ),
           tile(
             title: 'Plantillas de Atributos',
             icon: Icons.dashboard_customize,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/plantillas'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/plantillas')),
           ),
           tile(
             title: 'Configuraciones de Precio',
             icon: Icons.auto_graph,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/configuraciones-precio'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuraciones-precio')),
           ),
           tile(
             title: 'Configuración de Códigos',
             icon: Icons.qr_code_2,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/configuracion-codigos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/configuracion-codigos')),
           ),
           tile(
             title: 'Ajuste Masivo de Precios',
             icon: Icons.percent,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/productos/ajuste-masivo'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/productos/ajuste-masivo')),
           ),
           tile(
             title: 'Reglas de Compatibilidad',
             icon: Icons.rule,
+            visible: can(permissions?.canManageProducts),
             routeMatch: const _RouteMatch.startsWith('/empresa/productos/compatibilidad'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/productos/compatibilidad')),
           ),
           tile(
             title: 'Productos Eliminados',
             icon: Icons.delete_sweep_outlined,
+            visible: can(permissions?.canManageProducts),
             iconColor: Colors.red,
             routeMatch: const _RouteMatch.startsWith('/empresa/productos/eliminados'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/productos/eliminados')),
@@ -309,6 +333,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Stock por Sede',
             icon: Icons.inventory,
+            visible: ver(MenuDrawerCatalogo.invStockSede),
             ocultableId: MenuDrawerCatalogo.invStockSede,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/stock-por-sede'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/stock-por-sede')),
@@ -317,6 +342,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Alertas de Stock',
             icon: Icons.notifications_active,
             iconColor: Colors.red,
+            visible: ver(MenuDrawerCatalogo.invAlertasStock),
             ocultableId: MenuDrawerCatalogo.invAlertasStock,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/alertas'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/alertas')),
@@ -324,6 +350,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Transferencias',
             icon: Icons.swap_horiz,
+            visible: ver(MenuDrawerCatalogo.invTransferencias),
             ocultableId: MenuDrawerCatalogo.invTransferencias,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/transferencias'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/transferencias')),
@@ -332,6 +359,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Incidencias de Transferencia',
             icon: Icons.warning_amber,
             iconColor: Colors.orange,
+            visible: ver(MenuDrawerCatalogo.invIncidenciasTransferencia),
             ocultableId: MenuDrawerCatalogo.invIncidenciasTransferencia,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/incidencias'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/incidencias')),
@@ -340,6 +368,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Reportes de Incidencia',
             icon: Icons.assignment,
             iconColor: Colors.purple,
+            visible: ver(MenuDrawerCatalogo.invReportesIncidencia),
             ocultableId: MenuDrawerCatalogo.invReportesIncidencia,
             routeMatch: const _RouteMatch.startsWith('/empresa/reportes-incidencia'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/reportes-incidencia')),
@@ -348,6 +377,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Kardex',
             icon: Icons.history,
             iconColor: Colors.blueGrey,
+            visible: ver(MenuDrawerCatalogo.invKardex),
             ocultableId: MenuDrawerCatalogo.invKardex,
             routeMatch: const _RouteMatch.exact('/empresa/inventario/kardex'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/kardex')),
@@ -356,6 +386,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Producción (lotes fabricados)',
             icon: Icons.precision_manufacturing_outlined,
             iconColor: Colors.deepPurple,
+            visible: ver(MenuDrawerCatalogo.invProduccion),
             ocultableId: MenuDrawerCatalogo.invProduccion,
             routeMatch:
                 const _RouteMatch.exact('/empresa/inventario/produccion'),
@@ -366,6 +397,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Abrir bultos',
             icon: Icons.open_in_full,
             iconColor: Colors.amber,
+            visible: ver(MenuDrawerCatalogo.invAbrirBultos),
             ocultableId: MenuDrawerCatalogo.invAbrirBultos,
             routeMatch:
                 const _RouteMatch.exact('/empresa/inventario/abrir-bultos'),
@@ -376,6 +408,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Trazabilidad de producto',
             icon: Icons.account_tree_outlined,
             iconColor: Colors.teal,
+            visible: ver(MenuDrawerCatalogo.invTrazabilidad),
             ocultableId: MenuDrawerCatalogo.invTrazabilidad,
             routeMatch:
                 const _RouteMatch.exact('/empresa/inventario/trazabilidad'),
@@ -386,6 +419,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Inventario Físico',
             icon: Icons.fact_check,
             iconColor: Colors.indigo,
+            visible: ver(MenuDrawerCatalogo.invInventarioFisico),
             ocultableId: MenuDrawerCatalogo.invInventarioFisico,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventarios'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventarios')),
@@ -394,6 +428,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Stock por Ubicación',
             icon: Icons.location_on,
             iconColor: Colors.brown,
+            visible: ver(MenuDrawerCatalogo.invStockUbicacion),
             ocultableId: MenuDrawerCatalogo.invStockUbicacion,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/por-ubicacion'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/por-ubicacion')),
@@ -402,6 +437,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Gestión Ubicaciones',
             icon: Icons.warehouse,
             iconColor: Colors.blueGrey,
+            visible: ver(MenuDrawerCatalogo.invGestionUbicaciones),
             ocultableId: MenuDrawerCatalogo.invGestionUbicaciones,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/ubicaciones-almacen'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/ubicaciones-almacen')),
@@ -410,6 +446,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Stock Min/Max',
             icon: Icons.tune,
             iconColor: Colors.teal,
+            visible: ver(MenuDrawerCatalogo.invStockMinMax),
             ocultableId: MenuDrawerCatalogo.invStockMinMax,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/stock-minmax'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/stock-minmax')),
@@ -418,6 +455,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Merma y Pérdida',
             icon: Icons.broken_image,
             iconColor: Colors.red,
+            visible: ver(MenuDrawerCatalogo.invMerma),
             ocultableId: MenuDrawerCatalogo.invMerma,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/merma-perdida'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/merma-perdida')),
@@ -426,6 +464,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Valorización',
             icon: Icons.attach_money,
             iconColor: Colors.green,
+            visible: ver(MenuDrawerCatalogo.invValorizacion),
             ocultableId: MenuDrawerCatalogo.invValorizacion,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/valorizacion'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/valorizacion')),
@@ -434,6 +473,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Reorden',
             icon: Icons.shopping_cart_checkout,
             iconColor: Colors.deepPurple,
+            visible: ver(MenuDrawerCatalogo.invReorden),
             ocultableId: MenuDrawerCatalogo.invReorden,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/sugerencias-reorden'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/sugerencias-reorden')),
@@ -442,6 +482,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Rotación',
             icon: Icons.autorenew,
             iconColor: Colors.cyan,
+            visible: ver(MenuDrawerCatalogo.invRotacion),
             ocultableId: MenuDrawerCatalogo.invRotacion,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/reporte-rotacion'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/reporte-rotacion')),
@@ -450,6 +491,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Historial de Precios',
             icon: Icons.price_change,
             iconColor: Colors.teal,
+            visible: ver(MenuDrawerCatalogo.invHistorialPrecios),
             ocultableId: MenuDrawerCatalogo.invHistorialPrecios,
             routeMatch: const _RouteMatch.startsWith('/empresa/inventario/historial-precios'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/inventario/historial-precios')),
@@ -458,6 +500,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Monitor Productos',
             icon: Icons.monitor_heart,
             iconColor: Colors.deepOrange,
+            visible: ver(AccesosRapidosCatalogo.monitorProductos),
             ocultableId: AccesosRapidosCatalogo.monitorProductos,
             routeMatch: const _RouteMatch.startsWith('/empresa/monitor-productos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/monitor-productos')),
@@ -466,6 +509,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Códigos de Barras',
             icon: Icons.qr_code_2,
             iconColor: Colors.indigo,
+            visible: ver(MenuDrawerCatalogo.invCodigosBarras),
             ocultableId: MenuDrawerCatalogo.invCodigosBarras,
             routeMatch: const _RouteMatch.startsWith('/empresa/generador-barcode'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/generador-barcode')),
@@ -492,7 +536,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Venta Rápida',
             icon: Icons.flash_on,
             iconColor: AppColors.green,
-            visible: can(permissions?.canManageVentas),
+            visible: ver(AccesosRapidosCatalogo.ventaRapida),
             ocultableId: AccesosRapidosCatalogo.ventaRapida,
             routeMatch: const _RouteMatch.startsWith('/empresa/venta-rapida'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/venta-rapida')),
@@ -501,7 +545,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Venta Avanzada',
             icon: Icons.point_of_sale,
             iconColor: AppColors.green,
-            visible: can(permissions?.canManageVentas),
+            visible: ver(AccesosRapidosCatalogo.ventaAvanzada),
             ocultableId: AccesosRapidosCatalogo.ventaAvanzada,
             routeMatch: const _RouteMatch.exact('/empresa/ventas/nueva'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas/nueva')),
@@ -509,7 +553,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Cotizaciones',
             icon: Icons.request_quote,
-            visible: can(permissions?.canViewCotizaciones),
+            visible: ver(AccesosRapidosCatalogo.cotizaciones),
             ocultableId: AccesosRapidosCatalogo.cotizaciones,
             routeMatch: const _RouteMatch.startsWith('/empresa/cotizaciones'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cotizaciones')),
@@ -517,7 +561,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Ventas',
             icon: Icons.point_of_sale,
-            visible: can(permissions?.canViewVentas),
+            visible: ver(AccesosRapidosCatalogo.ventas),
             ocultableId: AccesosRapidosCatalogo.ventas,
             routeMatch: const _RouteMatch.startsWith('/empresa/ventas'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas')),
@@ -526,7 +570,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Cola POS',
             icon: Icons.queue,
             iconColor: Colors.teal,
-            visible: can(permissions?.canViewVentas),
+            visible: ver(AccesosRapidosCatalogo.colaPos),
             ocultableId: AccesosRapidosCatalogo.colaPos,
             routeMatch: const _RouteMatch.startsWith('/empresa/cola-pos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cola-pos')),
@@ -534,7 +578,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Devoluciones',
             icon: Icons.assignment_return,
-            visible: can(permissions?.canViewDevoluciones),
+            visible: ver(MenuDrawerCatalogo.ventasDevoluciones),
             ocultableId: MenuDrawerCatalogo.ventasDevoluciones,
             routeMatch: const _RouteMatch.startsWith('/empresa/devoluciones'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/devoluciones')),
@@ -544,7 +588,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             icon: Icons.bar_chart,
             // Estadísticas de EMPRESA: solo admins/contador — canViewReports
             // lo tienen también los cajeros y NO deben ver esta página.
-            visible: can(permissions?.canViewStatistics),
+            visible: ver(MenuDrawerCatalogo.ventasReportes),
             ocultableId: MenuDrawerCatalogo.ventasReportes,
             routeMatch: const _RouteMatch.startsWith('/empresa/ventas/analytics'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ventas/analytics')),
@@ -552,7 +596,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Políticas de Descuento',
             icon: Icons.discount,
-            visible: can(permissions?.canViewDiscounts),
+            visible: ver(MenuDrawerCatalogo.ventasPoliticasDescuento),
             ocultableId: MenuDrawerCatalogo.ventasPoliticasDescuento,
             routeMatch: const _RouteMatch.startsWith('/empresa/descuentos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/descuentos')),
@@ -561,7 +605,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Tipo de Cambio',
             icon: Icons.currency_exchange,
             iconColor: Colors.green,
-            visible: can(permissions?.canViewVentas),
+            visible: ver(MenuDrawerCatalogo.ventasTipoCambio),
             ocultableId: MenuDrawerCatalogo.ventasTipoCambio,
             routeMatch: const _RouteMatch.startsWith('/empresa/tipo-cambio'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/tipo-cambio')),
@@ -583,7 +627,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Servicios',
             icon: Icons.room_service,
-            visible: can(permissions?.canViewServices),
+            visible: ver(AccesosRapidosCatalogo.servicios),
             ocultableId: AccesosRapidosCatalogo.servicios,
             routeMatch: const _RouteMatch.startsWith('/empresa/servicios'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/servicios')),
@@ -591,7 +635,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Órdenes de Servicio',
             icon: Icons.assignment,
-            visible: can(permissions?.canManageOrders),
+            visible: ver(AccesosRapidosCatalogo.ordenesServicio),
             ocultableId: AccesosRapidosCatalogo.ordenesServicio,
             routeMatch: const _RouteMatch.startsWith('/empresa/ordenes'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/ordenes')),
@@ -599,7 +643,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Citas',
             icon: Icons.calendar_month,
-            visible: can(permissions?.canManageOrders),
+            visible: ver(MenuDrawerCatalogo.serviciosCitas),
             ocultableId: MenuDrawerCatalogo.serviciosCitas,
             routeMatch: const _RouteMatch.exact('/empresa/citas'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/citas')),
@@ -607,7 +651,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Historial por Cliente',
             icon: Icons.people_alt_outlined,
-            visible: can(permissions?.canManageOrders),
+            visible: ver(MenuDrawerCatalogo.serviciosHistorialCliente),
             ocultableId: MenuDrawerCatalogo.serviciosHistorialCliente,
             routeMatch: const _RouteMatch.startsWith('/empresa/citas/clientes'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/citas/clientes')),
@@ -615,7 +659,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Plantillas de Servicio',
             icon: Icons.view_list,
-            visible: can(permissions?.canManageServices),
+            visible: ver(MenuDrawerCatalogo.serviciosPlantillas),
             ocultableId: MenuDrawerCatalogo.serviciosPlantillas,
             routeMatch: const _RouteMatch.startsWith('/empresa/plantillas-servicio'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/plantillas-servicio')),
@@ -624,7 +668,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Tercerización B2B',
             icon: Icons.swap_horiz,
             iconColor: Colors.deepPurple,
-            visible: can(permissions?.canManageOrders),
+            visible: ver(MenuDrawerCatalogo.serviciosTercerizacion),
             ocultableId: MenuDrawerCatalogo.serviciosTercerizacion,
             routeMatch: const _RouteMatch.startsWith('/empresa/tercerizacion'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/tercerizacion')),
@@ -633,7 +677,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Vinculaciones B2B',
             icon: Icons.link,
             iconColor: Colors.teal,
-            visible: can(permissions?.canManageSettings),
+            visible: ver(MenuDrawerCatalogo.serviciosVinculaciones),
             ocultableId: MenuDrawerCatalogo.serviciosVinculaciones,
             routeMatch: const _RouteMatch.startsWith('/empresa/vinculacion'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/vinculacion')),
@@ -692,7 +736,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Caja',
             icon: Icons.point_of_sale,
             iconColor: Colors.green,
-            visible: can(permissions?.canViewCaja),
+            visible: ver(AccesosRapidosCatalogo.caja),
             ocultableId: AccesosRapidosCatalogo.caja,
             routeMatch: const _RouteMatch.exact('/empresa/caja'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja')),
@@ -701,7 +745,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Monitor Cajas',
             icon: Icons.monitor_heart,
             iconColor: Colors.deepOrange,
-            visible: can(permissions?.canViewCaja),
+            visible: ver(AccesosRapidosCatalogo.monitorCajas),
             ocultableId: AccesosRapidosCatalogo.monitorCajas,
             routeMatch: const _RouteMatch.startsWith('/empresa/caja/monitor'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja/monitor')),
@@ -710,7 +754,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Historial de Cajas',
             icon: Icons.history,
             iconColor: Colors.brown,
-            visible: can(permissions?.canViewCaja),
+            visible: ver(AccesosRapidosCatalogo.historialCajas),
             ocultableId: AccesosRapidosCatalogo.historialCajas,
             // Exact match — el path /historial es distinto a /monitor y /auditoria.
             routeMatch: const _RouteMatch.exact('/empresa/caja/historial'),
@@ -720,7 +764,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Tesorería',
             icon: Icons.account_balance_rounded,
             iconColor: AppColors.blue1,
-            visible: can(permissions?.canViewCaja),
+            visible: ver(AccesosRapidosCatalogo.tesoreria),
             ocultableId: AccesosRapidosCatalogo.tesoreria,
             routeMatch: const _RouteMatch.startsWith('/empresa/tesoreria'),
             onTap: (ctx) => _tap(
@@ -732,7 +776,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Tesorería Consolidado',
             icon: Icons.savings_rounded,
             iconColor: Colors.teal,
-            visible: can(permissions?.canViewCaja),
+            visible: ver(MenuDrawerCatalogo.tesoreriaConsolidado),
             ocultableId: MenuDrawerCatalogo.tesoreriaConsolidado,
             routeMatch: const _RouteMatch.startsWith('/empresa/tesoreria-consolidado'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/tesoreria-consolidado')),
@@ -741,7 +785,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Caja Chica',
             icon: Icons.account_balance_wallet,
             iconColor: Colors.teal,
-            visible: can(permissions?.canManageCaja),
+            visible: ver(AccesosRapidosCatalogo.cajaChica),
             ocultableId: AccesosRapidosCatalogo.cajaChica,
             routeMatch: const _RouteMatch.startsWith('/empresa/caja-chica'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/caja-chica')),
@@ -750,7 +794,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Gastos Recurrentes',
             icon: Icons.event_repeat,
             iconColor: Colors.deepPurple,
-            visible: can(permissions?.canViewGastosRecurrentes),
+            visible: ver(MenuDrawerCatalogo.tesoreriaGastosRecurrentes),
             ocultableId: MenuDrawerCatalogo.tesoreriaGastosRecurrentes,
             routeMatch: const _RouteMatch.startsWith('/empresa/gastos-recurrentes'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/gastos-recurrentes')),
@@ -758,7 +802,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
           tile(
             title: 'Cuentas Bancarias',
             icon: Icons.account_balance,
-            visible: can(permissions?.canViewReports),
+            visible: ver(MenuDrawerCatalogo.tesoreriaCuentasBancarias),
             ocultableId: MenuDrawerCatalogo.tesoreriaCuentasBancarias,
             routeMatch: const _RouteMatch.startsWith('/empresa/cuentas-bancarias'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cuentas-bancarias')),
@@ -767,7 +811,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Cuentas de Recaudación',
             icon: Icons.sync_alt,
             iconColor: Colors.indigo,
-            visible: can(permissions?.canViewReports),
+            visible: ver(MenuDrawerCatalogo.tesoreriaCuentasRecaudacion),
             ocultableId: MenuDrawerCatalogo.tesoreriaCuentasRecaudacion,
             routeMatch: const _RouteMatch.startsWith('/empresa/cuentas-recaudacion'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cuentas-recaudacion')),
@@ -776,7 +820,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Agentes Bancarios',
             icon: Icons.account_balance,
             iconColor: Colors.teal,
-            visible: can(permissions?.canManageSettings),
+            visible: ver(MenuDrawerCatalogo.tesoreriaAgentesBancarios),
             ocultableId: MenuDrawerCatalogo.tesoreriaAgentesBancarios,
             routeMatch: const _RouteMatch.startsWith('/empresa/agentes-bancarios'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/agentes-bancarios')),
@@ -785,7 +829,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Cuentas por Cobrar',
             icon: Icons.account_balance_wallet,
             iconColor: Colors.orange,
-            visible: can(permissions?.canViewReports),
+            visible: ver(AccesosRapidosCatalogo.cuentasPorCobrar),
             ocultableId: AccesosRapidosCatalogo.cuentasPorCobrar,
             routeMatch: const _RouteMatch.startsWith('/empresa/cuentas-por-cobrar'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/cuentas-por-cobrar')),
@@ -812,7 +856,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             icon: Icons.receipt_long,
             iconColor: Colors.teal,
             ocultableId: AccesosRapidosCatalogo.facturacion,
-            visible: can(permissions?.canManageInvoices),
+            visible: ver(AccesosRapidosCatalogo.facturacion),
             routeMatch: const _RouteMatch.startsWith('/empresa/monitor-facturacion'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/monitor-facturacion')),
           ),
@@ -821,7 +865,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             icon: Icons.local_shipping,
             iconColor: Colors.indigo,
             ocultableId: AccesosRapidosCatalogo.guiasRemision,
-            visible: can(permissions?.canManageInvoices),
+            visible: ver(AccesosRapidosCatalogo.guiasRemision),
             routeMatch: const _RouteMatch.startsWith('/empresa/guias-remision'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/guias-remision')),
           ),
@@ -831,7 +875,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             iconColor: Colors.indigo.shade300,
             // Datos maestros de la GRE (vehiculos, conductores): es
             // configuracion, no operacion diaria.
-            visible: can(permissions?.canManageSettings),
+            visible: ver(MenuDrawerCatalogo.facturacionCatalogosGre),
             ocultableId: MenuDrawerCatalogo.facturacionCatalogosGre,
             routeMatch: const _RouteMatch.startsWith('/empresa/guias-remision/catalogos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/guias-remision/catalogos')),
@@ -842,7 +886,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             iconColor: Colors.red.shade400,
             // 🔴 Dar de baja un comprobante ante SUNAT es irreversible y
             // deja al cliente sin documento: solo administracion.
-            visible: can(permissions?.canManageSettings),
+            visible: ver(MenuDrawerCatalogo.facturacionAnulaciones),
             ocultableId: MenuDrawerCatalogo.facturacionAnulaciones,
             routeMatch: const _RouteMatch.startsWith('/empresa/anulaciones'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/anulaciones')),
@@ -851,7 +895,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Flujo Documentos',
             icon: Icons.account_tree,
             iconColor: Colors.deepPurple,
-            visible: can(permissions?.canViewVentas),
+            visible: ver(AccesosRapidosCatalogo.flujoDocs),
             ocultableId: AccesosRapidosCatalogo.flujoDocs,
             routeMatch: const _RouteMatch.startsWith('/empresa/flujo-documentos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/flujo-documentos')),
@@ -860,7 +904,7 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
             title: 'Reporte Correlativos',
             icon: Icons.format_list_numbered,
             iconColor: Colors.teal.shade700,
-            visible: can(permissions?.canViewReports),
+            visible: ver(MenuDrawerCatalogo.facturacionCorrelativos),
             ocultableId: MenuDrawerCatalogo.facturacionCorrelativos,
             routeMatch: const _RouteMatch.startsWith('/empresa/reporte-correlativos'),
             onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/reporte-correlativos')),
