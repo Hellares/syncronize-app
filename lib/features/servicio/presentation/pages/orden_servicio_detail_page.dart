@@ -36,6 +36,7 @@ import '../../domain/repositories/plantilla_servicio_repository.dart';
 import '../constants/tipos_campo_servicio.dart';
 import '../widgets/ajustar_ancho_sheet.dart';
 import '../widgets/celda_widgets.dart';
+import '../../../empresa/domain/entities/empresa_permissions.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -105,6 +106,19 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final state = context.read<EmpresaContextCubit>().state;
     return state is EmpresaContextLoaded ? state.context.empresa.id : '';
   }
+
+  EmpresaPermissions? get _permisos {
+    final state = context.read<EmpresaContextCubit>().state;
+    return state is EmpresaContextLoaded ? state.context.permissions : null;
+  }
+
+  /// Repartir el trabajo es del admin. Al técnico, además, la hoja de
+  /// asignación le fallaba: lista usuarios y él no puede verlos.
+  bool get _puedeAsignarTecnico => _permisos?.canAsignarTecnico ?? false;
+
+  /// El costo acordado, el descuento y los adelantos. Los costos de cada
+  /// repuesto y acción NO entran acá: esos los carga el técnico.
+  bool get _puedeCostosOrden => _permisos?.canGestionarCostosOrden ?? false;
 
   @override
   void initState() {
@@ -325,8 +339,13 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
           _buildComponentesSection(),
           const SizedBox(height: 10),
           // ─── Card interactiva: Costos ───
-          _buildResumenCostosSection(),
-          const SizedBox(height: 10),
+          // El costo acordado, el descuento y los adelantos son del admin. El
+          // técnico ve lo que costó cada repuesto y cada acción (arriba, en
+          // Componentes): eso es lo que reparó.
+          if (_puedeCostosOrden) ...[
+            _buildResumenCostosSection(),
+            const SizedBox(height: 10),
+          ],
           // ─── Card interactiva: Imagenes ───
           if (_shouldShowImagenes()) ...[
             _buildImagenesSection(),
@@ -503,18 +522,21 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
                   ),
                 ),
               ),
-              InkWell(
-                onTap: _showAsignarTecnicoSheet,
-                child: InfoChip(
-                  height: 25,
-                  borderColor: AppColors.blue1,
-                  borderRadius: 4,
-                  icon: _orden!.tecnico != null ? Icons.swap_horiz : Icons.person_add,
-                  text: _orden!.tecnico != null ? 'Cambiar' : 'Asignar',
-                  textColor: AppColors.blue1,
+              // Repartir el trabajo es del admin: el técnico queda asignado a
+              // lo que él mismo recibe y no se pasa órdenes con otro.
+              if (_puedeAsignarTecnico)
+                InkWell(
+                  onTap: _showAsignarTecnicoSheet,
+                  child: InfoChip(
+                    height: 25,
+                    borderColor: AppColors.blue1,
+                    borderRadius: 4,
+                    icon: _orden!.tecnico != null ? Icons.swap_horiz : Icons.person_add,
+                    text: _orden!.tecnico != null ? 'Cambiar' : 'Asignar',
+                    textColor: AppColors.blue1,
 
+                  ),
                 ),
-              ),
             ],
           ),
 
@@ -4381,11 +4403,15 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
     final motivoReingresoController = TextEditingController();
     bool comunicarCliente = false;
     String? metodoPagoAdelanto;
-    final showCostos = nuevoEstado == 'ESPERANDO_APROBACION' ||
+    // Al técnico el diálogo le deja el estado, las notas y el aviso al
+    // cliente. El costo, el descuento y el adelanto son del admin — y el
+    // backend los rechaza igual si llegaran.
+    final showCostos = _puedeCostosOrden &&
+        (nuevoEstado == 'ESPERANDO_APROBACION' ||
         nuevoEstado == 'EN_REPARACION' ||
         nuevoEstado == 'LISTO_ENTREGA' ||
-        nuevoEstado == 'ENTREGADO' ||
-        nuevoEstado == 'REPARADO';
+            nuevoEstado == 'ENTREGADO' ||
+            nuevoEstado == 'REPARADO');
     final isCancelado = nuevoEstado == 'CANCELADO';
     final isReingreso = nuevoEstado == 'EN_DIAGNOSTICO' &&
         (_orden?.estado == 'ENTREGADO' || _orden?.estado == 'FINALIZADO');

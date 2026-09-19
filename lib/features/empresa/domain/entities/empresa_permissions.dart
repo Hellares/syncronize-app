@@ -89,6 +89,12 @@ class EmpresaPermissions extends Equatable {
   final bool canViewReports;
   final bool canManageInvoices;
   final bool canManageOrders;
+  /// Asignar o cambiar el tecnico de una orden. El tecnico no reparte
+  /// trabajo: queda asignado a lo que el mismo recibe.
+  final bool canAsignarTecnico;
+  /// La plata de la orden: costo acordado, descuento y adelantos. No incluye
+  /// los costos de cada repuesto y accion, que carga el tecnico.
+  final bool canGestionarCostosOrden;
   final bool canViewStatistics;
   final bool canManageSettings;
   final bool canManagePaymentMethods;
@@ -142,6 +148,8 @@ class EmpresaPermissions extends Equatable {
     required this.canViewReports,
     required this.canManageInvoices,
     required this.canManageOrders,
+    this.canAsignarTecnico = false,
+    this.canGestionarCostosOrden = false,
     required this.canViewStatistics,
     required this.canManageSettings,
     required this.canManagePaymentMethods,
@@ -202,6 +210,8 @@ class EmpresaPermissions extends Equatable {
         canViewReports,
         canManageInvoices,
         canManageOrders,
+        canAsignarTecnico,
+        canGestionarCostosOrden,
         canViewStatistics,
         canManageSettings,
         canManagePaymentMethods,
