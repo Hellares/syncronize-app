@@ -90,8 +90,9 @@ const List<GranularPermission> kGranularPermissionsCatalog = [
     label: 'Crear cotizaciones',
     description:
         'Crear cotizaciones y ver las propias sin ser vendedor (pensado para '
-        'el técnico). Incluye ver el catálogo de productos, que hace falta '
-        'para cotizarlos. No habilita convertirlas en venta ni aprobarlas.',
+        'el técnico). Incluye ver el catálogo de productos y registrar al '
+        'cliente si no existe — no editar ni eliminar los que ya están. No '
+        'habilita convertirlas en venta ni aprobarlas.',
     category: 'Cotización',
   ),
 

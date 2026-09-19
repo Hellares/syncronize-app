@@ -39,6 +39,7 @@ void main() {
         'canViewProducts',
         'canViewCotizaciones',
         'canManageCotizaciones',
+        'canCrearClientes',
       ],
     },
   });

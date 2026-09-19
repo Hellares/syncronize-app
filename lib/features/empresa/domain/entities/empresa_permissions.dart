@@ -17,6 +17,9 @@ class EmpresaPermissions extends Equatable {
   // Clientes - Separado en VIEW y MANAGE
   final bool canViewClients;       // Ver lista de clientes
   final bool canManageClients;     // Crear, editar, eliminar clientes
+  /// Solo registrar uno nuevo (y buscarlo por DNI/RUC). Lo tiene quien
+  /// gestiona clientes, y ademas quien cotiza con `cotizacion.crear`.
+  final bool canCrearClientes;
 
   // Descuentos - Separado en VIEW y MANAGE
   final bool canViewDiscounts;     // Ver políticas de descuento
@@ -104,6 +107,7 @@ class EmpresaPermissions extends Equatable {
     required this.canManageServices,
     required this.canViewClients,
     required this.canManageClients,
+    this.canCrearClientes = false,
     required this.canViewDiscounts,
     required this.canManageDiscounts,
     this.canDescuentoLibre = false,
@@ -163,6 +167,7 @@ class EmpresaPermissions extends Equatable {
         canManageServices,
         canViewClients,
         canManageClients,
+        canCrearClientes,
         canViewDiscounts,
         canManageDiscounts,
         canDescuentoLibre,
