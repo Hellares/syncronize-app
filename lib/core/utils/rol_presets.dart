@@ -99,9 +99,11 @@ const Map<String, RolPreset> kRolPresets = {
     permisosEspeciales: [],
   ),
 
-  // Trabaja órdenes de servicio. Su rol ya le niega ventas y caja.
+  // Trabaja órdenes de servicio. Su rol ya le niega ventas, caja y productos.
   'TECNICO': RolPreset(
     accesosRapidosOcultos: [
+      // Solo lo vería con el permiso especial `cotizacion.crear` (que le abre
+      // el catálogo para cotizar), y ni así es de su trabajo.
       AccesosRapidosCatalogo.monitorProductos,
     ],
     menuOcultos: [

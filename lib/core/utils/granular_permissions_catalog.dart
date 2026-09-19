@@ -32,6 +32,8 @@ class GranularPermissionId {
   static const productoEditarCosto = 'producto.editar-costo';
   static const productoAltaRapidaVenta = 'producto.alta-rapida-venta';
 
+  static const cotizacionCrear = 'cotizacion.crear';
+
   static const devolucionCrear = 'devolucion.crear';
 }
 
@@ -80,6 +82,17 @@ const List<GranularPermission> kGranularPermissionsCatalog = [
         'nombre, precio de venta y cantidad. No habilita ver ni cargar el '
         'costo: la ficha se completa después desde Inventario.',
     category: 'Producto',
+  ),
+
+  // Cotización
+  GranularPermission(
+    id: GranularPermissionId.cotizacionCrear,
+    label: 'Crear cotizaciones',
+    description:
+        'Crear cotizaciones y ver las propias sin ser vendedor (pensado para '
+        'el técnico). Incluye ver el catálogo de productos, que hace falta '
+        'para cotizarlos. No habilita convertirlas en venta ni aprobarlas.',
+    category: 'Cotización',
   ),
 
   // Devolución

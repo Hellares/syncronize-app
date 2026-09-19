@@ -15,7 +15,7 @@ void main() {
   final modelo = PermisosPorRolModel.fromJson({
     'roles': {
       'TECNICO': {
-        'canViewProducts': true,
+        'canViewProducts': false,
         'canViewServices': true,
         'canManageServices': true,
         'canViewClients': true,
@@ -35,6 +35,11 @@ void main() {
     'granulares': {
       'caja.abrir': ['canViewCaja', 'canManageCaja', 'canAbrirCaja'],
       'devolucion.crear': ['canManageDevoluciones'],
+      'cotizacion.crear': [
+        'canViewProducts',
+        'canViewCotizaciones',
+        'canManageCotizaciones',
+      ],
     },
   });
 
@@ -53,13 +58,19 @@ void main() {
         .toList();
   }
 
-  test('🔴 al TECNICO se le ofrecen sus 4 accesos, y no Venta Rápida', () {
+  test('🔴 al TECNICO se le ofrecen Servicios y Órdenes, y no Venta Rápida', () {
     expect(accesosDe('TECNICO'), [
-      AccesosRapidosCatalogo.productos,
       AccesosRapidosCatalogo.servicios,
-      AccesosRapidosCatalogo.monitorProductos,
       AccesosRapidosCatalogo.ordenesServicio,
     ]);
+  });
+
+  test('🔴 con "Crear cotizaciones" se le suman Cotizaciones y Productos', () {
+    final accesos = accesosDe('TECNICO', ['cotizacion.crear']);
+    expect(accesos, contains(AccesosRapidosCatalogo.cotizaciones));
+    expect(accesos, contains(AccesosRapidosCatalogo.productos));
+    // Sigue sin vender.
+    expect(accesos, isNot(contains(AccesosRapidosCatalogo.ventaRapida)));
   });
 
   test('🔴 en el menú, al TECNICO se le ofrece Servicios y nada de caja o ventas',

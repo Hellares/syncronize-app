@@ -1019,6 +1019,10 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
     final empresaState = context.read<EmpresaContextCubit>().state;
     final esAdmin = empresaState is EmpresaContextLoaded &&
         empresaState.context.userRoles.any((r) => r.isAdminRole);
+    // Convertir crea una VENTA. Quien cotiza con el permiso especial
+    // `cotizacion.crear` (el técnico) no vende: el botón le daba error.
+    final puedeVender = empresaState is EmpresaContextLoaded &&
+        empresaState.context.permissions.canManageVentas;
 
     if (cot.estado == EstadoCotizacion.borrador) {
       actions.add(Expanded(
@@ -1057,7 +1061,7 @@ class _CotizacionDetailPageState extends State<CotizacionDetailPage> {
           ),
         ),
       ));
-    } else if (cot.estado == EstadoCotizacion.aprobada) {
+    } else if (cot.estado == EstadoCotizacion.aprobada && puedeVender) {
       actions.add(Expanded(
         child: ElevatedButton.icon(
           onPressed: () {
