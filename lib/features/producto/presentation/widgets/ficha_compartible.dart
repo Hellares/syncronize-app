@@ -35,6 +35,16 @@ class FichaCompartible extends StatelessWidget {
   final String? descripcion;
   final String? fotoUrl;
 
+  /// Las OTRAS fotos, sin la principal: van en una tira debajo de la grande.
+  ///
+  /// 🔴 Cuando un producto tiene varias, suelen ser DISEÑOS o COLORES del mismo
+  /// artículo al mismo precio, y el cliente los quiere ver todos. Mandar una
+  /// sola obliga a mandar la ficha N veces.
+  ///
+  /// 🔴 Las de la tira también se CAPTURAN: tienen que estar precargadas antes,
+  /// igual que la grande, o salen en blanco en el PNG.
+  final List<String> fotosExtra;
+
   /// Los `AtributoValor` (de producto o de variante) y el orden de secciones
   /// que el producto guardó, si lo tiene.
   final List<dynamic> atributosValores;
@@ -63,6 +73,9 @@ class FichaCompartible extends StatelessWidget {
   final bool incluirCaracteristicas;
   final bool incluirCodigo;
 
+  /// La tira con las otras fotos. Apagada, la ficha es la de siempre.
+  final bool incluirOtrasFotos;
+
   const FichaCompartible({
     super.key,
     required this.titulo,
@@ -72,6 +85,7 @@ class FichaCompartible extends StatelessWidget {
     this.codigo,
     this.descripcion,
     this.fotoUrl,
+    this.fotosExtra = const [],
     this.atributosValores = const [],
     this.plantillasIds = const [],
     this.precioAnterior,
@@ -83,7 +97,11 @@ class FichaCompartible extends StatelessWidget {
     this.incluirPrecio = true,
     this.incluirCaracteristicas = true,
     this.incluirCodigo = true,
+    this.incluirOtrasFotos = true,
   });
+
+  /// Cuántas celdas entran en la tira; pasado eso, la última dice "+N".
+  static const int _maxMiniaturas = 4;
 
   String get _foto => fotoUrl ?? '';
 
@@ -101,6 +119,8 @@ class FichaCompartible extends StatelessWidget {
           )
         : (const <(String, List<dynamic>)>[], const <dynamic>[]);
 
+    final tira = _tiraFotos();
+
     return Container(
       width: anchoFichaCompartible,
       color: Colors.white,
@@ -110,6 +130,7 @@ class FichaCompartible extends StatelessWidget {
         children: [
           _cabecera(),
           _imagen(),
+          if (tira != null) tira,
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: Column(
@@ -258,6 +279,69 @@ class FichaCompartible extends StatelessWidget {
         errorBuilder: (_, __, ___) =>
             Icon(Icons.inventory_2_outlined, size: 44, color: Colors.grey.shade400),
       ),
+    );
+  }
+
+  /// La tira con las otras fotos, pegada debajo de la grande. null cuando no
+  /// hay ninguna o el interruptor está apagado: así no reserva ni un pixel.
+  Widget? _tiraFotos() {
+    if (!incluirOtrasFotos) return null;
+    final otras = fotosExtra.where((f) => f.trim().isNotEmpty).toList();
+    if (otras.isEmpty) return null;
+
+    // Entran hasta `_maxMiniaturas`; si sobran, la última celda es un "+N".
+    final enTira = otras.length > _maxMiniaturas
+        ? otras.take(_maxMiniaturas - 1).toList()
+        : otras;
+    final sobran = otras.length - enTira.length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            for (var i = 0; i < enTira.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              Expanded(child: _celdaMiniatura(url: enTira[i])),
+            ],
+            if (sobran > 0) ...[
+              const SizedBox(width: 6),
+              Expanded(child: _celdaMiniatura(mas: sobran)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _celdaMiniatura({String? url, int? mas}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      clipBehavior: Clip.antiAlias,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(3),
+      child: url != null
+          // 🔴 `contain` también acá, como la foto grande: con `cover`, dos
+          // diseños recortados por el centro se ven iguales y la tira deja de
+          // decir nada. Una que no cargó deja su celda gris.
+          ? Image.network(
+              url,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            )
+          : Text(
+              '+$mas',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade600,
+              ),
+            ),
     );
   }
 

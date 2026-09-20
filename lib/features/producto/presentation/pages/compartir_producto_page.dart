@@ -19,6 +19,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/atributo_plantilla.dart';
 import '../../domain/repositories/plantilla_repository.dart';
+import '../services/ficha_pdf.dart';
 import '../widgets/ficha_compartible.dart';
 
 class CompartirProductoPage extends StatefulWidget {
@@ -81,6 +82,12 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
   bool _incluirPrecio = true;
   bool _incluirCaracteristicas = true;
   bool _incluirCodigo = true;
+  bool _incluirOtrasFotos = true;
+
+  /// PNG o PDF: el mismo documento, dos envoltorios. El PDF es la MISMA ficha
+  /// en una hoja a su medida, para imprimirla o mandarla como documento.
+  bool _comoPdf = false;
+
   bool _enviando = false;
   List<AtributoPlantilla> _plantillas = const [];
   late String? _foto = widget.fotos.isEmpty ? null : widget.fotos.first;
@@ -89,9 +96,9 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
   void initState() {
     super.initState();
     _cargarPlantillas();
-    // 🔴 La foto se precarga ANTES de capturar: `toImage` dibuja lo que hay en
-    // ese instante, y una imagen a medio bajar sale en blanco en el PNG.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _precargarFoto());
+    // 🔴 Las fotos se precargan ANTES de capturar: `toImage` dibuja lo que hay
+    // en ese instante, y una imagen a medio bajar sale en blanco en el PNG.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _precargarFotos());
   }
 
   Future<void> _cargarPlantillas() async {
@@ -106,13 +113,17 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
     }
   }
 
-  Future<void> _precargarFoto() async {
-    final url = _foto;
-    if (url == null || url.isEmpty) return;
-    try {
-      await precacheImage(NetworkImage(url), context);
-    } catch (_) {
-      // La ficha ya dibuja un bloque neutro si la foto falla.
+  /// 🔴 TODAS las que se dibujan, no solo la grande: la tira de abajo también
+  /// se captura, y una miniatura a medio bajar sale en blanco en el PNG.
+  Future<void> _precargarFotos() async {
+    for (final url in <String>{if (_foto != null) _foto!, ...widget.fotos}) {
+      if (url.trim().isEmpty) continue;
+      if (!mounted) return;
+      try {
+        await precacheImage(NetworkImage(url), context);
+      } catch (_) {
+        // La ficha ya dibuja un bloque neutro si una foto falla.
+      }
     }
   }
 
@@ -121,7 +132,8 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
   /// El color de la marca, o el del sistema si la empresa no configuró uno.
   Color get _marca => widget.empresaColor ?? AppColors.blue1;
 
-  /// Captura el lienzo y lo deja en un PNG temporal. null si algo falló.
+  /// Captura el lienzo y lo deja en un archivo temporal, PNG o PDF según el
+  /// formato elegido. null si algo falló.
   Future<File?> _capturarFicha() async {
     setState(() => _enviando = true);
     try {
@@ -133,12 +145,23 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
       final imagen = await limite.toImage(pixelRatio: 3);
       final bytes = await imagen.toByteData(format: ui.ImageByteFormat.png);
       if (bytes == null) return null;
+      final png = bytes.buffer.asUint8List();
 
       final dir = await getTemporaryDirectory();
-      final archivo = File(
-        '${dir.path}/ficha_${DateTime.now().millisecondsSinceEpoch}.png',
-      );
-      await archivo.writeAsBytes(bytes.buffer.asUint8List());
+      final sello = DateTime.now().millisecondsSinceEpoch;
+
+      if (_comoPdf) {
+        // El PDF sale de la MISMA captura: lo que se ve es lo que se manda,
+        // en los dos formatos.
+        final pdf = await fichaAPdf(png);
+        if (pdf == null) return null;
+        final archivo = File('${dir.path}/ficha_$sello.pdf');
+        await archivo.writeAsBytes(pdf);
+        return archivo;
+      }
+
+      final archivo = File('${dir.path}/ficha_$sello.png');
+      await archivo.writeAsBytes(png);
       return archivo;
     } catch (e) {
       if (!mounted) return null;
@@ -173,8 +196,10 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
       context,
       empresaId: widget.empresaId,
       archivo: archivo,
-      nombreArchivo: 'ficha.png',
-      esPdf: false,
+      // 🔴 El PDF va por el endpoint de DOCUMENTO y la imagen por el de
+      // imagen: mandar un PDF como imagen no lo abre nadie.
+      nombreArchivo: _comoPdf ? 'ficha.pdf' : 'ficha.png',
+      esPdf: _comoPdf,
       detalleAdjunto: 'La ficha se envía con el mensaje',
       textoInicial: _incluirPrecio && _precio > 0
           ? 'Hola, te comparto *${widget.titulo}*.\nPrecio: S/ ${_precio.toStringAsFixed(2)}'
@@ -208,6 +233,9 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
                     codigo: widget.codigo,
                     descripcion: widget.descripcion,
                     fotoUrl: _foto,
+                    // Las otras salen de la lista completa, sin la principal:
+                    // cambiar cuál va grande reacomoda la tira sola.
+                    fotosExtra: widget.fotos.where((f) => f != _foto).toList(),
                     atributosValores: widget.atributosValores,
                     plantillasIds: widget.plantillasIds,
                     plantillas: _plantillas,
@@ -221,6 +249,7 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
                     incluirPrecio: _incluirPrecio,
                     incluirCaracteristicas: _incluirCaracteristicas,
                     incluirCodigo: _incluirCodigo,
+                    incluirOtrasFotos: _incluirOtrasFotos,
                   ),
                 ),
               ),
@@ -239,10 +268,9 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 🔴 Con varias fotos se elige CUÁL se manda: cada una
-                  // suele ser un color o un dibujo distinto del mismo
-                  // artículo. Para mandar varias de una vez está el catálogo,
-                  // que saca una tarjeta por foto.
+                  // 🔴 Con varias fotos se elige cuál va GRANDE: las demás van
+                  // en la tira de abajo, en la misma ficha. Cada una suele ser
+                  // un color o un dibujo distinto del mismo artículo.
                   if (widget.fotos.length > 1) ...[
                     SizedBox(
                       height: 46,
@@ -258,7 +286,7 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
                                 ? null
                                 : () {
                                     setState(() => _foto = url);
-                                    _precargarFoto();
+                                    _precargarFotos();
                                   },
                             child: Opacity(
                               opacity: elegida ? 1 : .45,
@@ -288,6 +316,26 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
                       _interruptor('Características', _incluirCaracteristicas,
                           (v) => setState(() => _incluirCaracteristicas = v)),
                       _interruptor('Código', _incluirCodigo, (v) => setState(() => _incluirCodigo = v)),
+                      // Con una sola foto no hay tira que prender ni apagar.
+                      if (widget.fotos.length > 1)
+                        _interruptor('Otras fotos', _incluirOtrasFotos,
+                            (v) => setState(() => _incluirOtrasFotos = v)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // El formato vale para los DOS botones: se comparte y se
+                  // manda por WhatsApp lo mismo que se ve, envuelto en PNG o
+                  // en PDF.
+                  Row(
+                    children: [
+                      Text(
+                        'Formato',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(width: 8),
+                      _formato('PNG', !_comoPdf, () => setState(() => _comoPdf = false)),
+                      const SizedBox(width: 6),
+                      _formato('PDF', _comoPdf, () => setState(() => _comoPdf = true)),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -332,6 +380,25 @@ class _CompartirProductoPageState extends State<CompartirProductoPage> {
           ),
         ],
       ),
+    );
+  }
+
+  /// PNG o PDF. Es una elección entre dos, no un interruptor: un chip de
+  /// formato apagado no significa nada.
+  Widget _formato(String texto, bool elegido, VoidCallback onTap) {
+    return ChoiceChip(
+      label: Text(texto, style: const TextStyle(fontSize: 11)),
+      selected: elegido,
+      onSelected: _enviando ? null : (_) => onTap(),
+      showCheckmark: false,
+      selectedColor: AppColors.blue1.withValues(alpha: .12),
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: elegido ? FontWeight.w700 : FontWeight.w400,
+        color: elegido ? AppColors.blue1 : Colors.grey.shade600,
+      ),
+      side: BorderSide(color: elegido ? AppColors.blue1 : Colors.grey.shade300),
+      visualDensity: VisualDensity.compact,
     );
   }
 

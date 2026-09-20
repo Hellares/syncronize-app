@@ -73,4 +73,77 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('-25%'), findsOneWidget);
   });
+
+  // ── La tira con las otras fotos (20-09) ──
+  //
+  // Son los diseños del mismo artículo: entran 4 celdas y, si sobran, la
+  // última dice cuántas faltan.
+
+  testWidgets('con más fotos que celdas la última dice cuántas faltan',
+      (tester) async {
+    await pumpFicha(
+      tester,
+      const FichaCompartible(
+        titulo: 'EDREDÓN PETER PORKER',
+        precio: 89,
+        empresaNombre: 'JAYLILAND',
+        fotoUrl: 'https://example.test/1.jpg',
+        fotosExtra: [
+          'https://example.test/2.jpg',
+          'https://example.test/3.jpg',
+          'https://example.test/4.jpg',
+          'https://example.test/5.jpg',
+          'https://example.test/6.jpg',
+          'https://example.test/7.jpg',
+        ],
+        plantillas: [],
+      ),
+    );
+    // 6 otras en 4 celdas: 3 miniaturas y un "+3".
+    expect(find.text('+3'), findsOneWidget);
+  });
+
+  testWidgets('cuando entran todas no hay contador', (tester) async {
+    await pumpFicha(
+      tester,
+      const FichaCompartible(
+        titulo: 'EDREDÓN PETER PORKER',
+        precio: 89,
+        empresaNombre: 'JAYLILAND',
+        fotoUrl: 'https://example.test/1.jpg',
+        fotosExtra: [
+          'https://example.test/2.jpg',
+          'https://example.test/3.jpg',
+          'https://example.test/4.jpg',
+          'https://example.test/5.jpg',
+        ],
+        plantillas: [],
+      ),
+    );
+    expect(find.textContaining('+'), findsNothing);
+  });
+
+  testWidgets('con el interruptor apagado la tira no se dibuja',
+      (tester) async {
+    await pumpFicha(
+      tester,
+      const FichaCompartible(
+        titulo: 'EDREDÓN PETER PORKER',
+        precio: 89,
+        empresaNombre: 'JAYLILAND',
+        fotoUrl: 'https://example.test/1.jpg',
+        fotosExtra: [
+          'https://example.test/2.jpg',
+          'https://example.test/3.jpg',
+          'https://example.test/4.jpg',
+          'https://example.test/5.jpg',
+          'https://example.test/6.jpg',
+          'https://example.test/7.jpg',
+        ],
+        incluirOtrasFotos: false,
+        plantillas: [],
+      ),
+    );
+    expect(find.text('+3'), findsNothing);
+  });
 }
