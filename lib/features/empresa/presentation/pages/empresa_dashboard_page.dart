@@ -371,8 +371,11 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                   },
                 ),
 
-                // Banner de suscripción vencida (siempre visible)
-                SuscripcionBanner(empresa: empresaContext.empresa),
+                // Banner de suscripción vencida — solo admin: renovar el plan
+                // es cosa suya. Al técnico le salía "Tu plan venció hace 6
+                // días" con un botón de pago que no le corresponde.
+                if (esAdmin)
+                  SuscripcionBanner(empresa: empresaContext.empresa),
 
                 // Plan de Suscripción — solo admin
                 if (esAdmin) ...[
