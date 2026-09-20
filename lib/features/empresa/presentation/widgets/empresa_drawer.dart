@@ -1254,7 +1254,12 @@ class _EmpresaDrawerState extends State<EmpresaDrawer> {
         title: 'Impresoras',
         icon: Icons.print,
         iconColor: Colors.indigo,
-        visible: can(permissions?.canManageCaja),
+        // La ve quien imprime algo, no solo caja: el técnico entrega la orden
+        // de servicio con su ticket y también necesita emparejar la
+        // impresora. Los endpoints no piden permiso: es config del aparato.
+        visible: can(permissions?.canManageCaja) ||
+            can(permissions?.canViewVentas) ||
+            can(permissions?.canManageOrders),
         routeMatch: const _RouteMatch.startsWith('/empresa/impresoras'),
         onTap: (ctx) => _tap(ctx, () => ctx.push('/empresa/impresoras')),
       ),
