@@ -51,6 +51,16 @@ void main() {
       expect(fuente.contains('final showCostos = _puedeCostosOrden &&'), isTrue);
     });
 
+    test('🔴 Cobrar tampoco se le ofrece: cobra la caja', () {
+      // Se le veía en REPARADO y LISTO_ENTREGA. Lleva a Venta Rápida, que el
+      // técnico no puede usar, y el cobro es de quien maneja la plata.
+      expect(
+        fuente.contains('final showCobrar = _puedeCostosOrden &&'),
+        isTrue,
+        reason: 'El botón Cobrar tiene que depender del permiso de costos',
+      );
+    });
+
     test('asignar técnico va detrás del permiso', () {
       expect(fuente.contains('if (_puedeAsignarTecnico)'), isTrue);
     });

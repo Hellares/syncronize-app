@@ -3961,8 +3961,11 @@ class _OrdenServicioDetailPageState extends State<OrdenServicioDetailPage> {
             e != 'ENTREGADO' &&
             !(puedeVolverAReparacion && e == 'EN_REPARACION'))
         .toList();
-    final showCobrar =
-        _orden!.estado == 'REPARADO' || _orden!.estado == 'LISTO_ENTREGA';
+    // Cobrar es de quien maneja la plata de la orden, no del tecnico: el
+    // cobro lo hace la caja desde Venta Rapida. Mismo permiso que en la web
+    // y que la card de costos de esta misma pantalla.
+    final showCobrar = _puedeCostosOrden &&
+        (_orden!.estado == 'REPARADO' || _orden!.estado == 'LISTO_ENTREGA');
     // Cobrada pero el equipo sigue acá: el cliente pagó y no se lo llevó (o se
     // lo lleva después). Falta el acto físico de la entrega.
     final showEntregar = _orden!.cobradaSinEntregar;
