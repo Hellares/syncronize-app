@@ -9,6 +9,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../../../core/utils/opcion_dependiente.dart';
+import '../../../../core/utils/reparto_en_filas.dart';
 import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
@@ -149,16 +150,130 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
     widget.onChanged(newValues);
   }
 
+  /// Ancho mínimo de una celda para que la etiqueta y el texto se lean. Con
+  /// los 328 px útiles de un teléfono de 360 entran 3 de 104; en uno de 320
+  /// el cálculo cae a 2 solo, sin caso especial.
+  static const double _anchoMinimoCompacto = 96;
+
+  /// Separación horizontal entre campos de una misma fila.
+  static const double _sepCompacto = 8;
+
+  /// Tipos que pueden COMPARTIR fila: controles de una línea y sin botones al
+  /// costado. Los demás —área de texto, switches, tabla, foto, firma, código
+  /// de barras (trae el lector), documentos con consulta y la cascada, que ya
+  /// reparte sus propios combos— siguen a lo ancho.
+  bool _esCompacto(ConfiguracionCampo campo) {
+    switch (campo.tipoCampo) {
+      case 'TEXTO':
+      case 'EMAIL':
+      case 'TELEFONO':
+      case 'URL':
+      case 'NUMERO':
+      case 'MONEDA':
+      case 'FECHA':
+      case 'PIN_CLAVE':
+        return true;
+      case 'OPCION_SIMPLES':
+        // Con "Otro" el combo crece con un texto libre debajo, y un detalle
+        // no se escribe en un tercio de pantalla.
+        return !campo.permiteOtro;
+      default:
+        return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children:
-          widget.campos.map((campo) => _buildField(context, campo)).toList(),
+    // Cuántos entran por fila sale del ancho REAL que nos den (el sheet de la
+    // orden deja 328 px en un teléfono de 360), no de un breakpoint fijo.
+    return LayoutBuilder(
+      builder: (context, restricciones) {
+        // 🔴 Este formulario necesita ancho ACOTADO, y ya lo necesitaba antes
+        // de repartir en filas: sus campos de texto no se pueden medir con
+        // ancho infinito. Montado en una Row sin Expanded o en un scroll
+        // horizontal reventaba igual, así que acá no hay caso especial.
+        var maximo = 3;
+        while (maximo > 1 &&
+            (restricciones.maxWidth - _sepCompacto * (maximo - 1)) / maximo <
+                _anchoMinimoCompacto) {
+          maximo--;
+        }
+
+        final hijos = <Widget>[];
+        final compactos = <ConfiguracionCampo>[];
+
+        void volcarCompactos() {
+          if (compactos.isEmpty) return;
+          hijos.addAll(_filasCompactas(context, compactos, maximo));
+          compactos.clear();
+        }
+
+        for (final campo in widget.campos) {
+          if (_esCompacto(campo)) {
+            compactos.add(campo);
+          } else {
+            // Un campo ancho CORTA el grupo: agrupar salteándolo cambiaría el
+            // orden en que la plantilla dejó los campos.
+            volcarCompactos();
+            hijos.add(_buildField(context, campo));
+          }
+        }
+        volcarCompactos();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: hijos,
+        );
+      },
     );
   }
 
-  Widget _buildField(BuildContext context, ConfiguracionCampo campo) {
+  /// Los campos compactos seguidos, en filas de a lo sumo [maximo].
+  ///
+  /// Cada fila reparte el ancho en partes iguales, así que una fila de dos
+  /// tiene los campos más anchos que una de tres: se prefiere eso a dejar un
+  /// hueco al costado.
+  List<Widget> _filasCompactas(
+    BuildContext context,
+    List<ConfiguracionCampo> campos,
+    int maximo,
+  ) {
+    final reparto = repartirEnFilas(campos.length, maximo);
+    // A tres por fila la celda queda en ~104 px y el ícono del prefijo se
+    // come casi un tercio. Se decide para el grupo ENTERO, no fila por fila,
+    // o el mismo campo se vería con ícono y sin ícono en renglones seguidos.
+    final angosto = reparto.any((n) => n >= 3);
+    final filas = <Widget>[];
+    var desde = 0;
+    for (final n in reparto) {
+      final trozo = campos.sublist(desde, desde + n);
+      desde += n;
+      if (n == 1) {
+        filas.add(_buildField(context, trozo.first, angosto: angosto));
+        continue;
+      }
+      filas.add(Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < trozo.length; i++) ...[
+            if (i > 0) const SizedBox(width: _sepCompacto),
+            Expanded(
+              child: _buildField(context, trozo[i], angosto: angosto),
+            ),
+          ],
+        ],
+      ));
+    }
+    return filas;
+  }
+
+  /// [angosto] avisa que el campo va a vivir en un tercio del ancho: los que
+  /// tienen ícono de prefijo lo sueltan para no comerse el texto.
+  Widget _buildField(
+    BuildContext context,
+    ConfiguracionCampo campo, {
+    bool angosto = false,
+  }) {
     switch (campo.tipoCampo) {
       case 'TEXTO':
       case 'EMAIL':
@@ -173,7 +288,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             hintText: campo.placeholder,
             borderColor: AppColors.blue1,
             keyboardType: _keyboardType(campo.tipoCampo),
-            prefixIcon: Icon(_iconForType(campo.tipoCampo)),
+            prefixIcon: angosto ? null : Icon(_iconForType(campo.tipoCampo)),
             validator: campo.esRequerido
                 ? (v) => v == null || v.isEmpty ? 'Campo requerido' : null
                 : null,
@@ -190,7 +305,8 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             hintText: campo.placeholder,
             borderColor: AppColors.blue1,
             keyboardType: TextInputType.number,
-            prefixIcon: const Icon(Icons.numbers_outlined),
+            prefixIcon:
+                angosto ? null : const Icon(Icons.numbers_outlined),
             onChanged: (v) => _updateValue(campo.nombre, num.tryParse(v)),
           ),
         );
@@ -444,7 +560,7 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
               obscureText: true,
               textCase: TextCase.normal,
               borderColor: AppColors.blue1,
-              prefixIcon: const Icon(Icons.lock_outline),
+              prefixIcon: angosto ? null : const Icon(Icons.lock_outline),
               onChanged: (v) => _updateValue(campo.nombre, v),
             ),
           );
