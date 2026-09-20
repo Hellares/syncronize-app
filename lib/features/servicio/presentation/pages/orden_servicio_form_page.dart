@@ -805,9 +805,11 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  // Header
+                  // Header. Sin aire propio: el alto ya lo pone el botón de
+                  // cerrar, que en M3 reserva ~48 px de área táctil aunque se
+                  // le den constraints vacíos.
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
                     child: Row(
                       children: [
                         Expanded(
@@ -816,8 +818,19 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
                             fontSize: 12,
                           ),
                         ),
+                        // 🔴 El alto del header lo ponía ESTE botón: en M3
+                        // reserva ~48 px de área táctil y `constraints`
+                        // vacíos no lo encogen — hay que matarlo por el
+                        // ButtonStyle. Queda en 32, que sigue siendo
+                        // tocable sin dejar el título flotando.
                         IconButton(
                           icon: const Icon(Icons.close, size: 20),
+                          style: IconButton.styleFrom(
+                            minimumSize: Size.zero,
+                            fixedSize: const Size(32, 32),
+                            padding: EdgeInsets.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                           onPressed: () => Navigator.pop(sheetCtx),
                         ),
                       ],
