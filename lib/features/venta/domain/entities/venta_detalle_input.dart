@@ -32,6 +32,12 @@ class VentaDetalleInput {
   /// client-side — el backend lo lee de la orden.
   final double ordenAdelanto;
 
+  /// Descuento que el admin le hizo a la orden (S/). El precio de la linea ya
+  /// entra NETO (costo - descuento), asi que este numero no resta otra vez:
+  /// esta solo para poder MOSTRARSELO al cajero, que si no ve por que el
+  /// total no coincide con el costo del servicio. Solo client-side.
+  final double ordenDescuento;
+
   final String descripcion;
   final double cantidad;
   final double precioUnitario;
@@ -245,6 +251,7 @@ class VentaDetalleInput {
     this.ordenServicioId,
     this.ordenCodigo,
     this.ordenAdelanto = 0,
+    this.ordenDescuento = 0,
     required this.descripcion,
     required this.cantidad,
     required this.precioUnitario,
@@ -418,6 +425,7 @@ class VentaDetalleInput {
     String? ordenServicioId,
     String? ordenCodigo,
     double? ordenAdelanto,
+    double? ordenDescuento,
     String? descripcion,
     double? cantidad,
     double? precioUnitario,
@@ -471,6 +479,7 @@ class VentaDetalleInput {
       ordenServicioId: ordenServicioId ?? this.ordenServicioId,
       ordenCodigo: ordenCodigo ?? this.ordenCodigo,
       ordenAdelanto: ordenAdelanto ?? this.ordenAdelanto,
+      ordenDescuento: ordenDescuento ?? this.ordenDescuento,
       descripcion: descripcion ?? this.descripcion,
       cantidad: cantidad ?? this.cantidad,
       precioUnitario: precioUnitario ?? this.precioUnitario,

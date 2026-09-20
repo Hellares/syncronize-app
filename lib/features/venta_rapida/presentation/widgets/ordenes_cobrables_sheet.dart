@@ -292,6 +292,13 @@ class _OrdenCobrableCard extends StatelessWidget {
                     'Adelanto S/ ${orden.adelanto.toStringAsFixed(2)}',
                     style: TextStyle(fontSize: 9, color: Colors.green.shade700),
                   ),
+                // El descuento lo hizo el admin y baja el saldo: sin verlo, el
+                // cajero no sabe por que la orden no cobra el costo completo.
+                if (orden.descuento > 0)
+                  Text(
+                    'Descuento S/ ${orden.descuento.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: 9, color: Colors.orange.shade800),
+                  ),
               ],
             ),
           ],

@@ -212,6 +212,15 @@ class VentaRapidaState extends Equatable {
   double get adelantoAplicado =>
       items.fold(0.0, (sum, i) => sum + i.ordenAdelanto);
 
+  /// Descuento que el admin le hizo a las ordenes del carrito.
+  ///
+  /// NO se resta de nada: el precio de cada linea ya entra neto. Existe para
+  /// mostrarselo al cajero, que cobra y no aplico ese descuento — sin el
+  /// numero no tiene como explicarle al cliente por que el total no es el
+  /// costo del servicio.
+  double get descuentoOrdenes =>
+      items.fold(0.0, (sum, i) => sum + i.ordenDescuento);
+
   /// Lo que el cliente debe pagar HOY (total − adelantos aplicados).
   double get totalACobrar {
     final t = total - adelantoAplicado;

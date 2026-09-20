@@ -693,6 +693,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       ordenServicioId: orden.id,
       ordenCodigo: orden.codigo,
       ordenAdelanto: orden.adelanto,
+      ordenDescuento: orden.descuento,
       // Separador ASCII: el guión largo "—" no existe en los code pages de
       // las impresoras térmicas (CP437/CP850) y rompe la impresión.
       descripcion: '${orden.codigo} - ${equipo.isNotEmpty ? equipo : detalle}',

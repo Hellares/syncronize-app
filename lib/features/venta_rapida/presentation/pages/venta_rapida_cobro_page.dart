@@ -1476,11 +1476,25 @@ class _CobroViewState extends State<_CobroView> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Con adelanto aplicado el contexto va en su propia
-                      // línea (en una sola fila desbordaba en 400px).
-                      if (state.adelantoAplicado > 0) ...[
+                      // Con adelanto o descuento el contexto va en su propia
+                      // línea (en una sola fila desbordaba en 400px), y
+                      // centrado por si tiene que cortar en dos renglones.
+                      //
+                      // El descuento va acá aunque no reste nada: el precio de
+                      // la línea ya entra neto. Lo aplica el admin y lo cobra
+                      // el cajero, que sin verlo no puede explicar por qué el
+                      // total no es el costo del servicio.
+                      if (state.adelantoAplicado > 0 ||
+                          state.descuentoOrdenes > 0) ...[
                         Text(
-                          'Total S/ ${state.total.toStringAsFixed(2)} · Adelanto -S/ ${state.adelantoAplicado.toStringAsFixed(2)}',
+                          [
+                            'Total S/ ${state.total.toStringAsFixed(2)}',
+                            if (state.descuentoOrdenes > 0)
+                              'Descuento -S/ ${state.descuentoOrdenes.toStringAsFixed(2)}',
+                            if (state.adelantoAplicado > 0)
+                              'Adelanto -S/ ${state.adelantoAplicado.toStringAsFixed(2)}',
+                          ].join(' · '),
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade700),
                         ),
