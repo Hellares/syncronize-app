@@ -44,11 +44,24 @@ class Componente extends Equatable {
     this.tipoComponente,
   });
 
+  /// Como se nombra el componente: "OFFICE 365 - MICROSOFT".
+  ///
+  /// El tipo es la CATEGORIA y el modelo es el nombre concreto: van juntos y
+  /// se leen como una cosa sola, con la marca detras. Leerlo como
+  /// "OFFICE - MICROSOFT - 365" llevaba a crear una categoria llamada
+  /// "OFFICE 365", que es justo lo que la categoria viene a evitar.
+  ///
+  /// 🔴 Separador ASCII: esto entra al ticket termico
+  /// (ticket_esc_pos_generator) y los code pages de esas impresoras no tienen
+  /// cualquier caracter. La web usa "·" porque solo va a pantalla.
   String get displayName {
+    final queEs = [
+      tipoComponente?.nombre,
+      modelo,
+    ].whereType<String>().where((e) => e.isNotEmpty).join(' ');
     final parts = <String>[];
-    if (tipoComponente != null) parts.add(tipoComponente!.nombre);
-    if (marca != null) parts.add(marca!);
-    if (modelo != null) parts.add(modelo!);
+    if (queEs.isNotEmpty) parts.add(queEs);
+    if (marca != null && marca!.isNotEmpty) parts.add(marca!);
     return parts.isEmpty ? codigo : parts.join(' - ');
   }
 

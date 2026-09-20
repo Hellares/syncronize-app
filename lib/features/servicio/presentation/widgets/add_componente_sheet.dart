@@ -435,16 +435,18 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                             ),
                             const SizedBox(height: 15),
 
-                            // === SECTION 1: Tipo de Componente ===
+                            // === SECTION 1: Categoria (TipoComponente) ===
+                            // Agrupa y se reutiliza; el nombre concreto del
+                            // componente va en "Nombre o modelo" (seccion 2).
                             _buildSectionCard(
                               icon: Icons.category_outlined,
-                              title: 'Tipo de componente',
+                              title: 'Categoria del componente',
                               step: '1',
                               children: [
                                 if (_tipos.isNotEmpty && !_crearNuevoTipo) ...[
                                   CustomDropdown<String>(
-                                    label: 'Seleccionar tipo',
-                                    hintText: 'Ej: Pantalla, Disco Duro...',
+                                    label: 'Seleccionar categoria',
+                                    hintText: 'Ej: Pantalla, Bateria, Office...',
                                     value: _selectedTipo?.id,
                                     items: _tipos
                                         .map(
@@ -475,7 +477,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                                   const SizedBox(height: 6),
                                   _actionLink(
                                     icon: Icons.add,
-                                    label: 'Crear nuevo tipo',
+                                    label: 'Crear nueva categoria',
                                     onTap: () => setState(() {
                                       _crearNuevoTipo = true;
                                       _selectedTipo = null;
@@ -488,9 +490,9 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                                 ] else ...[
                                   CustomText(
                                     controller: _nombreTipoController,
-                                    label: 'Nombre del tipo',
+                                    label: 'Nombre de la categoria',
                                     hintText:
-                                        'Ej: Pantalla, Disco Duro, Teclado...',
+                                        'Ej: Pantalla, Bateria, Office, Perno...',
                                     required: true,
                                     prefixIcon: const Icon(
                                       Icons.label_outline,
@@ -535,7 +537,7 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
                                     const SizedBox(height: 6),
                                     _actionLink(
                                       icon: Icons.list,
-                                      label: 'Seleccionar tipo existente',
+                                      label: 'Seleccionar categoria existente',
                                       onTap: () => setState(
                                         () => _crearNuevoTipo = false,
                                       ),
@@ -1000,8 +1002,8 @@ class _AddComponenteSheetState extends State<AddComponenteSheet> {
       CustomText(
         controller: _modeloController,
         textCase: TextCase.upper,
-        label: 'Modelo',
-        hintText: 'Ej: Galaxy S24, ProBook 450...',
+        label: 'Nombre o modelo',
+        hintText: 'Ej: 365, 2019, Galaxy S24...',
         prefixIcon: const Icon(Icons.devices, size: 18),
         borderColor: AppColors.blue1,
         colorIcon: AppColors.blue1,
