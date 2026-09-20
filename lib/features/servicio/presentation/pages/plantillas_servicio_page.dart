@@ -15,6 +15,7 @@ import 'package:syncronize/core/widgets/custom_dropdown.dart';
 import 'package:syncronize/core/widgets/custom_switch_tile.dart';
 import 'package:syncronize/core/widgets/popup_item.dart';
 import 'package:syncronize/core/widgets/smart_appbar.dart';
+import 'package:syncronize/core/widgets/styled_dialog.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/plantilla_servicio.dart';
@@ -390,442 +391,376 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
     final opcionesCtrl = TextEditingController();
     final subCampos = <Map<String, dynamic>>[];
 
+    // Dialogo con el StyledDialog de siempre: el header y los botones
+    // quedan FIJOS y solo el formulario scrollea.
+    //
+    // 🔴 No sumarle `viewInsets.bottom` al `insetPadding`: `Dialog` ya se
+    // lo suma solo (su `effectivePadding`), asi que hacerlo a mano contaba el
+    // teclado DOS VECES y el dialogo se achicaba al doble al abrirse el
+    // teclado. `viewPadding.bottom` tampoco va: `showDialog` envuelve todo
+    // en un `SafeArea` (useSafeArea: true por default) que ya deja afuera la
+    // barra de navegacion del celular.
     showDialog(
       context: context,
       barrierColor: const Color(0x1A000000),
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (_, setDialogState) => Dialog(
-          backgroundColor: Colors.transparent,
-          // 🔴 El dialogo crece hasta donde le den: con los campos de la
-          // cascada el ultimo control quedaba DEBAJO de los botones de
-          // navegacion del celular. `viewPadding.bottom` es esa barra y
-          // `viewInsets.bottom` el teclado; los dos empujan el borde de
-          // abajo, asi que el contenido termina siempre por encima.
-          insetPadding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 24,
-            bottom: 24 +
-                MediaQuery.viewPaddingOf(dialogContext).bottom +
-                MediaQuery.viewInsetsOf(dialogContext).bottom,
-          ),
-          child: AnimatedNeonBorder(
-            borderRadius: 14,
-            borderWidth: 1.5,
-            padding: const EdgeInsets.all(1.5),
-            enableHighlight: true,
-            highlightWidth: 0.12,
-            highlightOpacity: 0.85,
-            duration: const Duration(seconds: 5),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 420),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
+      builder: (dialogContext) {
+        // Mismo techo de ancho que antes (420) sin pasarse de la pantalla en
+        // un celular angosto.
+        final anchoLibre = MediaQuery.sizeOf(dialogContext).width - 32;
+        return StatefulBuilder(
+          builder: (_, setDialogState) => StyledDialog(
+            accentColor: AppColors.blue1,
+            icon: Icons.add_circle_outline,
+            titulo: 'Agregar campo',
+            subtitulo: plantilla.nombre,
+            backgroundColor: Colors.white,
+            ancho: anchoLibre < 420 ? anchoLibre : 420,
+            margenHorizontal: 16,
+            content: [
+              // Nombre del campo
+              CustomText(
+                controller: nombreCtrl,
+                textCase: TextCase.upper,
+                label: 'Nombre del campo',
+                hintText: 'Ej: Numero de serie',
+                required: true,
+                prefixIcon: const Icon(Icons.label_outline, size: 18),
+                borderColor: AppColors.blue1,
+                colorIcon: AppColors.blue1,
               ),
-              padding: const EdgeInsets.all(20),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.blue1.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.add_circle_outline,
+
+              const SizedBox(height: 14),
+
+              // Tipo de campo
+              CustomDropdown<String>(
+                label: 'Tipo de campo',
+                hintText: 'Selecciona un tipo',
+                value: tipoCampo,
+                items: kTiposCampoServicio
+                    .map((t) => DropdownItem(
+                          value: t,
+                          label: tipoCampoLabel(t),
+                          leading: Icon(
+                            tipoCampoIcon(t),
+                            size: 16,
                             color: AppColors.blue1,
-                            size: 20,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const AppTitle(
-                                'Agregar campo',
-                                fontSize: 14,
-                                color: AppColors.blue1,
-                              ),
-                              AppSubtitle(
-                                plantilla.nombre,
-                                fontSize: 10,
-                                color: Colors.grey.shade600,
-                              ),
-                            ],
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () => Navigator.pop(dialogContext),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Icon(Icons.close, size: 18, color: Colors.grey.shade400),
-                          ),
+                        ))
+                    .toList(),
+                onChanged: (v) => setDialogState(() {
+                  tipoCampo = v ?? 'TEXTO';
+                  if (v != 'OBJETO') subCampos.clear();
+                }),
+                borderColor: AppColors.blue1,
+              ),
+
+              // Opciones para seleccion simple/multiple
+              if (tipoCampo == 'OPCION_SIMPLES' || tipoCampo == 'OPCION_MULTIPLE') ...[
+                const SizedBox(height: 14),
+                CustomText(
+                  controller: opcionesCtrl,
+                  textCase: TextCase.upper,
+                  label: 'Opciones (separadas por coma)',
+                  hintText: 'Opcion 1, Opcion 2, Opcion 3',
+                  prefixIcon: const Icon(Icons.list, size: 18),
+                  borderColor: AppColors.blue1,
+                  colorIcon: AppColors.blue1,
+                ),
+              ],
+
+              // Cascada: niveles + arbol como texto indentado. Mismo
+              // formato que la web (2 espacios = un nivel). Sin
+              // TextCase.upper: el valor guardado sale de este arbol y
+              // tiene que coincidir letra por letra con el de la web.
+              if (tipoCampo == 'OPCION_DEPENDIENTE') ...[
+                const SizedBox(height: 14),
+                CustomText(
+                  controller: nivelesCtrl,
+                  label: 'Niveles (separados por coma)',
+                  hintText: 'Fabricante, Familia, Modelo',
+                  prefixIcon: const Icon(Icons.layers_outlined, size: 18),
+                  borderColor: AppColors.blue1,
+                  colorIcon: AppColors.blue1,
+                ),
+                const SizedBox(height: 14),
+                CustomText(
+                  controller: arbolCtrl,
+                  maxLines: 8,
+                  label: 'Opciones (una por linea, sangria = nivel)',
+                  hintText: 'QUALCOMM, y debajo con 2 espacios SNAPDRAGON',
+                  prefixIcon:
+                      const Icon(Icons.account_tree_outlined, size: 18),
+                  borderColor: AppColors.blue1,
+                  colorIcon: AppColors.blue1,
+                ),
+              ],
+
+              const SizedBox(height: 14),
+
+              // Categoria
+              // Categoria y Placeholder van de a dos: son los
+              // controles cortos del formulario y sueltos gastaban
+              // dos renglones de un dialogo que ya llegaba a la
+              // barra de navegacion del celular.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: CustomDropdown<String?>(
+                      label: 'Categoria (opcional)',
+                      hintText: 'Sin categoria',
+                      value: categoria,
+                      items: [
+                        const DropdownItem(value: null, label: 'Sin categoria'),
+                        ..._categoriaLabels.entries.map(
+                          (e) => DropdownItem(value: e.key, label: e.value),
                         ),
                       ],
+                      onChanged: (v) => setDialogState(() => categoria = v),
+                      borderColor: AppColors.blue1,
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // Nombre del campo
-                    CustomText(
-                      controller: nombreCtrl,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: CustomText(
+                      controller: placeholderCtrl,
                       textCase: TextCase.upper,
-                      label: 'Nombre del campo',
-                      hintText: 'Ej: Numero de serie',
-                      required: true,
-                      prefixIcon: const Icon(Icons.label_outline, size: 18),
+                      label: 'Placeholder (opcional)',
+                      hintText: 'Texto de ayuda para el campo',
+                      prefixIcon: const Icon(Icons.short_text, size: 18),
                       borderColor: AppColors.blue1,
                       colorIcon: AppColors.blue1,
                     ),
+                  ),
+                ],
+              ),
 
-                    const SizedBox(height: 14),
-
-                    // Tipo de campo
-                    CustomDropdown<String>(
-                      label: 'Tipo de campo',
-                      hintText: 'Selecciona un tipo',
-                      value: tipoCampo,
-                      items: kTiposCampoServicio
-                          .map((t) => DropdownItem(
-                                value: t,
-                                label: tipoCampoLabel(t),
-                                leading: Icon(
-                                  tipoCampoIcon(t),
-                                  size: 16,
-                                  color: AppColors.blue1,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (v) => setDialogState(() {
-                        tipoCampo = v ?? 'TEXTO';
-                        if (v != 'OBJETO') subCampos.clear();
-                      }),
-                      borderColor: AppColors.blue1,
+              // Sub-campos para tipo OBJETO
+              if (tipoCampo == 'OBJETO') ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue1.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.blue1.withValues(alpha: 0.15),
+                      width: 0.8,
                     ),
-
-                    // Opciones para seleccion simple/multiple
-                    if (tipoCampo == 'OPCION_SIMPLES' || tipoCampo == 'OPCION_MULTIPLE') ...[
-                      const SizedBox(height: 14),
-                      CustomText(
-                        controller: opcionesCtrl,
-                        textCase: TextCase.upper,
-                        label: 'Opciones (separadas por coma)',
-                        hintText: 'Opcion 1, Opcion 2, Opcion 3',
-                        prefixIcon: const Icon(Icons.list, size: 18),
-                        borderColor: AppColors.blue1,
-                        colorIcon: AppColors.blue1,
-                      ),
-                    ],
-
-                    // Cascada: niveles + arbol como texto indentado. Mismo
-                    // formato que la web (2 espacios = un nivel). Sin
-                    // TextCase.upper: el valor guardado sale de este arbol y
-                    // tiene que coincidir letra por letra con el de la web.
-                    if (tipoCampo == 'OPCION_DEPENDIENTE') ...[
-                      const SizedBox(height: 14),
-                      CustomText(
-                        controller: nivelesCtrl,
-                        label: 'Niveles (separados por coma)',
-                        hintText: 'Fabricante, Familia, Modelo',
-                        prefixIcon: const Icon(Icons.layers_outlined, size: 18),
-                        borderColor: AppColors.blue1,
-                        colorIcon: AppColors.blue1,
-                      ),
-                      const SizedBox(height: 14),
-                      CustomText(
-                        controller: arbolCtrl,
-                        maxLines: 8,
-                        label: 'Opciones (una por linea, sangria = nivel)',
-                        hintText: 'QUALCOMM, y debajo con 2 espacios SNAPDRAGON',
-                        prefixIcon:
-                            const Icon(Icons.account_tree_outlined, size: 18),
-                        borderColor: AppColors.blue1,
-                        colorIcon: AppColors.blue1,
-                      ),
-                    ],
-
-                    const SizedBox(height: 14),
-
-                    // Categoria
-                    // Categoria y Placeholder van de a dos: son los
-                    // controles cortos del formulario y sueltos gastaban
-                    // dos renglones de un dialogo que ya llegaba a la
-                    // barra de navegacion del celular.
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: CustomDropdown<String?>(
-                            label: 'Categoria (opcional)',
-                            hintText: 'Sin categoria',
-                            value: categoria,
-                            items: [
-                              const DropdownItem(value: null, label: 'Sin categoria'),
-                              ..._categoriaLabels.entries.map(
-                                (e) => DropdownItem(value: e.key, label: e.value),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.account_tree_outlined, size: 16, color: AppColors.blue1),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: AppSubtitle('Sub-campos', fontSize: 11, color: AppColors.blue1),
+                          ),
+                          InkWell(
+                            onTap: () => setDialogState(() {
+                              subCampos.add({'nombre': '', 'tipo': 'TEXTO'});
+                            }),
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.blue1.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
                               ),
-                            ],
-                            onChanged: (v) => setDialogState(() => categoria = v),
-                            borderColor: AppColors.blue1,
+                              child: const Icon(Icons.add, size: 16, color: AppColors.blue1),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: CustomText(
-                            controller: placeholderCtrl,
-                            textCase: TextCase.upper,
-                            label: 'Placeholder (opcional)',
-                            hintText: 'Texto de ayuda para el campo',
-                            prefixIcon: const Icon(Icons.short_text, size: 18),
-                            borderColor: AppColors.blue1,
-                            colorIcon: AppColors.blue1,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Sub-campos para tipo OBJETO
-                    if (tipoCampo == 'OBJETO') ...[
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.blue1.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: AppColors.blue1.withValues(alpha: 0.15),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.account_tree_outlined, size: 16, color: AppColors.blue1),
-                                const SizedBox(width: 8),
-                                const Expanded(
-                                  child: AppSubtitle('Sub-campos', fontSize: 11, color: AppColors.blue1),
-                                ),
-                                InkWell(
-                                  onTap: () => setDialogState(() {
-                                    subCampos.add({'nombre': '', 'tipo': 'TEXTO'});
-                                  }),
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.blue1.withValues(alpha: 0.1),
-                                      shape: BoxShape.circle,
+                        ],
+                      ),
+                      if (subCampos.isNotEmpty) const SizedBox(height: 10),
+                      ...subCampos.asMap().entries.map((entry) {
+                        final i = entry.key;
+                        final sub = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: CustomText(
+                                      controller: TextEditingController(text: sub['nombre'] as String? ?? ''),
+                                      textCase: TextCase.upper,
+                                      hintText: 'Nombre',
+                                      height: 33,
+                                      borderColor: AppColors.blue1,
+                                      onChanged: (v) => sub['nombre'] = v,
                                     ),
-                                    child: const Icon(Icons.add, size: 16, color: AppColors.blue1),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 2,
+                                    child: CustomDropdown<String>(
+                                      value: sub['tipo'] as String? ?? 'TEXTO',
+                                      hintText: 'Tipo',
+                                      items: _subCampoTipos.entries
+                                          .map((e) => DropdownItem(value: e.key, label: e.value))
+                                          .toList(),
+                                      onChanged: (v) => setDialogState(() {
+                                        sub['tipo'] = v ?? 'TEXTO';
+                                        if (v != 'OPCION_SIMPLES') sub.remove('opciones');
+                                      }),
+                                      borderColor: AppColors.blue1,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  InkWell(
+                                    onTap: () => setDialogState(() => subCampos.removeAt(i)),
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(4),
+                                      child: Icon(Icons.remove_circle_outline,
+                                          size: 16, color: Colors.red.shade400),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (sub['tipo'] == 'OPCION_SIMPLES')
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8, top: 6),
+                                  child: CustomText(
+                                    controller: TextEditingController(
+                                      text: sub['opciones'] is List ? (sub['opciones'] as List).join(', ') : '',
+                                    ),
+                                    textCase: TextCase.upper,
+                                    hintText: 'Opciones separadas por coma',
+                                    height: 33,
+                                    prefixIcon: const Icon(Icons.list, size: 14),
+                                    borderColor: AppColors.blue1,
+                                    colorIcon: AppColors.blue1,
+                                    onChanged: (v) {
+                                      sub['opciones'] = v.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+                                    },
                                   ),
                                 ),
-                              ],
-                            ),
-                            if (subCampos.isNotEmpty) const SizedBox(height: 10),
-                            ...subCampos.asMap().entries.map((entry) {
-                              final i = entry.key;
-                              final sub = entry.value;
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 3,
-                                          child: CustomText(
-                                            controller: TextEditingController(text: sub['nombre'] as String? ?? ''),
-                                            textCase: TextCase.upper,
-                                            hintText: 'Nombre',
-                                            height: 33,
-                                            borderColor: AppColors.blue1,
-                                            onChanged: (v) => sub['nombre'] = v,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          flex: 2,
-                                          child: CustomDropdown<String>(
-                                            value: sub['tipo'] as String? ?? 'TEXTO',
-                                            hintText: 'Tipo',
-                                            items: _subCampoTipos.entries
-                                                .map((e) => DropdownItem(value: e.key, label: e.value))
-                                                .toList(),
-                                            onChanged: (v) => setDialogState(() {
-                                              sub['tipo'] = v ?? 'TEXTO';
-                                              if (v != 'OPCION_SIMPLES') sub.remove('opciones');
-                                            }),
-                                            borderColor: AppColors.blue1,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        InkWell(
-                                          onTap: () => setDialogState(() => subCampos.removeAt(i)),
-                                          borderRadius: BorderRadius.circular(20),
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(4),
-                                            child: Icon(Icons.remove_circle_outline,
-                                                size: 16, color: Colors.red.shade400),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (sub['tipo'] == 'OPCION_SIMPLES')
-                                      Padding(
-                                        padding: const EdgeInsets.only(left: 8, top: 6),
-                                        child: CustomText(
-                                          controller: TextEditingController(
-                                            text: sub['opciones'] is List ? (sub['opciones'] as List).join(', ') : '',
-                                          ),
-                                          textCase: TextCase.upper,
-                                          hintText: 'Opciones separadas por coma',
-                                          height: 33,
-                                          prefixIcon: const Icon(Icons.list, size: 14),
-                                          borderColor: AppColors.blue1,
-                                          colorIcon: AppColors.blue1,
-                                          onChanged: (v) {
-                                            sub['opciones'] = v.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-                                          },
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            }),
-                            if (subCampos.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: AppLabelText(
-                                  'Agrega sub-campos con el boton +',
-                                  fontSize: 10,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                          ],
+                            ],
+                          ),
+                        );
+                      }),
+                      if (subCampos.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: AppLabelText(
+                            'Agrega sub-campos con el boton +',
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
+                          ),
                         ),
-                      ),
                     ],
+                  ),
+                ),
+              ],
 
-                    const SizedBox(height: 14),
+              const SizedBox(height: 14),
 
-                    // Switch requerido
-                    CustomSwitchTile(
-                      title: 'Campo requerido',
-                      value: esRequerido,
-                      onChanged: (v) => setDialogState(() => esRequerido = v),
-                      activeTrackColor: AppColors.blue1,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Botones
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        CustomButton(
-                          text: 'Cancelar',
-                          onPressed: () => Navigator.pop(dialogContext),
-                          backgroundColor: Colors.transparent,
-                          borderColor: AppColors.blue3,
-                          borderWidth: 0.6,
-                          textColor: AppColors.blue3,
-                          enableShadows: false,
-                        ),
-                        const SizedBox(width: 8),
-                        CustomButton(
-                          text: 'Agregar',
-                          onPressed: () async {
-                            if (nombreCtrl.text.trim().isEmpty) return;
-                            if (tipoCampo == 'OBJETO' && subCampos.isEmpty) return;
-                            Navigator.pop(dialogContext);
-
-                            // Lista para opciones sueltas, Map para la cascada.
-                            Object? opcionesData;
-                            if (tipoCampo == 'OBJETO') {
-                              opcionesData = subCampos
-                                  .where((s) => (s['nombre'] as String?)?.isNotEmpty == true)
-                                  .map((s) {
-                                    final entry = <String, dynamic>{
-                                      'nombre': s['nombre'],
-                                      'tipo': s['tipo'],
-                                    };
-                                    if (s['tipo'] == 'OPCION_SIMPLES' && s['opciones'] is List) {
-                                      entry['opciones'] = s['opciones'];
-                                    }
-                                    return entry;
-                                  })
-                                  .toList();
-                            } else if (tipoCampo == 'OPCION_DEPENDIENTE') {
-                              // Va como {niveles, arbol}: el backend rechaza
-                              // el campo si no tiene esa forma.
-                              opcionesData = <String, dynamic>{
-                                'niveles': nivelesCtrl.text
-                                    .split(',')
-                                    .map((e) => e.trim())
-                                    .where((e) => e.isNotEmpty)
-                                    .toList(),
-                                'arbol': textoAArbol(arbolCtrl.text),
-                              };
-                            } else if (opcionesCtrl.text.trim().isNotEmpty) {
-                              opcionesData = opcionesCtrl.text
-                                  .split(',')
-                                  .map((e) => e.trim())
-                                  .where((e) => e.isNotEmpty)
-                                  .toList();
-                            }
-
-                            final campoData = <String, dynamic>{
-                              'nombre': nombreCtrl.text.trim(),
-                              'tipoCampo': tipoCampo,
-                              'esRequerido': esRequerido,
-                              if (categoria != null) 'categoria': categoria,
-                              if (placeholderCtrl.text.trim().isNotEmpty)
-                                'placeholder': placeholderCtrl.text.trim(),
-                              if (opcionesData != null) 'opciones': opcionesData,
-                            };
-
-                            final repo = locator<PlantillaServicioRepository>();
-                            final result = await repo.addCampo(
-                              plantillaId: plantilla.id,
-                              campoData: campoData,
-                            );
-                            if (!mounted) return;
-                            if (result is Success) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Campo agregado')),
-                              );
-                              _load();
-                            } else if (result is Error) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text((result as Error).message)),
-                              );
-                            }
-                          },
-                          backgroundColor: AppColors.blue1,
-                          borderColor: AppColors.blue1,
-                          borderWidth: 0.6,
-                          textColor: Colors.white,
-                          enableShadows: false,
-                        ),
-                      ],
-                    ),
-                  ],
+              // Switch requerido
+              CustomSwitchTile(
+                title: 'Campo requerido',
+                value: esRequerido,
+                onChanged: (v) => setDialogState(() => esRequerido = v),
+                activeTrackColor: AppColors.blue1,
+              ),
+            ],
+            actions: [
+              Expanded(
+                child: CustomButton(
+                  text: 'Cancelar',
+                  onPressed: () => Navigator.pop(dialogContext),
+                  backgroundColor: Colors.transparent,
+                  borderColor: AppColors.blue3,
+                  borderWidth: 0.6,
+                  textColor: AppColors.blue3,
+                  enableShadows: false,
                 ),
               ),
-            ),
+              Expanded(
+                child: CustomButton(
+                  text: 'Agregar',
+                  onPressed: () async {
+                    if (nombreCtrl.text.trim().isEmpty) return;
+                    if (tipoCampo == 'OBJETO' && subCampos.isEmpty) return;
+                    Navigator.pop(dialogContext);
+
+                    // Lista para opciones sueltas, Map para la cascada.
+                    Object? opcionesData;
+                    if (tipoCampo == 'OBJETO') {
+                      opcionesData = subCampos
+                          .where((s) => (s['nombre'] as String?)?.isNotEmpty == true)
+                          .map((s) {
+                            final entry = <String, dynamic>{
+                              'nombre': s['nombre'],
+                              'tipo': s['tipo'],
+                            };
+                            if (s['tipo'] == 'OPCION_SIMPLES' && s['opciones'] is List) {
+                              entry['opciones'] = s['opciones'];
+                            }
+                            return entry;
+                          })
+                          .toList();
+                    } else if (tipoCampo == 'OPCION_DEPENDIENTE') {
+                      // Va como {niveles, arbol}: el backend rechaza
+                      // el campo si no tiene esa forma.
+                      opcionesData = <String, dynamic>{
+                        'niveles': nivelesCtrl.text
+                            .split(',')
+                            .map((e) => e.trim())
+                            .where((e) => e.isNotEmpty)
+                            .toList(),
+                        'arbol': textoAArbol(arbolCtrl.text),
+                      };
+                    } else if (opcionesCtrl.text.trim().isNotEmpty) {
+                      opcionesData = opcionesCtrl.text
+                          .split(',')
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                    }
+
+                    final campoData = <String, dynamic>{
+                      'nombre': nombreCtrl.text.trim(),
+                      'tipoCampo': tipoCampo,
+                      'esRequerido': esRequerido,
+                      if (categoria != null) 'categoria': categoria,
+                      if (placeholderCtrl.text.trim().isNotEmpty)
+                        'placeholder': placeholderCtrl.text.trim(),
+                      if (opcionesData != null) 'opciones': opcionesData,
+                    };
+
+                    final repo = locator<PlantillaServicioRepository>();
+                    final result = await repo.addCampo(
+                      plantillaId: plantilla.id,
+                      campoData: campoData,
+                    );
+                    if (!mounted) return;
+                    if (result is Success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Campo agregado')),
+                      );
+                      _load();
+                    } else if (result is Error) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text((result as Error).message)),
+                      );
+                    }
+                  },
+                  backgroundColor: AppColors.blue1,
+                  borderColor: AppColors.blue1,
+                  borderWidth: 0.6,
+                  textColor: Colors.white,
+                  enableShadows: false,
+                ),
+              ),
+            ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
