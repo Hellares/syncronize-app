@@ -46,14 +46,6 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   /// parent (ej. seleccionar cliente desde dentro de la sheet).
   StateSetter? _sheetSetState;
 
-  /// Contexto del `StatefulBuilder` de esa sheet, al lado de su setter.
-  ///
-  /// 🔴 Es un `State` que NO es nuestro: cuando la sheet se va —cerrada,
-  /// arrastrada o por un hot reload— su setter queda apuntando a algo
-  /// `defunct` y usarlo tira "setState() called after dispose()". El contexto
-  /// es la única forma de preguntar si todavía está vivo.
-  BuildContext? _sheetCtx;
-
   // Step 0: Cliente (via bottom sheet)
   ClienteUnificadoResult? _clienteResult;
   String? _clienteId;
@@ -123,18 +115,8 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
   /// rebuilda su contenido. Usar en callbacks que se disparan desde dentro
   /// de una sheet (p. ej. al seleccionar un cliente).
   void _emit([VoidCallback? fn]) {
-    // Los callbacks del dropdown corren en un post-frame (ver `_postFrame` en
-    // CustomDropdown), así que pueden caer cuando la pantalla o la sheet ya no
-    // están. El dato igual se guarda; lo que no se puede es repintar algo
-    // muerto.
-    if (mounted) {
-      setState(fn ?? () {});
-    } else {
-      fn?.call();
-    }
-    if (_sheetCtx?.mounted ?? false) {
-      _sheetSetState?.call(() {});
-    }
+    setState(fn ?? () {});
+    _sheetSetState?.call(() {});
   }
 
   @override
@@ -798,7 +780,6 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             _sheetSetState = setSheetState;
-            _sheetCtx = ctx;
             final keyboardInset = MediaQuery.viewInsetsOf(ctx).bottom;
             return GestureDetector(
               // Tap en zona libre de la sheet → cerrar el teclado (los
@@ -873,7 +854,6 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
       },
     );
     _sheetSetState = null;
-    _sheetCtx = null;
     if (mounted) setState(() {});
   }
 
