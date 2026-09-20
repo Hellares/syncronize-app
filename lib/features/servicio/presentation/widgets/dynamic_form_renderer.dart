@@ -245,7 +245,6 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             // nivel no se pinta (salvo el primero, que siempre va).
             if (opciones.isEmpty && i > 0) break;
             final actual = i < ruta.length ? ruta[i] : null;
-            if (combos.isNotEmpty) combos.add(const SizedBox(height: 8));
             combos.add(CustomDropdown<String>(
               label: i == 0
                   ? '${campo.nombre} - ${arbol.niveles[i]}${campo.esRequerido ? " *" : ""}'
@@ -266,11 +265,27 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
               },
             ));
           }
+          // Hasta TRES por fila y lo que sobra baja: una cascada de dos o
+          // tres niveles entra de una sola mirada en vez de ocupar tres
+          // renglones. Abajo de 300 px van de a dos, porque tres combos con
+          // etiqueta no se pueden leer en un telefono angosto.
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: combos,
+            child: LayoutBuilder(
+              builder: (_, restricciones) {
+                const sep = 8.0;
+                final maximo = restricciones.maxWidth < 300 ? 2 : 3;
+                final porFila = combos.length < maximo ? combos.length : maximo;
+                final ancho =
+                    (restricciones.maxWidth - sep * (porFila - 1)) / porFila;
+                return Wrap(
+                  spacing: sep,
+                  runSpacing: 8,
+                  children: combos
+                      .map((w) => SizedBox(width: ancho, child: w))
+                      .toList(),
+                );
+              },
             ),
           );
         }

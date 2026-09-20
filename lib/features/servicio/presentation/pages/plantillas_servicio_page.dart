@@ -396,6 +396,19 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (_, setDialogState) => Dialog(
           backgroundColor: Colors.transparent,
+          // 🔴 El dialogo crece hasta donde le den: con los campos de la
+          // cascada el ultimo control quedaba DEBAJO de los botones de
+          // navegacion del celular. `viewPadding.bottom` es esa barra y
+          // `viewInsets.bottom` el teclado; los dos empujan el borde de
+          // abajo, asi que el contenido termina siempre por encima.
+          insetPadding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: 24 +
+                MediaQuery.viewPaddingOf(dialogContext).bottom +
+                MediaQuery.viewInsetsOf(dialogContext).bottom,
+          ),
           child: AnimatedNeonBorder(
             borderRadius: 14,
             borderWidth: 1.5,
@@ -543,31 +556,41 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
                     const SizedBox(height: 14),
 
                     // Categoria
-                    CustomDropdown<String?>(
-                      label: 'Categoria (opcional)',
-                      hintText: 'Sin categoria',
-                      value: categoria,
-                      items: [
-                        const DropdownItem(value: null, label: 'Sin categoria'),
-                        ..._categoriaLabels.entries.map(
-                          (e) => DropdownItem(value: e.key, label: e.value),
+                    // Categoria y Placeholder van de a dos: son los
+                    // controles cortos del formulario y sueltos gastaban
+                    // dos renglones de un dialogo que ya llegaba a la
+                    // barra de navegacion del celular.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: CustomDropdown<String?>(
+                            label: 'Categoria (opcional)',
+                            hintText: 'Sin categoria',
+                            value: categoria,
+                            items: [
+                              const DropdownItem(value: null, label: 'Sin categoria'),
+                              ..._categoriaLabels.entries.map(
+                                (e) => DropdownItem(value: e.key, label: e.value),
+                              ),
+                            ],
+                            onChanged: (v) => setDialogState(() => categoria = v),
+                            borderColor: AppColors.blue1,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: CustomText(
+                            controller: placeholderCtrl,
+                            textCase: TextCase.upper,
+                            label: 'Placeholder (opcional)',
+                            hintText: 'Texto de ayuda para el campo',
+                            prefixIcon: const Icon(Icons.short_text, size: 18),
+                            borderColor: AppColors.blue1,
+                            colorIcon: AppColors.blue1,
+                          ),
                         ),
                       ],
-                      onChanged: (v) => setDialogState(() => categoria = v),
-                      borderColor: AppColors.blue1,
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // Placeholder
-                    CustomText(
-                      controller: placeholderCtrl,
-                      textCase: TextCase.upper,
-                      label: 'Placeholder (opcional)',
-                      hintText: 'Texto de ayuda para el campo',
-                      prefixIcon: const Icon(Icons.short_text, size: 18),
-                      borderColor: AppColors.blue1,
-                      colorIcon: AppColors.blue1,
                     ),
 
                     // Sub-campos para tipo OBJETO
