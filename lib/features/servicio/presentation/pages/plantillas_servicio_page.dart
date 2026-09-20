@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
+import 'package:syncronize/core/utils/opcion_dependiente.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/widgets/custom_search_field.dart';
@@ -384,6 +385,8 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
     String? categoria;
     bool esRequerido = false;
     final placeholderCtrl = TextEditingController();
+    final nivelesCtrl = TextEditingController();
+    final arbolCtrl = TextEditingController();
     final opcionesCtrl = TextEditingController();
     final subCampos = <Map<String, dynamic>>[];
 
@@ -505,6 +508,33 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
                         label: 'Opciones (separadas por coma)',
                         hintText: 'Opcion 1, Opcion 2, Opcion 3',
                         prefixIcon: const Icon(Icons.list, size: 18),
+                        borderColor: AppColors.blue1,
+                        colorIcon: AppColors.blue1,
+                      ),
+                    ],
+
+                    // Cascada: niveles + arbol como texto indentado. Mismo
+                    // formato que la web (2 espacios = un nivel). Sin
+                    // TextCase.upper: el valor guardado sale de este arbol y
+                    // tiene que coincidir letra por letra con el de la web.
+                    if (tipoCampo == 'OPCION_DEPENDIENTE') ...[
+                      const SizedBox(height: 14),
+                      CustomText(
+                        controller: nivelesCtrl,
+                        label: 'Niveles (separados por coma)',
+                        hintText: 'Fabricante, Familia, Modelo',
+                        prefixIcon: const Icon(Icons.layers_outlined, size: 18),
+                        borderColor: AppColors.blue1,
+                        colorIcon: AppColors.blue1,
+                      ),
+                      const SizedBox(height: 14),
+                      CustomText(
+                        controller: arbolCtrl,
+                        maxLines: 8,
+                        label: 'Opciones (una por linea, sangria = nivel)',
+                        hintText: 'QUALCOMM, y debajo con 2 espacios SNAPDRAGON',
+                        prefixIcon:
+                            const Icon(Icons.account_tree_outlined, size: 18),
                         borderColor: AppColors.blue1,
                         colorIcon: AppColors.blue1,
                       ),
@@ -696,7 +726,8 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
                             if (tipoCampo == 'OBJETO' && subCampos.isEmpty) return;
                             Navigator.pop(dialogContext);
 
-                            List<dynamic>? opcionesData;
+                            // Lista para opciones sueltas, Map para la cascada.
+                            Object? opcionesData;
                             if (tipoCampo == 'OBJETO') {
                               opcionesData = subCampos
                                   .where((s) => (s['nombre'] as String?)?.isNotEmpty == true)
@@ -711,6 +742,17 @@ class _PlantillasServicioPageState extends State<PlantillasServicioPage> {
                                     return entry;
                                   })
                                   .toList();
+                            } else if (tipoCampo == 'OPCION_DEPENDIENTE') {
+                              // Va como {niveles, arbol}: el backend rechaza
+                              // el campo si no tiene esa forma.
+                              opcionesData = <String, dynamic>{
+                                'niveles': nivelesCtrl.text
+                                    .split(',')
+                                    .map((e) => e.trim())
+                                    .where((e) => e.isNotEmpty)
+                                    .toList(),
+                                'arbol': textoAArbol(arbolCtrl.text),
+                              };
                             } else if (opcionesCtrl.text.trim().isNotEmpty) {
                               opcionesData = opcionesCtrl.text
                                   .split(',')

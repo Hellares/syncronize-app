@@ -54,6 +54,10 @@ const kTipoDatoLabels = <String, String>{
   'LICENCIA_CONDUCIR': 'Licencia de conducir',
   'FOTO': 'Foto',
   'PRODUCTO_CATALOGO': 'Producto del catálogo',
+  // Cascada DENTRO de un mismo campo (Fabricante -> Familia -> Modelo).
+  // No confundir con SELECT_DEPENDIENTE de productos, que encadena
+  // atributos DISTINTOS y tiene tabla propia de opciones.
+  'OPCION_DEPENDIENTE': 'Selección en cascada',
 
   // ── Propios de los atributos de producto ──
   // Mismo texto que su equivalente de servicios, distinto nombre interno.
@@ -97,6 +101,7 @@ const kTipoDatoLabelsCortos = <String, String>{
   'LICENCIA_CONDUCIR': 'Licencia',
   'FOTO': 'Foto',
   'PRODUCTO_CATALOGO': 'Producto',
+  'OPCION_DEPENDIENTE': 'Cascada',
 
   'SELECT': 'Selección',
   'MULTI_SELECT': 'Multi-selección',
@@ -135,6 +140,7 @@ const kTipoDatoIcons = <String, IconData>{
   'LICENCIA_CONDUCIR': Icons.card_membership_outlined,
   'FOTO': Icons.photo_camera_outlined,
   'PRODUCTO_CATALOGO': Icons.inventory_2_outlined,
+  'OPCION_DEPENDIENTE': Icons.account_tree_outlined,
 
   // Mismos íconos que sus equivalentes de servicios.
   'SELECT': Icons.radio_button_checked,
@@ -177,6 +183,7 @@ const kTiposCampoServicio = <String>[
   'LICENCIA_CONDUCIR',
   'FOTO',
   'PRODUCTO_CATALOGO',
+  'OPCION_DEPENDIENTE',
 ];
 
 /// Tipos que ofrece el selector de ATRIBUTOS DE PRODUCTO, en orden.

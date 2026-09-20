@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/utils/opcion_dependiente.dart';
 import '../../../../core/widgets/barcode_scanner_button.dart';
 import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_switch_tile.dart';
@@ -221,6 +222,58 @@ class _DynamicFormRendererState extends State<DynamicFormRenderer> {
             onChanged: (v) => _updateValue(campo.nombre, v),
           ),
         );
+
+      case 'OPCION_DEPENDIENTE':
+        {
+          // Seleccion en cascada: un dropdown por nivel, cada uno filtrado
+          // por el anterior. Se guarda la RUTA "A / B / C".
+          final arbol = leerArbolDependiente(campo.opciones);
+          if (arbol == null) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                '${campo.nombre}: la cascada no esta configurada',
+                style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
+              ),
+            );
+          }
+          final ruta = partirRuta(widget.values[campo.nombre]?.toString());
+          final combos = <Widget>[];
+          for (var i = 0; i < arbol.niveles.length; i++) {
+            final opciones = hijosDeRuta(arbol, ruta.take(i).toList());
+            // Una rama puede terminar antes que los niveles declarados: ese
+            // nivel no se pinta (salvo el primero, que siempre va).
+            if (opciones.isEmpty && i > 0) break;
+            final actual = i < ruta.length ? ruta[i] : null;
+            if (combos.isNotEmpty) combos.add(const SizedBox(height: 8));
+            combos.add(CustomDropdown<String>(
+              label: i == 0
+                  ? '${campo.nombre} - ${arbol.niveles[i]}${campo.esRequerido ? " *" : ""}'
+                  : arbol.niveles[i],
+              value: opciones.any((o) => o.valor == actual) ? actual : null,
+              borderColor: AppColors.blue1,
+              items: opciones
+                  .map((o) => DropdownItem(value: o.valor, label: o.valor))
+                  .toList(),
+              onChanged: (v) {
+                // 🔴 Elegir de nuevo un nivel de arriba BORRA los de abajo:
+                // si no, queda "INTEL / SNAPDRAGON / 888", una rama que no
+                // existe y que el backend rechaza al guardar la orden.
+                final nueva = ruta.take(i).toList();
+                if (v != null && v.isNotEmpty) nueva.add(v);
+                _updateValue(campo.nombre, nueva.join(sepDependiente));
+                setState(() {});
+              },
+            ));
+          }
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: combos,
+            ),
+          );
+        }
 
       case 'OPCION_SIMPLES':
         final opciones = campo.opciones is List
