@@ -16,6 +16,7 @@ import '../../../../core/constants/storage_constants.dart';
 import '../../../../core/utils/role_navigation_helper.dart';
 import '../../domain/entities/auth_response.dart';
 import '../../../empresa/domain/usecases/switch_empresa_usecase.dart';
+import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/login/login_cubit.dart';
 
@@ -92,6 +93,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     if (empresaRole != null) {
       await localStorage.setString(StorageConstants.tenantRole, empresaRole);
     }
+    if (!mounted) return;
+    // El contexto trae los permisos, y de ahí salen el menú y los accesos.
+    // Sin esto, quien no cae en el dashboard entra con el menú vacío hasta
+    // que pasa por él (el dashboard es el único que lo cargaba).
+    await context.read<EmpresaContextCubit>().loadEmpresaContext();
     if (!mounted) return;
     context.go(RoleNavigationHelper.getEmpresaRoute());
   }
@@ -307,6 +313,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   }
                   // Navegar según el modo de login
                   if (loginMode == 'management') {
+                    // Mismo motivo que arriba: el menú y los accesos salen
+                    // del contexto, y hay que tenerlo antes de aterrizar.
+                    await context
+                        .read<EmpresaContextCubit>()
+                        .loadEmpresaContext();
+                    if (!context.mounted) return;
                     context.go(RoleNavigationHelper.getEmpresaRoute());
                   } else {
                     context.go('/marketplace');

@@ -12,11 +12,16 @@ class RoleNavigationHelper {
   /// a su dashboard personal con un tap. Esto evita que queden atrapados
   /// en una pantalla específica sin poder volver a la home común.
   ///
-  /// Solo roles con una vista 100% dedicada (CLIENTE, TECNICO, CONTADOR)
-  /// caen directo en su pantalla porque ahí está toda su operación.
+  /// Solo roles con una vista 100% dedicada (CLIENTE, CONTADOR) caen directo
+  /// en su pantalla porque ahí está toda su operación.
+  ///
+  /// 🔴 El TECNICO salió de acá (19-09): caía en Órdenes de Servicio y ahí el
+  /// menú le quedaba con tres ítems —Dashboard, Mi Perfil, Marketplace—
+  /// porque el contexto de la empresa (con sus permisos) recién se carga al
+  /// entrar. Ahora cae en el dashboard, que ya le muestra sus accesos, y
+  /// entra a Órdenes desde ahí.
   static const _roleRoutes = <String, String>{
     'CLIENTE': '/empresa/cliente',
-    'TECNICO': '/empresa/ordenes',
     'CONTADOR': '/empresa/ventas/analytics',
     // El repartidor vive en su pool de entregas — toda su operación está ahí.
     'REPARTIDOR': '/empresa/delivery',

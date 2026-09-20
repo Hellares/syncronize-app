@@ -21,6 +21,7 @@ import '../../../../core/utils/role_navigation_helper.dart';
 import '../../domain/entities/empresa_list_item.dart';
 import '../../domain/usecases/get_user_empresas_usecase.dart';
 import '../../domain/usecases/switch_empresa_usecase.dart';
+import '../bloc/empresa_context/empresa_context_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Página inteligente de selección de empresa
@@ -141,6 +142,12 @@ class _EmpresaSelectionPageState extends State<EmpresaSelectionPage> {
       }
       await _localStorage.setString(StorageConstants.loginMode, 'management');
 
+      if (!mounted) return;
+      // Con el contexto ya cargado: el menú y los accesos del usuario salen
+      // de sus permisos, y quien no cae en el dashboard no los tendría.
+      await context.read<EmpresaContextCubit>().loadEmpresaContextById(
+            empresa.id,
+          );
       if (!mounted) return;
       context.go(RoleNavigationHelper.getEmpresaRoute());
     } else if (result is Error) {
