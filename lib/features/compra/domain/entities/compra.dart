@@ -80,6 +80,15 @@ class CompraDetalle extends Equatable {
   /// al stock igual, pero no se pagan: el costo queda prorrateado entre todas.
   final int cantidadBonificada;
 
+  /// Cómo venía la línea en la factura del proveedor: el código con el que ÉL
+  /// la identifica y la garantía que da, en MESES.
+  ///
+  /// 🔑 El código queda CONGELADO acá —es lo que decía el papel—; la
+  /// equivalencia viva ("ese código = este producto") vive en el diccionario
+  /// del proveedor y se puede corregir sin tocar esta compra.
+  final String? codigoProveedor;
+  final int? garantiaMeses;
+
   /// Vencimiento de ESTA entrega. Al confirmar la compra viaja al Lote, y es
   /// lo que le permite al consumo FEFO sacar primero lo que caduca antes.
   final DateTime? fechaVencimiento;
@@ -126,6 +135,8 @@ class CompraDetalle extends Equatable {
     required this.precioUnitario,
     this.descuento = 0,
     this.cantidadBonificada = 0,
+    this.codigoProveedor,
+    this.garantiaMeses,
     this.fechaVencimiento,
     this.porcentajeIGV = 18,
     this.igv = 0,

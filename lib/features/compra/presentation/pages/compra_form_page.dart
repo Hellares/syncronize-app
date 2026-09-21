@@ -230,6 +230,15 @@ class _CompraFormViewState extends State<_CompraFormView> {
             if ((d['cantidadBonificada'] as num?) != null &&
                 (d['cantidadBonificada'] as num) > 0)
               'cantidadBonificada': d['cantidadBonificada'],
+            // Cómo venía en la factura del proveedor. Al CONFIRMAR, el backend
+            // aprende que ese código es este producto y la próxima compra lo
+            // encuentra tipeándolo.
+            if (d['codigoProveedor'] != null)
+              'codigoProveedor': d['codigoProveedor'],
+            // 🔴 Se manda aunque sea 0: "0 meses" es SIN garantía, que no es
+            // lo mismo que no saber cuánta es.
+            if (d['garantiaMeses'] != null)
+              'garantiaMeses': d['garantiaMeses'],
             // Al confirmar, el backend la copia al Lote que crea: es lo que
             // le permite a FEFO sacar primero lo que caduca antes.
             if (d['fechaVencimiento'] != null)
@@ -547,6 +556,12 @@ class _CompraFormViewState extends State<_CompraFormView> {
                     'precioUnitario': d['precioUnitario'],
                   if (d['nuevoPrecioVenta'] != null)
                     'nuevoPrecioVenta': d['nuevoPrecioVenta'],
+                  // La factura del proveedor recién aparece al RECIBIR: la
+                  // orden se armó con nuestros nombres, no con los de él.
+                  if (d['codigoProveedor'] != null)
+                    'codigoProveedor': d['codigoProveedor'],
+                  if (d['garantiaMeses'] != null)
+                    'garantiaMeses': d['garantiaMeses'],
                 })
             .toList(),
         // El flete llega con la mercadería, así que la recepción los manda

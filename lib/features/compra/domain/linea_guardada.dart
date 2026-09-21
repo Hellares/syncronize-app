@@ -87,6 +87,11 @@ Map<String, dynamic> itemDesdeDetalleGuardado(
       'unidadPresentacionSimbolo': simboloPresentacion,
     if (simboloVenta != null) 'unidadVentaSimbolo': simboloVenta,
     if (d.nuevoPrecioVenta != null) 'nuevoPrecioVenta': d.nuevoPrecioVenta,
+    // Datos de la FACTURA: vuelven tal cual, sin convertir por empaque ni por
+    // presentación. Guardar REEMPLAZA los detalles, así que lo que no vuelve
+    // se pierde.
+    if (d.codigoProveedor != null) 'codigoProveedor': d.codigoProveedor,
+    if (d.garantiaMeses != null) 'garantiaMeses': d.garantiaMeses,
   };
 }
 

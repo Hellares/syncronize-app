@@ -40,6 +40,21 @@ class LineaCompraDraft extends Equatable {
   /// sobre lo que sí se paga; las dos pueden convivir en la misma línea.
   final int cantidadBonificada;
 
+  /// Código con el que el PROVEEDOR identifica este ítem en su factura
+  /// ("MMTE9072" de Deltron).
+  ///
+  /// 🔑 Es un SNAPSHOT de lo que decía el papel. Al CONFIRMAR, el backend
+  /// aprende la equivalencia "ese código = este producto" y desde ahí el
+  /// buscador encuentra el producto tipeándolo.
+  final String? codigoProveedor;
+
+  /// Garantía del proveedor por esta compra, en MESES ("12m" en la factura).
+  ///
+  /// 🔴 Un número y no texto: es lo único que después permite saber si algo
+  /// sigue en garantía. El "consult" que imprimen algunos proveedores va en
+  /// null, que NO es lo mismo que 0 ("sin garantía").
+  final int? garantiaMeses;
+
   /// Vencimiento impreso en el envase de ESTA entrega.
   ///
   /// 🔑 Va en la LÍNEA y no en el producto porque cada entrega vence distinto:
@@ -102,6 +117,8 @@ class LineaCompraDraft extends Equatable {
     this.precioUnitario,
     this.descuento = 0,
     this.cantidadBonificada = 0,
+    this.codigoProveedor,
+    this.garantiaMeses,
     this.fechaVencimiento,
     this.tipoVencimiento,
     this.diasVidaUtil,
@@ -434,12 +451,19 @@ class LineaCompraDraft extends Equatable {
     double? precioUnitario,
     double? descuento,
     int? cantidadBonificada,
+    String? codigoProveedor,
+    int? garantiaMeses,
     DateTime? fechaVencimiento,
     bool? usaUnidadCompra,
     double? factorCompra,
     double? nuevoPrecioVenta,
     bool limpiarPrecioUnitario = false,
     bool limpiarNuevoPrecioVenta = false,
+    // 🔴 Sin estos, vaciar el campo en el editor NO borra el dato: en
+    // `copyWith` un null significa "no lo toques", así que el código viejo
+    // volvería solo y nadie entendería por qué.
+    bool limpiarCodigoProveedor = false,
+    bool limpiarGarantia = false,
   }) {
     return LineaCompraDraft(
       productoId: productoId,
@@ -454,6 +478,11 @@ class LineaCompraDraft extends Equatable {
           : (precioUnitario ?? this.precioUnitario),
       descuento: descuento ?? this.descuento,
       cantidadBonificada: cantidadBonificada ?? this.cantidadBonificada,
+      codigoProveedor: limpiarCodigoProveedor
+          ? null
+          : (codigoProveedor ?? this.codigoProveedor),
+      garantiaMeses:
+          limpiarGarantia ? null : (garantiaMeses ?? this.garantiaMeses),
       usaUnidadCompra: usaUnidadCompra ?? this.usaUnidadCompra,
       factorCompra: factorCompra ?? this.factorCompra,
       nuevoPrecioVenta: limpiarNuevoPrecioVenta
@@ -482,6 +511,10 @@ class LineaCompraDraft extends Equatable {
         'precioUnitario': precioUnitario ?? 0,
         'descuento': descuento,
         if (cantidadBonificada > 0) 'cantidadBonificada': cantidadBonificada,
+        // Los dos son datos de la FACTURA: no se convierten por empaque ni
+        // por presentación, y viajan igual en las dos direcciones.
+        if (codigoProveedor != null) 'codigoProveedor': codigoProveedor,
+        if (garantiaMeses != null) 'garantiaMeses': garantiaMeses,
         // 🔴 toMap/fromMap SIMÉTRICOS: la línea se serializa para volver al
         // editor, y si la fecha no vuelve el cajero la pierde al reabrirla.
         if (fechaVencimiento != null)
@@ -534,6 +567,8 @@ class LineaCompraDraft extends Equatable {
           : null,
       descuento: aDouble(item['descuento']) ?? 0,
       cantidadBonificada: (item['cantidadBonificada'] as num?)?.round() ?? 0,
+      codigoProveedor: item['codigoProveedor'] as String?,
+      garantiaMeses: (item['garantiaMeses'] as num?)?.toInt(),
       fechaVencimiento: item['fechaVencimiento'] != null
           ? DateTime.tryParse(item['fechaVencimiento'].toString())
           : null,
@@ -561,6 +596,8 @@ class LineaCompraDraft extends Equatable {
         precioUnitario,
         descuento,
         cantidadBonificada,
+        codigoProveedor,
+        garantiaMeses,
         usaUnidadCompra,
         factorCompra,
         nuevoPrecioVenta,

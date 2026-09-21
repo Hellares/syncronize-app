@@ -54,6 +54,8 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
   late final TextEditingController _bonificada;
   late final TextEditingController _factor;
   late final TextEditingController _nuevoPrecioVenta;
+  late final TextEditingController _codigoProveedor;
+  late final TextEditingController _garantia;
 
   late bool _usaUnidadCompra;
 
@@ -75,6 +77,11 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
             : '');
     _factor = TextEditingController(
         text: l.factorCompra != null ? _num(l.factorCompra!) : '');
+    // Datos de la FACTURA: se escriben tal cual están impresos, sin convertir
+    // por empaque ni por presentación.
+    _codigoProveedor = TextEditingController(text: l.codigoProveedor ?? '');
+    _garantia =
+        TextEditingController(text: l.garantiaMeses?.toString() ?? '');
     // El campo se escribe en unidad de PRESENTACIÓN (S/9 el kilo) y la línea lo
     // guarda por unidad de venta: se multiplica al entrar y se divide al salir.
     _nuevoPrecioVenta = TextEditingController(
@@ -94,6 +101,8 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
     _bonificada.dispose();
     _factor.dispose();
     _nuevoPrecioVenta.dispose();
+    _codigoProveedor.dispose();
+    _garantia.dispose();
     super.dispose();
   }
 
@@ -126,6 +135,19 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
       factor: factorEscrito > 0 ? factorEscrito : null,
     ).copyWith(
       descuento: _leer(_descuento),
+      // 🔴 Normalizado acá, igual que en la web: es la CLAVE con la que
+      // después se busca el producto, y "mmte9072 " tiene que caer en la
+      // misma fila que "MMTE9072".
+      codigoProveedor: _codigoProveedor.text.trim().isEmpty
+          ? null
+          : _codigoProveedor.text.trim().toUpperCase(),
+      limpiarCodigoProveedor: _codigoProveedor.text.trim().isEmpty,
+      // Vacío = no sabemos cuánta es (el "consult" de la factura), que no es
+      // lo mismo que 0 = sin garantía.
+      garantiaMeses: _garantia.text.trim().isEmpty
+          ? null
+          : int.tryParse(_garantia.text.trim()),
+      limpiarGarantia: _garantia.text.trim().isEmpty,
       fechaVencimiento: _fechaVencimiento,
       nuevoPrecioVenta: _nuevoPrecioVentaPorUnidadDeVenta,
       limpiarNuevoPrecioVenta: _nuevoPrecioVentaPorUnidadDeVenta == null,
@@ -322,6 +344,34 @@ class _LineaCompraEditorSheetState extends State<_LineaCompraEditorSheet> {
                           label: 'Descuento',
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Cómo venía la línea en la FACTURA del proveedor: su código
+                  // y la garantía. Con el código cargado, la próxima compra a
+                  // ese proveedor encuentra el producto tipeándolo.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: CustomText(
+                          controller: _codigoProveedor,
+                          borderColor: AppColors.blue1,
+                          textCase: TextCase.upper,
+                          label: 'Cód. proveedor',
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: CustomText(
+                          controller: _garantia,
+                          borderColor: AppColors.blue1,
+                          label: 'Garantía (meses)',
+                          keyboardType: TextInputType.number,
                           onChanged: (_) => setState(() {}),
                         ),
                       ),

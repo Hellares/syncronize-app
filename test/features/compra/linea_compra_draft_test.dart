@@ -17,6 +17,8 @@ void main() {
     int? stockActual,
     double? nuevoPrecioVenta,
     double? factorPresentacion,
+    String? codigoProveedor,
+    int? garantiaMeses,
   }) =>
       LineaCompraDraft(
         productoId: 'p1',
@@ -34,6 +36,8 @@ void main() {
         stockActualSede: stockActual,
         nuevoPrecioVenta: nuevoPrecioVenta,
         factorPresentacion: factorPresentacion,
+        codigoProveedor: codigoProveedor,
+        garantiaMeses: garantiaMeses,
       );
 
   group('unidad de compra', () {
@@ -429,6 +433,71 @@ void main() {
       // Sin regalo la clave no viaja: el backend le pone 0 por defecto.
       expect(linea(cantidad: 5, precio: 2).toItemMap()
           .containsKey('cantidadBonificada'), isFalse);
+    });
+  });
+
+  /// Lo que venía en la FACTURA del proveedor (21-09). No son cantidades: no
+  /// se convierten por empaque ni por presentación, y tienen que sobrevivir la
+  /// ida y vuelta al mapa de la página o el cajero los pierde al reabrir.
+  group('código del proveedor y garantía', () {
+    test('viajan en los DOS sentidos por el mapa de la página', () {
+      final l = linea(
+        cantidad: 1,
+        precio: 120,
+        codigoProveedor: 'SAM123',
+        garantiaMeses: 12,
+      );
+      final vuelta = LineaCompraDraft.desdeItemMap(l.toItemMap());
+
+      expect(l.toItemMap()['codigoProveedor'], 'SAM123');
+      expect(l.toItemMap()['garantiaMeses'], 12);
+      expect(vuelta!.codigoProveedor, 'SAM123');
+      expect(vuelta.garantiaMeses, 12);
+    });
+
+    test('sin datos las claves no viajan', () {
+      final m = linea(cantidad: 1, precio: 10).toItemMap();
+      expect(m.containsKey('codigoProveedor'), isFalse);
+      expect(m.containsKey('garantiaMeses'), isFalse);
+    });
+
+    test('POR SACO tampoco se convierten: no son cantidades', () {
+      final l = linea(
+        cantidad: 10,
+        precio: 100,
+        usaUnidadCompra: true,
+        factorCompra: 50,
+        unidadCompraSimbolo: 'SACO',
+        codigoProveedor: 'SAC50',
+        garantiaMeses: 6,
+      );
+      expect(l.cantidadAtomica, 500); // la cantidad SÍ
+      expect(l.toItemMap()['codigoProveedor'], 'SAC50');
+      expect(l.toItemMap()['garantiaMeses'], 6);
+    });
+
+    test('🔴 vaciar el campo BORRA el dato: copyWith con null no alcanza', () {
+      // Sin la bandera, un null en `copyWith` significa "no lo toques" y el
+      // código viejo volvería solo después de que el cajero lo borró.
+      final l = linea(
+        cantidad: 1,
+        precio: 10,
+        codigoProveedor: 'VIEJO',
+        garantiaMeses: 24,
+      );
+
+      expect(l.copyWith().codigoProveedor, 'VIEJO');
+      expect(
+        l.copyWith(limpiarCodigoProveedor: true).codigoProveedor,
+        isNull,
+      );
+      expect(l.copyWith(limpiarGarantia: true).garantiaMeses, isNull);
+    });
+
+    test('0 meses es "sin garantía" y sobrevive: no se confunde con vacío', () {
+      final l = linea(cantidad: 1, precio: 10, garantiaMeses: 0);
+      expect(l.toItemMap()['garantiaMeses'], 0);
+      expect(LineaCompraDraft.desdeItemMap(l.toItemMap())!.garantiaMeses, 0);
     });
   });
 }

@@ -865,6 +865,21 @@ class _CompraDetailPageState extends State<CompraDetailPage> {
                       color: Colors.green.shade700,
                     ),
                   ),
+                // Cómo venía en la factura del proveedor: es lo que se
+                // coteja contra el papel cuando algo no cuadra.
+                if (d.codigoProveedor != null || d.garantiaMeses != null)
+                  Text(
+                    [
+                      if (d.codigoProveedor != null)
+                        'Cód. proveedor: ${d.codigoProveedor}',
+                      if (d.garantiaMeses != null)
+                        d.garantiaMeses == 0
+                            ? 'sin garantía'
+                            : 'Garantía: ${d.garantiaMeses} '
+                                '${d.garantiaMeses == 1 ? 'mes' : 'meses'}',
+                    ].join(' · '),
+                    style: TextStyle(fontSize: 8, color: Colors.grey.shade600),
+                  ),
                 // Explica por qué el costo del producto no es el precio que
                 // facturó el proveedor.
                 if (d.gastoProrrateado > 0 && d.cantidad > 0)
