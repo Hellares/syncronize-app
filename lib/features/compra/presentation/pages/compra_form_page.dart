@@ -29,6 +29,7 @@ import '../widgets/orden_compra_item_selector.dart';
 import '../widgets/credito_selector.dart';
 import '../widgets/gasto_factura_dialog.dart';
 import '../widgets/linea_compra_editor_sheet.dart';
+import '../../data/datasources/compra_remote_datasource.dart';
 import 'compra_productos_page.dart';
 import 'importar_guia_page.dart';
 
@@ -391,11 +392,54 @@ class _CompraFormViewState extends State<_CompraFormView> {
     );
     if (items == null || items.isEmpty || !mounted) return;
     setState(() => _detalles.addAll(items));
+    // Los de la grilla también: entran por otra puerta pero son las mismas
+    // líneas, y que el código aparezca en unas sí y en otras no es peor que
+    // no aparecer en ninguna.
+    for (final item in items) {
+      _prellenarCodigoProveedor(item);
+    }
   }
 
   /// Abre el editor de una línea (cantidad, precio, empaque, precio de venta e
   /// historial). Los ítems personalizados no pasan por acá: son texto libre,
   /// sin costo ni stock que proyectar.
+  /// Trae el código con el que ESTE proveedor identifica el producto, si ya se
+  /// le conoce uno, y lo deja puesto en la línea.
+  ///
+  /// Así la segunda compra no hay que volver a tipearlo, y de paso confirma
+  /// que el producto elegido es el de la factura.
+  ///
+  /// 🔴 Nunca pisa lo tecleado: si la línea ya trae un código, ese gana —
+  /// puede ser el de una factura nueva, y al confirmar se aprende el nuevo.
+  Future<void> _prellenarCodigoProveedor(Map<String, dynamic> item) async {
+    final proveedorId = _proveedorId;
+    final productoId = item['productoId'] as String?;
+    if (proveedorId == null || productoId == null) return;
+    if ((item['codigoProveedor'] as String?)?.trim().isNotEmpty == true) return;
+
+    try {
+      final filas = await locator<CompraRemoteDataSource>()
+          .getProveedoresDeProducto(productoId: productoId);
+      final varianteId = item['varianteId'] as String?;
+      // La fila de la VARIANTE cuando la línea es de una variante; si no, la
+      // del producto padre. El proveedor codifica una u otra, no las dos.
+      final suyo = filas
+          .where((f) =>
+              f.proveedorId == proveedorId &&
+              f.varianteId == varianteId &&
+              (f.codigoProveedor?.isNotEmpty ?? false))
+          .firstOrNull;
+      if (suyo == null || !mounted) return;
+      // Por identidad y no por índice: entre el pedido y la respuesta el
+      // usuario pudo agregar o quitar líneas.
+      if (!_detalles.contains(item)) return;
+      setState(() => item['codigoProveedor'] = suyo.codigoProveedor);
+    } catch (_) {
+      // Sin `VIEW_COMPRAS` responde 403: el campo queda vacío y se tipea a
+      // mano, que es exactamente lo de antes.
+    }
+  }
+
   Future<void> _editarLinea(int index) async {
     final linea = LineaCompraDraft.desdeItemMap(_detalles[index]);
     if (linea == null) return;
@@ -947,6 +991,7 @@ class _CompraFormViewState extends State<_CompraFormView> {
                             setState(() {
                               _detalles.add(item);
                             });
+                            _prellenarCodigoProveedor(item);
                           },
                         ),
                       if (!_isFromOc && _detalles.isNotEmpty)
