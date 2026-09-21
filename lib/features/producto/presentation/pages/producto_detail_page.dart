@@ -32,6 +32,9 @@ import '../widgets/ficha_atributos.dart';
 import '../widgets/producto_variantes_section.dart';
 import '../widgets/variante_plantilla_atributos_dialog.dart';
 import '../widgets/oferta_countdown_timer.dart';
+import '../widgets/proveedores_codigos_panel.dart';
+import '../widgets/lotes_producto_panel.dart';
+import '../../../compra/presentation/widgets/historial_compras_producto_panel.dart';
 import '../../domain/entities/producto_variante.dart';
 
 class ProductoDetailPage extends StatefulWidget {
@@ -357,6 +360,30 @@ class _ProductoDetailPageState extends State<ProductoDetailPage> {
 
                             _buildInfoSection(producto),
                             const SizedBox(height: 18),
+
+                            // Las mismas tres secciones que la ficha de la
+                            // web. Las tres se montan siempre y se esconden
+                            // solas: un producto recien creado no necesita
+                            // bloques diciendo que no tiene nada.
+                            //
+                            // Siguen a la variante elegida, igual que el
+                            // resto de la pantalla: los lotes y el historial
+                            // son de la variante, no del padre.
+                            HistorialComprasProductoPanel(
+                              key: ValueKey(
+                                  'hist-${producto.id}-${selectedVariante?.id ?? ''}'),
+                              empresaId: empresaId,
+                              productoId: producto.id,
+                              varianteId: selectedVariante?.id,
+                            ),
+                            ProveedoresCodigosPanel(
+                              key: ValueKey('prov-${producto.id}'),
+                              productoId: producto.id,
+                            ),
+                            LotesProductoPanel(
+                              productoId: producto.id,
+                              varianteId: selectedVariante?.id,
+                            ),
 
                             if (producto.descripcion != null) ...[
                               _buildDescripcionSection(producto.descripcion!),

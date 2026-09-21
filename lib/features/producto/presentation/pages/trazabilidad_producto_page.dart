@@ -10,6 +10,7 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/fecha_calendario.dart';
 import '../../../../core/widgets/custom_search_field.dart';
 import '../../../../core/widgets/smart_appbar.dart';
+import '../../../compra/domain/orden_fefo.dart';
 
 /// Ficha 360 / Trazabilidad de un producto: de dónde vino (compras, lotes,
 /// fabricación) y a dónde fue (ventas, consumo como insumo) + stock/costo.
@@ -385,26 +386,11 @@ class _TrazabilidadProductoPageState extends State<TrazabilidadProductoPage> {
   /// nuevo— y después los agotados. El primero lleva "SALE PRIMERO": es la
   /// respuesta a "¿cuál se vende ahora?".
   Widget _buildSeccionLotes(List lotes) {
+    // El orden de salida vive en `orden_fefo.dart`: lo dibuja también la ficha
+    // del producto, y dos copias serian dos verdades distintas.
     final todos = lotes.cast<Map<String, dynamic>>();
-    bool presente(Map<String, dynamic> l) {
-      final qty = (l['cantidadActual'] as num?)?.toInt() ?? 0;
-      final estado = l['estado']?.toString();
-      return qty > 0 && (estado == null || estado == 'ACTIVO' || estado == 'VENCIDO');
-    }
-
-    int fefo(Map<String, dynamic> a, Map<String, dynamic> b) {
-      final va = a['fechaVencimiento']?.toString();
-      final vb = b['fechaVencimiento']?.toString();
-      if (va != null && vb != null) return va.compareTo(vb);
-      if (va != null) return -1;
-      if (vb != null) return 1;
-      return (a['fechaIngreso']?.toString() ?? '')
-          .compareTo(b['fechaIngreso']?.toString() ?? '');
-    }
-
-    final presentes = todos.where(presente).toList()..sort(fefo);
-    final resto = todos.where((l) => !presente(l)).toList();
-    final ordenados = [...presentes, ...resto];
+    final presentes = todos.where(lotePresente).toList();
+    final ordenados = lotesOrdenados(todos);
 
     return _seccion('Lotes', Icons.inventory, lotes.length, [
       for (var i = 0; i < ordenados.length; i++)

@@ -8,12 +8,30 @@ import '../models/compra_analytics_model.dart';
 import '../models/historial_compras_model.dart';
 import '../models/reposicion_model.dart';
 import '../models/guia_remision_consulta_model.dart';
+import '../../domain/entities/proveedor_de_producto.dart';
 
 @lazySingleton
 class CompraRemoteDataSource {
   final DioClient _dioClient;
 
   CompraRemoteDataSource(this._dioClient);
+
+  /// A quién se le compra un producto: el código con el que cada proveedor lo
+  /// identifica, cómo lo llama y a cuánto salió la última vez.
+  ///
+  /// 🔴 Exige `VIEW_COMPRAS` —acá viajan precios de COMPRA—, así que con un
+  /// usuario que no lo tenga responde 403: quien lo llama tiene que tolerarlo
+  /// y no mostrar nada, no romperse.
+  Future<List<ProveedorDeProducto>> getProveedoresDeProducto({
+    required String productoId,
+  }) async {
+    final resp = await _dioClient.get('/productos/$productoId/proveedores');
+    final data = resp.data;
+    final lista = data is List ? data : (data['data'] as List? ?? const []);
+    return lista
+        .map((j) => ProveedorDeProducto.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
 
   /// Historial de compras de un producto (para mostrar al comprar): últimas
   /// compras + agregado por proveedor + último costo + mejor proveedor.
