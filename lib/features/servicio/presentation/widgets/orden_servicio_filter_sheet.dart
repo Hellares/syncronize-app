@@ -203,16 +203,21 @@ class _OrdenServicioFilterSheetState extends State<OrdenServicioFilterSheet> {
     });
   }
 
+  /// Va por `copyWith` y no por el constructor: armarlo de cero perdía los
+  /// filtros que el sheet no edita —entre ellos la SEDE ACTIVA—, y aplicar
+  /// cualquier filtro dejaba el listado mostrando las órdenes de todas las
+  /// sedes.
   void _aplicarFiltros() {
-    final filtros = OrdenServicioFiltros(
-      search: widget.filtros.search,
-      estado: widget.filtros.estado,
+    final filtros = widget.filtros.copyWith(
       tipoServicio: _tipoServicio,
       prioridad: _prioridad,
-      clienteId: widget.filtros.clienteId,
-      tecnicoId: widget.filtros.tecnicoId,
       fechaDesde: _fechaDesde,
       fechaHasta: _fechaHasta,
+      clearTipoServicio: _tipoServicio == null,
+      clearPrioridad: _prioridad == null,
+      clearFechaDesde: _fechaDesde == null,
+      clearFechaHasta: _fechaHasta == null,
+      clearCursor: true,
     );
     Navigator.pop(context, filtros);
   }
