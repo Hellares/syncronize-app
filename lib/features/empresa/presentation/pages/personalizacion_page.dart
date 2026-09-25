@@ -78,6 +78,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   final _instagramController = TextEditingController();
   final _tiktokController = TextEditingController();
   bool _enviosNacionales = false;
+  // Logo propio de la tienda web (`webConfig.logoUrl`). NO toca `Empresa.logo`,
+  // que es el de los tickets y el app: la web lo usa solo si este falta.
+  String? _logoWebUrl;
+  bool _isUploadingLogoWeb = false;
 
   // Colores por defecto (matching web original design)
   static const _defaultPrimario = Color(0xFF437EFF);
@@ -190,6 +194,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
             _tiktokController.text = redes['tiktok']?.toString() ?? '';
           }
           _enviosNacionales = wc['enviosNacionales'] == true;
+          final logoWeb = wc['logoUrl']?.toString() ?? '';
+          _logoWebUrl = logoWeb.isEmpty ? null : logoWeb;
         }
         _mostrarPrecios = p.mostrarPrecios;
         _mostrarContacto = p.mostrarContacto;
@@ -322,6 +328,65 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al subir logo: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _pickLogoWeb() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galería'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Cámara'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final empresaId = _localStorage.getString(StorageConstants.tenantId);
+    if (empresaId == null) return;
+
+    try {
+      final XFile? picked = await _imagePicker.pickImage(source: source);
+      if (picked == null) return;
+      setState(() => _isUploadingLogoWeb = true);
+
+      // Misma categoría que el logo de la empresa (mismo procesado, conserva
+      // la transparencia), pero SIN `updateEmpresaLogo`: el de los tickets no
+      // cambia. Queda en `webConfig` al guardar.
+      final archivoResponse = await _storageService.uploadFile(
+        file: File(picked.path),
+        empresaId: empresaId,
+        entidadTipo: 'EMPRESA',
+        entidadId: empresaId,
+        categoria: 'LOGO',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _logoWebUrl = archivoResponse.url;
+        _isUploadingLogoWeb = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logo de la web subido. Guarda para aplicar cambios.'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingLogoWeb = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al subir el logo de la web: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -593,6 +658,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
             if (e.value.isNotEmpty) e.key: e.value,
         },
         'enviosNacionales': _enviosNacionales,
+        // null a propósito (no se omite): así "Quitar" pisa el que estaba.
+        'logoUrl': _logoWebUrl,
       },
       bannerPrincipalUrl: _bannerUrlController.text.isEmpty ? null : _bannerUrlController.text,
       bannerPrincipalTexto: _bannerTextoController.text.isEmpty ? null : _bannerTextoController.text,
@@ -1809,7 +1876,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionHeader('Redes y envios', Icons.share_outlined),
+            _sectionHeader('Tienda web: logo, redes y envios', Icons.storefront_outlined),
             const SizedBox(height: 4),
             AppLabelText(
               'Se muestran en la cabecera de tu tienda web. Pega el link o escribe tu @usuario; las que dejes vacias no aparecen.',
@@ -1817,6 +1884,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
               color: Colors.grey.shade500,
             ),
             const SizedBox(height: 12),
+            _buildLogoWeb(),
+            const SizedBox(height: 14),
             CustomText(
               controller: _facebookController,
               label: 'Facebook',
@@ -1850,6 +1919,72 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Vista previa ancha: el logo de una web suele ser horizontal (isotipo +
+  /// nombre), no cuadrado como el de los tickets.
+  Widget _buildLogoWeb() {
+    final tieneLogo = _logoWebUrl != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text('Logo de la tienda web', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            if (tieneLogo && !_isUploadingLogoWeb)
+              TextButton(
+                onPressed: () => setState(() => _logoWebUrl = null),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 28),
+                ),
+                child: const Text('Quitar', style: TextStyle(fontSize: 11, color: Colors.red)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: _isUploadingLogoWeb ? null : _pickLogoWeb,
+          child: Container(
+            height: 80,
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.blueborder, width: 1),
+            ),
+            child: _isUploadingLogoWeb
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                : tieneLogo
+                    ? CachedNetworkImage(
+                        imageUrl: _logoWebUrl!,
+                        fit: BoxFit.contain,
+                        errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate_outlined, size: 22, color: Colors.grey.shade400),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Toca para subir el logo de la web',
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        AppLabelText(
+          'Puede ser distinto al de los tickets. Si no subes uno, la web usa el logo de la empresa. Recomendado: horizontal y con fondo transparente (PNG).',
+          fontSize: 10,
+          color: Colors.grey.shade500,
+        ),
+      ],
     );
   }
 
