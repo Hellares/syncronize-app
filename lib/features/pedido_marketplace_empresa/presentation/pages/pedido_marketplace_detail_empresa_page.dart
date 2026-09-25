@@ -87,7 +87,7 @@ class _DetailView extends StatelessWidget {
                   const Icon(Icons.receipt_long, color: AppColors.blue1, size: 20),
                   const SizedBox(width: 10),
                   Expanded(child: AppSubtitle(p.codigo, fontSize: 15)),
-                  _buildEstadoChip(p.estado),
+                  _buildEstadoChip(p.estado, retiro: p.esRetiro),
                 ],
               ),
             ),
@@ -108,6 +108,14 @@ class _DetailView extends StatelessWidget {
                   if (p.emailComprador != null) _infoRow(Icons.email_outlined, 'Email', p.emailComprador!),
                   if (p.telefonoComprador != null) _infoRow(Icons.phone_outlined, 'Telefono', p.telefonoComprador!),
                   if (p.creadoEn != null) _infoRow(Icons.calendar_today, 'Fecha', DateFormatter.formatDateTime(p.creadoEn!)),
+                  if (p.esRetiro) ...[
+                    const Divider(height: 16),
+                    const AppSubtitle('RETIRO EN TIENDA', fontSize: 11, color: AppColors.blue1),
+                    const SizedBox(height: 8),
+                    _infoRow(Icons.storefront_outlined, 'Recoge en', p.sedeRetiroNombre ?? 'Tienda'),
+                    if (p.sedeRetiroDireccion != null)
+                      _infoRow(Icons.location_on_outlined, 'Direccion', p.sedeRetiroDireccion!),
+                  ],
                   // Envío por AGENCIA: no hay dirección de domicilio, hay
                   // agencia y su sede en destino (como el envío de la venta).
                   if (p.modalidadEnvio == 'AGENCIA') ...[
@@ -301,6 +309,28 @@ class _DetailView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
         ),
       ));
+    } else if (p.estado == 'EN_PREPARACION' && p.esRetiro) {
+      // Retiro: no hay envío ni código de seguimiento — se avisa al cliente
+      // que ya puede recoger (el backend manda "listo para recoger").
+      actions.add(Expanded(
+        child: ElevatedButton.icon(
+          onPressed: isLoading ? null : () => cubit.cambiarEstado(pedidoId, 'ENVIADO'),
+          icon: const Icon(Icons.storefront, size: 18),
+          label: const Text('Listo para recoger'),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+        ),
+      ));
+    } else if (p.estado == 'ENVIADO' && p.esRetiro) {
+      actions.add(Expanded(
+        child: ElevatedButton.icon(
+          onPressed: isLoading ? null : () => cubit.cambiarEstado(pedidoId, 'ENTREGADO'),
+          icon: const Icon(Icons.check_circle_outline, size: 18),
+          label: const Text('Entregado (recogio)'),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+        ),
+      ));
     } else if (p.estado == 'EN_PREPARACION') {
       actions.add(Expanded(
         child: ElevatedButton.icon(
@@ -381,7 +411,7 @@ class _DetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildEstadoChip(String estado) {
+  Widget _buildEstadoChip(String estado, {bool retiro = false}) {
     Color color;
     String label;
     switch (estado) {
@@ -389,8 +419,9 @@ class _DetailView extends StatelessWidget {
       case 'PAGO_ENVIADO': color = Colors.orange; label = 'Pago enviado'; break;
       case 'PAGO_VALIDADO': color = Colors.blue; label = 'Pago validado'; break;
       case 'EN_PREPARACION': color = Colors.indigo; label = 'En preparacion'; break;
-      case 'ENVIADO': color = Colors.teal; label = 'Enviado'; break;
-      case 'ENTREGADO': color = Colors.green; label = 'Entregado'; break;
+      // Retiro en tienda: ENVIADO = listo para recoger, ENTREGADO = recogido.
+      case 'ENVIADO': color = Colors.teal; label = retiro ? 'Listo p/ recoger' : 'Enviado'; break;
+      case 'ENTREGADO': color = Colors.green; label = retiro ? 'Recogido' : 'Entregado'; break;
       case 'CANCELADO': case 'PAGO_RECHAZADO': color = Colors.red; label = estado == 'CANCELADO' ? 'Cancelado' : 'Pago rechazado'; break;
       default: color = Colors.grey; label = estado;
     }

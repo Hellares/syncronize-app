@@ -18,6 +18,13 @@ class PedidoMarketplaceEmpresaModel {
   final String? modalidadEnvio;
   final String? agenciaEnvio;
   final String? agenciaDireccionEnvio;
+  /// 'ENVIO_DOMICILIO' | 'RETIRO_TIENDA'.
+  final String? tipoEntrega;
+  /// Retiro en tienda: la sede donde recoge el cliente.
+  final String? sedeRetiroNombre;
+  final String? sedeRetiroDireccion;
+
+  bool get esRetiro => tipoEntrega == 'RETIRO_TIENDA';
   final String? metodoPago;
   final String? comprobantePagoUrl;
   final String? motivoRechazo;
@@ -43,6 +50,9 @@ class PedidoMarketplaceEmpresaModel {
     this.modalidadEnvio,
     this.agenciaEnvio,
     this.agenciaDireccionEnvio,
+    this.tipoEntrega,
+    this.sedeRetiroNombre,
+    this.sedeRetiroDireccion,
     this.metodoPago,
     this.comprobantePagoUrl,
     this.motivoRechazo,
@@ -70,6 +80,9 @@ class PedidoMarketplaceEmpresaModel {
       modalidadEnvio: json['modalidadEnvio'] as String?,
       agenciaEnvio: json['agenciaEnvio'] as String?,
       agenciaDireccionEnvio: json['agenciaDireccionEnvio'] as String?,
+      tipoEntrega: json['tipoEntrega'] as String?,
+      sedeRetiroNombre: (json['sedeRetiro'] as Map?)?['nombre'] as String?,
+      sedeRetiroDireccion: (json['sedeRetiro'] as Map?)?['direccion'] as String?,
       metodoPago: json['metodoPago'] as String?,
       comprobantePagoUrl: json['comprobantePagoUrl'] as String?,
       motivoRechazo: json['motivoRechazo'] as String?,
@@ -105,6 +118,9 @@ class PedidoMarketplaceEmpresaModel {
       modalidadEnvio: modalidadEnvio,
       agenciaEnvio: agenciaEnvio,
       agenciaDireccionEnvio: agenciaDireccionEnvio,
+      tipoEntrega: tipoEntrega,
+      sedeRetiroNombre: sedeRetiroNombre,
+      sedeRetiroDireccion: sedeRetiroDireccion,
       metodoPago: metodoPago,
       comprobantePagoUrl: comprobantePagoUrl,
       motivoRechazo: motivoRechazo,

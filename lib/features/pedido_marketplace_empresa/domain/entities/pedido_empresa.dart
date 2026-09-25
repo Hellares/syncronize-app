@@ -18,6 +18,13 @@ class PedidoMarketplaceEmpresa extends Equatable {
   final String? modalidadEnvio;
   final String? agenciaEnvio;
   final String? agenciaDireccionEnvio;
+  /// 'ENVIO_DOMICILIO' | 'RETIRO_TIENDA'.
+  final String? tipoEntrega;
+  /// Retiro en tienda: la sede donde recoge el cliente.
+  final String? sedeRetiroNombre;
+  final String? sedeRetiroDireccion;
+
+  bool get esRetiro => tipoEntrega == 'RETIRO_TIENDA';
   final String? metodoPago;
   final String? comprobantePagoUrl;
   final String? motivoRechazo;
@@ -43,6 +50,9 @@ class PedidoMarketplaceEmpresa extends Equatable {
     this.modalidadEnvio,
     this.agenciaEnvio,
     this.agenciaDireccionEnvio,
+    this.tipoEntrega,
+    this.sedeRetiroNombre,
+    this.sedeRetiroDireccion,
     this.metodoPago,
     this.comprobantePagoUrl,
     this.motivoRechazo,
@@ -72,6 +82,9 @@ class PedidoMarketplaceEmpresa extends Equatable {
         modalidadEnvio,
         agenciaEnvio,
         agenciaDireccionEnvio,
+        tipoEntrega,
+        sedeRetiroNombre,
+        sedeRetiroDireccion,
         metodoPago,
         comprobantePagoUrl,
         motivoRechazo,
