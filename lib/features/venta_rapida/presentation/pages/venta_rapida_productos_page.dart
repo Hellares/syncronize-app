@@ -231,6 +231,9 @@ class _VentaRapidaProductosView extends StatelessWidget {
       onAtajo: () => context.pushReplacement('/empresa/cotizaciones/nueva'),
       onAltaRapida:
           puedeAltaRapida ? (nombre) => _altaRapida(context, nombre) : null,
+      // La cámara queda abierta y cada lectura entra al carrito (repetir
+      // suma), como un POS con lector.
+      escaneoContinuo: true,
       // Selector de sede activa + el interruptor de "vender a costo".
       topExtraBuilder: (_, __) => Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),

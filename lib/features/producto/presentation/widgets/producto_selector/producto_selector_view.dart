@@ -25,6 +25,9 @@ import '../filtro_atributos_chips.dart';
 import '../../../../producto/domain/entities/producto_list_item.dart';
 import '../../../../producto/domain/entities/producto_variante.dart';
 import '../../../../venta_rapida/presentation/widgets/variante_selector_sheet.dart';
+import '../../../../venta_rapida/presentation/widgets/escaner_venta_sheet.dart';
+import '../../../../producto/domain/usecases/get_productos_usecase.dart';
+import '../../../../../core/utils/unidad_presentacion.dart';
 import '../../../../producto/presentation/bloc/producto_list/producto_list_cubit.dart';
 import '../../../../producto/presentation/bloc/producto_list/producto_list_state.dart';
 import '../../../../venta/domain/entities/venta_detalle_input.dart';
@@ -141,6 +144,13 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
   /// vive en el LLAMADOR: este widget solo dibuja lo que le dan.
   final Future<void> Function(String nombreTecleado)? onAltaRapida;
 
+  /// El botón de escanear abre la cámara en modo CONTINUO: queda abierta y
+  /// cada lectura entra al carrito (repetir suma), como un POS con lector.
+  /// false = el escáner de a uno de siempre, que deja el código en el
+  /// buscador. Hoy solo lo prende la venta rápida: compras tiene reglas
+  /// propias (el granel no se compra) que el continuo no contempla.
+  final bool escaneoContinuo;
+
   const ProductoSelectorView({
     super.key,
     required this.sedeId,
@@ -161,6 +171,7 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
     this.modoCompra = false,
     this.onAbrirVariantes,
     this.onAltaRapida,
+    this.escaneoContinuo = false,
   });
 
   @override
@@ -435,6 +446,128 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
     context.read<ProductoListCubit>().applyFiltros(
           _filtros(search: codeTrim),
         );
+  }
+
+  /// Escáner continuo (venta rápida): la cámara queda abierta y cada lectura
+  /// se resuelve en [_resolverLectura] sin tocar la grilla ni el buscador.
+  Future<void> _escanearContinuo() async {
+    // Lo que se venía escribiendo no tiene nada que ver con lo que se va a
+    // timbrar.
+    _serverFallbackDebounce?.cancel();
+    await mostrarEscanerVenta(context, onCodigo: _resolverLectura);
+  }
+
+  /// Busca [codigo] y lo agrega al carrito.
+  ///
+  /// Solo agrega con coincidencia EXACTA contra el código de barras, el SKU
+  /// o el código interno (del producto o de una variante activa). El backend
+  /// también devuelve lo que matchea por palabras, así que "vino un solo
+  /// resultado" no alcanza: un código alfanumérico podía traer UN producto
+  /// que no era.
+  ///
+  /// Primero el catálogo ya cargado —instantáneo y sin red— y recién si no
+  /// está, el servidor. La grilla no se toca: filtrarla y recargarla en cada
+  /// lectura la hacía parpadear.
+  Future<LecturaEscaneada> _resolverLectura(String codigo) async {
+    final buscado = codigo.trim().toLowerCase();
+    bool igual(String? v) => v != null && v.trim().toLowerCase() == buscado;
+
+    ({ProductoListItem p, ProductoVariante? v})? buscarEn(
+        List<ProductoListItem> lista) {
+      for (final p in lista) {
+        if (igual(p.codigoBarras) || igual(p.sku) || igual(p.codigoEmpresa)) {
+          return (p: p, v: null);
+        }
+      }
+      for (final p in lista) {
+        for (final v in p.variantes ?? const <ProductoVariante>[]) {
+          if (v.isActive && (igual(v.codigoBarras) || igual(v.sku))) {
+            return (p: p, v: v);
+          }
+        }
+      }
+      return null;
+    }
+
+    final listState = context.read<ProductoListCubit>().state;
+    var hallado = listState is ProductoListLoaded
+        ? buscarEn(listState.productos)
+        : null;
+
+    if (hallado == null) {
+      final empresaState = context.read<EmpresaContextCubit>().state;
+      if (empresaState is! EmpresaContextLoaded) {
+        return const LecturaEscaneada.error('Falta el contexto de la empresa');
+      }
+      final r = await locator<GetProductosUseCase>()(
+        empresaId: empresaState.context.empresa.id,
+        sedeId: widget.sedeId,
+        filtros: _filtros(search: codigo.trim()),
+      );
+      if (!mounted) return const LecturaEscaneada.error('');
+      if (r is! Success<ProductosPaginados>) {
+        return const LecturaEscaneada.error(
+            'No se pudo buscar el código. ¿Hay conexión?');
+      }
+      hallado = buscarEn(r.data.data.cast<ProductoListItem>());
+    }
+
+    if (hallado == null) {
+      return LecturaEscaneada.error('No hay ningún producto con el código $codigo');
+    }
+    final p = hallado.p;
+    final v = hallado.v;
+
+    // El código es de una variante concreta.
+    if (v != null) {
+      final factor = v.factorPresentacion ?? p.factorPresentacion ?? 1;
+      if (factor > 1 || widget.onAgregarVariante == null) {
+        // Un granel se pesa: sumarle "1" serían 1 gramo. Se abre el
+        // selector para que se tipee cuánto.
+        await _onProductoTap(p);
+        return LecturaEscaneada.ok('${p.nombre} - ${v.nombre}: indica la cantidad',
+            repetible: false);
+      }
+      if ((v.stockEnSede(widget.sedeId) ?? 0) <= 0) {
+        return LecturaEscaneada.error('Sin stock: ${p.nombre} - ${v.nombre}');
+      }
+      widget.onAgregarVariante!(p, v);
+      return LecturaEscaneada.ok(
+          '+1 ${p.nombre} - ${v.nombre}${_cantidadEnCarrito(p.id, v.id)}');
+    }
+
+    // El código es del producto.
+    if (p.esCombo) {
+      widget.onAgregarProducto(p);
+      return LecturaEscaneada.ok('Combo ${p.nombre} agregado', repetible: false);
+    }
+    if (p.tieneVariantes) {
+      // El código es del producto, no de una talla/color: falta elegirla.
+      await _onProductoTap(p);
+      return LecturaEscaneada.ok('${p.nombre}: elige la variante', repetible: false);
+    }
+    if (p.stockConsolidadoEnSede(widget.sedeId) <= 0) {
+      return LecturaEscaneada.error('Sin stock: ${p.nombre}');
+    }
+    widget.onAgregarProducto(p);
+    return LecturaEscaneada.ok('+1 ${p.nombre}${_cantidadEnCarrito(p.id, null)}');
+  }
+
+  /// " · 3 en el carrito" (o "1.5 kg"), para que el cajero vea que sumó sin
+  /// cerrar la cámara. Vacío si no se encuentra la línea.
+  String _cantidadEnCarrito(String productoId, String? varianteId) {
+    final items = widget.snapshotBuilder(context.read<TCubit>().state).items;
+    for (final i in items) {
+      if (i.productoId == productoId &&
+          i.varianteId == varianteId &&
+          i.origenComboId == null) {
+        final pres = i.presentacion;
+        final n = UnidadPresentacion.formatearNumero(i.cantidad / pres.factor);
+        final sim = pres.factor > 1 ? ' ${pres.simbolo ?? ''}'.trimRight() : '';
+        return ' · $n$sim en el carrito';
+      }
+    }
+    return '';
   }
 
   /// Si el último request vino de un scan y trajo exactamente 1 producto
@@ -791,7 +924,9 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                   _SearchActionButton(
                     icon: Icons.qr_code_scanner_rounded,
                     tooltip: 'Escanear código de barras',
-                    onPressed: _escanearCodigo,
+                    onPressed: widget.escaneoContinuo
+                        ? _escanearContinuo
+                        : _escanearCodigo,
                   ),
                   const SizedBox(width: 4),
                   // Atajo simétrico configurable: VR → Cotización, Cotización → VR.

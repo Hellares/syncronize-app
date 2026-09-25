@@ -7,6 +7,8 @@ class ProductoListItemModel extends ProductoListItem {
     required super.id,
     required super.nombre,
     required super.codigoEmpresa,
+    super.codigoBarras,
+    super.sku,
     required super.destacado,
     super.imagenPrincipal,
     super.categoriaNombre,
@@ -38,6 +40,8 @@ class ProductoListItemModel extends ProductoListItem {
       id: json['id'] as String,
       nombre: json['nombre'] as String,
       codigoEmpresa: json['codigoEmpresa'] as String,
+      codigoBarras: json['codigoBarras'] as String?,
+      sku: json['sku'] as String?,
       destacado: json['destacado'] as bool? ?? false,
       imagenPrincipal: json['imagenes'] != null &&
               (json['imagenes'] as List).isNotEmpty
@@ -112,6 +116,8 @@ class ProductoListItemModel extends ProductoListItem {
       'id': id,
       'nombre': nombre,
       'codigoEmpresa': codigoEmpresa,
+      if (codigoBarras != null) 'codigoBarras': codigoBarras,
+      if (sku != null) 'sku': sku,
       'destacado': destacado,
       if (imagenPrincipal != null) 'imagenes': [imagenPrincipal],
       if (categoriaNombre != null)
@@ -190,6 +196,8 @@ class ProductoListItemModel extends ProductoListItem {
       id: entity.id,
       nombre: entity.nombre,
       codigoEmpresa: entity.codigoEmpresa,
+      codigoBarras: entity.codigoBarras,
+      sku: entity.sku,
       destacado: entity.destacado,
       imagenPrincipal: entity.imagenPrincipal,
       categoriaNombre: entity.categoriaNombre,
@@ -207,6 +215,10 @@ class ProductoListItemModel extends ProductoListItem {
       descuentoMaximo: entity.descuentoMaximo,
       tipoAfectacionIgv: entity.tipoAfectacionIgv,
       aplicaIcbper: entity.aplicaIcbper,
+      // 🔴 Estos dos también se caían acá (el bump a v5 del 12-09 no alcanzó:
+      // el snapshot se reescribía por `fromEntity` y volvía a perderlos).
+      tipoVencimiento: entity.tipoVencimiento,
+      diasVidaUtil: entity.diasVidaUtil,
       factorCompra: entity.factorCompra,
       unidadCompraSimbolo: entity.unidadCompraSimbolo,
       unidadMedidaSimbolo: entity.unidadMedidaSimbolo,

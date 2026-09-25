@@ -41,7 +41,11 @@ class CatalogoLocalSnapshot {
   /// v5 (12-09): `tipoVencimiento` y `diasVidaUtil`. Sin el bump, un catálogo
   /// cacheado devolvería los productos con la política en NINGUNO y la línea
   /// de compra dejaría de pedir la fecha de vencimiento — en silencio.
-  static const int currentVersion = 5;
+  /// v6 (23-09): `codigoBarras` y `sku` del producto, para que el escáner de
+  /// la venta rápida resuelva el código contra el catálogo LOCAL; y
+  /// `fromEntity` dejaba de perder `tipoVencimiento`/`diasVidaUtil` al
+  /// escribir el snapshot.
+  static const int currentVersion = 6;
 
   final int version;
   final List<ProductoListItem> productos;

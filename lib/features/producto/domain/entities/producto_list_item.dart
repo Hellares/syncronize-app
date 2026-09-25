@@ -9,6 +9,13 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
   final String id;
   final String nombre;
   final String codigoEmpresa;
+
+  /// Código de barras y SKU del producto. Los necesita el escáner del POS
+  /// para confirmar que lo leído es EXACTAMENTE este producto: el backend
+  /// devuelve también lo que coincide por palabras, y con solo el
+  /// `codigoEmpresa` no se podía verificar.
+  final String? codigoBarras;
+  final String? sku;
   final bool destacado;
   final String? imagenPrincipal;
   final String? categoriaNombre;
@@ -68,6 +75,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
     required this.id,
     required this.nombre,
     required this.codigoEmpresa,
+    this.codigoBarras,
+    this.sku,
     required this.destacado,
     this.imagenPrincipal,
     this.categoriaNombre,
@@ -294,6 +303,8 @@ class ProductoListItem extends Equatable with StockPorSedeMixin {
         id,
         nombre,
         codigoEmpresa,
+        codigoBarras,
+        sku,
         destacado,
         imagenPrincipal,
         categoriaNombre,
