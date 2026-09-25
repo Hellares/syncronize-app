@@ -14,6 +14,10 @@ class PedidoMarketplaceEmpresaModel {
   final String? provinciaEnvio;
   final String? departamentoEnvio;
   final Map<String, dynamic>? coordenadasEnvio;
+  /// 'DELIVERY_LOCAL' | 'AGENCIA' | null (pedidos anteriores / app viejo).
+  final String? modalidadEnvio;
+  final String? agenciaEnvio;
+  final String? agenciaDireccionEnvio;
   final String? metodoPago;
   final String? comprobantePagoUrl;
   final String? motivoRechazo;
@@ -36,6 +40,9 @@ class PedidoMarketplaceEmpresaModel {
     this.provinciaEnvio,
     this.departamentoEnvio,
     this.coordenadasEnvio,
+    this.modalidadEnvio,
+    this.agenciaEnvio,
+    this.agenciaDireccionEnvio,
     this.metodoPago,
     this.comprobantePagoUrl,
     this.motivoRechazo,
@@ -60,6 +67,9 @@ class PedidoMarketplaceEmpresaModel {
       provinciaEnvio: json['provinciaEnvio'] as String?,
       departamentoEnvio: json['departamentoEnvio'] as String?,
       coordenadasEnvio: json['coordenadasEnvio'] as Map<String, dynamic>?,
+      modalidadEnvio: json['modalidadEnvio'] as String?,
+      agenciaEnvio: json['agenciaEnvio'] as String?,
+      agenciaDireccionEnvio: json['agenciaDireccionEnvio'] as String?,
       metodoPago: json['metodoPago'] as String?,
       comprobantePagoUrl: json['comprobantePagoUrl'] as String?,
       motivoRechazo: json['motivoRechazo'] as String?,
@@ -92,6 +102,9 @@ class PedidoMarketplaceEmpresaModel {
       provinciaEnvio: provinciaEnvio,
       departamentoEnvio: departamentoEnvio,
       coordenadasEnvio: coordenadasEnvio,
+      modalidadEnvio: modalidadEnvio,
+      agenciaEnvio: agenciaEnvio,
+      agenciaDireccionEnvio: agenciaDireccionEnvio,
       metodoPago: metodoPago,
       comprobantePagoUrl: comprobantePagoUrl,
       motivoRechazo: motivoRechazo,

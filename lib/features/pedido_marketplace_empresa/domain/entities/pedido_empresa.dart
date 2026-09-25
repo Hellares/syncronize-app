@@ -14,6 +14,10 @@ class PedidoMarketplaceEmpresa extends Equatable {
   final String? provinciaEnvio;
   final String? departamentoEnvio;
   final Map<String, dynamic>? coordenadasEnvio;
+  /// 'DELIVERY_LOCAL' | 'AGENCIA' | null (pedidos anteriores / app viejo).
+  final String? modalidadEnvio;
+  final String? agenciaEnvio;
+  final String? agenciaDireccionEnvio;
   final String? metodoPago;
   final String? comprobantePagoUrl;
   final String? motivoRechazo;
@@ -36,6 +40,9 @@ class PedidoMarketplaceEmpresa extends Equatable {
     this.provinciaEnvio,
     this.departamentoEnvio,
     this.coordenadasEnvio,
+    this.modalidadEnvio,
+    this.agenciaEnvio,
+    this.agenciaDireccionEnvio,
     this.metodoPago,
     this.comprobantePagoUrl,
     this.motivoRechazo,
@@ -62,6 +69,9 @@ class PedidoMarketplaceEmpresa extends Equatable {
         provinciaEnvio,
         departamentoEnvio,
         coordenadasEnvio,
+        modalidadEnvio,
+        agenciaEnvio,
+        agenciaDireccionEnvio,
         metodoPago,
         comprobantePagoUrl,
         motivoRechazo,

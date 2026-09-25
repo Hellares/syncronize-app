@@ -108,9 +108,27 @@ class _DetailView extends StatelessWidget {
                   if (p.emailComprador != null) _infoRow(Icons.email_outlined, 'Email', p.emailComprador!),
                   if (p.telefonoComprador != null) _infoRow(Icons.phone_outlined, 'Telefono', p.telefonoComprador!),
                   if (p.creadoEn != null) _infoRow(Icons.calendar_today, 'Fecha', DateFormatter.formatDateTime(p.creadoEn!)),
+                  // Envío por AGENCIA: no hay dirección de domicilio, hay
+                  // agencia y su sede en destino (como el envío de la venta).
+                  if (p.modalidadEnvio == 'AGENCIA') ...[
+                    const Divider(height: 16),
+                    const AppSubtitle('ENVIO POR AGENCIA', fontSize: 11, color: AppColors.blue1),
+                    const SizedBox(height: 8),
+                    if (p.agenciaEnvio != null) _infoRow(Icons.storefront_outlined, 'Agencia', p.agenciaEnvio!),
+                    if (p.provinciaEnvio != null || p.departamentoEnvio != null)
+                      _infoRow(Icons.map_outlined, 'Destino',
+                        [p.departamentoEnvio, p.provinciaEnvio]
+                          .where((e) => e != null && e.isNotEmpty).join(' / ')),
+                    if (p.agenciaDireccionEnvio != null)
+                      _infoRow(Icons.location_on_outlined, 'Sede agencia', p.agenciaDireccionEnvio!),
+                  ],
                   if (p.direccionEnvio != null) ...[
                     const Divider(height: 16),
-                    const AppSubtitle('DIRECCION DE ENVIO', fontSize: 11, color: AppColors.blue1),
+                    AppSubtitle(
+                      p.modalidadEnvio == 'DELIVERY_LOCAL' ? 'DELIVERY (REPARTO LOCAL)' : 'DIRECCION DE ENVIO',
+                      fontSize: 11,
+                      color: AppColors.blue1,
+                    ),
                     const SizedBox(height: 8),
                     _infoRow(Icons.location_on_outlined, 'Direccion', p.direccionEnvio!),
                     if (p.referenciaEnvio != null) _infoRow(Icons.near_me, 'Referencia', p.referenciaEnvio!),

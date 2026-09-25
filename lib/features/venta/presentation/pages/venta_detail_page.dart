@@ -283,10 +283,16 @@ class _VentaDetailPageState extends State<VentaDetailPage> {
       // Geocoder propio: búsqueda local + direcciones recientes del cliente.
       empresaId: empresaId,
       telefonoCliente: venta.telefonoCliente,
-      // La dirección que el cliente ya dio (p. ej. al comprar en la tienda
-      // web) arranca escrita: no hay que volver a pedírsela.
-      initDireccion: venta.conEnvio ? venta.direccionCliente : null,
-      initDestino: destinoInicial,
+      // Lo que el cliente ya dio al comprar (tienda web / marketplace)
+      // arranca escrito: dirección, referencia, distrito y su ubicación.
+      initDireccion: venta.entregaPedido?.direccion ??
+          (venta.conEnvio ? venta.direccionCliente : null),
+      initReferencia: venta.entregaPedido?.referencia,
+      initDistrito: venta.entregaPedido?.distrito,
+      initDestino: destinoInicial ??
+          ((venta.entregaPedido?.lat != null && venta.entregaPedido?.lon != null)
+              ? LatLng(venta.entregaPedido!.lat!, venta.entregaPedido!.lon!)
+              : null),
     );
     if (datos == null || !mounted) return;
 

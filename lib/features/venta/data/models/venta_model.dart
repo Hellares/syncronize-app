@@ -8,6 +8,18 @@ import 'cuota_venta_model.dart';
 
 /// Datos del delivery local publicado (el listado solo manda {estado};
 /// el detalle manda dirección/tarifa — parseo defensivo con defaults).
+EntregaPedidoData _entregaPedidoFromJson(Map<String, dynamic> json) {
+  final coords = json['coordenadasEnvio'];
+  return EntregaPedidoData(
+    modalidad: json['modalidadEnvio'] as String?,
+    direccion: json['direccionEnvio'] as String?,
+    referencia: json['referenciaEnvio'] as String?,
+    distrito: json['distritoEnvio'] as String?,
+    lat: coords is Map ? (coords['lat'] as num?)?.toDouble() : null,
+    lon: coords is Map ? (coords['lon'] as num?)?.toDouble() : null,
+  );
+}
+
 VentaDeliveryData? _deliveryFromJson(Map<String, dynamic> json) {
   final direccion = json['direccion'] as String?;
   if (direccion == null || direccion.trim().isEmpty) return null;
@@ -72,6 +84,7 @@ class VentaModel extends Venta {
     super.envio,
     super.deliveryEstado,
     super.delivery,
+    super.entregaPedido,
     super.moneda,
     super.tipoCambio,
     required super.subtotal,
@@ -234,6 +247,10 @@ class VentaModel extends Venta {
       delivery: json['deliveryLocal'] is Map
           ? _deliveryFromJson(
               (json['deliveryLocal'] as Map).cast<String, dynamic>())
+          : null,
+      entregaPedido: json['entregaPedido'] is Map
+          ? _entregaPedidoFromJson(
+              (json['entregaPedido'] as Map).cast<String, dynamic>())
           : null,
       moneda: json['moneda'] as String? ?? 'PEN',
       tipoCambio: _toDoubleNullable(json['tipoCambio']),

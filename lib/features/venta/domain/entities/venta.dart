@@ -261,6 +261,31 @@ class VentaEnvioData extends Equatable {
       ];
 }
 
+/// Lo que el comprador dio para la entrega al pedir por la tienda web o el
+/// marketplace (solo en detalle, y solo si la venta viene de un pedido). El
+/// "Solicitar delivery" arranca con esto en vez de volver a pedírselo.
+class EntregaPedidoData extends Equatable {
+  /// 'DELIVERY_LOCAL' | 'AGENCIA' | null (pedidos anteriores).
+  final String? modalidad;
+  final String? direccion;
+  final String? referencia;
+  final String? distrito;
+  final double? lat;
+  final double? lon;
+
+  const EntregaPedidoData({
+    this.modalidad,
+    this.direccion,
+    this.referencia,
+    this.distrito,
+    this.lat,
+    this.lon,
+  });
+
+  @override
+  List<Object?> get props => [modalidad, direccion, referencia, distrito, lat, lon];
+}
+
 /// Datos del DELIVERY LOCAL publicado para la venta (solo en detalle):
 /// dirección/referencia capturadas al solicitar (picker con pin), tarifa
 /// del repartidor y estado del recorrido.
@@ -362,6 +387,9 @@ class Venta extends Equatable {
 
   /// Datos completos del delivery (dirección, tarifa…) — solo en detalle.
   final VentaDeliveryData? delivery;
+
+  /// Entrega que pidió el comprador (venta de un pedido web/marketplace).
+  final EntregaPedidoData? entregaPedido;
 
   bool get tieneDelivery =>
       deliveryEstado != null && deliveryEstado != 'CANCELADO';
@@ -469,6 +497,7 @@ class Venta extends Equatable {
     this.envio,
     this.deliveryEstado,
     this.delivery,
+    this.entregaPedido,
     this.moneda = 'PEN',
     this.tipoCambio,
     required this.subtotal,
