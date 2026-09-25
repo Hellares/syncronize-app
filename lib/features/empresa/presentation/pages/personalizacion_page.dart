@@ -77,6 +77,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   final _facebookController = TextEditingController();
   final _instagramController = TextEditingController();
   final _tiktokController = TextEditingController();
+  // Link de la ficha del local en Google Maps (`webConfig.googleMapsUrl`): con
+  // coordenadas Google solo pone un pin sin nombre; la ficha muestra el
+  // negocio (nombre, fotos, reseñas) y su "Cómo llegar".
+  final _googleMapsController = TextEditingController();
   bool _enviosNacionales = false;
   // Logo propio de la tienda web (`webConfig.logoUrl`). NO toca `Empresa.logo`,
   // que es el de los tickets y el app: la web lo usa solo si este falta.
@@ -126,6 +130,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
     _facebookController.dispose();
     _instagramController.dispose();
     _tiktokController.dispose();
+    _googleMapsController.dispose();
     super.dispose();
   }
 
@@ -194,6 +199,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
             _tiktokController.text = redes['tiktok']?.toString() ?? '';
           }
           _enviosNacionales = wc['enviosNacionales'] == true;
+          _googleMapsController.text = wc['googleMapsUrl']?.toString() ?? '';
           final logoWeb = wc['logoUrl']?.toString() ?? '';
           _logoWebUrl = logoWeb.isEmpty ? null : logoWeb;
         }
@@ -660,6 +666,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         'enviosNacionales': _enviosNacionales,
         // null a propósito (no se omite): así "Quitar" pisa el que estaba.
         'logoUrl': _logoWebUrl,
+        'googleMapsUrl': _googleMapsController.text.trim().isEmpty ? null : _googleMapsController.text.trim(),
       },
       bannerPrincipalUrl: _bannerUrlController.text.isEmpty ? null : _bannerUrlController.text,
       bannerPrincipalTexto: _bannerTextoController.text.isEmpty ? null : _bannerTextoController.text,
@@ -1908,6 +1915,20 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
               hintText: '@tutienda',
               prefixIcon: const Icon(Icons.tiktok, size: 16),
               borderColor: AppColors.blueborder,
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _googleMapsController,
+              label: 'Link de Google Maps del local',
+              hintText: 'Busca tu local en Google Maps > Compartir > Copiar link',
+              prefixIcon: const Icon(Icons.map_outlined, size: 16),
+              borderColor: AppColors.blueborder,
+            ),
+            const SizedBox(height: 4),
+            AppLabelText(
+              'Con el link, "Como llegar" abre la ficha de tu negocio (nombre, fotos y reseñas). Sin el, solo un pin en la ubicacion de la sede.',
+              fontSize: 10,
+              color: Colors.grey.shade500,
             ),
             const SizedBox(height: 12),
             CustomSwitchTile(
