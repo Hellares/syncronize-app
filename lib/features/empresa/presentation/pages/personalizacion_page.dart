@@ -71,6 +71,13 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   final _bannerTextoController = TextEditingController();
   final _splashUrlController = TextEditingController();
   final _dominioController = TextEditingController();
+  // Redes de la tienda web: viven en `webConfig.redes`, junto a los colores de
+  // fondo y los videos (las columnas `Empresa.facebook/instagram` no las edita
+  // nadie y no hay una para TikTok).
+  final _facebookController = TextEditingController();
+  final _instagramController = TextEditingController();
+  final _tiktokController = TextEditingController();
+  bool _enviosNacionales = false;
 
   // Colores por defecto (matching web original design)
   static const _defaultPrimario = Color(0xFF437EFF);
@@ -112,6 +119,9 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
     _bannerTextoController.dispose();
     _splashUrlController.dispose();
     _dominioController.dispose();
+    _facebookController.dispose();
+    _instagramController.dispose();
+    _tiktokController.dispose();
     super.dispose();
   }
 
@@ -173,6 +183,13 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
                 .where((v) => v['url']!.isNotEmpty)
                 .toList();
           }
+          final redes = wc['redes'];
+          if (redes is Map) {
+            _facebookController.text = redes['facebook']?.toString() ?? '';
+            _instagramController.text = redes['instagram']?.toString() ?? '';
+            _tiktokController.text = redes['tiktok']?.toString() ?? '';
+          }
+          _enviosNacionales = wc['enviosNacionales'] == true;
         }
         _mostrarPrecios = p.mostrarPrecios;
         _mostrarContacto = p.mostrarContacto;
@@ -565,6 +582,17 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         'colorFondo1': _colorToHex(_colorFondo1),
         'colorFondo2': _colorToHex(_colorFondo2),
         'videos': _webVideos,
+        // Solo las redes cargadas: una vacía no se guarda, así la web no
+        // dibuja un ícono que no lleva a ningún lado.
+        'redes': {
+          for (final e in {
+            'facebook': _facebookController.text.trim(),
+            'instagram': _instagramController.text.trim(),
+            'tiktok': _tiktokController.text.trim(),
+          }.entries)
+            if (e.value.isNotEmpty) e.key: e.value,
+        },
+        'enviosNacionales': _enviosNacionales,
       },
       bannerPrincipalUrl: _bannerUrlController.text.isEmpty ? null : _bannerUrlController.text,
       bannerPrincipalTexto: _bannerTextoController.text.isEmpty ? null : _bannerTextoController.text,
@@ -698,6 +726,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
 
         // ─── Videos Web ───
         _buildVideosWebCard(),
+        const SizedBox(height: 12),
+
+        // ─── Redes y envíos (cabecera de la tienda web) ───
+        _buildRedesEnviosCard(),
         const SizedBox(height: 12),
 
         // ─── Configuración ───
@@ -1763,6 +1795,63 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   }
 
   // ─── Configuración Card ───
+
+  // ─── Redes y envíos ───
+
+  Widget _buildRedesEnviosCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Redes y envios', Icons.share_outlined),
+            const SizedBox(height: 4),
+            AppLabelText(
+              'Se muestran en la cabecera de tu tienda web. Pega el link o escribe tu @usuario; las que dejes vacias no aparecen.',
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+            const SizedBox(height: 12),
+            CustomText(
+              controller: _facebookController,
+              label: 'Facebook',
+              hintText: 'facebook.com/tutienda',
+              prefixIcon: const Icon(Icons.facebook, size: 16),
+              borderColor: AppColors.blueborder,
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _instagramController,
+              label: 'Instagram',
+              hintText: '@tutienda',
+              prefixIcon: const Icon(Icons.camera_alt_outlined, size: 16),
+              borderColor: AppColors.blueborder,
+            ),
+            const SizedBox(height: 10),
+            CustomText(
+              controller: _tiktokController,
+              label: 'TikTok',
+              hintText: '@tutienda',
+              prefixIcon: const Icon(Icons.tiktok, size: 16),
+              borderColor: AppColors.blueborder,
+            ),
+            const SizedBox(height: 12),
+            CustomSwitchTile(
+              title: 'Envios a todo el Peru',
+              subtitle: 'Muestra "Envios a todo el Peru" arriba de tu tienda web',
+              value: _enviosNacionales,
+              onChanged: (v) => setState(() => _enviosNacionales = v),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildConfiguracionCard() {
     return GradientContainer(
