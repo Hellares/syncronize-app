@@ -27,6 +27,7 @@ import '../../domain/usecases/get_personalizacion_usecase.dart';
 import '../../domain/usecases/update_personalizacion_usecase.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
+import '../widgets/cursores_tienda.dart';
 
 class PersonalizacionPage extends StatefulWidget {
   const PersonalizacionPage({super.key});
@@ -86,6 +87,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   // que es el de los tickets y el app: la web lo usa solo si este falta.
   String? _logoWebUrl;
   bool _isUploadingLogoWeb = false;
+  // Cursor de la tienda web (`webConfig.cursor`). Color null = el color de la
+  // cabecera (el principal de la web).
+  String _cursorTipo = 'normal';
+  Color? _cursorColor;
 
   // Colores por defecto (matching web original design)
   static const _defaultPrimario = Color(0xFF437EFF);
@@ -202,6 +207,12 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
           _googleMapsController.text = wc['googleMapsUrl']?.toString() ?? '';
           final logoWeb = wc['logoUrl']?.toString() ?? '';
           _logoWebUrl = logoWeb.isEmpty ? null : logoWeb;
+          final cursor = wc['cursor'];
+          if (cursor is Map) {
+            _cursorTipo = cursor['tipo']?.toString() ?? 'normal';
+            final c = cursor['color']?.toString() ?? '';
+            _cursorColor = c.isEmpty ? null : _parseColor(c);
+          }
         }
         _mostrarPrecios = p.mostrarPrecios;
         _mostrarContacto = p.mostrarContacto;
@@ -667,6 +678,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         // null a propósito (no se omite): así "Quitar" pisa el que estaba.
         'logoUrl': _logoWebUrl,
         'googleMapsUrl': _googleMapsController.text.trim().isEmpty ? null : _googleMapsController.text.trim(),
+        'cursor': {
+          'tipo': _cursorTipo,
+          'color': _cursorColor == null ? null : _colorToHex(_cursorColor!),
+        },
       },
       bannerPrincipalUrl: _bannerUrlController.text.isEmpty ? null : _bannerUrlController.text,
       bannerPrincipalTexto: _bannerTextoController.text.isEmpty ? null : _bannerTextoController.text,
@@ -804,6 +819,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
 
         // ─── Redes y envíos (cabecera de la tienda web) ───
         _buildRedesEnviosCard(),
+        const SizedBox(height: 12),
+
+        // ─── Cursor de la tienda web ───
+        _buildCursorCard(),
         const SizedBox(height: 12),
 
         // ─── Configuración ───
@@ -1942,6 +1961,50 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
               value: _enviosNacionales,
               onChanged: (v) => setState(() => _enviosNacionales = v),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCursorCard() {
+    final colorCursor = _cursorColor ?? _colorPrimario;
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Cursor de la tienda web', Icons.mouse_outlined),
+            const SizedBox(height: 4),
+            AppLabelText(
+              'El puntero del mouse en tu tienda web (solo en computadora). Sobre productos y botones cambia para que se note que se puede hacer clic.',
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+            const SizedBox(height: 10),
+            CursorTiendaSelector(
+              seleccionado: _cursorTipo,
+              color: colorCursor,
+              onChanged: (id) => setState(() => _cursorTipo = id),
+            ),
+            if (_cursorTipo != 'normal') ...[
+              const SizedBox(height: 10),
+              CustomSwitchTile(
+                title: 'Usar el color de la web',
+                subtitle: 'Toma el color de la cabecera de tu tienda',
+                value: _cursorColor == null,
+                onChanged: (v) => setState(() => _cursorColor = v ? null : _colorPrimario),
+              ),
+              if (_cursorColor != null) ...[
+                const SizedBox(height: 8),
+                _buildColorRow('Color del cursor', _cursorColor!, (c) => setState(() => _cursorColor = c)),
+              ],
+            ],
           ],
         ),
       ),
