@@ -1357,7 +1357,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
             ),
             // La web los muestra a todo el ancho y en el celular recorta los costados.
             Text(
-              'Recomendado: 1920 x 500 px. Deja lo importante al centro.',
+              'Recomendado: 1920 x 600 px. Deja lo importante al centro.',
               style: TextStyle(fontSize: 10, color: Colors.grey[500]),
             ),
             if (_isUploadingMultiBanner)
