@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/theme/app_colors.dart';
 
-/// Cursores de la tienda web (`webConfig.cursor = {tipo, color}`). Los dibujos
+/// Cursores de la tienda web (`webConfig.cursor = {tipo, color, borde}`). Los dibujos
 /// son los mismos de la web (`syncronize-web/src/lib/cursores.ts`): si se
 /// cambia uno, cambiar los dos.
 class CursorTienda {
@@ -42,22 +42,23 @@ String _hex(Color c) {
 }
 
 /// El SVG del cursor (su forma normal, no la "de clic"), para la vista previa.
-String cursorTiendaSvg(String id, Color color) {
+String cursorTiendaSvg(String id, Color color, {Color borde = Colors.white}) {
   final c = _hex(color);
+  final b = _hex(borde);
   String body;
   switch (id) {
     case 'flecha':
-      body = '<path d="${_p['flecha']}" fill="$c" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" paint-order="stroke"/>';
+      body = '<path d="${_p['flecha']}" fill="$c" stroke="$b" stroke-width="1.6" stroke-linejoin="round"/>';
       break;
     case 'punto':
-      body = '<circle cx="16" cy="16" r="5.5" fill="$c" stroke="#fff" stroke-width="2"/>';
+      body = '<circle cx="16" cy="16" r="5.5" fill="$c" stroke="$b" stroke-width="2"/>';
       break;
     case 'anillo':
-      body = '<circle cx="16" cy="16" r="11" fill="none" stroke="$c" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="$c"/>';
+      body = '<circle cx="16" cy="16" r="11" fill="none" stroke="$b" stroke-width="4"/><circle cx="16" cy="16" r="11" fill="none" stroke="$c" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="$c" stroke="$b" stroke-width="1"/>';
       break;
     case 'mira':
       const lineas = '<path d="M16 3v8M16 21v8M3 16h8M21 16h8"/>';
-      body = '<g stroke="#fff" stroke-width="4" stroke-linecap="round">$lineas</g>'
+      body = '<g stroke="$b" stroke-width="4" stroke-linecap="round">$lineas</g>'
           '<g stroke="$c" stroke-width="2" stroke-linecap="round">$lineas</g>'
           '<circle cx="16" cy="16" r="1.6" fill="$c"/>';
       break;
@@ -67,8 +68,8 @@ String cursorTiendaSvg(String id, Color color) {
     case 'patita':
     case 'craneo':
       final huecos = id == 'craneo' ? ' fill-rule="evenodd"' : '';
-      body = '<g transform="translate(6.4 6.4) scale(0.8)"><path d="${_p[id]}" fill="$c"$huecos stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></g>'
-          '<path d="$_punta" fill="$c" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>';
+      body = '<g transform="translate(6.4 6.4) scale(0.8)"><path d="${_p[id]}" fill="$c"$huecos stroke="$b" stroke-width="2.4" stroke-linejoin="round"/></g>'
+          '<path d="$_punta" fill="$c" stroke="$b" stroke-width="1.2" stroke-linejoin="round"/>';
       break;
     default: // normal: la flecha del sistema
       body = '<path d="${_p['flecha']}" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>';
@@ -80,12 +81,14 @@ String cursorTiendaSvg(String id, Color color) {
 class CursorTiendaSelector extends StatelessWidget {
   final String seleccionado;
   final Color color;
+  final Color borde;
   final ValueChanged<String> onChanged;
 
   const CursorTiendaSelector({
     super.key,
     required this.seleccionado,
     required this.color,
+    this.borde = Colors.white,
     required this.onChanged,
   });
 
@@ -103,6 +106,7 @@ class CursorTiendaSelector extends StatelessWidget {
           _Opcion(
             cursor: cur,
             color: color,
+            borde: borde,
             activo: cur.id == seleccionado,
             onTap: () => onChanged(cur.id),
           ),
@@ -114,10 +118,11 @@ class CursorTiendaSelector extends StatelessWidget {
 class _Opcion extends StatelessWidget {
   final CursorTienda cursor;
   final Color color;
+  final Color borde;
   final bool activo;
   final VoidCallback onTap;
 
-  const _Opcion({required this.cursor, required this.color, required this.activo, required this.onTap});
+  const _Opcion({required this.cursor, required this.color, required this.borde, required this.activo, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +143,7 @@ class _Opcion extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.string(cursorTiendaSvg(cursor.id, color), width: 28, height: 28),
+            SvgPicture.string(cursorTiendaSvg(cursor.id, color, borde: borde), width: 28, height: 28),
             const SizedBox(height: 4),
             Text(
               cursor.nombre,

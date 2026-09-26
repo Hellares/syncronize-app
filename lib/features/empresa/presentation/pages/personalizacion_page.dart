@@ -91,6 +91,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   // cabecera (el principal de la web).
   String _cursorTipo = 'normal';
   Color? _cursorColor;
+  // Borde del cursor: blanco por defecto (negro si el cursor es claro).
+  Color _cursorBorde = Colors.white;
 
   // Colores por defecto (matching web original design)
   static const _defaultPrimario = Color(0xFF437EFF);
@@ -212,6 +214,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
             _cursorTipo = cursor['tipo']?.toString() ?? 'normal';
             final c = cursor['color']?.toString() ?? '';
             _cursorColor = c.isEmpty ? null : _parseColor(c);
+            final b = cursor['borde']?.toString() ?? '';
+            _cursorBorde = b.isEmpty ? Colors.white : _parseColor(b);
           }
         }
         _mostrarPrecios = p.mostrarPrecios;
@@ -681,6 +685,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         'cursor': {
           'tipo': _cursorTipo,
           'color': _cursorColor == null ? null : _colorToHex(_cursorColor!),
+          'borde': _colorToHex(_cursorBorde),
         },
       },
       bannerPrincipalUrl: _bannerUrlController.text.isEmpty ? null : _bannerUrlController.text,
@@ -1995,6 +2000,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
             CursorTiendaSelector(
               seleccionado: _cursorTipo,
               color: colorCursor,
+              borde: _cursorBorde,
               onChanged: (id) => setState(() => _cursorTipo = id),
             ),
             if (_cursorTipo != 'normal') ...[
@@ -2009,6 +2015,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
                 const SizedBox(height: 8),
                 _buildColorRow('Color del cursor', _cursorColor!, (c) => setState(() => _cursorColor = c)),
               ],
+              const SizedBox(height: 4),
+              _buildColorRow('Borde del cursor', _cursorBorde, (c) => setState(() => _cursorBorde = c)),
             ],
           ],
         ),
