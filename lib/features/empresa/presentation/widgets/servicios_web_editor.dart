@@ -36,6 +36,8 @@ class _ServiciosWebEditorState extends State<ServiciosWebEditor> {
   late final TextEditingController _titulo;
   late final TextEditingController _descripcion;
   String? _fotoTaller;
+  // Portada: foto O video (el video gana en la web; al elegir uno se borra el otro).
+  String? _videoPortada;
   late List<Map<String, String>> _trabajos;
   late List<Map<String, String>> _consejos;
   late List<String> _galeria;
@@ -50,6 +52,8 @@ class _ServiciosWebEditorState extends State<ServiciosWebEditor> {
     _descripcion = TextEditingController(text: v['descripcion']?.toString() ?? '');
     final foto = v['fotoTaller']?.toString() ?? '';
     _fotoTaller = foto.isEmpty ? null : foto;
+    final video = v['videoPortada']?.toString() ?? '';
+    _videoPortada = video.isEmpty ? null : video;
     _trabajos = _lista(v['trabajos'], const ['url', 'titulo', 'tipo']);
     _consejos = _lista(v['consejos'], const ['url', 'titulo']);
     _galeria = _lista(v['galeria'], const ['url']).map((g) => g['url']!).toList();
@@ -76,6 +80,7 @@ class _ServiciosWebEditorState extends State<ServiciosWebEditor> {
       'titulo': _titulo.text.trim().isEmpty ? null : _titulo.text.trim(),
       'descripcion': _descripcion.text.trim().isEmpty ? null : _descripcion.text.trim(),
       'fotoTaller': _fotoTaller,
+      'videoPortada': _videoPortada,
       'trabajos': _trabajos,
       'consejos': _consejos,
       'galeria': [for (final u in _galeria) {'url': u}],
@@ -168,6 +173,51 @@ class _ServiciosWebEditorState extends State<ServiciosWebEditor> {
     );
   }
 
+  Future<void> _subirVideoPortada() async {
+    final picked = await _picker.pickVideo(source: ImageSource.gallery);
+    if (picked == null) return;
+    final file = File(picked.path);
+    final mb = await file.length() / (1024 * 1024);
+    // Se descarga cada vez que alguien abre la página: liviano.
+    if (mb > 30) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('El video pesa ${mb.toStringAsFixed(1)} MB. Para la portada, máximo 30 MB.'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    final url = await _subir(file);
+    if (url != null) {
+      _cambiar(() {
+        _videoPortada = url;
+        _fotoTaller = null;
+      });
+    }
+  }
+
+  Widget _videoCargado({required VoidCallback onQuitar}) => Container(
+        height: 72,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F1A2E),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.play_circle_outline, color: Colors.white, size: 28),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text('Video de portada cargado', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            IconButton(
+              onPressed: onQuitar,
+              icon: const Icon(Icons.delete_outline, color: Colors.white70, size: 20),
+              tooltip: 'Quitar video',
+            ),
+          ],
+        ),
+      );
+
   Future<void> _agregarConsejoArchivo() async {
     final picked = await _picker.pickVideo(source: ImageSource.gallery);
     if (picked == null) return;
@@ -238,13 +288,24 @@ class _ServiciosWebEditorState extends State<ServiciosWebEditor> {
           style: const TextStyle(fontSize: 13),
         ),
 
-        _encabezado('Foto de la portada', 'El taller, el local o tu equipo de trabajo.'),
-        _fotoTaller == null
-            ? _botonAgregar('Subir foto', Icons.add_photo_alternate_outlined, () async {
-                final url = await _elegirFoto();
-                if (url != null) _cambiar(() => _fotoTaller = url);
-              })
-            : _miniatura(_fotoTaller!, ancho: double.infinity, alto: 120, onQuitar: () => _cambiar(() => _fotoTaller = null)),
+        _encabezado('Portada: foto o video', 'El taller, el local o tu equipo. El video se repite solo y sin sonido: mejor uno corto (10 a 20 s).'),
+        if (_videoPortada != null)
+          _videoCargado(onQuitar: () => _cambiar(() => _videoPortada = null))
+        else if (_fotoTaller != null)
+          _miniatura(_fotoTaller!, ancho: double.infinity, alto: 120, onQuitar: () => _cambiar(() => _fotoTaller = null))
+        else
+          Row(
+            children: [
+              Expanded(
+                child: _botonAgregar('Subir foto', Icons.add_photo_alternate_outlined, () async {
+                  final url = await _elegirFoto();
+                  if (url != null) _cambiar(() => _fotoTaller = url);
+                }),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: _botonAgregar('Subir video', Icons.video_camera_back_outlined, _subirVideoPortada)),
+            ],
+          ),
 
         _encabezado('Trabajos realizados', 'Fotos de equipos que atendiste, con lo que se hizo.'),
         if (_trabajos.isNotEmpty)
