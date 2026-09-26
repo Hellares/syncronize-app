@@ -67,7 +67,7 @@ String cursorTiendaSvg(String id, Color color) {
     case 'patita':
     case 'craneo':
       final huecos = id == 'craneo' ? ' fill-rule="evenodd"' : '';
-      body = '<g transform="translate(9 9) scale(0.71)"><path d="${_p[id]}" fill="$c"$huecos stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></g>'
+      body = '<g transform="translate(6.4 6.4) scale(0.8)"><path d="${_p[id]}" fill="$c"$huecos stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></g>'
           '<path d="$_punta" fill="$c" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>';
       break;
     default: // normal: la flecha del sistema
