@@ -28,6 +28,7 @@ import '../../domain/usecases/update_personalizacion_usecase.dart';
 import '../bloc/empresa_context/empresa_context_cubit.dart';
 import '../bloc/empresa_context/empresa_context_state.dart';
 import '../widgets/cursores_tienda.dart';
+import '../widgets/servicios_web_editor.dart';
 
 class PersonalizacionPage extends StatefulWidget {
   const PersonalizacionPage({super.key});
@@ -93,6 +94,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
   Color? _cursorColor;
   // Borde del cursor: blanco por defecto (negro si el cursor es claro).
   Color _cursorBorde = Colors.white;
+  // Página de servicios de la tienda web (`webConfig.serviciosWeb`).
+  Map<String, dynamic> _serviciosWeb = {};
 
   // Colores por defecto (matching web original design)
   static const _defaultPrimario = Color(0xFF437EFF);
@@ -209,6 +212,8 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
           _googleMapsController.text = wc['googleMapsUrl']?.toString() ?? '';
           final logoWeb = wc['logoUrl']?.toString() ?? '';
           _logoWebUrl = logoWeb.isEmpty ? null : logoWeb;
+          final sw = wc['serviciosWeb'];
+          if (sw is Map) _serviciosWeb = Map<String, dynamic>.from(sw);
           final cursor = wc['cursor'];
           if (cursor is Map) {
             _cursorTipo = cursor['tipo']?.toString() ?? 'normal';
@@ -682,6 +687,7 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
         // null a propósito (no se omite): así "Quitar" pisa el que estaba.
         'logoUrl': _logoWebUrl,
         'googleMapsUrl': _googleMapsController.text.trim().isEmpty ? null : _googleMapsController.text.trim(),
+        'serviciosWeb': _serviciosWeb,
         'cursor': {
           'tipo': _cursorTipo,
           'color': _cursorColor == null ? null : _colorToHex(_cursorColor!),
@@ -825,6 +831,10 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
 
         // ─── Videos Web ───
         _buildVideosWebCard(),
+        const SizedBox(height: 12),
+
+        // ─── Página de servicios (tienda web) ───
+        _buildServiciosWebCard(),
         const SizedBox(height: 12),
 
         // ─── Redes y envíos (cabecera de la tienda web) ───
@@ -1970,6 +1980,47 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
               subtitle: 'Muestra "Envios a todo el Peru" arriba de tu tienda web',
               value: _enviosNacionales,
               onChanged: (v) => setState(() => _enviosNacionales = v),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiciosWebCard() {
+    return GradientContainer(
+      gradient: AppGradients.blueWhiteBlue(),
+      shadowStyle: ShadowStyle.glow,
+      borderColor: AppColors.blueborder,
+      borderWidth: 0.6,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionHeader('Página de servicios', Icons.build_outlined),
+            const SizedBox(height: 4),
+            AppLabelText(
+              'Aparece en tu tienda web si tienes servicios visibles en el marketplace. Lo que dejes vacío no se muestra.',
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+            const SizedBox(height: 10),
+            ServiciosWebEditor(
+              valor: _serviciosWeb,
+              onChanged: (v) => _serviciosWeb = v,
+              subir: (file, {onProgress}) async {
+                final empresaId = _localStorage.getString(StorageConstants.tenantId)!;
+                final r = await _storageService.uploadFile(
+                  file: file,
+                  empresaId: empresaId,
+                  entidadTipo: 'EMPRESA',
+                  entidadId: empresaId,
+                  categoria: 'GALERIA',
+                  onProgress: onProgress,
+                );
+                return r.url;
+              },
             ),
           ],
         ),
