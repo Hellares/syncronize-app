@@ -69,8 +69,8 @@ String cursorTiendaSvg(String id, Color color, {Color borde = Colors.white}) {
     case 'craneo':
       final huecos = id == 'craneo' ? ' fill-rule="evenodd"' : '';
       // El carrito se corre: su manija tocaba la punta.
-      final corrido = id == 'carrito' ? ' translate(1 2)' : '';
-      body = '<g transform="translate(5.2 5.2) scale(0.86)$corrido"><path d="${_p[id]}" fill="$c"$huecos stroke="$b" stroke-width="2.4" stroke-linejoin="round"/></g>'
+      final corrido = id == 'carrito' ? ' translate(0 1)' : '';
+      body = '<g transform="translate(5.2 5.2) scale(0.89)$corrido"><path d="${_p[id]}" fill="$c"$huecos stroke="$b" stroke-width="2.4" stroke-linejoin="round"/></g>'
           '<path d="$_punta" fill="$c" stroke="$b" stroke-width="1.2" stroke-linejoin="round"/>';
       break;
     default: // normal: la flecha del sistema
