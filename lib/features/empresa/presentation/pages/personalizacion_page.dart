@@ -755,15 +755,20 @@ class _PersonalizacionPageState extends State<PersonalizacionPage> {
           ),
         ],
       ),
-      child: CustomButton(
-        text: 'Guardar cambios',
-        icon: const Icon(Icons.save_outlined, size: 16, color: Colors.white),
-        backgroundColor: AppColors.blue1,
-        height: 40,
-        borderRadius: 8,
-        isLoading: _isSaving,
-        loadingText: 'Guardando...',
-        onPressed: _isSaving ? null : _savePersonalizacion,
+      // El fondo blanco llega al borde; el botón queda sobre los botones de
+      // navegación del celular.
+      child: SafeArea(
+        top: false,
+        child: CustomButton(
+          text: 'Guardar cambios',
+          icon: const Icon(Icons.save_outlined, size: 16, color: Colors.white),
+          backgroundColor: AppColors.blue1,
+          height: 40,
+          borderRadius: 8,
+          isLoading: _isSaving,
+          loadingText: 'Guardando...',
+          onPressed: _isSaving ? null : _savePersonalizacion,
+        ),
       ),
     );
   }
