@@ -34,7 +34,7 @@ const _p = {
   'craneo': 'M16 3C9 3 5 8 5 14c0 4 2 6.5 4.5 7.5v4c0 1.1.9 2 2 2h9c1.1 0 2-.9 2-2v-4c2.5-1 4.5-3.5 4.5-7.5 0-6-4-11-11-11zM8.5 14.5a3 3 0 106 0 3 3 0 10-6 0zm9 0a3 3 0 106 0 3 3 0 10-6 0zM16 18l-1.5 2.7h3zM13.1 23.6h1.5v3.9h-1.5zm4.3 0h1.5v3.9h-1.5z',
 };
 
-const _punta = 'M2 2 L2 13 L5.5 9.8 L12.8 9.2 Z';
+const _punta = 'M2 2 L2 14 L5.8 10.5 L13.8 9.9 Z';
 
 String _hex(Color c) {
   final v = c.toARGB32() & 0xFFFFFF;
@@ -68,7 +68,7 @@ String cursorTiendaSvg(String id, Color color, {Color borde = Colors.white}) {
     case 'patita':
     case 'craneo':
       final huecos = id == 'craneo' ? ' fill-rule="evenodd"' : '';
-      body = '<g transform="translate(6.4 6.4) scale(0.8)"><path d="${_p[id]}" fill="$c"$huecos stroke="$b" stroke-width="2.4" stroke-linejoin="round"/></g>'
+      body = '<g transform="translate(4.4 4.4) scale(0.86)"><path d="${_p[id]}" fill="$c"$huecos stroke="$b" stroke-width="2.4" stroke-linejoin="round"/></g>'
           '<path d="$_punta" fill="$c" stroke="$b" stroke-width="1.2" stroke-linejoin="round"/>';
       break;
     default: // normal: la flecha del sistema
