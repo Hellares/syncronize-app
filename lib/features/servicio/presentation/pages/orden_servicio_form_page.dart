@@ -206,6 +206,14 @@ class _OrdenServicioFormPageState extends State<OrdenServicioFormPage> {
       _cargandoCampos = false;
       if (result is Success<List<ConfiguracionCampo>>) {
         _camposPersonalizados = result.data;
+        // La evidencia fotográfica (ARCHIVO) arranca MARCADA: casi siempre
+        // se sacan fotos del equipo. Solo un default explícito "false" la apaga.
+        for (final c in result.data) {
+          if (c.tipoCampo == 'ARCHIVO') {
+            _datosPersonalizados[c.nombre] =
+                !(c.defaultValue == 'false' || c.defaultValue == '0');
+          }
+        }
       }
     });
   }
