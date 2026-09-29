@@ -14,6 +14,7 @@ import '../../domain/entities/producto_variante.dart';
 import '../bloc/producto_variante/producto_variante_cubit.dart';
 import '../bloc/producto_variante/producto_variante_state.dart';
 import 'archivo_manager_bottom_sheet.dart';
+import '../pages/separar_por_diseno_page.dart';
 import 'variante_detail_dialog.dart';
 
 class ProductoVariantesBottomSheet extends StatefulWidget {
@@ -74,6 +75,25 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
   void dispose() {
     _busqueda.dispose();
     super.dispose();
+  }
+
+  /// Separar por diseño desde acá mismo, que es donde se suben las fotos.
+  Future<void> _separarPorDiseno(ProductoVariante variante) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SepararPorDisenoPage(
+          variante: variante,
+          empresaId: widget.empresaId,
+          sedeId: variante.stocksPorSede
+              ?.where((s) => s.cantidad > 0)
+              .firstOrNull
+              ?.sedeId,
+        ),
+      ),
+    );
+    // Siempre: aunque se vuelva atrás, pueden haberse subido fotos.
+    if (mounted) _cargar();
   }
 
   /// Por nombre, valores de atributos y SKU, sin tildes y exigiendo todas las
@@ -596,6 +616,42 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
                 ),
               ],
             ),
+
+            // Separar por diseño: una foto = un diseño con su stock. Solo en
+            // lo que tiene unidades para repartir y no es ya un diseño.
+            if (!esVarianteDiseno(variante) && variante.stockTotal > 0)
+              Positioned(
+                // Debajo del clip, en la franja derecha que el contenido deja
+                // libre (padding right: 30): no tapa el nombre.
+                top: 30,
+                right: 0,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Tooltip(
+                    message: 'Separar por diseño',
+                    child: InkWell(
+                      onTap: () => _separarPorDiseno(variante),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AppColors.green.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: AppColors.cardBackground,
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.photo_library_outlined,
+                          size: 14,
+                          color: AppColors.greendark,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
 
             // Botón de gestionar archivos en esquina superior derecha
             Positioned(
