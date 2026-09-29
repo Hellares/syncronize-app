@@ -8,6 +8,8 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/styled_dialog.dart';
 import '../../data/models/producto_variante_model.dart';
 import '../../domain/entities/producto_variante.dart';
 import '../../domain/entities/stock_por_sede_info.dart';
@@ -192,41 +194,57 @@ class _SepararPorDisenoPageState extends State<SepararPorDisenoPage> {
         .cast<Map<String, dynamic>>();
     final desactivada = data['origenDesactivada'] == true;
     final restante = (data['stockRestante'] as num?)?.toInt() ?? 0;
-    return showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
+    return StyledDialog.show<void>(
+      context,
+      accentColor: AppColors.blue1,
+      icon: Icons.photo_library_outlined,
+      titulo:
           '${disenos.length} diseño${disenos.length == 1 ? '' : 's'} creado${disenos.length == 1 ? '' : 's'}',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final d in disenos)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(
-                  '${d['nombre']} — ${d['cantidad']} und.',
-                  style: const TextStyle(fontSize: 12),
+      subtitulo: widget.variante.nombre,
+      backgroundColor: Colors.white,
+      barrierDismissible: false,
+      content: [
+        for (final d in disenos)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              children: [
+                Expanded(
+                  child: AppSubtitle(
+                    '${d['nombre']}',
+                    fontSize: 11,
+                    color: Colors.grey.shade800,
+                  ),
                 ),
-              ),
-            const SizedBox(height: 8),
-            Text(
-              desactivada
-                  ? 'La variante original quedó sin stock y se desactivó.'
-                  : 'En la variante original quedan $restante und. sin diseño.',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                AppSubtitle(
+                  '${d['cantidad']} und.',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blue1,
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Listo'),
           ),
-        ],
-      ),
+        const SizedBox(height: 8),
+        AppSubtitle(
+          desactivada
+              ? 'La variante original quedó sin stock y se desactivó.'
+              : 'En la variante original quedan $restante und. sin diseño.',
+          fontSize: 10,
+          color: Colors.grey.shade600,
+        ),
+      ],
+      actions: [
+        Expanded(
+          child: CustomButton(
+            text: 'Listo',
+            backgroundColor: AppColors.blue1,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+      ],
     );
   }
 
@@ -335,7 +353,7 @@ class _SepararPorDisenoPageState extends State<SepararPorDisenoPage> {
                       '${excede ? ' · asignaste más de las que hay' : (_asignadas < _disponible ? ' · ${_disponible - _asignadas} quedan en la original' : '')}',
                       fontSize: 12,
                       fontWeight: excede ? FontWeight.w700 : FontWeight.w500,
-                      color: excede ? AppColors.red : Colors.grey.shade800,
+                      color: excede ? AppColors.red : AppColors.blue1,
                     ),
                     const SizedBox(height: 4),
                     AppSubtitle(
