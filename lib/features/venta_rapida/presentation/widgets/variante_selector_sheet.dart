@@ -114,6 +114,12 @@ const String _kVarianteClave = '__variante__';
 /// y de paso se ve cuáles del catálogo quedaron incompletas.
 const String _kSinAsignar = '__sin_asignar__';
 
+/// Atributo "Diseño": una foto = un diseño con su propio stock (se crea al
+/// "Separar por diseño"). Sus valores —D1, D2…— no le dicen nada al vendedor,
+/// así que ese paso se elige por FOTO y el buscador junta los diseños de una
+/// misma colección en un solo renglón.
+const String _kClaveDiseno = 'diseno';
+
 /// Tipo de atributo que guarda un CÓDIGO de la unidad (`AtributoTipo.
 /// codigoBarras`), no un eje por el que se elige.
 ///
@@ -512,6 +518,33 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   }
 
   /// Valores de la variante en el orden en que se ven los grupos.
+  /// La variante que quedaría eligiendo [valor] en [clave] con lo ya elegido.
+  /// Para dibujar el chip del diseño con SU foto y SU stock.
+  ProductoVariante? _varianteCon(String clave, String valor) {
+    final sel = Map<String, String?>.of(_seleccion)..[clave] = valor;
+    for (final v in _variantes) {
+      if (_coincide(v, sel)) return v;
+    }
+    return null;
+  }
+
+  bool _esDiseno(ProductoVariante v) => _valorDe(v, _kClaveDiseno) != null;
+
+  /// Los valores SIN el diseño: con qué se titula una colección en el buscador.
+  List<String> _valoresSinDiseno(ProductoVariante v) {
+    final out = <String>[];
+    for (final g in _grupos) {
+      if (g.clave == _kClaveDiseno) continue;
+      if (g.clave == _kVarianteClave) {
+        out.add(v.nombre);
+        continue;
+      }
+      final valor = _valorDe(v, g.clave);
+      if (valor != null) out.add(valor);
+    }
+    return out;
+  }
+
   List<String> _valoresDe(ProductoVariante v) {
     final out = <String>[];
     for (final g in _grupos) {
@@ -603,6 +636,55 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     }
     out.sort((a, b) => _stockDisponible(b).compareTo(_stockDisponible(a)));
     return out;
+  }
+
+  /// Los resultados con los DISEÑOS de una misma colección juntos.
+  ///
+  /// Separar por diseño deja "ALIANZA / D1", "D2", "D3"… iguales en todo menos
+  /// el diseño: sueltos eran renglones idénticos que solo decían D1, D2… Juntos
+  /// son UNO con las fotos y el stock sumado, y al tocarlo se abre el paso
+  /// "Diseño" para elegir por foto.
+  List<List<ProductoVariante>> get _filasResultado {
+    final filas = <List<ProductoVariante>>[];
+    final porClave = <String, List<ProductoVariante>>{};
+    for (final v in _resultadosBusqueda) {
+      if (!_esDiseno(v)) {
+        filas.add([v]);
+        continue;
+      }
+      final clave = _grupos
+          .where((g) => g.clave != _kClaveDiseno)
+          .map((g) => _valorDe(v, g.clave) ?? _kSinAsignar)
+          .join('|');
+      final fila = porClave[clave];
+      if (fila != null) {
+        fila.add(v);
+        continue;
+      }
+      final nueva = [v];
+      porClave[clave] = nueva;
+      filas.add(nueva);
+    }
+    return filas;
+  }
+
+  /// Elegir una colección con varios diseños: queda todo armado menos el
+  /// diseño, y se abre ese paso.
+  void _elegirColeccion(ProductoVariante v) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _ultimoAgregado = null;
+      for (final g in _grupos) {
+        _seleccion[g.clave] = g.clave == _kClaveDiseno
+            ? null
+            : (_valorDe(v, g.clave) ?? _kSinAsignar);
+      }
+      _escaneo = null;
+      _grupoExpandido = _kClaveDiseno;
+      _buscarCtrl.clear();
+      _query = '';
+      _cantidad = 0;
+    });
   }
 
   /// Elegir una combinación desde el buscador: deja el acordeón como si la
@@ -1411,6 +1493,19 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
               runSpacing: 8,
               children: visibles.map((valor) {
                 final seleccionado = _seleccion[g.clave] == valor;
+                final conFoto = g.clave == _kClaveDiseno
+                    ? _varianteCon(g.clave, valor)
+                    : null;
+                final foto = conFoto?.thumbnailPrincipal;
+                if (conFoto != null && foto != null) {
+                  return _DisenoFotoChip(
+                    url: foto,
+                    label: valor,
+                    stock: _stockTextoDe(conFoto, _stockDisponible(conFoto)),
+                    selected: seleccionado,
+                    onTap: () => _seleccionar(g.clave, valor),
+                  );
+                }
                 return _AtributoValorChip(
                   label: _etiquetaValor(g, valor),
                   selected: seleccionado,
@@ -1599,6 +1694,7 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         ),
       );
     }
+    final filas = _filasResultado;
     final unidades = res.fold<int>(0, (s, v) => s + _stockDisponible(v));
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -1606,12 +1702,14 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppSubtitle(
-            '${res.length} ${res.length == 1 ? 'combinación' : 'combinaciones'} · $unidades ${unidades == 1 ? 'unidad' : 'unidades'}',
+            '${filas.length} ${filas.length == 1 ? 'combinación' : 'combinaciones'} · $unidades ${unidades == 1 ? 'unidad' : 'unidades'}',
             fontSize: 10,
             color: Colors.grey.shade700,
           ),
           const SizedBox(height: 6),
-          ...res.map(_buildResultado),
+          ...filas.map((f) => f.length > 1
+              ? _buildResultadoColeccion(f)
+              : _buildResultado(f.first)),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -1633,7 +1731,11 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
   }
 
   Widget _buildResultado(ProductoVariante v) {
-    final valores = _valoresDe(v);
+    // Un diseño SOLO se titula como su colección, igual que los agrupados:
+    // "D1" suelto no le dice nada al vendedor. Lo identifica la foto.
+    final esDiseno = _esDiseno(v);
+    final valores = esDiseno ? _valoresSinDiseno(v) : _valoresDe(v);
+    final foto = esDiseno ? v.thumbnailPrincipal : null;
     // El último grupo es el más granular (el diseño): va como título, y el
     // resto abajo. No se nombra ningún atributo a mano para que sirva igual
     // en un producto con otros atributos.
@@ -1658,6 +1760,10 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
           ),
           child: Row(
             children: [
+              if (foto != null) ...[
+                _miniatura(foto, 34),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1705,6 +1811,124 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
               const SizedBox(width: 10),
               Icon(Icons.add_circle_outline,
                   size: 16, color: AppColors.blue1),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniatura(String url, double lado) => ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: CachedNetworkImage(
+          imageUrl: url,
+          width: lado,
+          height: lado,
+          fit: BoxFit.cover,
+          placeholder: (_, __) =>
+              Container(width: lado, height: lado, color: Colors.grey.shade100),
+          errorWidget: (_, __, ___) =>
+              Container(width: lado, height: lado, color: Colors.grey.shade200),
+        ),
+      );
+
+  /// Una colección con varios diseños: sus miniaturas, el stock sumado y
+  /// "N diseños". Al tocarla se elige el diseño por foto.
+  Widget _buildResultadoColeccion(List<ProductoVariante> disenos) {
+    final v = disenos.first;
+    final valores = _valoresSinDiseno(v);
+    final titulo = valores.isEmpty ? v.nombre : valores.last;
+    final resto = valores.length > 1
+        ? valores.sublist(0, valores.length - 1).join(' · ')
+        : '';
+    final stock = disenos.fold<int>(0, (s, d) => s + _stockDisponible(d));
+    final precios = <double>[];
+    for (final d in disenos) {
+      final p =
+          d.precioEfectivoEnSede(widget.sedeId) ?? d.precioEnSede(widget.sedeId);
+      if (p != null) precios.add(p);
+    }
+    final minimo =
+        precios.isEmpty ? null : precios.reduce((a, b) => a < b ? a : b);
+    final todosIguales = precios.every((p) => p == minimo);
+    final fotos = <String>[];
+    for (final d in disenos) {
+      final f = d.thumbnailPrincipal;
+      if (f != null) fotos.add(f);
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: InkWell(
+        onTap: () => _elegirColeccion(v),
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 6, 10, 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.grey.shade300, width: 0.6),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppSubtitle(
+                      font: AppFont.amazonEmberMedium,
+                      titulo,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade900,
+                    ),
+                    if (resto.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      AppSubtitle(
+                        resto,
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        for (final f in fotos.take(5)) ...[
+                          _miniatura(f, 22),
+                          const SizedBox(width: 3),
+                        ],
+                        const SizedBox(width: 2),
+                        AppSubtitle(
+                          '${disenos.length} diseños',
+                          fontSize: 9,
+                          color: Colors.grey.shade600,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (minimo != null)
+                    AppSubtitle(
+                      font: AppFont.amazonEmberMedium,
+                      '${todosIguales ? '' : 'desde '}${_precioTextoDe(v, minimo)}',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.blue1,
+                    ),
+                  const SizedBox(height: 2),
+                  AppSubtitle(
+                    _stockTextoDe(v, stock),
+                    fontSize: 9,
+                    color: Colors.grey.shade600,
+                  ),
+                ],
+              ),
+              const SizedBox(width: 10),
+              Icon(Icons.chevron_right, size: 18, color: AppColors.blue1),
             ],
           ),
         ),
@@ -2144,6 +2368,71 @@ class _AtributoValorChip extends StatelessWidget {
               ),
             )
           : null,
+    );
+  }
+}
+
+/// Chip del paso "Diseño": la FOTO del diseño con su valor y su stock. El
+/// vendedor elige el estampado que ve, no un "D3".
+class _DisenoFotoChip extends StatelessWidget {
+  final String url;
+  final String label;
+  final String stock;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DisenoFotoChip({
+    required this.url,
+    required this.label,
+    required this.stock,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 78,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color:
+              selected ? AppColors.blue1.withValues(alpha: 0.06) : Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: selected ? AppColors.blue1 : Colors.grey.shade300,
+            width: selected ? 2 : 0.6,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: CachedNetworkImage(
+                imageUrl: url,
+                width: 70,
+                height: 70,
+                fit: BoxFit.cover,
+                placeholder: (_, __) =>
+                    Container(width: 70, height: 70, color: Colors.grey.shade100),
+                errorWidget: (_, __, ___) =>
+                    Container(width: 70, height: 70, color: Colors.grey.shade200),
+              ),
+            ),
+            const SizedBox(height: 2),
+            AppSubtitle(
+              font: AppFont.amazonEmberMedium,
+              '$label · $stock',
+              fontSize: 9,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? AppColors.blue1 : Colors.grey.shade700,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

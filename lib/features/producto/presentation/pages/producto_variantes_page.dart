@@ -26,6 +26,7 @@ import '../bloc/sede_selection/sede_selection_cubit.dart';
 import 'analisis_variantes_page.dart';
 import 'grupos_mayoreo_page.dart';
 import 'edicion_masiva_stock_page.dart';
+import 'separar_por_diseno_page.dart';
 import '../widgets/filtro_variantes.dart';
 import '../widgets/producto_variante_form_dialog.dart';
 import '../widgets/generar_combinaciones_dialog.dart';
@@ -631,12 +632,104 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                   _showGenerarCombinacionesDialog();
                 },
               ),
+              _menuOpcion(
+                icon: Icons.photo_library_outlined,
+                titulo: 'Separar por diseño',
+                subtitulo: 'Una foto = un diseño con su propio stock',
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _elegirVarianteParaSeparar();
+                },
+              ),
               const SizedBox(height: 8),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Elegir QUÉ variante separar. Solo las que no son ya un diseño y tienen
+  /// stock en la sede: las demás no tienen nada que repartir.
+  void _elegirVarianteParaSeparar() {
+    final todas = _getVariantes(context.read<ProductoVarianteCubit>().state);
+    final candidatas = todas
+        .where((v) => v.isActive && !esVarianteDiseno(v) && v.stockTotal > 0)
+        .toList()
+      ..sort((a, b) => a.nombre.compareTo(b.nombre));
+    if (candidatas.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay variantes con stock para separar por diseño.'),
+        ),
+      );
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetCtx).size.height * 0.75,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: AppSubtitle('¿Qué variante separás por diseño?'),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: candidatas.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final v = candidatas[i];
+                    return ListTile(
+                      dense: true,
+                      title: Text(v.nombre,
+                          style: const TextStyle(fontSize: 12)),
+                      trailing: Text('${v.stockTotal} u',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700)),
+                      onTap: () {
+                        Navigator.pop(sheetCtx);
+                        _abrirSepararPorDiseno(v);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrirSepararPorDiseno(ProductoVariante v) async {
+    final empresaId = _empresaId;
+    if (empresaId == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SepararPorDisenoPage(
+          variante: v,
+          empresaId: empresaId,
+          sedeId: _sedeId,
+        ),
+      ),
+    );
+    // Siempre: aunque se vuelva atrás, pueden haberse subido fotos.
+    if (mounted) _loadData();
   }
 
   Widget _menuOpcion({
@@ -943,13 +1036,19 @@ class _EjesProducto {
   /// id → "Género", para poder decir cuál falta.
   final Map<String, String> nombres;
 
-  const _EjesProducto(this.ids, this.nombres);
+  /// Ejes que NO es un problema no tener: el "Diseño" solo lo tienen las
+  /// variantes separadas por foto, y la colección sin separar no está
+  /// incompleta por eso.
+  final Set<String> opcionales;
+
+  const _EjesProducto(this.ids, this.nombres, [this.opcionales = const {}]);
 
   static _EjesProducto de(
     List<ProductoVariante> variantes,
     List<ProductoAtributo> disponibles,
   ) {
     final nombres = <String, String>{};
+    final opcionales = <String>{};
     // Set con orden de inserción: si `orden` no está cargado, el fallback es
     // el orden en que los manda el backend, que ya es el bueno.
     final vistos = <String>{};
@@ -957,12 +1056,15 @@ class _EjesProducto {
       for (final av in v.atributosValores) {
         vistos.add(av.atributoId);
         nombres[av.atributoId] = av.atributo.nombre;
+        if (av.atributo.clave == kClaveAtributoDiseno) {
+          opcionales.add(av.atributoId);
+        }
       }
     }
     final orden = {for (final a in disponibles) a.id: a.orden};
     final ids = vistos.toList()
       ..sort((a, b) => (orden[a] ?? 9999).compareTo(orden[b] ?? 9999));
-    return _EjesProducto(ids, nombres);
+    return _EjesProducto(ids, nombres, opcionales);
   }
 }
 
@@ -1242,7 +1344,9 @@ class _VarianteFila extends StatelessWidget {
     final tiene = {
       for (final av in variante.atributosValores) av.atributoId,
     };
-    return ejes.ids.where((id) => !tiene.contains(id)).toList();
+    return ejes.ids
+        .where((id) => !tiene.contains(id) && !ejes.opcionales.contains(id))
+        .toList();
   }
 
   StockPorSedeInfo? _stockInfo() {
