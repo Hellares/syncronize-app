@@ -8,6 +8,8 @@ import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
 import 'package:syncronize/core/services/storage_service.dart';
 import 'package:syncronize/core/di/injection_container.dart';
+import 'package:syncronize/core/utils/busqueda_texto.dart';
+import 'package:syncronize/core/widgets/custom_search_field.dart';
 import '../../domain/entities/producto_variante.dart';
 import '../bloc/producto_variante/producto_variante_cubit.dart';
 import '../bloc/producto_variante/producto_variante_state.dart';
@@ -49,6 +51,46 @@ class ProductoVariantesBottomSheet extends StatefulWidget {
 }
 
 class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSheet> {
+  /// Buscador: con 90 variantes (EDREDONES) encontrar "ALIANZA" para subirle
+  /// las fotos de sus diseños era bajar la lista entera con el dedo.
+  final _busqueda = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // En initState y no en build: con el buscador, cada letra redibuja la
+    // hoja y recargar ahí volvía a pedir las variantes al servidor.
+    _cargar();
+  }
+
+  void _cargar() {
+    context.read<ProductoVarianteCubit>().loadVariantes(
+          productoId: widget.productoId,
+          empresaId: widget.empresaId,
+        );
+  }
+
+  @override
+  void dispose() {
+    _busqueda.dispose();
+    super.dispose();
+  }
+
+  /// Por nombre, valores de atributos y SKU, sin tildes y exigiendo todas las
+  /// palabras: "alianza 3 pzs" filtra de una.
+  List<ProductoVariante> _filtrar(List<ProductoVariante> variantes) {
+    final terminos = terminosBusqueda(_busqueda.text);
+    if (terminos.isEmpty) return variantes;
+    return variantes.where((v) {
+      final texto = [
+        v.nombre,
+        v.sku,
+        v.codigoEmpresa,
+        for (final av in v.atributosValores) av.valor,
+      ].join(' ');
+      return coincideTodosLosTerminos(texto, terminos);
+    }).toList();
+  }
 
   Future<void> _showArchivoManager(ProductoVariante variante) async {
     try {
@@ -97,6 +139,8 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
           archivosExistentes: archivosExistentes,
         ),
       );
+      // Las fotos recién subidas se tienen que ver en la card al volver.
+      if (mounted) _cargar();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -110,12 +154,6 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
 
   @override
   Widget build(BuildContext context) {
-    // Load variants when bottom sheet opens
-    context.read<ProductoVarianteCubit>().loadVariantes(
-          productoId: widget.productoId,
-          empresaId: widget.empresaId,
-        );
-
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
       decoration: const BoxDecoration(
@@ -149,7 +187,36 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
                     return _buildEmpty();
                   }
 
-                  return _buildVariantesList(variantes);
+                  final visibles = _filtrar(variantes);
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                        child: CustomSearchField(
+                          controller: _busqueda,
+                          hintText: 'Buscar colección, atributo o SKU…',
+                          borderColor: AppColors.blue1,
+                          // Sin debounce: se filtra la lista ya cargada.
+                          debounceDelay: Duration.zero,
+                          onChanged: (_) => setState(() {}),
+                          onClear: () => setState(() {}),
+                        ),
+                      ),
+                      Expanded(
+                        child: visibles.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'Sin variantes para "${_busqueda.text.trim()}"',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              )
+                            : _buildVariantesList(visibles),
+                      ),
+                    ],
+                  );
                 }
 
                 return _buildEmpty();
