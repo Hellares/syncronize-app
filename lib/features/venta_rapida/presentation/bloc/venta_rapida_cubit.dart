@@ -265,7 +265,56 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       descuento: 0,
       descuentoManual: 0,
       clearNivelAplicado: true,
+      // A costo y por mayor no van juntos en una línea: el backend la rechaza.
+      precioPorMayor: false,
+      clearPrecioNivelId: true,
+      nivelForzado: false,
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VENDER POR MAYOR
+  // ═══════════════════════════════════════════════════════════
+
+  /// Marca (o desmarca) una línea como "por mayor". Solo pone la marca: el
+  /// precio lo resuelve `_repreciar`, que mide la línea como si llevara el
+  /// mínimo del escalón. Una línea a costo sale del costo.
+  VentaDetalleInput _porMayor(VentaDetalleInput it, bool on, {String? nivelId}) {
+    if (!on) {
+      if (!it.precioPorMayor) return it;
+      return it.copyWith(precioPorMayor: false, clearPrecioNivelId: true);
+    }
+    if (!it.puedeVenderseACosto) return it;
+    final base = it.esACosto ? _aCosto(it, null, state.costos) : it;
+    return base.copyWith(precioPorMayor: true, precioNivelId: nivelId);
+  }
+
+  /// El interruptor grande: todo el carrito por mayor, o de vuelta a lista.
+  void toggleModoMayor() {
+    final on = !state.modoMayor;
+    emit(state.copyWith(
+      modoMayor: on,
+      // Los dos interruptores no conviven: lo mixto se arma línea por línea.
+      clearModoCosto: on,
+      items: _repreciar([for (final it in state.items) _porMayor(it, on)]),
+    ));
+  }
+
+  /// Mete o saca UNA línea. Es lo que permite vender solo algunos productos
+  /// por mayor y el resto a precio normal en la misma venta.
+  void toggleLineaPorMayor(int index) {
+    if (index < 0 || index >= state.items.length) return;
+    final nuevos = [...state.items];
+    nuevos[index] = _porMayor(nuevos[index], !nuevos[index].esPorMayor);
+    emit(state.copyWith(items: _repreciar(nuevos)));
+  }
+
+  /// Cambia el escalón por mayor de una línea (la marca si no lo estaba).
+  void elegirNivelMayor(int index, String nivelId) {
+    if (index < 0 || index >= state.items.length) return;
+    final nuevos = [...state.items];
+    nuevos[index] = _porMayor(nuevos[index], true, nivelId: nivelId);
+    emit(state.copyWith(items: _repreciar(nuevos)));
   }
 
   /// El interruptor grande: prende o apaga el modo para TODO el carrito.
@@ -281,7 +330,11 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     final aplicados = [
       for (final it in state.items) _aCosto(it, modoInicial, cache),
     ];
-    emit(state.copyWith(modoCosto: modoInicial, items: _repreciar(aplicados)));
+    emit(state.copyWith(
+      modoCosto: modoInicial,
+      modoMayor: false,
+      items: _repreciar(aplicados),
+    ));
   }
 
   /// Cambia el costo con el que se cobra: de todo el carrito, o de una línea.
@@ -339,15 +392,16 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
   Future<void> _aplicarCostoALoNuevo() async {
     final modo = state.modoCosto;
     if (modo == null) return;
+    // Una línea que el cajero pasó a "por mayor" no se arrastra al costo.
     final pendientes = state.items
-        .where((i) => i.puedeVenderseACosto && !i.esACosto)
+        .where((i) => i.puedeVenderseACosto && !i.esACosto && !i.precioPorMayor)
         .toList();
     if (pendientes.isEmpty) return;
 
     final cache = await _asegurarCostos(pendientes);
     final nuevos = [
       for (final it in state.items)
-        (it.puedeVenderseACosto && !it.esACosto)
+        (it.puedeVenderseACosto && !it.esACosto && !it.precioPorMayor)
             ? _aCosto(it, modo, cache)
             : it,
     ];
@@ -801,6 +855,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       enLiquidacion: producto.enLiquidacionEnSede(sedeId),
       // Precio especial VIP si el cliente actual lo tiene.
       vipIntents: _vipParaNuevoProducto(producto.id),
+      // Con "vender por mayor" prendido, lo que se agrega entra por mayor.
+      precioPorMayor: state.modoMayor,
       // Como se le habla al cliente: cantidad y precio se muestran y se
       // capturan en esta unidad, pero viajan en unidad de venta.
       factorPresentacion: producto.factorPresentacion,
@@ -889,6 +945,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       precioCostoSnapshot: variante.precioCostoEnSede(sedeId),
       enLiquidacion: variante.enLiquidacionEnSede(sedeId),
       vipIntents: _vipParaNuevoProducto(producto.id),
+      precioPorMayor: state.modoMayor,
       // La presentación de la VARIANTE, con la del producto como respaldo.
       // Sin esto el carrito muestra la cantidad atómica —"1000" al vender
       // 1 kg— mientras que un granel sin variantes (RICOCAN) sí se ve en kg,
@@ -1576,6 +1633,8 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       buscandoCliente: false,
       clearError: true,
       clearVentaCompletada: true,
+      // El por mayor se decide por cliente: la próxima venta arranca apagada.
+      modoMayor: false,
     ));
   }
 
@@ -2985,6 +3044,7 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       buscandoCliente: false,
       clearError: true,
       clearVentaCompletada: true,
+      modoMayor: false,
     ));
   }
 }

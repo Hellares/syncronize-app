@@ -159,6 +159,25 @@ class _CarritoView extends StatelessWidget {
                     ),
                   ),
                 ),
+              // VENDER POR MAYOR: cuántas líneas van con el precio por mayor
+              // forzado. Pastel y no oscuro: sigue siendo un nivel de precio
+              // de la casa, no un modo que resigna el margen.
+              if (state.modoMayor || state.lineasPorMayor > 0)
+                Container(
+                  width: double.infinity,
+                  color: Colors.green.shade50,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Text(
+                    'POR MAYOR · ${state.lineasPorMayor} de '
+                    '${state.lineasCosteables} líneas',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                ),
               // Lo que se resigna vendiendo a costo. En ámbar y no en verde:
               // no es un ahorro del cliente, es margen que no entra. Es el
               // número que el dueño quiere ver antes de confirmar.
@@ -518,7 +537,8 @@ class _CarritoView extends StatelessWidget {
   /// 🔴 MÁXIMO 4 ítems: el quinto tira pantalla roja. Por eso "descuento" y
   /// "vender a costo" son EXCLUYENTES y no se muestran juntos — que además es
   /// lo correcto: una línea a costo no admite descuento (un centavo la manda a
-  /// pérdida y el backend la rechaza).
+  /// pérdida y el backend la rechaza). Con "por mayor" quedan los 4 justos:
+  /// elegir el nivel y quitar la marca viven en SU hoja, no acá.
   Future<void> _mostrarMenuLinea(
     BuildContext context,
     int index,
@@ -527,6 +547,7 @@ class _CarritoView extends StatelessWidget {
     final cubit = context.read<VentaRapidaCubit>();
     final puedeCosto = item.puedeVenderseACosto as bool;
     final aCosto = item.esACosto as bool;
+    final porMayor = item.esPorMayor as bool;
 
     // Sin el granular no se ofrece: el endpoint de costos responde 403 y
     // mostrarlo sería ofrecer algo que no funciona.
@@ -587,8 +608,23 @@ class _CarritoView extends StatelessWidget {
                 onTap: () => Navigator.pop(ctx, 'descuento'),
               ),
             ],
-            // Tercer ítem en las dos ramas (tope: 4). De qué lote sale: para
-            // la mercadería comprada por encargo, que tiene dueño.
+            // Por mayor, en las dos ramas (es el CUARTO: no entra ninguno más).
+            ListTile(
+              leading: Icon(Icons.groups_2_outlined,
+                  color: Colors.green.shade700),
+              title: Text(porMayor
+                  ? 'Precio por mayor · cambiar o quitar'
+                  : 'Vender por mayor'),
+              subtitle: Text(
+                porMayor
+                    ? 'Se cobra por mayor sin exigir la cantidad'
+                    : 'Su precio por mayor, aunque lleve menos',
+                style: const TextStyle(fontSize: 11),
+              ),
+              onTap: () => Navigator.pop(ctx, 'por-mayor'),
+            ),
+            // De qué lote sale: para la mercadería comprada por encargo, que
+            // tiene dueño.
             ListTile(
               leading: const Icon(Icons.inventory_2_outlined,
                   color: Color(0xFF043261)),
@@ -623,6 +659,114 @@ class _CarritoView extends StatelessWidget {
       case 'lote':
         await _mostrarSelectorLote(context, cubit, index);
         break;
+      case 'por-mayor':
+        await _mostrarSelectorNivelMayor(context, cubit, index);
+        break;
+    }
+  }
+
+  /// Con qué nivel por mayor se cobra UNA línea.
+  ///
+  /// Con un solo escalón (o ninguno) no hay nada que elegir: se marca o
+  /// desmarca directo. Con varios (≥3, ≥6, ≥12…) se elige cuál; elegir uno
+  /// precia la línea como si llevara ese mínimo. "Quitar" vive acá porque el
+  /// menú de la línea ya está en su tope de 4 ítems.
+  Future<void> _mostrarSelectorNivelMayor(
+    BuildContext context,
+    VentaRapidaCubit cubit,
+    int index,
+  ) async {
+    final linea = cubit.state.items[index];
+    final escalones = linea.escalonesMayor;
+    if (escalones.length <= 1) {
+      cubit.toggleLineaPorMayor(index);
+      return;
+    }
+    final base = linea.precioBase ?? linea.precioUnitario;
+    final actual = linea.escalonForzado?.id;
+    final pres = linea.presentacion;
+
+    final elegido = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    linea.descripcion,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: Color(0xFF043261)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Precio de lista S/ ${pres.precio(base).toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            for (final n in escalones)
+              ListTile(
+                dense: true,
+                leading: Icon(
+                  actual == n.id
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: actual == n.id ? Colors.green.shade700 : Colors.grey,
+                  size: 20,
+                ),
+                title: Text(n.nombre, style: const TextStyle(fontSize: 13)),
+                subtitle: Text(
+                  'Normalmente desde ${n.cantidadMinima} unidades',
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: Text(
+                  'S/ ${pres.precio(n.calcularPrecioFinal(base)).toStringAsFixed(2)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                onTap: () => Navigator.pop(ctx, n.id),
+              ),
+            if (linea.esPorMayor)
+              ListTile(
+                dense: true,
+                leading: Icon(Icons.sell_outlined,
+                    color: Colors.grey.shade700, size: 20),
+                title: const Text('Volver al precio normal',
+                    style: TextStyle(fontSize: 13)),
+                onTap: () => Navigator.pop(ctx, '_quitar'),
+              ),
+            Container(
+              width: double.infinity,
+              color: Colors.grey.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Text(
+                'Si hay una oferta o un precio más barato, se sigue cobrando el menor.',
+                style: TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (elegido == null) return;
+    if (elegido == '_quitar') {
+      cubit.toggleLineaPorMayor(index);
+    } else {
+      cubit.elegirNivelMayor(index, elegido);
     }
   }
 
@@ -1786,6 +1930,18 @@ class _ItemRowState extends State<_ItemRow> {
                     maxLines: 2,
                   ),
                 ],
+                // Marcada por mayor y cobrando el precio de siempre: lo dice.
+                if (item.porMayorSinEfecto != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.porMayorSinEfecto!,
+                    style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.amber.shade900,
+                        fontWeight: FontWeight.w600),
+                    maxLines: 2,
+                  ),
+                ],
                 if (item.nivelAplicado != null) ...[
                   const SizedBox(height: 2),
                   Container(
@@ -1804,7 +1960,8 @@ class _ItemRowState extends State<_ItemRow> {
                           width: 0.5),
                     ),
                     child: Text(
-                      '${item.nivelAplicado} '
+                      '${item.nivelAplicado}'
+                      '${item.nivelForzado ? ' (manual)' : ''} '
                       '−${(item.descuentoNivelPct ?? 0).toStringAsFixed(0)}%',
                       style: TextStyle(
                         fontSize: 9,

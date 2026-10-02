@@ -243,6 +243,23 @@ class VentaDetalleInput {
   /// Código del lote elegido, para mostrarlo en la línea. Solo capa de vista.
   final String? loteCodigo;
 
+  /// VENDER POR MAYOR: la línea se cobra con su precio por mayor aunque la
+  /// cantidad no llegue al mínimo del nivel. Viaja al backend, que la precia
+  /// como si llevara ese mínimo.
+  ///
+  /// 🔴 A diferencia del costo, acá `precioUnitario` SÍ se valida: tiene que
+  /// coincidir con el del servidor o la venta rebota con 409. Por eso
+  /// [recalcularPrecioPorNiveles] hace la misma cuenta (`pisoForzado`).
+  final bool precioPorMayor;
+
+  /// Qué escalón por mayor se cobra (viaja). Null = el primero, el de menor
+  /// cantidad mínima.
+  final String? precioNivelId;
+
+  /// El nivel aplicado ganó SOLO porque se forzó: por cantidad no llegaba.
+  /// Solo capa de vista (el chip dice "manual").
+  final bool nivelForzado;
+
   const VentaDetalleInput({
     this.productoId,
     this.varianteId,
@@ -288,10 +305,55 @@ class VentaDetalleInput {
     this.costos,
     this.loteId,
     this.loteCodigo,
+    this.precioPorMayor = false,
+    this.precioNivelId,
+    this.nivelForzado = false,
   });
 
   /// True si esta línea se está cobrando a costo.
   bool get esACosto => precioModo != null;
+
+  /// True si la línea está marcada "por mayor" (y no a costo, que manda).
+  bool get esPorMayor => precioPorMayor && !esACosto;
+
+  /// Los escalones POR MAYOR de la línea, del más bajo al más alto. Un nivel
+  /// desde 1 unidad es el precio de siempre con otro nombre, no un mayoreo.
+  ///
+  /// 🔴 ESPEJO de `escalones` en `PrecioNivelService.calcularPrecioSegunCantidad`
+  /// (backend) y de `escalonesMayor` (web): "el primer escalón" tiene que ser
+  /// el mismo en los tres, o la venta rebota con 409.
+  List<PrecioNivel> get escalonesMayor {
+    final lista = <PrecioNivel>[
+      for (final n in niveles)
+        if (n.isActive && n.cantidadMinima > 1) n,
+    ];
+    lista.sort((a, b) => a.cantidadMinima.compareTo(b.cantidadMinima));
+    return lista;
+  }
+
+  /// El escalón que se está forzando: el elegido si sigue existiendo, y si no
+  /// el primero. Null si la línea no está por mayor o no tiene escalones.
+  PrecioNivel? get escalonForzado {
+    if (!esPorMayor) return null;
+    final escalones = escalonesMayor;
+    if (escalones.isEmpty) return null;
+    for (final n in escalones) {
+      if (n.id == precioNivelId) return n;
+    }
+    return escalones.first;
+  }
+
+  /// Marcada por mayor pero cobrando el precio de siempre: por qué. Null si la
+  /// marca sí tiene efecto (o la línea no está por mayor). La línea lo dice
+  /// para que nadie cobre lista creyendo que cobra por mayor.
+  String? get porMayorSinEfecto {
+    if (!esPorMayor) return null;
+    final base = precioBase ?? precioUnitario;
+    if (precioUnitario < base) return null;
+    if (enLiquidacion) return 'En liquidación · se cobra ese precio';
+    if (escalonesMayor.isEmpty) return 'Sin precio por mayor · va a precio de lista';
+    return 'El por mayor no baja del precio vigente';
+  }
 
   /// Si esta línea PUEDE venderse a costo. Se excluyen las que no tienen costo
   /// de inventario (servicios, órdenes) y las que ya tienen su propio deal de
@@ -413,6 +475,12 @@ class VentaDetalleInput {
         // VENDER A COSTO: viaja el MODO, no el precio. El servidor ignora
         // `precioUnitario` en esta línea y pone el costo de la compra.
         if (precioModo != null) 'precioModo': precioModo,
+        // VENDER POR MAYOR: el servidor precia la línea como si llevara el
+        // mínimo del escalón. Acá `precioUnitario` SÍ se valida.
+        if (esPorMayor) ...{
+          'precioPorMayor': true,
+          if (precioNivelId != null) 'precioNivelId': precioNivelId,
+        },
         // El lote elegido manda sobre FEFO: en el precio y en el consumo.
         if (loteId != null) 'loteId': loteId,
       };
@@ -462,6 +530,11 @@ class VentaDetalleInput {
     CostosVenta? costos,
     String? loteId,
     String? loteCodigo,
+    bool? precioPorMayor,
+    String? precioNivelId,
+    bool? nivelForzado,
+    /// Soltar el escalón elegido (vuelve al primero). `?? this.x` no deja.
+    bool clearPrecioNivelId = false,
     bool clearNivelAplicado = false,
     bool clearPrecioBase = false,
     bool clearMayoreo = false,
@@ -522,6 +595,10 @@ class VentaDetalleInput {
       costos: costos ?? this.costos,
       loteId: clearLote ? null : (loteId ?? this.loteId),
       loteCodigo: clearLote ? null : (loteCodigo ?? this.loteCodigo),
+      precioPorMayor: precioPorMayor ?? this.precioPorMayor,
+      precioNivelId:
+          clearPrecioNivelId ? null : (precioNivelId ?? this.precioNivelId),
+      nivelForzado: nivelForzado ?? this.nivelForzado,
     );
   }
 
@@ -632,22 +709,22 @@ class VentaDetalleInput {
     double cantidad, {
     Map<String, double>? cantidadesGrupo,
     String? productoId,
+    /// VENDER POR MAYOR: la línea se mide como si llevara al menos estas
+    /// unidades. Espejo de `pisoForzado` del backend.
+    int pisoForzado = 0,
   }) {
     if (niveles.isEmpty) return null;
     final cantidadInt = cantidad.floor();
+    int efectiva(PrecioNivel n) {
+      final real = cantidadesGrupo == null || productoId == null
+          ? cantidadInt
+          : _cantidadParaNivel(n, cantidad, cantidadesGrupo, productoId)
+              .floor();
+      return real > pisoForzado ? real : pisoForzado;
+    }
+
     final aplicables = niveles
-        .where((n) =>
-            n.isActive &&
-            n.aplicaParaCantidad(
-              cantidadesGrupo == null || productoId == null
-                  ? cantidadInt
-                  : _cantidadParaNivel(
-                      n,
-                      cantidad,
-                      cantidadesGrupo,
-                      productoId,
-                    ).floor(),
-            ))
+        .where((n) => n.isActive && n.aplicaParaCantidad(efectiva(n)))
         .toList();
     if (aplicables.isEmpty) return null;
     // El más específico = mayor cantidadMinima
@@ -685,18 +762,29 @@ class VentaDetalleInput {
     double precio = base;
     String? etiqueta;
     double? descPct;
+    // El nivel ganó solo por el forzado de "vender por mayor".
+    var forzado = false;
+    // El escalón elegido ya no existe: se cae al primero y se SUELTA el id,
+    // para que el servidor (que con id nulo también toma el primero) dé lo
+    // mismo.
+    final escalon = escalonForzado;
+    final soltarNivelId =
+        precioNivelId != null && escalon?.id != precioNivelId;
 
     if (!enLiquidacion) {
+      // Solo las líneas de VARIANTE combinan, igual que en el backend
+      // (que scopea el grupo por `variante.productoId`). Un producto sin
+      // variantes no tiene con quién agruparse, y pasarle el productoId acá
+      // lo haría enganchar con el grupo de las variantes de ese mismo
+      // producto — un grupo que el servidor no arma. Eso es un 409.
+      final productoGrupo = varianteId != null ? productoId : null;
       final nivel = nivelAplicableParaCantidad(
         niveles,
         cantidad,
         cantidadesGrupo: cantidadesGrupo,
-        // Solo las líneas de VARIANTE combinan, igual que en el backend
-        // (que scopea el grupo por `variante.productoId`). Un producto sin
-        // variantes no tiene con quién agruparse, y pasarle el productoId acá
-        // lo haría enganchar con el grupo de las variantes de ese mismo
-        // producto — un grupo que el servidor no arma. Eso es un 409.
-        productoId: varianteId != null ? productoId : null,
+        productoId: productoGrupo,
+        // VENDER POR MAYOR: se mide como si llevara el mínimo del escalón.
+        pisoForzado: escalon?.cantidadMinima ?? 0,
       );
       if (nivel != null) {
         final precioConNivel = nivel.calcularPrecioFinal(base);
@@ -705,6 +793,15 @@ class VentaDetalleInput {
           precio = precioConNivel;
           etiqueta = nivel.nombre;
           descPct = nivel.calcularDescuentoPorcentaje(base);
+          // Forzado = sin la marca, esta línea no llegaba a ese nivel.
+          forzado = escalon != null &&
+              nivelAplicableParaCantidad(
+                    niveles,
+                    cantidad,
+                    cantidadesGrupo: cantidadesGrupo,
+                    productoId: productoGrupo,
+                  )?.id !=
+                  nivel.id;
         }
       }
     }
@@ -718,6 +815,7 @@ class VentaDetalleInput {
       final vipPrecio = _calcularCandidatoVip(vip, base);
       if (vipPrecio != null && vipPrecio < precio) {
         precio = vipPrecio;
+        forzado = false;
         etiqueta = vip.etiqueta;
         descPct = base > 0 ? ((base - vipPrecio) / base) * 100 : 0;
       }
@@ -738,6 +836,8 @@ class VentaDetalleInput {
         clearNivelAplicado: true,
         mayoreo: estadoMayoreo,
         clearMayoreo: estadoMayoreo == null,
+        nivelForzado: false,
+        clearPrecioNivelId: soltarNivelId,
       );
     }
     return copyWith(
@@ -748,6 +848,8 @@ class VentaDetalleInput {
       descuentoNivelPct: descPct,
       mayoreo: estadoMayoreo,
       clearMayoreo: estadoMayoreo == null,
+      nivelForzado: forzado,
+      clearPrecioNivelId: soltarNivelId,
     );
   }
 

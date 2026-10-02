@@ -114,6 +114,13 @@ class VentaRapidaState extends Equatable {
   /// True mientras se están pidiendo costos al backend.
   final bool cargandoCostos;
 
+  // ── Vender por mayor ──
+
+  /// Interruptor de "vender por mayor": lo que se agrega entra con su precio
+  /// por mayor aunque no llegue a la cantidad mínima. La marca vive en cada
+  /// línea (`precioPorMayor`), que puede salirse por su cuenta.
+  final bool modoMayor;
+
   const VentaRapidaState({
     this.empresaId,
     this.sedeId,
@@ -149,6 +156,7 @@ class VentaRapidaState extends Equatable {
     this.modoCosto,
     this.costos = const {},
     this.cargandoCostos = false,
+    this.modoMayor = false,
   });
 
   // Totales calculados
@@ -189,6 +197,9 @@ class VentaRapidaState extends Equatable {
   /// Cuántas líneas del carrito PODRÍAN ir a costo (excluye servicios,
   /// órdenes y combos). Es el denominador de "3 de 4 líneas".
   int get lineasCosteables => items.where((i) => i.puedeVenderseACosto).length;
+
+  /// Cuántas líneas están marcadas "por mayor".
+  int get lineasPorMayor => items.where((i) => i.esPorMayor).length;
 
   /// Margen que se está resignando por vender a costo, contra el precio de
   /// lista.
@@ -279,6 +290,7 @@ class VentaRapidaState extends Equatable {
     bool clearModoCosto = false,
     Map<String, CostosVenta>? costos,
     bool? cargandoCostos,
+    bool? modoMayor,
   }) {
     return VentaRapidaState(
       empresaId: empresaId ?? this.empresaId,
@@ -333,6 +345,7 @@ class VentaRapidaState extends Equatable {
       modoCosto: clearModoCosto ? null : (modoCosto ?? this.modoCosto),
       costos: costos ?? this.costos,
       cargandoCostos: cargandoCostos ?? this.cargandoCostos,
+      modoMayor: modoMayor ?? this.modoMayor,
     );
   }
 
@@ -346,6 +359,6 @@ class VentaRapidaState extends Equatable {
         condicionPago, numeroCuotas, frecuenciaDias, plazoDias, conEnvio,
         pagos, procesando, error, ventaCompletadaId, comboPendienteOferta,
         preciosDesactualizados, stockInsuficiente, vencidoNoAutorizado,
-        ventaRepetida, modoCosto, costos, cargandoCostos,
+        ventaRepetida, modoCosto, costos, cargandoCostos, modoMayor,
       ];
 }
