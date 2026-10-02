@@ -3,6 +3,7 @@ import '../../../../core/network/network_info.dart';
 import '../../../../core/services/error_handler_service.dart';
 import '../../../../core/utils/resource.dart';
 import '../../domain/entities/cuenta_por_cobrar.dart';
+import '../../domain/entities/deposito_cliente.dart';
 import '../../domain/entities/estado_cuenta_cliente.dart';
 import '../../domain/repositories/cuentas_cobrar_repository.dart';
 import '../datasources/cuentas_cobrar_remote_datasource.dart';
@@ -103,6 +104,79 @@ class CuentasCobrarRepositoryImpl implements CuentasCobrarRepository {
       return Success(result);
     } catch (e) {
       return _errorHandler.handleException(e, context: 'CuentasCobrar.estadoCuenta');
+    }
+  }
+
+  @override
+  Future<Resource<SugerenciaReparto>> sugerirReparto({
+    String? clienteId,
+    String? clienteEmpresaId,
+    required double monto,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      final result = await _remoteDataSource.sugerirReparto(
+        clienteId: clienteId,
+        clienteEmpresaId: clienteEmpresaId,
+        monto: monto,
+      );
+      return Success(result);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasCobrar.sugerirReparto');
+    }
+  }
+
+  @override
+  Future<Resource<void>> registrarDeposito({
+    String? clienteId,
+    String? clienteEmpresaId,
+    required double monto,
+    required String metodoPago,
+    String? referencia,
+    String? fuente,
+    String? bancoId,
+    List<LineaReparto> lineas = const [],
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.registrarDeposito(
+        clienteId: clienteId,
+        clienteEmpresaId: clienteEmpresaId,
+        monto: monto,
+        metodoPago: metodoPago,
+        referencia: referencia,
+        fuente: fuente,
+        bancoId: bancoId,
+        lineas: lineas,
+      );
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasCobrar.registrarDeposito');
+    }
+  }
+
+  @override
+  Future<Resource<void>> aplicarSaldoAFavor({
+    String? clienteId,
+    String? clienteEmpresaId,
+    required List<LineaReparto> lineas,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return Error('No hay conexión a internet', errorCode: 'NETWORK_ERROR');
+    }
+    try {
+      await _remoteDataSource.aplicarSaldoAFavor(
+        clienteId: clienteId,
+        clienteEmpresaId: clienteEmpresaId,
+        lineas: lineas,
+      );
+      return Success(null);
+    } catch (e) {
+      return _errorHandler.handleException(e, context: 'CuentasCobrar.aplicarSaldoAFavor');
     }
   }
 }

@@ -49,6 +49,9 @@ class ClienteInfo {
 
 class ResumenEstadoCuenta {
   final double saldoPendiente;
+
+  /// Lo que el cliente depositó y todavía no se aplicó a ninguna venta.
+  final double saldoAFavor;
   final double totalVendido;
   final double totalAbonado;
   final double totalMora;
@@ -57,6 +60,7 @@ class ResumenEstadoCuenta {
 
   const ResumenEstadoCuenta({
     required this.saldoPendiente,
+    this.saldoAFavor = 0,
     required this.totalVendido,
     required this.totalAbonado,
     required this.totalMora,
@@ -66,6 +70,7 @@ class ResumenEstadoCuenta {
 
   factory ResumenEstadoCuenta.fromJson(Map<String, dynamic> j) => ResumenEstadoCuenta(
         saldoPendiente: _d(j['saldoPendiente']),
+        saldoAFavor: _d(j['saldoAFavor']),
         totalVendido: _d(j['totalVendido']),
         totalAbonado: _d(j['totalAbonado']),
         totalMora: _d(j['totalMora']),

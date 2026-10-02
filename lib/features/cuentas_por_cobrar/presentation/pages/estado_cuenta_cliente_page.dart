@@ -13,6 +13,7 @@ import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state
 import '../../domain/entities/estado_cuenta_cliente.dart';
 import '../../domain/repositories/cuentas_cobrar_repository.dart';
 import '../services/pdf_estado_cuenta_generator.dart';
+import 'deposito_cliente_page.dart';
 
 /// Estado de cuenta de un cliente: resumen + ventas a crédito + abonos.
 class EstadoCuentaClientePage extends StatefulWidget {
@@ -82,6 +83,25 @@ class _EstadoCuentaClientePageState extends State<EstadoCuentaClientePage> {
     }
   }
 
+  /// Abre el depósito (nuevo) o el reparto del saldo a favor. Al volver con
+  /// un mensaje, algo cambió: se recarga el estado de cuenta.
+  Future<void> _abrirDeposito(ModoDeposito modo) async {
+    final nombre = _data?.cliente.nombre ?? widget.nombreCliente ?? 'Cliente';
+    final msg = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => DepositoClientePage(
+          clienteId: widget.clienteId,
+          clienteEmpresaId: widget.clienteEmpresaId,
+          nombreCliente: nombre,
+          modo: modo,
+        ),
+      ),
+    );
+    if (!mounted || msg == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    await _cargar();
+  }
+
   Future<void> _compartirPdf() async {
     final data = _data;
     if (data == null) return;
@@ -124,6 +144,11 @@ class _EstadoCuentaClientePageState extends State<EstadoCuentaClientePage> {
           actions: _data == null
               ? null
               : [
+                  IconButton(
+                    icon: const Icon(Icons.savings_outlined),
+                    tooltip: 'Registrar depósito',
+                    onPressed: () => _abrirDeposito(ModoDeposito.nuevo),
+                  ),
                   _compartiendo
                       ? const Padding(
                           padding: EdgeInsets.all(14),
@@ -163,6 +188,15 @@ class _EstadoCuentaClientePageState extends State<EstadoCuentaClientePage> {
         _HeaderCliente(cliente: e.cliente, nombreFallback: widget.nombreCliente),
         const SizedBox(height: 10),
         _ResumenCard(resumen: e.resumen),
+        if (e.resumen.saldoAFavor > 0.005) ...[
+          const SizedBox(height: 10),
+          _SaldoAFavorCard(
+            resumen: e.resumen,
+            onRepartir: e.resumen.saldoPendiente > 0.005
+                ? () => _abrirDeposito(ModoDeposito.repartir)
+                : null,
+          ),
+        ],
         const SizedBox(height: 14),
         _SeccionHeader('Ventas pendientes', '${pendientes.length}'),
         const SizedBox(height: 6),
@@ -278,6 +312,66 @@ class _ResumenCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(entero ? valor.toInt().toString() : 'S/ ${valor.toStringAsFixed(2)}',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Plata que el cliente ya entregó y no está aplicada a ninguna venta. Va
+/// arriba porque cambia lo que de verdad debe.
+class _SaldoAFavorCard extends StatelessWidget {
+  final ResumenEstadoCuenta resumen;
+
+  /// Null si no tiene ventas pendientes a las que repartirle.
+  final VoidCallback? onRepartir;
+  const _SaldoAFavorCard({required this.resumen, this.onRepartir});
+
+  @override
+  Widget build(BuildContext context) {
+    final neto = resumen.saldoPendiente - resumen.saldoAFavor;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.shade300, width: 0.8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Saldo a favor del cliente',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                const SizedBox(height: 2),
+                Text('S/ ${resumen.saldoAFavor.toStringAsFixed(2)}',
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800, color: Colors.orange.shade900)),
+                const SizedBox(height: 2),
+                Text(
+                  resumen.saldoPendiente > 0.005
+                      ? 'Depositado y sin aplicar. Neto debe S/ ${(neto < 0 ? 0 : neto).toStringAsFixed(2)}.'
+                      : 'Depositado y sin aplicar: no tiene ventas pendientes.',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+          if (onRepartir != null) ...[
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: onRepartir,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade800,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+              child: const Text('Repartir'),
+            ),
+          ],
         ],
       ),
     );
