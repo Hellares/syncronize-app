@@ -265,6 +265,10 @@ class ProductoStockRemoteDataSource {
     if (documento != null && documento.isNotEmpty) {
       queryParams['documento'] = documento;
     }
+    // Si la variante nació de "Separar por diseño", trae también el historial
+    // de la original. Vienen marcadas (`heredado`) y la tabla las pinta
+    // distinto: no son movimientos de este stock ni entran en el resumen.
+    queryParams['incluirOrigen'] = 'true';
 
     final response = await _dioClient.get(
       '/producto-stock/$stockId/movimientos',

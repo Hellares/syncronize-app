@@ -742,7 +742,13 @@ class _KardexPageState extends State<KardexPage> {
     final tipo = m.tipo;
     final color = tipo.color;
     final esEntrada = m.cantidad >= 0;
-    final base = index.isEven ? Colors.white : Colors.grey.shade50;
+    // Historial de la variante ORIGINAL (antes de separarla por diseño): va
+    // en ámbar para que no se lea como un movimiento de esta variante. No
+    // suma a su stock ni a su resumen.
+    final heredado = m.heredadoDe != null;
+    final base = heredado
+        ? Colors.amber.shade50
+        : (index.isEven ? Colors.white : Colors.grey.shade50);
     const ts = TextStyle(fontSize: 10);
     return InkWell(
       // Tap → detalle completo del movimiento en un StyledDialog.
@@ -773,7 +779,7 @@ class _KardexPageState extends State<KardexPage> {
                     Icon(tipo.icon, size: 12, color: color),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: Text(tipo.label,
+                      child: Text(heredado ? '(orig.) ${tipo.label}' : tipo.label,
                           style: ts,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
@@ -916,7 +922,8 @@ class _KardexPageState extends State<KardexPage> {
                 'S/ ${m.valorMovimiento!.toStringAsFixed(2)}'),
           if (m.usuarioNombre != null) _detRow('Usuario', m.usuarioNombre!),
           if (m.heredadoDe != null)
-            _detRow('Viene de', '${m.heredadoDe} (antes de separar por diseño)'),
+            _detRow('Viene de',
+                '${m.heredadoDe} — historial de la variante original, antes de separarla por diseño. No suma al stock de esta variante.'),
           if (m.motivo != null && m.motivo!.isNotEmpty)
             _detRow('Motivo', m.motivo!),
           if (m.observaciones != null && m.observaciones!.isNotEmpty)
