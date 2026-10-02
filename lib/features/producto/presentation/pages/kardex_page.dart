@@ -915,6 +915,8 @@ class _KardexPageState extends State<KardexPage> {
             _detRow('Valor del movimiento',
                 'S/ ${m.valorMovimiento!.toStringAsFixed(2)}'),
           if (m.usuarioNombre != null) _detRow('Usuario', m.usuarioNombre!),
+          if (m.heredadoDe != null)
+            _detRow('Viene de', '${m.heredadoDe} (antes de separar por diseño)'),
           if (m.motivo != null && m.motivo!.isNotEmpty)
             _detRow('Motivo', m.motivo!),
           if (m.observaciones != null && m.observaciones!.isNotEmpty)

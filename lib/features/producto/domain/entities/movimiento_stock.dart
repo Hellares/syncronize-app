@@ -393,6 +393,11 @@ class MovimientoStock extends Equatable {
   final int cantidadNueva;
   final String? motivo;
   final String? observaciones;
+
+  /// La variante ORIGINAL de la que viene este movimiento, cuando es
+  /// historial heredado de antes de "Separar por diseño" (null si es propio).
+  /// Sus cantidades anterior/nueva son las de esa variante.
+  final String? heredadoDe;
   final String? transferenciaId;
   final String usuarioId;
   final DateTime creadoEn;
@@ -429,6 +434,7 @@ class MovimientoStock extends Equatable {
     required this.cantidadNueva,
     this.motivo,
     this.observaciones,
+    this.heredadoDe,
     this.transferenciaId,
     required this.usuarioId,
     required this.creadoEn,
@@ -461,6 +467,7 @@ class MovimientoStock extends Equatable {
         cantidadNueva,
         motivo,
         observaciones,
+        heredadoDe,
         transferenciaId,
         usuarioId,
         creadoEn,

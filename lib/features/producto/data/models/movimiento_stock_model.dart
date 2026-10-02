@@ -15,6 +15,7 @@ class MovimientoStockModel extends MovimientoStock {
     required super.cantidadNueva,
     super.motivo,
     super.observaciones,
+    super.heredadoDe,
     super.transferenciaId,
     required super.usuarioId,
     required super.creadoEn,
@@ -83,6 +84,10 @@ class MovimientoStockModel extends MovimientoStock {
       cantidadNueva: toSafeInt(json['cantidadNueva']),
       motivo: json['motivo'] as String?,
       observaciones: json['observaciones'] as String?,
+      // Solo los heredados lo traen; "variante original" si vino sin nombre.
+      heredadoDe: json['heredado'] == true
+          ? (json['heredadoDe'] as String? ?? 'variante original')
+          : null,
       transferenciaId: json['transferenciaId'] as String?,
       usuarioId: json['usuarioId'] as String,
       creadoEn: DateTime.parse(json['creadoEn'] as String),
