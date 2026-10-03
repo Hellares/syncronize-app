@@ -31,6 +31,8 @@ class ApiConstants {
 
   // Endpoints de plantillas de atributos
   static const String plantillasAtributos = '/producto-atributo-plantillas';
+  // Plantillas de VARIANTES ("Edredones"): crear una colección nueva igual a otra.
+  static const String variantePlantillas = '/variante-plantillas';
 
   // Endpoints de configuraciones de precios
   static const String configuracionesPrecios = '/configuraciones-precio';

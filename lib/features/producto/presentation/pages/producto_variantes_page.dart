@@ -27,6 +27,8 @@ import 'analisis_variantes_page.dart';
 import 'grupos_mayoreo_page.dart';
 import 'edicion_masiva_stock_page.dart';
 import 'agregar_disenos_page.dart';
+import 'nueva_coleccion_plantilla_page.dart';
+import 'plantillas_variantes_page.dart';
 import 'separar_por_diseno_page.dart';
 import '../widgets/coleccion_disenos_card.dart';
 import '../widgets/filtro_variantes.dart';
@@ -639,7 +641,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                           color: AppColors.blue1, size: 18),
                     ),
                     const SizedBox(width: 10),
-                    const AppSubtitle('Agregar variantes'),
+                    const AppSubtitle('Agregar variantes',fontSize: 12, fontWeight: FontWeight.w600),
                   ],
                 ),
               ),
@@ -663,6 +665,24 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                 },
               ),
               _menuOpcion(
+                icon: Icons.dashboard_customize_outlined,
+                titulo: 'Nueva colección desde plantilla',
+                subtitulo: 'Ej. "Edredones" + DINOSAURIO: todas sus combinaciones',
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _abrirNuevaColeccion();
+                },
+              ),
+              _menuOpcion(
+                icon: Icons.auto_awesome_motion_outlined,
+                titulo: 'Plantillas de variantes',
+                subtitulo: 'Crear desde una colección, desde cero o editar',
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _abrirPlantillas(context);
+                },
+              ),
+              _menuOpcion(
                 icon: Icons.photo_library_outlined,
                 titulo: 'Separar por diseño',
                 subtitulo: 'Una foto = un diseño con su propio stock',
@@ -674,6 +694,38 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
               const SizedBox(height: 8),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Nueva colección desde una plantilla de variantes.
+  Future<void> _abrirNuevaColeccion() async {
+    final creo = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NuevaColeccionPlantillaPage(
+          productoId: widget.productoId,
+          productoNombre: widget.productoNombre,
+          onGestionarPlantillas: _abrirPlantillas,
+        ),
+      ),
+    );
+    if (creo == true && mounted) _loadData();
+  }
+
+  /// Las plantillas de variantes: crear desde una colección de este producto,
+  /// desde cero, editar o eliminar.
+  Future<void> _abrirPlantillas(BuildContext ctx) async {
+    final variantes = _getVariantes(context.read<ProductoVarianteCubit>().state);
+    await Navigator.push<void>(
+      ctx,
+      MaterialPageRoute(
+        builder: (_) => PlantillasVariantesPage(
+          productoId: widget.productoId,
+          productoNombre: widget.productoNombre,
+          variantes: variantes,
+          atributos: _atributosDisponibles,
         ),
       ),
     );
@@ -821,7 +873,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                   Text(
                     titulo,
                     style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w700),
+                        fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -1237,7 +1289,7 @@ class _VarianteFila extends StatelessWidget {
               child: AppSubtitle(
                 titulo,
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                //fontWeight: FontWeight.w700,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
