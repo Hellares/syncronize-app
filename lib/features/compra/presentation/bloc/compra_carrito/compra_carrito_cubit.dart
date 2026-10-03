@@ -145,6 +145,22 @@ class CompraCarritoCubit extends Cubit<CompraCarritoState> {
     ));
   }
 
+  /// Precio de venta nuevo desde el sheet de variantes, escrito en la unidad
+  /// en la que se compra (S/9 el kilo). 🔴 `nuevoPrecioVenta` va por unidad de
+  /// VENTA (el gramo): sin dividir por el factor, S/9 el kilo quedaría en S/9
+  /// el gramo. Null o 0 = se mantiene el precio de hoy.
+  void setVentaVariante(String productoId, String varianteId, double? venta) {
+    final linea = state.porClave('$productoId|$varianteId');
+    if (linea == null) return;
+    if (venta == null || venta <= 0) {
+      _reemplazar(linea.copyWith(limpiarNuevoPrecioVenta: true));
+      return;
+    }
+    _reemplazar(linea.copyWith(
+      nuevoPrecioVenta: venta / linea.factorPresentacionEfectivo,
+    ));
+  }
+
   /// Edición de una línea desde el editor (el ✎ de la tabla). Solo se tocan
   /// los campos que se pasan.
   void actualizarLinea(

@@ -529,6 +529,27 @@ void main() {
         expect(cubit.state.total, closeTo(16, 1e-9));
       });
 
+      test('🔴 la VENTA nueva: S/9 el kilo se guarda como S/0.009 el gramo',
+          () {
+        final cubit = CompraCarritoCubit();
+        final v = variante(
+          'granel',
+          unidadPresentacionId: 'u-kg',
+          unidadPresentacionSimbolo: 'kg',
+          factorPresentacion: 1000,
+        );
+        final p = producto(variantes: [v]);
+        cubit.agregarVariante(p, v, sedeId: sedeA, cantidad: 2000);
+
+        cubit.setVentaVariante('p1', 'granel', 9);
+        expect(cubit.state.porClave('p1|granel')!.nuevoPrecioVenta,
+            closeTo(0.009, 1e-12));
+
+        // Vaciar el campo = se mantiene el precio de hoy.
+        cubit.setVentaVariante('p1', 'granel', null);
+        expect(cubit.state.porClave('p1|granel')!.nuevoPrecioVenta, isNull);
+      });
+
       test('vaciar el campo deja la línea SIN costo, no en cero', () {
         final cubit = CompraCarritoCubit();
         final p = producto();

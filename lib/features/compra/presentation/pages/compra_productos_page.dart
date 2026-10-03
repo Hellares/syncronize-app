@@ -176,6 +176,19 @@ class _CompraProductosView extends StatelessWidget {
         },
         onCosto: (variante, costo) =>
             carrito.setCostoVariante(producto.id, variante.id, costo),
+        // El precio de venta nuevo, en la misma pasada: el sheet lo muestra en
+        // la unidad en la que se compra (el kilo) y la línea lo guarda por
+        // unidad de venta.
+        ventas: {
+          for (final linea in carrito.state.lineas)
+            if (linea.productoId == producto.id &&
+                linea.varianteId != null &&
+                (linea.nuevoPrecioVenta ?? 0) > 0)
+              linea.varianteId!:
+                  linea.nuevoPrecioVenta! * linea.factorPresentacionEfectivo,
+        },
+        onVenta: (variante, venta) =>
+            carrito.setVentaVariante(producto.id, variante.id, venta),
       ),
       // Los niveles son precios de VENTA: en modo compra la vista ni siquiera
       // ofrece el sheet que los usa.

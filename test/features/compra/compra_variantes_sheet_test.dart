@@ -85,18 +85,39 @@ void main() {
     expect(find.text('ADULTO / POLLO / GRANEL'), findsOneWidget);
     expect(find.text('sale de abrir un saco'), findsOneWidget);
     // La fila del granel no trae stepper: siguen siendo los 2 de los sacos.
-    expect(find.byIcon(Icons.add_circle_outline), findsNWidgets(2));
+    expect(find.byIcon(Icons.add), findsNWidgets(2));
   });
 
   testWidgets('sumar un saco lo reporta en unidades atómicas', (tester) async {
     final elegidas = await abrir(tester);
-    await tester.tap(find.byIcon(Icons.add_circle_outline).first);
+    await tester.tap(find.byIcon(Icons.add).first);
     await tester.pumpAndSettle();
 
     expect(elegidas.length, 1);
     expect(elegidas.first.$1.id, 'saco15');
     // Un saco es 1 unidad: la presentación en kg es del granel, no de él.
     expect(elegidas.first.$2, 1);
+  });
+
+  testWidgets('la cantidad se escribe en el stepper y el + la sigue',
+      (tester) async {
+    final elegidas = await abrir(tester);
+    // El primer campo es el buscador; después, un stepper por saco.
+    await tester.enterText(find.byType(TextField).at(1), '24');
+    await tester.pumpAndSettle();
+    expect(elegidas.last.$1.id, 'saco15');
+    expect(elegidas.last.$2, 24);
+
+    await tester.tap(find.byIcon(Icons.add).first);
+    await tester.pumpAndSettle();
+    expect(elegidas.last.$2, 25);
+    expect(find.text('25'), findsOneWidget);
+
+    // Borrar para reescribir no saca la línea de la compra.
+    final antes = elegidas.length;
+    await tester.enterText(find.byType(TextField).at(1), '');
+    await tester.pumpAndSettle();
+    expect(elegidas.length, antes);
   });
 
   testWidgets('el buscador no resucita un granel a la lista comprable',
@@ -107,6 +128,180 @@ void main() {
 
     // Queda solo la sección bloqueada: nada que comprar con ese término.
     expect(find.textContaining('No se compran'), findsOneWidget);
-    expect(find.byIcon(Icons.add_circle_outline), findsNothing);
+    expect(find.byIcon(Icons.add), findsNothing);
+  });
+
+  group('diseños de una colección', () {
+    Map<String, dynamic> atributo(
+            String id, String clave, String nombre, String valor) =>
+        {
+          'id': '$id-$clave',
+          'atributoId': 'a-$clave',
+          'valor': valor,
+          'atributo': {
+            'id': 'a-$clave',
+            'nombre': nombre,
+            'clave': clave,
+            'tipo': 'SELECT',
+          },
+        };
+
+    Map<String, dynamic> edredon(String id, String material, {String? diseno}) =>
+        {
+          ...variante(id, [
+            '2 PLAZAS',
+            material,
+            'CRISTAL',
+            if (diseno != null) diseno,
+          ].join(' / ')),
+          'atributosValores': [
+            atributo(id, 'material', 'Material', material),
+            atributo(id, 'dise_o', 'Colección', 'CRISTAL'),
+            if (diseno != null) atributo(id, 'diseno', 'Diseño', diseno),
+          ],
+          if (id == 'd1')
+            'stocksPorSede': [
+              {
+                'sedeId': 'sede1',
+                'sedeNombre': 'Principal',
+                'sedeCodigo': 'S1',
+                'cantidad': 3,
+                'precio': 75,
+                'precioCosto': 45,
+                'precioConfigurado': true,
+              },
+            ],
+        };
+
+    final edredones = ProductoListItemModel.fromJson({
+      'id': 'p2',
+      'nombre': 'EDREDONES',
+      'codigoEmpresa': 'PROD-002',
+      'tieneVariantes': true,
+      'variantes': [
+        edredon('d2', 'TELA', diseno: 'D2'),
+        edredon('carn', 'CARNERITO'),
+        edredon('d1', 'TELA', diseno: 'D1'),
+      ],
+    });
+
+    Future<List<(ProductoVariante, int)>> abrirEdredones(
+      WidgetTester tester, {
+      Map<String, int> cantidades = const {},
+      void Function(ProductoVariante, double?)? onCosto,
+      void Function(ProductoVariante, double?)? onVenta,
+    }) async {
+      final elegidas = <(ProductoVariante, int)>[];
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showCompraVariantesSheet(
+                context: context,
+                producto: edredones,
+                sedeId: 'sede1',
+                cantidades: cantidades,
+                onCantidad: (v, c) => elegidas.add((v, c)),
+                onCosto: onCosto,
+                onVenta: onVenta,
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+      return elegidas;
+    }
+
+    testWidgets('van plegados en un renglón; al abrirlo se compra cada uno',
+        (tester) async {
+      final elegidas = await abrirEdredones(tester);
+
+      expect(find.text('CRISTAL'), findsOneWidget);
+      expect(find.text('2 PLAZAS / TELA / CRISTAL · 2 diseños'), findsOneWidget);
+      // La variante sin diseño sigue suelta, con su nombre completo.
+      expect(find.text('2 PLAZAS / CARNERITO / CRISTAL'), findsOneWidget);
+      expect(find.text('D1'), findsNothing);
+
+      await tester.tap(find.text('CRISTAL'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('D1'), findsWidgets);
+      expect(find.text('D2'), findsWidgets);
+      // Costo y venta juntos, para ver el margen al comprar.
+      expect(find.textContaining('Costo S/'), findsOneWidget);
+      expect(find.textContaining('Venta S/'), findsOneWidget);
+
+      // La colección va donde aparece su primer diseño (D2 viene antes que
+      // CARNERITO): steppers D1, D2, CARNERITO.
+      await tester.tap(find.byIcon(Icons.add).first);
+      await tester.pumpAndSettle();
+      expect(elegidas.single.$1.id, 'd1');
+      // El renglón de la colección dice lo que ya se compra de ella.
+      expect(find.text('1 u'), findsOneWidget);
+    });
+
+    testWidgets('costo y venta se cargan en la misma fila, sin overflow',
+        (tester) async {
+      final costos = <String, double?>{};
+      final ventas = <String, double?>{};
+      await abrirEdredones(
+        tester,
+        cantidades: const {'d1': 2},
+        onCosto: (v, c) => costos[v.id] = c,
+        onVenta: (v, p) => ventas[v.id] = p,
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Costo'), findsOneWidget);
+      expect(find.text('Venta'), findsOneWidget);
+      // La venta de hoy va de hint: vacío se mantiene.
+      expect(find.text('75.00'), findsOneWidget);
+
+      final campos = find.byType(TextFormField);
+      // 0 buscador · 1 costo · 2 venta (el stepper es un TextField a secas).
+      await tester.enterText(campos.at(2), '89.90');
+      await tester.pumpAndSettle();
+      expect(ventas['d1'], 89.90);
+
+      await tester.tap(find.textContaining('usar costo anterior'));
+      await tester.pumpAndSettle();
+      expect(costos['d1'], 45);
+
+      // Vaciar uno de los dos = el de hoy: el costo vuelve al actual y la
+      // venta vacía se manda como null (el backend mantiene la de hoy).
+      await tester.enterText(campos.at(1), '50');
+      await tester.pumpAndSettle();
+      expect(costos['d1'], 50);
+      await tester.enterText(campos.at(1), '');
+      await tester.pumpAndSettle();
+      expect(costos['d1'], 45);
+      await tester.enterText(campos.at(2), '');
+      await tester.pumpAndSettle();
+      expect(ventas['d1'], isNull);
+    });
+
+    testWidgets('si ya se compraba un diseño, la colección arranca abierta',
+        (tester) async {
+      await abrirEdredones(tester, cantidades: const {'d2': 3});
+
+      expect(find.text('3 u'), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsNWidgets(3));
+    });
+
+    testWidgets('filtrando, la colección queda plegada y se abre a mano',
+        (tester) async {
+      await abrirEdredones(tester);
+      await tester.enterText(find.byType(TextFormField).first, 'd2');
+      await tester.pumpAndSettle();
+
+      expect(find.text('CRISTAL'), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsNothing);
+
+      await tester.tap(find.text('CRISTAL'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.add), findsOneWidget);
+    });
   });
 }
