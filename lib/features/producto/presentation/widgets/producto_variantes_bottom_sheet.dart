@@ -252,7 +252,8 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      // 6 arriba (no 12) y 8 bajo la barrita: el título quedaba muy abajo.
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: const BorderRadius.only(
@@ -268,7 +269,7 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
             child: Container(
               width: 40,
               height: 4,
-              margin: const EdgeInsets.only(bottom: 12),
+              margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),

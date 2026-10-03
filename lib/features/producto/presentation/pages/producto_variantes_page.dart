@@ -1379,8 +1379,8 @@ class _VarianteFila extends StatelessWidget {
             ],
             AppSubtitle(
               _precioTexto(stockInfo?.precioEfectivo ?? 0.0),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
               color: enLiq ? Colors.deepOrange.shade700 : AppColors.blue3,
             ),
           ],

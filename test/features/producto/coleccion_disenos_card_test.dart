@@ -78,6 +78,10 @@ void main() {
       expect((filas.single as FilaColeccion).disenos.map((d) => valorDiseno(d)), ['D9', 'D10']);
     });
 
+    test('el nombre corto es el valor de la Colección', () {
+      expect(nombreColeccion(_v('d1', material: 'TELA', diseno: 'D1')), 'CRISTAL');
+    });
+
     test('el título de la colección es el nombre sin el diseño', () {
       expect(tituloColeccion(_v('d1', material: 'TELA', diseno: 'D1')), '2 PLAZAS / TELA / CRISTAL');
     });
@@ -134,7 +138,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('desde S/75.00'), findsOneWidget);
     expect(find.text('6 u'), findsOneWidget);
-    await tester.tap(find.text('3 diseños'));
+    expect(find.text('2 PLAZAS / TELA / CRISTAL · 3 diseños'), findsOneWidget);
+    await tester.tap(find.text('CRISTAL'));
     await tester.tap(find.byIcon(Icons.add_photo_alternate_outlined));
     expect(toques, 1);
     expect(agregar, 1);
@@ -165,6 +170,8 @@ void main() {
       ),
     ));
     expect(tester.takeException(), isNull);
+    // Título: la colección; debajo, chico, el nombre completo.
+    expect(find.text('CRISTAL'), findsOneWidget);
     expect(find.text('2 PLAZAS / TELA / CRISTAL'), findsOneWidget);
     expect(find.text('3 diseños'), findsOneWidget);
     expect(find.text('D2 · 0'), findsOneWidget);

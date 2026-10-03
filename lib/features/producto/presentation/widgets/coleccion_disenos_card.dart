@@ -56,6 +56,21 @@ String tituloColeccion(ProductoVariante v) {
   return v.nombre.replaceFirst(RegExp(r'\s*/\s*' + RegExp.escape(d) + r'\s*$'), '');
 }
 
+/// El nombre corto de la colección ("ALIANZA"): el valor del atributo que es
+/// la colección —clave `dise_o` en JAYLI, o uno que se llame "Colección"—;
+/// sin él, el último tramo del nombre sin el diseño, que en las variantes con
+/// colección es justamente ella.
+String nombreColeccion(ProductoVariante v) {
+  for (final a in v.atributosValores) {
+    final clave = a.atributo.clave.toLowerCase();
+    if (clave == 'dise_o' || clave == 'coleccion' || a.atributo.nombre.toLowerCase().contains('colec')) {
+      if (a.valor.trim().isNotEmpty) return a.valor.trim();
+    }
+  }
+  final partes = tituloColeccion(v).split('/').map((x) => x.trim()).where((x) => x.isNotEmpty);
+  return partes.isEmpty ? v.nombre : partes.last;
+}
+
 /// Junta los diseños de cada colección en un renglón, en el lugar donde
 /// aparece el primero. Lo que no es diseño queda suelto (incluida la
 /// variante de la colección si todavía tiene unidades sin separar: tiene su
@@ -129,13 +144,22 @@ class ColeccionDisenosCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Título: la colección ("ALIANZA"), que es por lo que
+                      // se la reconoce; debajo, chico, el nombre completo.
                       Text(
-                        tituloColeccion(primero),
+                        nombreColeccion(primero),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           fontFamily: AppFonts.getFontFamily(AppFont.oxygenRegular),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        tituloColeccion(primero),
+                        style: TextStyle(fontSize: 9, color: Colors.grey[600]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -407,17 +431,21 @@ class ColeccionFilaCompacta extends StatelessWidget {
                     children: [
                       // Mismo título que la fila de una variante sin diseño
                       // (`_VarianteFila`): las dos se leen como una tabla.
+                      // Título: la colección ("ALIANZA"), como en la hoja de
+                      // Variantes; el nombre completo baja a la línea chica.
                       AppSubtitle(
-                        tituloColeccion(primero),
+                        nombreColeccion(primero),
                         fontSize: 11,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 1),
                       AppLabelText(
-                        '$n diseño${n == 1 ? '' : 's'}',
+                        '${tituloColeccion(primero)} · $n diseño${n == 1 ? '' : 's'}',
                         fontSize: 9,
                         color: _textoTenue,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -431,8 +459,8 @@ class ColeccionFilaCompacta extends StatelessWidget {
                       minimo == null
                           ? '—'
                           : '${variados ? 'desde ' : ''}S/${minimo.toStringAsFixed(2)}',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                       color: AppColors.blue3,
                     ),
                     const SizedBox(height: 1),
