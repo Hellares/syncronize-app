@@ -240,10 +240,14 @@ class ProductoMarketplaceCard extends StatelessWidget {
             Container(height: 0.5, color: Colors.grey.shade100),
 
             // Info del producto (sin Expanded → la card se ajusta a su
-            // contenido para el masonry/staggered grid).
-            Padding(
+            // contenido para el masonry/staggered grid). En compacto la celda
+            // del carrusel tiene alto FIJO: Flexible + ClipRect para que unos
+            // px de más (métricas de la fuente) no den overflow.
+            _infoCompacta(
+              compact: compact,
+              child: Padding(
               padding: compact
-                  ? const EdgeInsets.fromLTRB(6, 4, 6, 4)
+                  ? const EdgeInsets.fromLTRB(6, 3, 6, 2)
                   : const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,7 +310,7 @@ class ProductoMarketplaceCard extends StatelessWidget {
                         ],
                       ),
 
-                    const SizedBox(height: 3),
+                    SizedBox(height: compact ? 2 : 3),
 
                     // Rating compacto + vendidos (prueba social)
                     if (producto.tieneCalificacion || producto.vendidos > 0)
@@ -328,8 +332,14 @@ class ProductoMarketplaceCard extends StatelessWidget {
                             if (producto.tieneCalificacion && producto.vendidos > 0)
                               Text('  ·  ', style: TextStyle(fontSize: fsMeta, color: Colors.grey.shade300)),
                             if (producto.vendidos > 0)
-                              Text('${_fmtVendidos(producto.vendidos)} vendidos',
-                                  style: TextStyle(fontSize: fsMeta, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                              // Flexible: en la card compacta (126 px) el
+                              // rating + vendidos casi no entra.
+                              Flexible(
+                                child: Text('${_fmtVendidos(producto.vendidos)} vendidos',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: fsMeta, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                              ),
                           ],
                         ),
                       ),
@@ -484,10 +494,19 @@ class ProductoMarketplaceCard extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  /// En los carruseles (compact) la celda tiene alto fijo: la info ocupa lo
+  /// que sobre y recorta lo que no entre. En el grid masonry el alto no está
+  /// acotado y un Flexible reventaría, así que va tal cual.
+  Widget _infoCompacta({required bool compact, required Widget child}) {
+    if (!compact) return child;
+    return Flexible(child: ClipRect(child: child));
   }
 
   /// Agrega el producto directamente al carrito desde la card. Los productos
