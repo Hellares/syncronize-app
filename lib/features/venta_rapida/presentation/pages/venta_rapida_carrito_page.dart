@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -23,6 +22,7 @@ import '../../../venta/domain/entities/costos_venta.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../bloc/venta_rapida_cubit.dart';
+import '../widgets/cantidad_stepper.dart';
 import '../widgets/escaner_identificadores_sheet.dart';
 import '../widgets/ordenes_cobrables_sheet.dart';
 import '../widgets/tipo_comprobante_dialog.dart';
@@ -333,6 +333,9 @@ class _CarritoView extends StatelessWidget {
                                 : _ItemRow(
                                     index: row.index!,
                                     item: item,
+                                    onTapPrecio: () => _mostrarMenuLinea(
+                                      context, row.index!, item,
+                                    ),
                                   ),
                           ),
                         );
@@ -1650,10 +1653,16 @@ class _ItemRow extends StatefulWidget {
   /// Cuando true, no se permite editar la cantidad (caso item dentro de un combo).
   final bool readonly;
 
+  /// Abre la hoja del modo de precio de la línea (costo, por mayor,
+  /// descuento, lote). Con él, la celda del precio va en verde suave para
+  /// que se lea tocable; sin él (combos, órdenes) queda plana.
+  final VoidCallback? onTapPrecio;
+
   const _ItemRow({
     required this.index,
     required this.item,
     this.readonly = false,
+    this.onTapPrecio,
   });
 
   @override
@@ -1714,6 +1723,14 @@ class _ItemRowState extends State<_ItemRow> {
           widget.index,
           pedido,
         );
+  }
+
+  /// El `+`/`−` del stepper: pasa por [_aplicarCantidad] como si se hubiera
+  /// tecleado, así el tope y el aviso de stock son los mismos.
+  void _sumarCantidad(BuildContext context, int delta) {
+    final nueva = (_pres.cantidad(widget.item.cantidad) + delta).round();
+    if (nueva < 1) return;
+    _aplicarCantidad(context, '$nueva');
   }
 
   /// Avisa que lo tecleado excede el stock. No frena nada —el cap sigue siendo
@@ -2052,40 +2069,56 @@ class _ItemRowState extends State<_ItemRow> {
               ],
             ),
           ),
-          // Precio (con base tachado si hay nivel aplicado)
+          // Precio (con base tachado si hay nivel aplicado). Tocable: abre la
+          // hoja del modo de precio, y el verde suave lo anuncia.
           Expanded(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (item.precioBase != null &&
-                      item.precioBase! > item.precioUnitario + 0.001)
-                    Text(
-                      _pres.precio(item.precioBase!).toStringAsFixed(2),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade500,
-                        decoration: TextDecoration.lineThrough,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onTapPrecio,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                decoration: widget.onTapPrecio == null
+                    ? null
+                    : BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.blue.shade100, width: 0.5),
                       ),
-                    ),
-                  Text(
-                    // Precio en la unidad en la que se cobra: S/0.008 el gramo
-                    // se lee "0.01" y en realidad son S/8.00 el kilo.
-                    _pres.precio(item.precioUnitario).toStringAsFixed(2),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          (item.nivelAplicado != null || item.enLiquidacion)
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                      color: item.enLiquidacion
-                          ? Colors.deepOrange.shade700
-                          : (item.nivelAplicado != null
-                              ? Colors.green.shade700
-                              : null),
-                    ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (item.precioBase != null &&
+                          item.precioBase! > item.precioUnitario + 0.001)
+                        Text(
+                          _pres.precio(item.precioBase!).toStringAsFixed(2),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      Text(
+                        // Precio en la unidad en la que se cobra: S/0.008 el gramo
+                        // se lee "0.01" y en realidad son S/8.00 el kilo.
+                        _pres.precio(item.precioUnitario).toStringAsFixed(2),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight:
+                              (item.nivelAplicado != null || item.enLiquidacion)
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                          color: item.enLiquidacion
+                              ? Colors.deepOrange.shade700
+                              : (item.nivelAplicado != null
+                                  ? Colors.green.shade700
+                                  : null),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -2124,32 +2157,27 @@ class _ItemRowState extends State<_ItemRow> {
                         // achica en vez de desbordar la fila.
                         Flexible(
                           child: SizedBox(
-                      width: 70,
-                      child: CustomText(
-                        controller: _cantCtrl,
-                        focusNode: _focusNode,
-                        // Con presentación se escriben kilos y hay que poder
-                        // tipear "1.5". `FieldType.number` NO sirve acá: su
-                        // NumberFormatter hace replaceAll(RegExp('[^\\d]'))
-                        // y se come el punto, aunque el teclado lo muestre.
-                        fieldType: _pres.activa
-                            ? FieldType.text
-                            : FieldType.number,
-                        keyboardType: _pres.activa
-                            ? const TextInputType.numberWithOptions(
-                                decimal: true)
-                            : TextInputType.number,
-                        inputFormatters: _pres.activa
-                            ? [
-                                FilteringTextInputFormatter.allow(
-                                    RegExp(r'[0-9.,]')),
-                              ]
-                            : null,
-                        borderColor: excedeStock ? Colors.red : AppColors.blue1,
-                        height: 27,
-                        onSubmitted: (v) => _aplicarCantidad(context, v),
-                        onChanged: (v) => _aplicarCantidad(context, v),
-                      ),
+                            width: 84,
+                            // `[−] 3 [+]` con el número escribible. A granel
+                            // (presentación activa) va sin botones: se tipean
+                            // kilos con decimales o se pesa.
+                            child: CantidadStepper(
+                              controller: _cantCtrl,
+                              focusNode: _focusNode,
+                              decimales: _pres.activa,
+                              excede: excedeStock,
+                              onChanged: (v) => _aplicarCantidad(context, v),
+                              onMas: _pres.activa
+                                  ? null
+                                  : () => _sumarCantidad(context, 1),
+                              onMenos: _pres.activa
+                                  ? null
+                                  : () => _sumarCantidad(context, -1),
+                              puedeMenos: item.cantidad > 1,
+                              puedeMas: esOrden ||
+                                  item.stockDisponible == null ||
+                                  item.cantidad + 1 <= stock,
+                            ),
                           ),
                         ),
                         // Pesar en vez de teclear. Solo en lo que se pesa y

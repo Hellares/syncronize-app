@@ -248,36 +248,10 @@ class _VentaRapidaProductosView extends StatelessWidget {
                 padding: EdgeInsets.only(top: 6),
                 child: _FilaCosto(),
               ),
-            // Mismo permiso que el costo: vender por mayor sin la cantidad
-            // mínima también ES cambiar el precio al cobrar.
-            if (puedeVenderACosto)
-              const Padding(
-                padding: EdgeInsets.only(top: 6),
-                child: _FilaMayor(),
-              ),
+            // Vender por mayor NO tiene interruptor: se elige por línea al
+            // tocar el precio en el carrito (la misma hoja que el costo).
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// El interruptor de "vender por mayor": lo que se agrega (y lo que ya está en
-/// el carrito) se cobra a su precio por mayor aunque no llegue a la cantidad
-/// mínima. Para vender solo algunos productos así, se hace por línea desde el
-/// carrito.
-class _FilaMayor extends StatelessWidget {
-  const _FilaMayor();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<VentaRapidaCubit, VentaRapidaState>(
-      buildWhen: (a, b) =>
-          a.modoMayor != b.modoMayor || a.lineasPorMayor != b.lineasPorMayor,
-      builder: (context, state) => FilaVenderPorMayor(
-        activo: state.modoMayor,
-        lineasPorMayor: state.lineasPorMayor,
-        onToggle: () => context.read<VentaRapidaCubit>().toggleModoMayor(),
       ),
     );
   }
