@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:syncronize/features/producto/domain/entities/atributo_valor.dart';
 import 'package:syncronize/features/producto/domain/entities/producto_variante.dart';
+import 'package:syncronize/features/producto/domain/entities/stock_por_sede_info.dart';
 import 'package:syncronize/features/producto/presentation/widgets/coleccion_disenos_card.dart';
 
 /// La hoja de Variantes junta los diseños de una colección en una card.
@@ -80,6 +81,63 @@ void main() {
     test('el título de la colección es el nombre sin el diseño', () {
       expect(tituloColeccion(_v('d1', material: 'TELA', diseno: 'D1')), '2 PLAZAS / TELA / CRISTAL');
     });
+  });
+
+  testWidgets('la fila compacta de "Variantes" entra en 336 px y dice "desde"', (tester) async {
+    var toques = 0;
+    var agregar = 0;
+    final caro = _v('d2', material: 'TELA', diseno: 'D2');
+    // Precio por sede: D2 exclusivo más caro.
+    ProductoVariante conPrecio(ProductoVariante v, double precio) => ProductoVariante(
+          id: v.id,
+          productoId: v.productoId,
+          empresaId: v.empresaId,
+          nombre: v.nombre,
+          sku: v.sku,
+          codigoEmpresa: v.codigoEmpresa,
+          atributosValores: v.atributosValores,
+          isActive: true,
+          orden: 0,
+          stocksPorSede: [
+            StockPorSedeInfo(
+              sedeId: 's1',
+              sedeNombre: 'Principal',
+              sedeCodigo: 'S1',
+              cantidad: 2,
+              precio: precio,
+              precioConfigurado: true,
+            ),
+          ],
+          creadoEn: DateTime(2026),
+          actualizadoEn: DateTime(2026),
+        );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 336,
+            child: ColeccionFilaCompacta(
+              disenos: [
+                conPrecio(_v('d1', material: 'TELA', diseno: 'D1'), 75),
+                conPrecio(caro, 95),
+                conPrecio(_v('d3', material: 'TELA', diseno: 'D3'), 75),
+              ],
+              abierta: false,
+              ultima: true,
+              onTap: () => toques++,
+              onAgregar: () => agregar++,
+            ),
+          ),
+        ),
+      ),
+    ));
+    expect(tester.takeException(), isNull);
+    expect(find.text('desde S/75.00'), findsOneWidget);
+    expect(find.text('6 u'), findsOneWidget);
+    await tester.tap(find.text('3 diseños'));
+    await tester.tap(find.byIcon(Icons.add_photo_alternate_outlined));
+    expect(toques, 1);
+    expect(agregar, 1);
   });
 
   testWidgets('la card entra en 336 px, toca cada diseño y "Agregar"', (tester) async {

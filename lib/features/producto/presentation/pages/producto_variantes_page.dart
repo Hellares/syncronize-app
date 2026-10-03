@@ -26,7 +26,9 @@ import '../bloc/sede_selection/sede_selection_cubit.dart';
 import 'analisis_variantes_page.dart';
 import 'grupos_mayoreo_page.dart';
 import 'edicion_masiva_stock_page.dart';
+import 'agregar_disenos_page.dart';
 import 'separar_por_diseno_page.dart';
+import '../widgets/coleccion_disenos_card.dart';
 import '../widgets/filtro_variantes.dart';
 import '../widgets/producto_variante_form_dialog.dart';
 import '../widgets/generar_combinaciones_dialog.dart';
@@ -99,6 +101,11 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
   /// solo se suma entre variantes de la misma presentación) que ya costaron
   /// encontrar una vez.
   final _filtro = FiltroVariantes();
+
+  /// Colecciones desplegadas (clave de colección). Cerradas por defecto: cada
+  /// colección es UNA fila y al abrirla aparecen sus diseños para editarles
+  /// precio y stock.
+  final Set<String> _abiertas = {};
 
   @override
   void initState() {
@@ -422,25 +429,48 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                             clipBehavior: Clip.antiAlias,
                             child: RefreshIndicator(
                               onRefresh: () async => _loadData(),
-                              child: ListView.builder(
-                                padding: const EdgeInsets.only(bottom: 76),
-                                itemCount: filtradas.length,
-                                itemBuilder: (context, index) {
-                                  final variante = filtradas[index];
-                                  return _VarianteFila(
-                                    variante: variante,
-                                    ejes: ejes,
-                                    sedeId: _sedeId,
-                                    ultima: index == filtradas.length - 1,
-                                    onEdit: () => _showVarianteDialog(variante),
-                                    onDelete: () => _confirmDelete(variante),
-                                    onUpdateStock: () =>
-                                        _showStockDialog(variante),
-                                    onPrecioTap: () =>
-                                        _handlePrecioTap(variante),
-                                  );
-                                },
-                              ),
+                              child: Builder(builder: (context) {
+                                final filas = _aplanar(filtradas);
+                                return ListView.builder(
+                                  padding: const EdgeInsets.only(bottom: 76),
+                                  itemCount: filas.length,
+                                  itemBuilder: (context, index) {
+                                    final fila = filas[index];
+                                    final ultima = index == filas.length - 1;
+                                    if (fila is FilaColeccion) {
+                                      final clave =
+                                          claveColeccion(fila.disenos.first);
+                                      return ColeccionFilaCompacta(
+                                        disenos: fila.disenos,
+                                        abierta: _abiertas.contains(clave),
+                                        ultima: ultima,
+                                        onTap: () => setState(() =>
+                                            _abiertas.contains(clave)
+                                                ? _abiertas.remove(clave)
+                                                : _abiertas.add(clave)),
+                                        onAgregar: () =>
+                                            _abrirAgregarDisenos(fila.disenos.first),
+                                      );
+                                    }
+                                    final variante = fila is _DisenoAbierto
+                                        ? fila.variante
+                                        : (fila as FilaVariante).variante;
+                                    return _VarianteFila(
+                                      variante: variante,
+                                      ejes: ejes,
+                                      sedeId: _sedeId,
+                                      ultima: ultima,
+                                      anidada: fila is _DisenoAbierto,
+                                      onEdit: () => _showVarianteDialog(variante),
+                                      onDelete: () => _confirmDelete(variante),
+                                      onUpdateStock: () =>
+                                          _showStockDialog(variante),
+                                      onPrecioTap: () =>
+                                          _handlePrecioTap(variante),
+                                    );
+                                  },
+                                );
+                              }),
                             ),
                           ),
                         ),
@@ -713,6 +743,37 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
         ),
       ),
     );
+  }
+
+  /// Las filas de la lista: los diseños de una colección van juntos en UNA
+  /// fila y, si está desplegada, debajo cada diseño con su menú (precio,
+  /// stock, editar).
+  List<Object> _aplanar(List<ProductoVariante> variantes) {
+    final filas = <Object>[];
+    for (final f in agruparPorColeccion(variantes)) {
+      filas.add(f);
+      if (f is FilaColeccion && _abiertas.contains(claveColeccion(f.disenos.first))) {
+        filas.addAll(f.disenos.map(_DisenoAbierto.new));
+      }
+    }
+    return filas;
+  }
+
+  /// Diseños nuevos para la colección (D4, D5…): en 0 o con ingreso.
+  Future<void> _abrirAgregarDisenos(ProductoVariante diseno) async {
+    final empresaId = _empresaId;
+    if (empresaId == null) return;
+    final cambio = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AgregarDisenosPage(
+          varianteId: diseno.id,
+          empresaId: empresaId,
+          titulo: tituloColeccion(diseno),
+        ),
+      ),
+    );
+    if (cambio == true && mounted) _loadData();
   }
 
   Future<void> _abrirSepararPorDiseno(ProductoVariante v) async {
@@ -1087,6 +1148,10 @@ class _VarianteFila extends StatelessWidget {
   final VoidCallback onUpdateStock;
   final VoidCallback onPrecioTap;
 
+  /// Un diseño desplegado bajo la fila de su colección: va corrido y con
+  /// fondo, para que se lea como parte de ella.
+  final bool anidada;
+
   const _VarianteFila({
     required this.variante,
     required this.ejes,
@@ -1096,6 +1161,7 @@ class _VarianteFila extends StatelessWidget {
     required this.onDelete,
     required this.onUpdateStock,
     required this.onPrecioTap,
+    this.anidada = false,
   });
 
   static const _divisor = Color(0xFFEEF2F6);
@@ -1113,7 +1179,11 @@ class _VarianteFila extends StatelessWidget {
       decoration: BoxDecoration(
         // Fondo rosado tenue: la variante inalcanzable tiene que saltar en una
         // lista de 91, no esperar a que alguien lea el badge.
-        color: faltantes.isEmpty ? AppColors.white : const Color(0xFFFEF7FA),
+        color: faltantes.isNotEmpty
+            ? const Color(0xFFFEF7FA)
+            : anidada
+                ? const Color(0xFFF6F9FC)
+                : AppColors.white,
         border: Border(
           left: BorderSide(color: _colorRiel(faltantes), width: 3),
           bottom: ultima
@@ -1124,7 +1194,7 @@ class _VarianteFila extends StatelessWidget {
       child: Opacity(
         opacity: agotada ? 0.55 : 1,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 6, 2, 6),
+          padding: EdgeInsets.fromLTRB(anidada ? 26 : 10, 6, 2, 6),
           child: Row(
             children: [
               Expanded(child: _identidad(faltantes)),
@@ -1398,4 +1468,10 @@ class _VarianteFila extends StatelessWidget {
     if (!p.activa) return '$enUnidadDeVenta u';
     return p.cantidadTexto(enUnidadDeVenta);
   }
+}
+
+/// Un diseño mostrado debajo de su colección desplegada.
+class _DisenoAbierto {
+  final ProductoVariante variante;
+  const _DisenoAbierto(this.variante);
 }

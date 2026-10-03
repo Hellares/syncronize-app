@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
+import 'package:syncronize/core/fonts/app_text_widgets.dart';
 import 'package:syncronize/core/theme/app_colors.dart';
 import 'package:syncronize/core/theme/app_gradients.dart';
 import 'package:syncronize/core/theme/gradient_container.dart';
@@ -333,5 +334,192 @@ class _BadgeStock extends StatelessWidget {
         style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w600),
       ),
     );
+  }
+}
+
+/// La colección en UNA fila de la tabla densa de "Variantes" (la página de
+/// gestión): título, "N diseños", precio (desde
+/// el más bajo si un diseño cuesta distinto), stock sumado y la tira de
+/// miniaturas. Tocarla despliega sus diseños; el botón de la derecha agrega
+/// diseños nuevos.
+class ColeccionFilaCompacta extends StatelessWidget {
+  final List<ProductoVariante> disenos;
+  final bool abierta;
+  final bool ultima;
+  final VoidCallback onTap;
+  final VoidCallback onAgregar;
+
+  const ColeccionFilaCompacta({
+    super.key,
+    required this.disenos,
+    required this.abierta,
+    required this.ultima,
+    required this.onTap,
+    required this.onAgregar,
+  });
+
+  static const _divisor = Color(0xFFEEF2F6);
+  static const _textoTenue = Color(0xFF7D97B3);
+
+  @override
+  Widget build(BuildContext context) {
+    final primero = disenos.first;
+    final stock = disenos.fold<int>(0, (s, d) => s + d.stockTotal);
+    final precios = [
+      for (final d in disenos)
+        if (_precioDe(d) case final p?) p,
+    ];
+    final minimo = precios.isEmpty ? null : precios.reduce((a, b) => a < b ? a : b);
+    final variados = precios.any((p) => (p - (minimo ?? p)).abs() > 0.0001);
+    final n = disenos.length;
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          border: Border(
+            left: BorderSide(
+              color: stock > 0 ? AppColors.blue1 : const Color(0xFFCFD8E3),
+              width: 3,
+            ),
+            bottom: ultima && !abierta
+                ? BorderSide.none
+                : const BorderSide(color: _divisor, width: 1),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(6, 6, 2, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                AnimatedRotation(
+                  turns: abierta ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 150),
+                  child: const Icon(Icons.chevron_right, size: 18, color: _textoTenue),
+                ),
+                const SizedBox(width: 2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppSubtitle(
+                        tituloColeccion(primero),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      AppLabelText(
+                        '$n diseño${n == 1 ? '' : 's'}',
+                        fontSize: 9,
+                        color: _textoTenue,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppSubtitle(
+                      minimo == null
+                          ? '—'
+                          : '${variados ? 'desde ' : ''}S/${minimo.toStringAsFixed(2)}',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blue3,
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      stock > 0 ? '$stock u' : 'agotada',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: stock > 0 ? AppColors.greendark : _textoTenue,
+                      ),
+                    ),
+                  ],
+                ),
+                // 44×44 de área táctil, como el menú de las filas.
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: IconButton(
+                    tooltip: 'Agregar diseños',
+                    onPressed: onAgregar,
+                    icon: const Icon(Icons.add_photo_alternate_outlined,
+                        size: 18, color: AppColors.greendark),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: SizedBox(
+                height: 30,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (final d in disenos)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: _miniatura(d),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniatura(ProductoVariante d) {
+    final url = d.thumbnailPrincipal;
+    final agotada = d.stockTotal == 0;
+    return Tooltip(
+      message: '${valorDiseno(d) ?? ''} · ${d.stockTotal} u',
+      child: Opacity(
+        opacity: agotada ? 0.45 : 1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            width: 30,
+            height: 30,
+            color: const Color(0xFFF1F4F8),
+            alignment: Alignment.center,
+            child: url != null
+                ? CachedNetworkImage(
+                    imageUrl: url,
+                    width: 30,
+                    height: 30,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _etiqueta(d),
+                  )
+                : _etiqueta(d),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _etiqueta(ProductoVariante d) => Text(
+        valorDiseno(d) ?? '',
+        style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: _textoTenue),
+      );
+
+  /// Precio vigente del diseño (oferta/liquidación incluidas).
+  double? _precioDe(ProductoVariante v) {
+    final stocks = v.stocksPorSede;
+    if (stocks == null || stocks.isEmpty) return null;
+    final s = stocks.where((s) => s.precioConfigurado && s.precio != null).firstOrNull;
+    return s?.precioEfectivo;
   }
 }
