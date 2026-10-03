@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/resource.dart';
+import '../../../../core/widgets/confirm_dialog.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../caja/domain/entities/caja.dart';
 import '../../../caja/domain/usecases/get_caja_activa_usecase.dart';
@@ -158,6 +159,22 @@ class _VentaRapidaProductosView extends StatelessWidget {
     );
   }
 
+  /// La papelera del AppBar: la misma confirmación que "Vaciar" dentro del
+  /// carrito, pero se queda en el catálogo (acá no hay nada que cerrar).
+  Future<void> _confirmarVaciar(BuildContext context) async {
+    final ok = await ConfirmDialog.show(
+      context: context,
+      type: ConfirmDialogType.destructive,
+      title: 'Vaciar carrito',
+      message: '¿Seguro que querés vaciar el carrito? '
+          'Se perderán todos los items agregados.',
+      confirmText: 'Vaciar',
+    );
+    if (ok == true && context.mounted) {
+      context.read<VentaRapidaCubit>().vaciarCarrito();
+    }
+  }
+
   Future<void> _verificarCajaYNavegar(BuildContext context) async {
     final result = await locator<GetCajaActivaUseCase>()();
     if (!context.mounted) return;
@@ -209,6 +226,7 @@ class _VentaRapidaProductosView extends StatelessWidget {
       ),
       tituloBuilder: (_) => 'Productos',
       onIrAlCarrito: () => _verificarCajaYNavegar(context),
+      onVaciarCarrito: () => _confirmarVaciar(context),
       onAgregarProducto: cubit.agregarProducto,
       onAgregarVariante: cubit.agregarVariante,
       onDecrementarVariante: (p, v) => cubit.decrementarVariante(p.id, v.id),

@@ -199,17 +199,21 @@ class _CarritoView extends StatelessWidget {
               // Header de tabla
               Container(
                 color: Colors.grey.shade100,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                // Mismo margen (4), mismo ancho de nombre (145) y misma
+                // proporción 7:12:12 que la fila de `_ItemRow`: si no, los
+                // títulos quedan corridos. 7:12:12 y no 1:2:2 para que PRE
+                // tenga ~5 px más sin achicar cantidad ni total.
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 child: const Row(
                   children: [
-                    SizedBox(width: 135, child: _Th('PRODUCTO')),
-                    Expanded(child: Center(child: _Th('PRE'))),
+                    SizedBox(width: 145, child: _Th('PRODUCTO')),
+                    Expanded(flex: 7, child: Center(child: _Th('PRE'))),
                     // Stock: ancho fijo, suficiente para hasta 3 dígitos.
                     SizedBox(width: 50, child: Center(child: _Th('STOCK'))),
                     // Cantidad con más espacio (input editable).
-                    Expanded(flex: 2, child: Center(child: _Th('CANT.'))),
+                    Expanded(flex: 12, child: Center(child: _Th('CANT.'))),
                     // Más ancho para que montos altos no salten de línea.
-                    Expanded(flex: 2, child: Center(child: _Th('TOTAL'))),
+                    Expanded(flex: 12, child: Center(child: _Th('TOTAL'))),
                   ],
                 ),
               ),
@@ -1839,7 +1843,7 @@ class _ItemRowState extends State<_ItemRow> {
         children: [
           // Nombre + badge de nivel aplicado (si existe)
           SizedBox(
-            width: 130,
+            width: 145,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -2072,6 +2076,7 @@ class _ItemRowState extends State<_ItemRow> {
           // Precio (con base tachado si hay nivel aplicado). Tocable: abre la
           // hoja del modo de precio, y el verde suave lo anuncia.
           Expanded(
+            flex: 7,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: widget.onTapPrecio,
@@ -2139,7 +2144,7 @@ class _ItemRowState extends State<_ItemRow> {
           ),
           // Cantidad: editable para items sueltos, solo texto para items de combo.
           Expanded(
-            flex: 2,
+            flex: 12,
             child: Center(
               child: widget.readonly
                   ? Text(
@@ -2205,7 +2210,7 @@ class _ItemRowState extends State<_ItemRow> {
           // Total — flex 2 alineado con el header para acomodar montos altos
           // sin saltar a la siguiente línea.
           Expanded(
-            flex: 2,
+            flex: 12,
             child: Center(
               child: Text(
                 'S/ ${item.total.toStringAsFixed(2)}',

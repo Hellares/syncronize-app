@@ -79,6 +79,11 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
   /// se deshabilita automáticamente.
   final Future<void> Function() onIrAlCarrito;
 
+  /// Papelera en el AppBar, al lado del carrito: vaciarlo sin entrar. Null
+  /// = sin papelera (cotización no la pide). Solo se ve con algo en el
+  /// carrito; la confirmación la pone quien la pasa.
+  final VoidCallback? onVaciarCarrito;
+
   /// Callback para agregar al carrito (tap en card o auto-add escaneo).
   final void Function(ProductoListItem) onAgregarProducto;
 
@@ -157,6 +162,7 @@ class ProductoSelectorView<TCubit extends Cubit<TState>, TState>
     required this.snapshotBuilder,
     required this.tituloBuilder,
     required this.onIrAlCarrito,
+    this.onVaciarCarrito,
     required this.onAgregarProducto,
     this.onAgregarVariante,
     this.onDecrementarVariante,
@@ -805,6 +811,20 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
           },
         ),
         actions: [
+          if (widget.onVaciarCarrito != null)
+            BlocBuilder<TCubit, TState>(
+              buildWhen: (a, b) =>
+                  widget.snapshotBuilder(a).items.isEmpty !=
+                  widget.snapshotBuilder(b).items.isEmpty,
+              builder: (context, state) =>
+                  widget.snapshotBuilder(state).items.isEmpty
+                      ? const SizedBox.shrink()
+                      : IconButton(
+                          icon: const Icon(Icons.delete_sweep_outlined),
+                          tooltip: 'Vaciar carrito',
+                          onPressed: widget.onVaciarCarrito,
+                        ),
+            ),
           BlocBuilder<TCubit, TState>(
             builder: (context, state) {
               final snap = widget.snapshotBuilder(state);

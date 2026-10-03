@@ -5,13 +5,13 @@ import 'package:syncronize/features/venta_rapida/presentation/widgets/cantidad_s
 
 /// El `[−] 3 [+]` de la cantidad en el carrito de Venta Rápida.
 ///
-/// 🔴 Test de MONTAJE: `flutter analyze` no ve el layout. 69 px es lo que le
-/// toca a la columna de cantidad en un teléfono de 360 px (130 del nombre,
-/// 50 del stock, y el resto repartido 1:2:2 entre precio, cantidad y total).
+/// 🔴 Test de MONTAJE: `flutter analyze` no ve el layout. 61 px es lo que le
+/// toca a la columna de cantidad en un teléfono de 360 px (145 del nombre,
+/// 50 del stock, y el resto repartido 7:12:12 entre precio, cantidad y total).
 void main() {
   Future<TextEditingController> montar(
     WidgetTester tester, {
-    double ancho = 69,
+    double ancho = 61,
     String texto = '3',
     VoidCallback? onMas,
     VoidCallback? onMenos,
@@ -51,7 +51,7 @@ void main() {
     await montar(tester, texto: '999');
     expect(tester.takeException(), isNull);
     expect(find.text('999'), findsOneWidget);
-    expect(tester.getSize(find.byType(CantidadStepper)).width, 69);
+    expect(tester.getSize(find.byType(CantidadStepper)).width, 61);
   });
 
   testWidgets('el + y el − disparan su acción', (tester) async {
