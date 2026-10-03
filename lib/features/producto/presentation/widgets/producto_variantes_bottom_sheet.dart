@@ -14,7 +14,9 @@ import '../../domain/entities/producto_variante.dart';
 import '../bloc/producto_variante/producto_variante_cubit.dart';
 import '../bloc/producto_variante/producto_variante_state.dart';
 import 'archivo_manager_bottom_sheet.dart';
+import '../pages/agregar_disenos_page.dart';
 import '../pages/separar_por_diseno_page.dart';
+import 'coleccion_disenos_card.dart';
 import 'variante_detail_dialog.dart';
 
 class ProductoVariantesBottomSheet extends StatefulWidget {
@@ -373,19 +375,47 @@ class _ProductoVariantesBottomSheetState extends State<ProductoVariantesBottomSh
     );
   }
 
+  /// Los diseños de una colección van juntos en una card (D1, D2, D3 con su
+  /// foto y su stock); lo demás, una card por variante.
   Widget _buildVariantesList(List<ProductoVariante> variantes) {
+    final filas = agruparPorColeccion(variantes);
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       shrinkWrap: true,
-      itemCount: variantes.length,
+      itemCount: filas.length,
       itemBuilder: (context, index) {
-        final variante = variantes[index];
+        final fila = filas[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: _buildVarianteCard(variante),
+          child: switch (fila) {
+            FilaVariante(:final variante) => _buildVarianteCard(variante),
+            FilaColeccion(:final disenos) => ColeccionDisenosCard(
+                disenos: disenos,
+                onTapDiseno: (d) => showVarianteDetailDialog(context: context, variante: d),
+                onFotosDiseno: _showArchivoManager,
+                onAgregar: () => _agregarDisenos(disenos.first),
+              ),
+          },
         );
       },
     );
+  }
+
+  /// Llegaron diseños nuevos de la colección: D4, D5… con su foto, en 0 (las
+  /// unidades entran con la compra) o con un ingreso directo.
+  Future<void> _agregarDisenos(ProductoVariante diseno) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AgregarDisenosPage(
+          varianteId: diseno.id,
+          empresaId: widget.empresaId,
+          titulo: tituloColeccion(diseno),
+        ),
+      ),
+    );
+    // Siempre: aunque se vuelva atrás, pueden haberse subido fotos.
+    if (mounted) _cargar();
   }
 
   Widget _buildVarianteCard(ProductoVariante variante) {
