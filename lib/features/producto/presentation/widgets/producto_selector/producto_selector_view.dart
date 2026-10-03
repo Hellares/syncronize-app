@@ -22,6 +22,7 @@ import '../../../../producto/data/datasources/producto_remote_datasource.dart';
 import '../../../../producto/domain/entities/producto_atributo.dart';
 import '../../../../producto/domain/entities/producto_filtros.dart';
 import '../filtro_atributos_chips.dart';
+import 'busqueda_variantes.dart';
 import '../../../../producto/domain/entities/producto_list_item.dart';
 import '../../../../producto/domain/entities/producto_variante.dart';
 import '../../../../venta_rapida/presentation/widgets/variante_selector_sheet.dart';
@@ -404,6 +405,9 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
         context: context,
         producto: p,
         sedeId: widget.sedeId,
+        // Encontrado por una variante ("cristal"): el sheet arranca con esa
+        // búsqueda y muestra de una la colección con sus diseños.
+        busquedaInicial: coincidenciaPorVariantes(p, _localQuery)?.consulta,
         cantidadesEnCarrito: cantidades,
         nivelesVariantes: nivelesMap,
         onAgregar: (variante, cantidad) {
@@ -1093,13 +1097,11 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                       // un producto desactivado después sigue ahí hasta que
                       // alguien la purgue.
                       if (!p.isActive) return false;
-                      final texto = [
-                        p.nombre,
-                        p.codigoEmpresa,
-                        p.marcaNombre ?? '',
-                        p.categoriaNombre ?? '',
-                      ].join(' ');
-                      return coincideTodosLosTerminos(texto, terminos);
+                      // También por sus VARIANTES: "cristal" encuentra
+                      // EDREDONES (el backend indexa lo mismo).
+                      return coincideTodosLosTerminos(
+                              textoDeProducto(p), terminos) ||
+                          coincidenciaPorVariantes(p, _localQuery) != null;
                     }).toList();
                     // Si encontramos algo local → usamos local. Si no Y
                     // el server ya filtró → confiamos en el server. Si no
@@ -1225,6 +1227,10 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                         final p = ordenados[i];
                         return _ProductoCard<TCubit, TState>(
                           producto: p,
+                          coincidencia: _localQuery.isEmpty
+                              ? null
+                              : coincidenciaPorVariantes(p, _localQuery)
+                                  ?.etiqueta,
                           sedeId: widget.sedeId,
                           snapshotBuilder: widget.snapshotBuilder,
                           onTap: () => _onProductoTap(p),
@@ -1353,8 +1359,13 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
   /// Ver [ProductoSelectorView.modoCompra].
   final bool modoCompra;
 
+  /// Apareció en la búsqueda por una VARIANTE: el chip lo dice ("CRISTAL · 2")
+  /// para no confundirlo con un resultado por nombre.
+  final String? coincidencia;
+
   const _ProductoCard({
     required this.producto,
+    this.coincidencia,
     required this.sedeId,
     required this.snapshotBuilder,
     required this.onTap,
@@ -1785,7 +1796,30 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (producto.tieneVariantes)
+                              if (coincidencia != null)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 4),
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 92),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.greendark
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                  child: Text(
+                                    coincidencia!.toUpperCase(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.greendark,
+                                    ),
+                                  ),
+                                )
+                              else if (producto.tieneVariantes)
                                 Container(
                                   margin: const EdgeInsets.only(left: 4),
                                   padding: const EdgeInsets.symmetric(

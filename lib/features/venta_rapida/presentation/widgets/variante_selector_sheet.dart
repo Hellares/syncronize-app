@@ -43,6 +43,7 @@ Future<void> showVarianteSelectorSheet({
   Map<String, int> cantidadesEnCarrito = const {},
   Map<String, List<PrecioNivel>> nivelesVariantes = const {},
   VoidCallback? onBultoAbierto,
+  String? busquedaInicial,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -64,6 +65,7 @@ Future<void> showVarianteSelectorSheet({
       cantidadesEnCarrito: cantidadesEnCarrito,
       nivelesVariantes: nivelesVariantes,
       onBultoAbierto: onBultoAbierto,
+      busquedaInicial: busquedaInicial,
     ),
   );
 }
@@ -89,6 +91,10 @@ class _VarianteSelectorSheet extends StatefulWidget {
   /// tiene que revalidar el catálogo.
   final VoidCallback? onBultoAbierto;
 
+  /// El producto se encontró por una variante ("cristal"): el buscador del
+  /// sheet arranca con eso y muestra de una la colección con sus diseños.
+  final String? busquedaInicial;
+
   const _VarianteSelectorSheet({
     required this.producto,
     required this.sedeId,
@@ -97,6 +103,7 @@ class _VarianteSelectorSheet extends StatefulWidget {
     this.cantidadesEnCarrito = const {},
     this.nivelesVariantes = const {},
     this.onBultoAbierto,
+    this.busquedaInicial,
   });
 
   @override
@@ -214,6 +221,11 @@ class _VarianteSelectorSheetState extends State<_VarianteSelectorSheet> {
     _niveles = Map.of(widget.nivelesVariantes);
     _grupos = _derivarGrupos(_variantes);
     _seleccionInicialLimpia();
+    final inicial = widget.busquedaInicial?.trim() ?? '';
+    if (inicial.isNotEmpty && _variantes.length >= 2) {
+      _buscarCtrl.text = inicial;
+      _query = inicial;
+    }
     // Cargar (fresco) los niveles de la variante inicial. Con el sheet limpio
     // no hay ninguna resuelta todavía y esto corta solo; los niveles se piden
     // al completar la combinación.
