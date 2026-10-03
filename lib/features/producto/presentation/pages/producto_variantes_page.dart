@@ -873,7 +873,7 @@ class _ProductoVariantesViewState extends State<_ProductoVariantesView> {
                   Text(
                     titulo,
                     style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                        fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -1288,7 +1288,7 @@ class _VarianteFila extends StatelessWidget {
             Flexible(
               child: AppSubtitle(
                 titulo,
-                fontSize: 12,
+                fontSize: 11,
                 //fontWeight: FontWeight.w700,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

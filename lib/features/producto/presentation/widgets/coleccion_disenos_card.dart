@@ -405,10 +405,11 @@ class ColeccionFilaCompacta extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Mismo título que la fila de una variante sin diseño
+                      // (`_VarianteFila`): las dos se leen como una tabla.
                       AppSubtitle(
                         tituloColeccion(primero),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
