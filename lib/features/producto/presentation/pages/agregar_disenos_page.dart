@@ -11,6 +11,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/styled_dialog.dart';
+import '../../../auth/presentation/widgets/custom_text.dart';
 import '../widgets/archivo_manager_bottom_sheet.dart';
 
 /// Agregar diseños NUEVOS a una colección que ya tiene: a CRISTAL (D1–D3) le
@@ -53,7 +54,8 @@ class _Sede {
   final String id;
   final String nombre;
   final double? costo;
-  const _Sede(this.id, this.nombre, this.costo);
+  final double? precio;
+  const _Sede(this.id, this.nombre, this.costo, this.precio);
 }
 
 class _AgregarDisenosPageState extends State<AgregarDisenosPage> {
@@ -73,6 +75,10 @@ class _AgregarDisenosPageState extends State<AgregarDisenosPage> {
   bool _ingresarAhora = false;
   final _costoCtrl = TextEditingController();
 
+  /// Precio de venta del diseño: arranca con el de la colección y se puede
+  /// cambiar (un diseño exclusivo puede venderse más caro).
+  final _precioCtrl = TextEditingController();
+
   bool _cargando = true;
   bool _enviando = false;
   bool _huboCambios = false;
@@ -87,6 +93,7 @@ class _AgregarDisenosPageState extends State<AgregarDisenosPage> {
   @override
   void dispose() {
     _costoCtrl.dispose();
+    _precioCtrl.dispose();
     super.dispose();
   }
 
@@ -108,6 +115,7 @@ class _AgregarDisenosPageState extends State<AgregarDisenosPage> {
             s['sedeId'] as String,
             (s['sedeNombre'] as String?) ?? 'Sede',
             (s['precioCosto'] as num?)?.toDouble(),
+            (s['precioVenta'] as num?)?.toDouble(),
           ),
       ];
       if (!mounted) return;
@@ -144,9 +152,13 @@ class _AgregarDisenosPageState extends State<AgregarDisenosPage> {
     }
   }
 
+  /// Costo y precio de venta de la colección en la sede: lo sugerido.
   void _sugerirCosto() {
-    final costo = _sedes.where((s) => s.id == _sedeId).firstOrNull?.costo;
+    final sede = _sedes.where((s) => s.id == _sedeId).firstOrNull;
+    final costo = sede?.costo;
+    final precio = sede?.precio;
     _costoCtrl.text = costo != null && costo > 0 ? costo.toStringAsFixed(2) : '';
+    _precioCtrl.text = precio != null && precio > 0 ? precio.toStringAsFixed(2) : '';
   }
 
   Future<void> _gestionarFotos() async {
@@ -190,6 +202,7 @@ class _AgregarDisenosPageState extends State<AgregarDisenosPage> {
   List<_Foto> get _disenos => _fotos.where((f) => _elegidas.contains(f.id)).toList();
 
   double? get _costo => double.tryParse(_costoCtrl.text.replaceAll(',', '.'));
+  double? get _precio => double.tryParse(_precioCtrl.text.replaceAll(',', '.'));
 
   /// Cómo se van a llamar: D4, D5… (el backend numera igual).
   String _rango(int n) {
@@ -217,6 +230,7 @@ class _AgregarDisenosPageState extends State<AgregarDisenosPage> {
                 'archivoId': f.id,
                 'cantidad': _ingresarAhora ? (_cantidades[f.id] ?? 0) : 0,
                 if (_ingresarAhora && _costo != null) 'costoUnitario': _costo,
+                if (_ingresarAhora && _precio != null) 'precioVenta': _precio,
               },
           ],
         },
@@ -392,18 +406,52 @@ class _AgregarDisenosPageState extends State<AgregarDisenosPage> {
                       detalle: 'Entrada de inventario con su costo (sin compra).',
                     ),
                     if (_ingresarAhora) ...[
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _costoCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-                        onChanged: (_) => setState(() {}),
-                        decoration: const InputDecoration(
-                          labelText: 'Costo unitario (S/)',
-                          helperText: 'Sugerido: el costo actual de la colección',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
+                      const SizedBox(height: 10),
+                      // Los dos sugeridos con los de la colección; el costo
+                      // puede ser igual o mayor, y el precio se sube si el
+                      // diseño es exclusivo.
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: CustomText(
+                              controller: _costoCtrl,
+                              label: 'Costo unitario',
+                              prefixText: 'S/ ',
+                              hintText: '0.00',
+                              borderColor: AppColors.blue1,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                              ],
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: CustomText(
+                              controller: _precioCtrl,
+                              label: 'Precio de venta',
+                              prefixText: 'S/ ',
+                              hintText: '0.00',
+                              borderColor: AppColors.blue1,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                              ],
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      AppSubtitle(
+                        'Sugeridos: los de la colección. El precio aplica a los '
+                        'diseños de este ingreso.',
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
                       ),
                     ],
                   ],
