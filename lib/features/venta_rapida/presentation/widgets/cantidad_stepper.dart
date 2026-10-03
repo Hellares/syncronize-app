@@ -92,9 +92,9 @@ class _CantidadStepperState extends State<CantidadStepper> {
     return Container(
       height: CantidadStepper.alto,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: 0.5),
       ),
       child: Row(
         children: [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncronize/core/fonts/app_fonts.dart';
 import 'package:syncronize/core/fonts/app_text_widgets.dart';
@@ -11,9 +12,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/styled_dialog.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/currency/currency_formatter.dart';
-import '../../../../core/widgets/currency/currency_textfield.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../widgets/cobro_yape_sheet.dart';
+import '../widgets/ficha_pago.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_cubit.dart';
 import '../../../empresa/presentation/bloc/empresa_context/empresa_context_state.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
@@ -153,6 +154,10 @@ class _CobroViewState extends State<_CobroView> {
           titulo: 'Documento del cliente',
           modo: _ModoNumpad.documento,
         ));
+
+    // Plin arranca visible como ficha fija de la rejilla: se usa casi tanto
+    // como Yape y no tiene sentido buscarlo en un menú. Con monto 0 no viaja.
+    _otrosPagos.add(_crearOtroPago('PLIN', fijo: true));
 
     // Numpad inicializado por default vinculado al efectivo. Queda visible
     // siempre, listo para tipear; cambia su controller al input que el
@@ -363,7 +368,20 @@ class _CobroViewState extends State<_CobroView> {
   }
 
   void _agregarOtraFila(String metodo) {
-    final pago = _OtroPago(metodo: metodo, refInicial: '000');
+    final pago = _crearOtroPago(metodo);
+    setState(() => _otrosPagos.add(pago));
+    // Tras el primer frame, llevamos el foco al input de monto recién creado
+    // para que el cajero pueda tipear de inmediato.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      pago.montoFocus.requestFocus();
+    });
+  }
+
+  /// Arma un pago "otro" con sus listeners (numpad + total). No lo agrega ni
+  /// le da foco: eso es de quien lo llama (initState mete Plin sin foco).
+  _OtroPago _crearOtroPago(String metodo, {bool fijo = false}) {
+    final pago = _OtroPago(metodo: metodo, refInicial: '000', fijo: fijo);
     pago.montoCtrl.addListener(_onAnyChange);
     final tituloMonto =
         'Pago ${pago.metodo[0]}${pago.metodo.substring(1).toLowerCase()}';
@@ -380,13 +398,7 @@ class _CobroViewState extends State<_CobroView> {
           titulo: 'N° de operación $metodo',
           modo: _ModoNumpad.documento,
         ));
-    setState(() => _otrosPagos.add(pago));
-    // Tras el primer frame, llevamos el foco al input de monto recién creado
-    // para que el cajero pueda tipear de inmediato.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      pago.montoFocus.requestFocus();
-    });
+    return pago;
   }
 
   void _quitarOtraFila(int idx) {
@@ -1548,7 +1560,7 @@ class _CobroViewState extends State<_CobroView> {
                       ],
                     ),
                   ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
 
                 // Multi-RUC: con 2+ emisores activos, Boleta/Factura pueden
                 // salir con el RUC de la empresa o el de una sede-socio.
@@ -1597,7 +1609,7 @@ class _CobroViewState extends State<_CobroView> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                 ],
 
                 // El tipo de documento se DERIVA del comprobante:
@@ -1851,7 +1863,7 @@ class _CobroViewState extends State<_CobroView> {
                 // final. Compactas: solo el rotulo y el boton, alineados con
                 // los otros rotulos del cobro (izquierda 12).
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 2, 0, 2),
+                  padding: const EdgeInsets.fromLTRB(6, 8, 0, 8),
                   child: EvidenciaVentaCard(
                     compacto: true,
                     onIdsChange: (ids) => _evidenciaIds = ids,
@@ -1878,75 +1890,7 @@ class _CobroViewState extends State<_CobroView> {
                     ),
                   ),
 
-                _PagoRow(
-                  label: 'Pago Efectivo',
-                  controller: _efectivoCtrl,
-                  focusNode: _efectivoFocus,
-                ),
-                //const SizedBox(height: 5),
-                _PagoRow(
-                  label: 'Pago Yape',
-                  controller: _yapeCtrl,
-                  focusNode: _yapeFocus,
-                  refController: _yapeRefCtrl,
-                  refFocusNode: _yapeRefFocus,
-                  showRef: CurrencyUtilsImproved.parseToDouble(_yapeCtrl.text) > 0,
-                  // Compacto: sin CircleAvatar (40px fantasma) ni el
-                  // mínimo 48x48 del IconButton — el área de tap queda
-                  // del tamaño del ícono y pegado al input.
-                  trailing: IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                    visualDensity: VisualDensity.compact,
-                    splashRadius: 18,
-                    icon: const Icon(Icons.add_circle_outline_rounded,
-                        color: AppColors.blue1, size: 24),
-                    onPressed: () => _agregarOtroPago(context),
-                    tooltip: 'Agregar otro método',
-                  ),
-                ),
-                ..._otrosPagos.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final pago = entry.value;
-                  final monto = CurrencyUtilsImproved.parseToDouble(pago.montoCtrl.text);
-                  // Banco visible cuando el método requiere entidad financiera
-                  // (TARJETA / TRANSFERENCIA) y hay monto tipeado.
-                  final mostrarBanco = requiereBancoPago(pago.metodo) && monto > 0;
-                  return Padding(
-                    key: ValueKey(pago.id),
-                    padding: const EdgeInsets.only(top: 5),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _PagoRow(
-                          label: 'Pago ${pago.metodo[0]}${pago.metodo.substring(1).toLowerCase()}',
-                          controller: pago.montoCtrl,
-                          focusNode: pago.montoFocus,
-                          refController: pago.refCtrl,
-                          refFocusNode: pago.refFocus,
-                          showRef: monto > 0,
-                          trailing: IconButton(
-                            icon: Icon(Icons.close, color: Colors.red.shade400),
-                            onPressed: () => _quitarOtraFila(idx),
-                            tooltip: 'Quitar',
-                          ),
-                        ),
-                        if (mostrarBanco)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: _BancoSelector(
-                              metodo: pago.metodo,
-                              valor: pago.banco,
-                              onChanged: (v) {
-                                setState(() => pago.banco = v);
-                              },
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                }),
+                _buildFichasPago(context),
 
                 Row(
                   children: [
@@ -2046,12 +1990,180 @@ class _CobroViewState extends State<_CobroView> {
     );
   }
 
+  /// Rejilla de pagos de a dos: Efectivo, Yape y Plin fijos, los agregados
+  /// (tarjeta, transferencia) y al final la ficha "Otro método". Debajo, el
+  /// N° de operación y el banco de los pagos que lo piden, solo con monto.
+  ///
+  /// La ficha resaltada es la que tiene el numpad atado: ahí cae lo que se
+  /// teclee (arranca en Efectivo, como antes).
+  Widget _buildFichasPago(BuildContext context) {
+    final atado = _numpadCtrl?.textController;
+    double monto(TextEditingController c) =>
+        CurrencyUtilsImproved.parseToDouble(c.text);
+
+    final fichas = <Widget>[
+      FichaPago(
+        label: 'Efectivo',
+        icono: Icons.payments_outlined,
+        controller: _efectivoCtrl,
+        focusNode: _efectivoFocus,
+        seleccionada: atado == _efectivoCtrl,
+        colorMonto: AppColors.greendark,
+        // El verde satura más: su fondo va más suave que el de Yape/Plin.
+        intensidadFondo: 0.75,
+      ),
+      FichaPago(
+        label: 'Yape',
+        logo: _logoMetodoPago('YAPE', 26),
+        controller: _yapeCtrl,
+        focusNode: _yapeFocus,
+        seleccionada: atado == _yapeCtrl,
+        colorMonto: _colorYape,
+        // N° de operación al lado del logo, solo con monto (como antes).
+        refController: monto(_yapeCtrl) > 0 ? _yapeRefCtrl : null,
+        refFocusNode: _yapeRefFocus,
+        refSeleccionada: atado == _yapeRefCtrl,
+      ),
+      for (var i = 0; i < _otrosPagos.length; i++)
+        FichaPago(
+          key: ValueKey(_otrosPagos[i].id),
+          label: _nombreMetodoPago(_otrosPagos[i].metodo),
+          logo: _logoMetodoPago(_otrosPagos[i].metodo, 22),
+          icono: _otrosPagos[i].metodo == 'TARJETA'
+              ? Icons.credit_card
+              : Icons.account_balance,
+          color: AppColors.blue1,
+          controller: _otrosPagos[i].montoCtrl,
+          focusNode: _otrosPagos[i].montoFocus,
+          seleccionada: atado == _otrosPagos[i].montoCtrl,
+          // Plin en azul; tarjeta y transferencia en el negro de siempre.
+          colorMonto: _otrosPagos[i].metodo == 'PLIN'
+              ? _colorPlin
+              : Colors.black87,
+          onQuitar: _otrosPagos[i].fijo ? null : () => _quitarOtraFila(i),
+          // Con logo (Plin) el N° op. va en la ficha; tarjeta/transferencia
+          // no tienen lugar (nombre + ✕) y lo llevan debajo.
+          refController: _tieneRefEnFicha(_otrosPagos[i]) &&
+                  monto(_otrosPagos[i].montoCtrl) > 0
+              ? _otrosPagos[i].refCtrl
+              : null,
+          refFocusNode: _otrosPagos[i].refFocus,
+          refSeleccionada: atado == _otrosPagos[i].refCtrl,
+        ),
+      FichaAgregarPago(onTap: () => _agregarOtroPago(context)),
+    ];
+
+    // N° de operación DEBAJO: solo los que no lo llevan en la ficha
+    // (tarjeta, transferencia), y con monto.
+    final refs = <(String, Widget?, TextEditingController, FocusNode)>[
+      for (final p in _otrosPagos)
+        if (!_tieneRefEnFicha(p) && monto(p.montoCtrl) > 0)
+          (
+            _nombreMetodoPago(p.metodo),
+            _logoMetodoPago(p.metodo, 18),
+            p.refCtrl,
+            p.refFocus,
+          ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 10 px por lado SOLO en las fichas: a todo el ancho quedaban
+          // demasiado anchas. El N° op. y el banco de abajo siguen igual.
+          for (var i = 0; i < fichas.length; i += 2)
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, i == 0 ? 0 : 15, 30, 0),
+              child: Row(
+                children: [
+                  Expanded(child: fichas[i]),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: i + 1 < fichas.length
+                        ? fichas[i + 1]
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+          for (final (nombre, logo, ctrl, foco) in refs)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  if (logo != null)
+                    SizedBox(width: 26, child: Center(child: logo)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'N° de operación $nombre',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 90,
+                    child: CustomText(
+                      controller: ctrl,
+                      focusNode: foco,
+                      readOnly: true,
+                      fieldType: FieldType.number,
+                      hintText: 'N° op.',
+                      borderColor: AppColors.blue1,
+                      maxLength: 6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // Banco: tarjeta / transferencia con monto.
+          for (final p in _otrosPagos)
+            if (requiereBancoPago(p.metodo) && monto(p.montoCtrl) > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: _BancoSelector(
+                  metodo: p.metodo,
+                  valor: p.banco,
+                  onChanged: (v) => setState(() => p.banco = v),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  /// Color del monto en las fichas: el de cada marca (el morado del logo de
+  /// Yape; un azul de Plin algo más oscuro que el de su logo para que el
+  /// número se lea sobre blanco).
+  static const _colorYape = Color(0xFF9117A0);
+  static const _colorPlin = Color(0xFF1F6FD9);
+
+  /// Los que tienen logo llevan el N° op. en la ficha, a su derecha.
+  static bool _tieneRefEnFicha(_OtroPago p) =>
+      p.metodo == 'YAPE' || p.metodo == 'PLIN';
+
+  static String _nombreMetodoPago(String metodo) =>
+      '${metodo[0]}${metodo.substring(1).toLowerCase()}';
+
+  /// Logo de los que tienen (Yape, Plin); null = se muestra ícono + nombre.
+  static Widget? _logoMetodoPago(String metodo, double alto) {
+    final archivo = switch (metodo) {
+      'YAPE' => 'assets/img/yape.svg',
+      'PLIN' => 'assets/img/plin.svg',
+      _ => null,
+    };
+    if (archivo == null) return null;
+    return SvgPicture.asset(archivo, height: alto, excludeFromSemantics: true);
+  }
+
   Future<void> _agregarOtroPago(BuildContext context) async {
     // Métodos alineados con Venta Avanzada (POS).
-    // EFECTIVO y YAPE no van acá porque ya están como inputs principales.
+    // EFECTIVO, YAPE y PLIN no van acá: ya son fichas fijas.
     const metodos = [
+      // Plin no: ya es ficha fija de la rejilla.
       ('TARJETA', 'Tarjeta', Icons.credit_card),
-      ('PLIN', 'Plin', Icons.phone_android),
       ('TRANSFERENCIA', 'Transferencia', Icons.account_balance),
     ];
     final metodoElegido = await StyledDialog.show<String>(
@@ -2743,7 +2855,15 @@ class _OtroPago {
   /// financiera: TARJETA / TRANSFERENCIA). Se persiste en `PagoVenta.banco`.
   String? banco;
 
-  _OtroPago({required this.metodo, required String refInicial})
+  /// Plin: ficha fija de la rejilla (arranca visible y no se quita). Los
+  /// demás (tarjeta, transferencia) se agregan desde "Otro método".
+  final bool fijo;
+
+  _OtroPago({
+    required this.metodo,
+    required String refInicial,
+    this.fijo = false,
+  })
       : id = '${DateTime.now().microsecondsSinceEpoch}-$metodo',
         montoCtrl = TextEditingController(),
         refCtrl = TextEditingController(text: refInicial),
@@ -2755,70 +2875,6 @@ class _OtroPago {
     refCtrl.dispose();
     montoFocus.dispose();
     refFocus.dispose();
-  }
-}
-
-class _PagoRow extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final Widget? trailing;
-  final TextEditingController? refController;
-  final bool showRef;
-  final FocusNode? focusNode;
-  final FocusNode? refFocusNode;
-
-  const _PagoRow({
-    required this.label,
-    required this.controller,
-    this.trailing,
-    this.refController,
-    this.showRef = false,
-    this.focusNode,
-    this.refFocusNode,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final mostrarRef = showRef && refController != null;
-    return Row(
-      children: [
-        Expanded(child: AppSubtitle(label, font: AppFont.amazonEmberMedium, fontSize: 12,)),
-        if (trailing != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 18),
-            child: trailing!,
-          ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: mostrarRef ? 110 : 130,
-          child: CurrencyTextField(
-            label: 'Monto',
-            controller: controller,
-            focusNode: focusNode,
-            readOnly: true,
-            borderColor: AppColors.blue1,
-            enableRealTimeValidation: false,
-            hintText: '0.00',
-          ),
-        ),
-        if (mostrarRef) ...[
-          const SizedBox(width: 6),
-          SizedBox(
-            width: 75,
-            child: CustomText(
-              label: 'Ref. Oper',
-              controller: refController!,
-              focusNode: refFocusNode,
-              readOnly: true,
-              fieldType: FieldType.number,
-              hintText: 'N° op.',
-              borderColor: AppColors.blue1,
-              maxLength: 6,
-            ),
-          ),
-        ],
-      ],
-    );
   }
 }
 
