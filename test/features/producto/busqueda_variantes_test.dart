@@ -59,6 +59,9 @@ void main() {
     expect(c.consulta, 'cristal');
     // Dos colecciones: TELA (D1, D2 juntos) y CARNERITO.
     expect(c.etiqueta, 'CRISTAL · 2');
+    // La card se titula con lo buscado y cuenta las colecciones.
+    expect(c.valor, 'CRISTAL');
+    expect(c.colecciones, 2);
   });
 
   test('por su nombre es la búsqueda de siempre: sin chip', () {

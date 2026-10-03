@@ -20,10 +20,18 @@ class CoincidenciaVariantes {
   /// colecciones lo tienen).
   final String etiqueta;
 
+  /// El valor que coincidió ("CRISTAL"): el título de la card.
+  final String valor;
+
+  /// Cuántas colecciones lo tienen (TELA con sus diseños cuenta una).
+  final int colecciones;
+
   const CoincidenciaVariantes({
     required this.variantes,
     required this.consulta,
     required this.etiqueta,
+    required this.valor,
+    required this.colecciones,
   });
 }
 
@@ -86,5 +94,7 @@ CoincidenciaVariantes? coincidenciaPorVariantes(ProductoListItem p, String query
     variantes: coinciden,
     consulta: propios.join(' '),
     etiqueta: colecciones > 1 ? '$valor · $colecciones' : valor,
+    valor: valor,
+    colecciones: colecciones,
   );
 }

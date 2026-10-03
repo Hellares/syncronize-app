@@ -1229,8 +1229,7 @@ class _ProductoSelectorViewState<TCubit extends Cubit<TState>, TState>
                           producto: p,
                           coincidencia: _localQuery.isEmpty
                               ? null
-                              : coincidenciaPorVariantes(p, _localQuery)
-                                  ?.etiqueta,
+                              : coincidenciaPorVariantes(p, _localQuery),
                           sedeId: widget.sedeId,
                           snapshotBuilder: widget.snapshotBuilder,
                           onTap: () => _onProductoTap(p),
@@ -1359,9 +1358,10 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
   /// Ver [ProductoSelectorView.modoCompra].
   final bool modoCompra;
 
-  /// Apareció en la búsqueda por una VARIANTE: el chip lo dice ("CRISTAL · 2")
-  /// para no confundirlo con un resultado por nombre.
-  final String? coincidencia;
+  /// Apareció en la búsqueda por una VARIANTE ("cristal"): la card habla de
+  /// ESAS variantes —título CRISTAL, su stock, su foto, precio "desde"— y el
+  /// nombre del producto baja a dato secundario. Fuera de compras.
+  final CoincidenciaVariantes? coincidencia;
 
   const _ProductoCard({
     required this.producto,
@@ -1681,15 +1681,39 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
         : (producto.precioEfectivoEnSede(sedeId) ??
             producto.precioEnSede(sedeId) ??
             0.0);
-    final stockTotal = producto.stockConsolidadoEnSede(sedeId);
-    final imagen = producto.imagenPrincipal;
+    // Solo vendiendo: comprando, la card sigue hablando del producto.
+    final coin = modoCompra ? null : coincidencia;
+    final idsCoin = coin == null ? null : {for (final v in coin.variantes) v.id};
+    final stockTotal = coin == null
+        ? producto.stockConsolidadoEnSede(sedeId)
+        : coin.variantes.fold<int>(0, (s, v) => s + (v.stockEnSede(sedeId) ?? 0));
+    final imagen = coin == null
+        ? producto.imagenPrincipal
+        : (coin.variantes
+                .map((v) => v.thumbnailPrincipal)
+                .whereType<String>()
+                .firstOrNull ??
+            producto.imagenPrincipal);
+    // "desde": el precio más bajo de esas variantes (un diseño puede costar más).
+    final preciosCoin = coin == null
+        ? const <double>[]
+        : [
+            for (final v in coin.variantes)
+              if ((v.precioEfectivoEnSede(sedeId) ?? v.precioEnSede(sedeId)) case final p?)
+                p,
+          ];
+    final minimoCoin = preciosCoin.isEmpty
+        ? null
+        : preciosCoin.reduce((a, b) => a < b ? a : b);
+    final precioVariado = preciosCoin.any((p) => (p - (minimoCoin ?? p)).abs() > 0.0001);
     // Un producto que se guarda en gramos se muestra en kilos: "S/ 8.00/kg" y
     // "Stock: 22 kg" en vez de "S/ 0.01" y "Stock: 22000". Sin presentación
     // configurada no cambia ningún número.
     final pres = producto.presentacion;
     // Saco cerrado + granel: cada variante en su unidad ("3 und · 15 kg").
     // null para el caso normal, donde el consolidado sí tiene sentido.
-    final stockPorVariante = producto.stockPorVarianteEnSede(sedeId);
+    final stockPorVariante =
+        coin == null ? producto.stockPorVarianteEnSede(sedeId) : null;
 
     return BlocBuilder<TCubit, TState>(
       buildWhen: (prev, curr) {
@@ -1704,7 +1728,17 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
             prevInfo?.nivelAplicado != currInfo?.nivelAplicado;
       },
       builder: (context, state) {
-        final cantidadEnCarrito = _qtyEnCarrito(state);
+        // Con coincidencia, lo del carrito que descuenta es SOLO de esas
+        // variantes: el resto del producto no toca el stock de CRISTAL.
+        final cantidadEnCarrito = idsCoin == null
+            ? _qtyEnCarrito(state)
+            : snapshotBuilder(state)
+                .items
+                .where((i) =>
+                    i.productoId == producto.id &&
+                    i.origenComboId == null &&
+                    idsCoin.contains(i.varianteId))
+                .fold<double>(0, (s, i) => s + i.cantidad);
         final estaEnCarrito = cantidadEnCarrito > 0;
         // Precio mostrado: si el producto está en carrito y un nivel aplica,
         // usamos `precioUnitario` del item (ya recalculado por el cubit).
@@ -1786,7 +1820,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                             children: [
                               Expanded(
                                 child: Text(
-                                  producto.nombre.toUpperCase(),
+                                  (coin?.valor ?? producto.nombre).toUpperCase(),
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -1796,7 +1830,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (coincidencia != null)
+                              if (coin != null && coin.colecciones > 1)
                                 Container(
                                   margin: const EdgeInsets.only(left: 4),
                                   constraints:
@@ -1809,7 +1843,7 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                   child: Text(
-                                    coincidencia!.toUpperCase(),
+                                    '${coin.colecciones} col.',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -1902,7 +1936,9 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
-                                              producto.codigoEmpresa,
+                                              coin != null
+                                                  ? producto.nombre
+                                                  : producto.codigoEmpresa,
                                               style: TextStyle(
                                                 fontSize: 8,
                                                 color: Colors.grey.shade600,
@@ -1946,7 +1982,31 @@ class _ProductoCard<TCubit extends Cubit<TState>, TState>
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 6),
-                                      child: producto.tieneVariantes &&
+                                      child: coin != null && minimoCoin != null
+                                          ? Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Text(
+                                                  precioVariado ? 'DESDE' : 'UND',
+                                                  style: TextStyle(
+                                                    fontSize: 7,
+                                                    color: Colors.grey.shade600,
+                                                    fontWeight: FontWeight.w700,
+                                                    letterSpacing: 0.3,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  pres.precioTexto(minimoCoin),
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.grey.shade800,
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : producto.tieneVariantes &&
                                               producto.variantes != null &&
                                               producto.variantes!.length > 1
                                           ? Builder(builder: (_) {
