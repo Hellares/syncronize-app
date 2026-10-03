@@ -22,6 +22,7 @@ import 'features/empresa/presentation/bloc/empresa_context/empresa_context_state
 import 'features/empresa/presentation/bloc/sede_activa/sede_activa_cubit.dart';
 import 'features/herramientas/presentation/widgets/herramientas_flotantes_overlay.dart';
 import 'features/servicio/presentation/widgets/mensajes_orden_widget.dart';
+import 'features/venta_rapida/presentation/bloc/venta_rapida_cubit.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -125,6 +126,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         }
       } else if (state is Unauthenticated && _wasAuthenticated) {
         _wasAuthenticated = false;
+        // El carrito de Venta Rápida es singleton: sin esto el siguiente
+        // usuario heredaba el del anterior. Va acá y no al limpiar el contexto
+        // de empresa, que también se limpia por un error de red al recargar
+        // (y ahí borraría una venta a medias).
+        locator<VentaRapidaCubit>().cerrarSesion();
         // Si la salida fue involuntaria (sesión revocada, refresh
         // falló, cuenta desactivada), mostrar snackbar global con el
         // motivo para que el usuario sepa por qué fue expulsado.

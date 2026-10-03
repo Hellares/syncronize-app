@@ -392,8 +392,10 @@ class _EmpresaDashboardPageState extends State<EmpresaDashboardPage> {
                 ))
                   const MiRendimientoBanner(),
 
-                // Banner estado de caja del usuario
-                if (!esAdmin) const MiCajaBanner(),
+                // Banner estado de caja del usuario. Solo con `canViewCaja`:
+                // al técnico (sin caja) le pedía la caja activa → 403 en el
+                // log y el banner salía vacío igual.
+                if (!esAdmin && p.canViewCaja) const MiCajaBanner(),
 
                 // Accesos rápidos (filtrados por permisos en su widget)
                 const AccesosRapidosSection(),

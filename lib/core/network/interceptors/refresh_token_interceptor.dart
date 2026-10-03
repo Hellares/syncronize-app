@@ -97,6 +97,12 @@ class RefreshTokenInterceptor extends QueuedInterceptorsWrapper {
     // Marcar que estamos refrescando
     _isRefreshing = true;
     _refreshCompleter = Completer<void>();
+    // El completer es para los pedidos que llegan MIENTRAS se refresca. Si
+    // falla sin ninguno esperando, nadie escucha su error y Flutter lo
+    // reportaba como "Unhandled Exception" (el error ya se maneja abajo, en
+    // el rethrow). `ignore()` lo da por atendido; los que sí esperan lo
+    // reciben igual.
+    _refreshCompleter!.future.ignore();
 
     try {
       // Obtener el refresh token actual

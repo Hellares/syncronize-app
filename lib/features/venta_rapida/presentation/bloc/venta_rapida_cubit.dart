@@ -673,7 +673,14 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
     // stock/precios) → vaciarlo antes de re-contextualizar. La primera vez
     // (sedeId aún null) no vacía nada.
     final cambioSede = state.sedeId != null && state.sedeId != sedeId;
-    if (cambioSede) {
+    // Otro usuario u otra empresa: el carrito no es suyo. Lo limpia ya
+    // `cerrarSesion`; esto es la defensa por si el logout no pasó por ahí.
+    // Las tres entradas al carrito (productos, cobrar OS, calculadora) llaman
+    // acá ANTES de agregar nada, así que no se pierde lo recién cargado.
+    final cambioDueno =
+        (state.vendedorId != null && state.vendedorId != vendedorId) ||
+            (state.empresaId != null && state.empresaId != empresaId);
+    if (cambioSede || cambioDueno) {
       vaciarCarrito();
     }
     emit(state.copyWith(
@@ -683,6 +690,24 @@ class VentaRapidaCubit extends Cubit<VentaRapidaState> {
       impuestoPorcentaje: impuestoPorcentaje,
       moneda: moneda,
     ));
+  }
+
+  /// Cierre de sesión. El cubit es singleton y sobrevive al logout: sin esto
+  /// el siguiente usuario encontraba el carrito del anterior, y mientras no
+  /// había sesión los avisos FCM seguían refrescando esos productos (401).
+  /// Deja el cubit como en un app recién abierto.
+  void cerrarSesion() {
+    _realtimeDebounce?.cancel();
+    _pendingProductoIds.clear();
+    _pendingSyncAll = false;
+    // Descartan un refresco de precios o una búsqueda de cliente en vuelo.
+    _syncSeq++;
+    _searchSeq++;
+    _vipResolver = null;
+    _vipClienteKey = null;
+    debugPrint('[VentaRapida] cerrarSesion: carrito vaciado '
+        '(${state.items.length} item(s) del usuario anterior)');
+    emit(const VentaRapidaState());
   }
 
   // ── Carrito ──
